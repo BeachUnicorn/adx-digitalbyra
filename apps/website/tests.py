@@ -112,3 +112,25 @@ class SeededSiteTests(TestCase):
                     continue
                 seen.add(href)
                 self.assertEqual(client.get(href).status_code, 200, f"{href} (länkad från {path})")
+
+
+class ForeignDatabaseGuardTests(TestCase):
+    """Bootvakten mot kopierade .env-pekare (incidenten 2026-08-27: kopians
+    DATABASE_URL pekade kvar på systersajtens lokala databas och migrate +
+    seed skrev in i fel projekt). Vakten ska stoppa kända främmande namn
+    högt vid boot - aldrig tyst skada."""
+
+    def test_foreign_names_are_refused(self):
+        from django.core.exceptions import ImproperlyConfigured
+
+        from config.settings import base
+
+        for name in ("skandivvs", "test_kronan_db", "jungfru_db"):
+            with self.assertRaises(ImproperlyConfigured):
+                base._refuse_foreign_database(name)
+
+    def test_own_names_pass(self):
+        from config.settings import base
+
+        base._refuse_foreign_database("adx_dev")
+        base._refuse_foreign_database("adx_db")

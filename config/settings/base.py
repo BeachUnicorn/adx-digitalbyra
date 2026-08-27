@@ -90,6 +90,30 @@ DATABASES = {
     "default": env.db("DATABASE_URL", default="sqlite:///" + str(BASE_DIR / "db.sqlite3")),
 }
 
+# Vakt född ur en verklig incident (2026-08-27): den här kodbasen började
+# som en kopia av systersajten, och kopians .env pekade kvar på HENNES
+# lokala databas - migrate + seed_site skrev rakt in i fel projekt innan
+# någon märkte det. En kopierad .env är en laddad pistol. Spärren är
+# medvetet smal (kända främmande namn, inte en tillåtlista) så den aldrig
+# stoppar legitima namn - samma kalibreringsprincip som junk-gaten i
+# mönsterkatalogen.
+_FOREIGN_DB_NAMES = ("skandivvs", "kronan", "jungfru")
+
+
+def _refuse_foreign_database(name):
+    lowered = str(name).lower()
+    if any(foreign in lowered for foreign in _FOREIGN_DB_NAMES):
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured(
+            f"DATABASE_URL pekar på en främmande databas ({lowered!r}) - detta är "
+            "ADX-projektet. Kopierade .env-filer ärver systerprojektens pekare; "
+            "peka om DATABASE_URL till en adx-databas innan något körs."
+        )
+
+
+_refuse_foreign_database(DATABASES["default"].get("NAME", ""))
+
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
