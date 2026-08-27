@@ -41,6 +41,7 @@ _EXTERNAL_PREFIXES = ("http://", "https://")
 class ResolvedLink:
     href: str = ""
     status: str = SKIPPED
+    label: str = ""
 
     @property
     def alive(self):
@@ -155,7 +156,9 @@ def resolve_link(value):
             return ResolvedLink(status=MISSING)
         home = _homepage()
         href = "/" if home and home.pk == page.pk else page.get_absolute_url()
-        return ResolvedLink(href=href, status=OK if page.is_published else UNPUBLISHED)
+        return ResolvedLink(
+            href=href, status=OK if page.is_published else UNPUBLISHED, label=page.title
+        )
 
     if kind == "area":
         from apps.areas.models import Area
@@ -164,33 +167,43 @@ def resolve_link(value):
         if area is None:
             return ResolvedLink(status=MISSING)
         return ResolvedLink(
-            href=area.get_absolute_url(), status=OK if area.is_active else UNPUBLISHED
+            href=area.get_absolute_url(),
+            status=OK if area.is_active else UNPUBLISHED,
+            label=area.name,
         )
 
     if kind == "areas_index":
-        return ResolvedLink(href=reverse("areas:area_list"), status=OK)
+        return ResolvedLink(href=reverse("areas:area_list"), status=OK, label="Stadsöversikten")
 
     if kind == "email":
         from apps.website.models import SiteSettings
 
         address = value.get("address") or SiteSettings.load().email
-        return ResolvedLink(href=f"mailto:{address}", status=OK) if address else ResolvedLink()
+        return (
+            ResolvedLink(href=f"mailto:{address}", status=OK, label=address)
+            if address
+            else ResolvedLink()
+        )
 
     if kind == "phone":
         from apps.website.models import SiteSettings
 
         number = value.get("number") or SiteSettings.load().phone
-        return ResolvedLink(href=f"tel:{number}", status=OK) if number else ResolvedLink()
+        return (
+            ResolvedLink(href=f"tel:{number}", status=OK, label=number)
+            if number
+            else ResolvedLink()
+        )
 
     if kind == "external":
         url = value.get("url", "")
-        return ResolvedLink(href=url, status=EXTERNAL) if url else ResolvedLink()
+        return ResolvedLink(href=url, status=EXTERNAL, label=url) if url else ResolvedLink()
 
     if kind == "path":
         path = value.get("path", "")
         if not path:
             return ResolvedLink()
-        return ResolvedLink(href=path, status=_resolve_path_status(path))
+        return ResolvedLink(href=path, status=_resolve_path_status(path), label=path)
 
     return ResolvedLink()
 
@@ -308,3 +321,96 @@ def iter_link_usages():
 def dead_links():
     """Alla länkar vars mål inte fungerar - driver larmet på översikten."""
     return [u for u in iter_link_usages() if u.status in (MISSING, UNPUBLISHED)]
+
+
+def linkable_targets():
+    """Allt länkbart på sajten, grupperat i visningsordning - väljarens
+    datakälla (Giovannis Set link-mönster: redaktören väljer SAKER vid namn,
+    aldrig adresser)."""
+    from apps.areas.models import Area
+    from apps.website.models import BlockPage, SiteSettings
+
+    targets = []
+    for page in BlockPage.objects.order_by("order", "title"):
+        link = {"kind": "page", "id": page.pk}
+        targets.append(
+            {
+                "link": link,
+                "resolved": resolve_link(link),
+                "group": "Sidor",
+                "note": ""
+                if page.is_published
+                else "Avpublicerad - länken döljs tills sidan publiceras",
+            }
+        )
+    for area in Area.objects.filter(is_active=True).order_by("order", "name"):
+        link = {"kind": "area", "id": area.pk}
+        targets.append(
+            {
+                "link": link,
+                "resolved": resolve_link(link),
+                "group": "Städer",
+                "note": "",
+            }
+        )
+    targets.append(
+        {
+            "link": {"kind": "areas_index"},
+            "resolved": resolve_link({"kind": "areas_index"}),
+            "group": "Övrigt",
+            "note": "",
+        }
+    )
+    site = SiteSettings.load()
+    if site.email:
+        targets.append(
+            {
+                "link": {"kind": "email"},
+                "resolved": resolve_link({"kind": "email"}),
+                "group": "Övrigt",
+                "note": "Öppnar besökarens e-postprogram",
+            }
+        )
+    if site.phone:
+        targets.append(
+            {
+                "link": {"kind": "phone"},
+                "resolved": resolve_link({"kind": "phone"}),
+                "group": "Övrigt",
+                "note": "Startar ett samtal på mobilen",
+            }
+        )
+    return targets
+
+
+ALLOWED_LINK_KINDS = {"page", "area", "areas_index", "email", "phone", "external", "path"}
+
+
+def clean_descriptor(value):
+    """Normalisera/vitlista en beskrivare från redigeraren (JSON ur den
+    dolda inputen). Okända kinds och skräp blir tomt - aldrig lagrat."""
+    if not isinstance(value, dict):
+        return ""
+    kind = value.get("kind")
+    if kind not in ALLOWED_LINK_KINDS:
+        return ""
+    if kind in ("page", "area"):
+        try:
+            return {"kind": kind, "id": int(value.get("id"))}
+        except (TypeError, ValueError):
+            return ""
+    if kind in ("areas_index", "email", "phone"):
+        clean = {"kind": kind}
+        extra_key = {"email": "address", "phone": "number"}.get(kind)
+        if extra_key and isinstance(value.get(extra_key), str) and value[extra_key]:
+            clean[extra_key] = value[extra_key][:200]
+        return clean
+    if kind == "external":
+        url = value.get("url", "")
+        if isinstance(url, str) and url.startswith(_EXTERNAL_PREFIXES):
+            return {"kind": "external", "url": url[:500]}
+        return ""
+    path = value.get("path", "")
+    if isinstance(path, str) and path.startswith("/"):
+        return {"kind": "path", "path": path[:500]}
+    return ""

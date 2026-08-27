@@ -55,6 +55,60 @@ def dashboard(request):
 
 
 @login_required
+def link_options(request):
+    """JSON till länkväljaren: allt länkbart på sajten, grupperat, med
+    namn - aldrig adresser (Giovannis Set link-mönster från adx)."""
+    from apps.website.links import linkable_targets
+
+    options = [
+        {
+            "link": t["link"],
+            "label": t["resolved"].label,
+            "href": t["resolved"].href,
+            "status": t["resolved"].status,
+            "note": t["note"],
+            "group": t["group"],
+        }
+        for t in linkable_targets()
+    ]
+    return JsonResponse({"options": options})
+
+
+@login_required
+@require_POST
+def link_check(request):
+    """Validera fri inmatning i väljarens adressflik; föreslå uppgradering
+    när adressen matchar något länkbart (då följer länken med vid flytt)."""
+    import json
+
+    from apps.website.links import parse_href, resolve_link
+
+    try:
+        payload = json.loads(request.body or b"{}")
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "bad json"}, status=400)
+
+    raw = (payload.get("href") or "").strip()
+    link = parse_href(raw) if raw else None
+    suggestion = None
+    if isinstance(link, dict) and link.get("kind") in ("page", "area", "areas_index"):
+        # Adressen kändes igen som en sak på sajten - länka den direkt.
+        suggestion = link
+    resolved = resolve_link(link or {})
+    return JsonResponse(
+        {
+            "status": resolved.status,
+            "ok": resolved.alive,
+            "href": resolved.href,
+            "label": resolved.label,
+            "note": "" if resolved.alive else "Adressen leder ingenstans just nu.",
+            "link": link,
+            "suggestion": suggestion,
+        }
+    )
+
+
+@login_required
 def link_report(request):
     """Länkrapporten: varje lagrad länk vars mål inte fungerar, med plats
     och en väg till stället där den lagas. Larmets andra halva - räknaren

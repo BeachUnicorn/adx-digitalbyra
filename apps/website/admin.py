@@ -3,7 +3,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import Block, BlockPage, MediaFile, Menu, MenuItem, SiteSettings
+from .models import BlockPage, MediaFile, Menu, MenuItem, SiteSettings
 
 
 @admin.register(SiteSettings)
@@ -18,11 +18,12 @@ class SiteSettingsAdmin(admin.ModelAdmin):
         return False
 
 
-class BlockInline(admin.TabularInline):
-    model = Block
-    extra = 0
-    fields = ("block_type", "order", "is_visible", "data")
-    ordering = ("order",)
+# Block registreras INTE i Django admin (samma modell som Atlas Holly/adx).
+# Blockdata bär länkbeskrivare och media-ID:n som rå JSON - i admin läckte de
+# som "{'id': 11, 'kind': 'page'}" rakt i ansiktet på redaktören (incident
+# 2026-08-27). Block redigeras uteslutande i /manage/ där varje fälttyp har
+# ett riktigt gränssnitt (länkväljare, bildväljare). Ta inte tillbaka en
+# BlockAdmin/BlockInline utan att först lösa den representationen.
 
 
 @admin.register(BlockPage)
@@ -30,14 +31,6 @@ class BlockPageAdmin(admin.ModelAdmin):
     list_display = ("title", "slug", "is_published", "order")
     list_editable = ("is_published", "order")
     prepopulated_fields = {"slug": ("title",)}
-    inlines = [BlockInline]
-
-
-@admin.register(Block)
-class BlockAdmin(admin.ModelAdmin):
-    list_display = ("page", "block_type", "order", "is_visible")
-    list_filter = ("block_type", "is_visible", "page")
-    list_editable = ("order", "is_visible")
 
 
 class MenuItemInline(admin.TabularInline):

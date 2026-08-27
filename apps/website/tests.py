@@ -269,22 +269,21 @@ class LinkDescriptorTests(TestCase):
         self.assertIn('href="/kontakt/"', html)
 
     def test_editor_roundtrip_stores_descriptors(self):
-        """POST ur länkväljaren lagrar en beskrivare - och fritextfältet
-        vinner när det är ifyllt."""
-        from django.contrib.auth import get_user_model
+        """Länkväljarens dolda input POST:ar beskrivaren som JSON (Set
+        link-mönstret från adx) - och den lagras som beskrivare, aldrig
+        som sträng. Skräp i inputen kasseras tyst till tom länk."""
+        import json
 
         from apps.manage.block_schema import clean_block_data
         from apps.website.models import BlockPage
 
-        get_user_model()  # symmetri; clean_block_data behöver ingen request
         kontakt = BlockPage.objects.get(slug="kontakt")
         data = clean_block_data(
             "bar",
             {
                 "label": "Testrad",
                 "link.label": "Skicka",
-                "link.url": f"page:{kontakt.pk}",
-                "link.url__custom": "",
+                "link.url": json.dumps({"kind": "page", "id": kontakt.pk}),
             },
         )
         self.assertEqual(data["link"]["url"], {"kind": "page", "id": kontakt.pk})
@@ -294,11 +293,19 @@ class LinkDescriptorTests(TestCase):
             {
                 "label": "Testrad",
                 "link.label": "Extern",
-                "link.url": f"page:{kontakt.pk}",
-                "link.url__custom": "https://example.com/",
+                "link.url": json.dumps({"kind": "external", "url": "https://example.com/"}),
             },
         )
         self.assertEqual(data["link"]["url"], {"kind": "external", "url": "https://example.com/"})
+
+        # Legacy: en rå sträng (gammal rad, handskrivet) uppgraderas via
+        # parse_href; oigenkännligt skräp blir tom länk - inte en krasch.
+        data = clean_block_data("bar", {"label": "T", "link.label": "L", "link.url": "/kontakt/"})
+        self.assertEqual(data["link"]["url"], {"kind": "page", "id": kontakt.pk})
+        data = clean_block_data(
+            "bar", {"label": "T", "link.label": "L", "link.url": '{"kind": "evil", "id": 1}'}
+        )
+        self.assertEqual(data["link"]["url"], "")
 
     def test_deleted_target_hides_link_and_alarms(self):
         from apps.website.links import MISSING, dead_links
@@ -314,3 +321,139 @@ class LinkDescriptorTests(TestCase):
         html = Client().get("/").content.decode()
         self.assertNotIn("99999", html)
         self.assertTrue(any(p.status == MISSING for p in dead_links()))
+
+
+class LinkPickerEndpointTests(TestCase):
+    """Set link-modalens två endpoints (porterade från Atlas Holly/adx):
+    alternativlistan visar NAMN, adresskontrollen reparerar och föreslår
+    direktlänkar som överlever adressbyten."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.client = Client()
+        self.client.force_login(get_user_model().objects.create_user("redaktor", password="x"))
+
+    def test_options_require_login(self):
+        self.assertEqual(Client().get("/manage/lankar/val/").status_code, 302)
+
+    def test_options_are_named_and_grouped(self):
+        data = self.client.get("/manage/lankar/val/").json()
+        options = data["options"]
+        self.assertTrue(options)
+        groups = {o["group"] for o in options}
+        self.assertIn("Sidor", groups)
+        self.assertIn("Städer", groups)
+        by_label = {o["label"]: o for o in options}
+        self.assertIn("Kontakt", by_label)
+        self.assertEqual(by_label["Kontakt"]["link"]["kind"], "page")
+        # Redaktören ska aldrig behöva läsa en rå beskrivare i listan.
+        for opt in options:
+            self.assertNotIn("kind", opt["label"])
+
+    def test_check_recognizes_internal_path_and_suggests_direct_link(self):
+        from apps.website.models import BlockPage
+
+        kontakt = BlockPage.objects.get(slug="kontakt")
+        res = self.client.post(
+            "/manage/lankar/kontrollera/", {"href": "/kontakt/"}, content_type="application/json"
+        )
+        data = res.json()
+        self.assertTrue(data["ok"])
+        self.assertEqual(data["suggestion"], {"kind": "page", "id": kontakt.pk})
+        self.assertEqual(data["label"], "Kontakt")
+
+    def test_check_flags_a_dead_path(self):
+        data = self.client.post(
+            "/manage/lankar/kontrollera/",
+            {"href": "/finns-inte-alls/"},
+            content_type="application/json",
+        ).json()
+        self.assertFalse(data["ok"])
+        self.assertTrue(data["note"])
+
+    def test_check_accepts_external_url(self):
+        data = self.client.post(
+            "/manage/lankar/kontrollera/",
+            {"href": "https://example.com/"},
+            content_type="application/json",
+        ).json()
+        self.assertTrue(data["ok"])
+        self.assertIsNone(data["suggestion"])
+        self.assertEqual(data["link"], {"kind": "external", "url": "https://example.com/"})
+
+
+class RawDescriptorLeakGuardTests(TestCase):
+    """Incident 2026-08-27: Django admin visade "{'id': 11, 'kind': 'page'}"
+    rakt i redigeringsformuläret. Beskrivare är lagringsformat - en människa
+    ska ALDRIG se dem. Vakten letar Python-dict-repr (enkelfnuttar) i allt
+    en redaktör kan öppna; den dolda inputens JSON (dubbelfnuttar) är ok."""
+
+    LEAK_MARKERS = ("&#x27;kind&#x27;", "{&#x27;", "'kind':")
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def assert_no_leak(self, html, where):
+        for marker in self.LEAK_MARKERS:
+            self.assertNotIn(marker, html, f"Rå beskrivare läcker i {where} (träff: {marker})")
+
+    def test_block_is_not_registered_in_django_admin(self):
+        """Blockdata är rå JSON - den redigeras i /manage/, aldrig i admin.
+        (Samma modell som adx: ingen BlockAdmin existerar.)"""
+        from django.contrib import admin
+
+        from apps.website.models import Block
+
+        self.assertFalse(admin.site.is_registered(Block))
+
+    def test_manage_block_editors_show_names_not_descriptors(self):
+        from django.contrib.auth import get_user_model
+
+        from apps.website.models import Block, BlockPage
+
+        client = Client()
+        client.force_login(get_user_model().objects.create_user("redaktor", password="x"))
+        for page in BlockPage.objects.all():
+            html = client.get(f"/manage/pages/{page.pk}/").content.decode()
+            self.assert_no_leak(html, f"/manage/pages/{page.pk}/")
+        for block in Block.objects.exclude(data={}):
+            html = client.get(f"/manage/blocks/{block.pk}/").content.decode()
+            self.assert_no_leak(html, f"block {block.pk} ({block.block_type})")
+
+    def test_django_admin_pages_show_no_descriptors(self):
+        from django.contrib.auth import get_user_model
+
+        from apps.website.models import BlockPage
+
+        client = Client()
+        client.force_login(
+            get_user_model().objects.create_user(
+                "admin", password="x", is_staff=True, is_superuser=True
+            )
+        )
+        for page in BlockPage.objects.all():
+            url = f"/admin/website/blockpage/{page.pk}/change/"
+            html = client.get(url).content.decode()
+            self.assert_no_leak(html, url)
+
+    def test_editor_pill_shows_where_the_link_goes(self):
+        """Bar-blocket på hem länkar till en sida - redigeraren ska visa
+        sidans NAMN i pillen, inte en adress och inte en beskrivare."""
+        from django.contrib.auth import get_user_model
+
+        from apps.website.links import resolve_link
+        from apps.website.models import Block
+
+        block = Block.objects.filter(block_type="bar", page__slug="hem").first()
+        target = resolve_link(block.data["link"]["url"])
+        client = Client()
+        client.force_login(get_user_model().objects.create_user("redaktor", password="x"))
+        html = client.get(f"/manage/blocks/{block.pk}/").content.decode()
+        self.assertIn(target.label, html)
+        self.assertIn("Byt länk", html)

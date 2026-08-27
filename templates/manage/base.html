@@ -111,7 +111,11 @@
     </div>
 </main>
 
+{# Den delade länkväljaren (Set link) - EN modal för hela panelen. #}
+{% include "manage/includes/link_modal.html" %}
+
 <script src="{% static 'js/manage.js' %}?v={{ static_version }}" defer></script>
+<script src="{% static 'js/link-modal.js' %}?v={{ static_version }}" defer></script>
 {% block extra_js %}{% endblock %}
 </body>
 </html>

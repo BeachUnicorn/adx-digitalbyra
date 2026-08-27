@@ -1,0 +1,14 @@
+{% comment %}
+Set link-fältet ({% link_field %} ur manage_ui) - porterat från Atlas Holly.
+En dold input bär beskrivaren som JSON; knapparna öppnar den delade modalen.
+Stilar bor i link_modal.html (laddas en gång av manage/base.html).
+{% endcomment %}
+<div class="lnkf" data-lnkf
+     data-label-set="Välj länk"
+     data-label-change="Byt länk"
+     data-label-none="Ingen länk">
+    <input type="hidden" name="{{ name }}" id="{{ input_id }}" value="{{ value }}" data-lnkf-input>
+    <span class="lnkf__label{% if not label %} lnkf__label--empty{% endif %}" data-lnkf-label>{% if label %}{{ label }}{% else %}Ingen länk{% endif %}</span>
+    <button type="button" class="lnkf__btn" data-lnkf-open>{% if label %}Byt länk{% else %}Välj länk{% endif %}</button>
+    <button type="button" class="lnkf__btn lnkf__btn--remove" data-lnkf-clear{% if not label %} hidden{% endif %}>Ta bort</button>
+</div>

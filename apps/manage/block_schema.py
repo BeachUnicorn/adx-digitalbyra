@@ -389,66 +389,20 @@ BLOCK_EDIT_SCHEMA = {
 _MAX = {"plain": 300, "text": 2000, "length": 20}
 
 
-def link_choices():
-    """Valen i länkväljaren: sidorna, städerna och specialmålen. Byggs ur
-    databasen vid varje rendering så listan aldrig ruttnar."""
-    from apps.areas.models import Area
-    from apps.website.models import BlockPage
+def _clean_link(raw):
+    """Länkväljarens dolda input -> beskrivare. JSON valideras mot
+    kind-vitlistan; en legacy-sträng uppgraderas via parse_href."""
+    import json
 
-    pages = [(f"page:{p.pk}", p.title) for p in BlockPage.objects.order_by("order", "title")]
-    areas = [
-        (f"area:{a.pk}", a.name)
-        for a in Area.objects.filter(is_active=True).order_by("order", "name")
-    ]
-    special = [
-        ("areas_index", "Stadsöversikten"),
-        ("email", "Sajtens e-post"),
-        ("phone", "Sajtens telefon"),
-    ]
-    return [("Sidor", pages), ("Städer", areas), ("Övrigt", special)]
+    from apps.website.links import clean_descriptor, parse_href
 
-
-def _clean_link(select_raw, custom_raw):
-    """Länkväljarens två fält -> beskrivare. Fritextfältet vinner om ifyllt
-    (extern adress eller egen intern rutt); annars gäller select-valet."""
-    from apps.website.links import parse_href
-
-    custom = sanitize_plain_text(custom_raw or "", max_length=500).strip()
-    if custom:
-        try:
-            validate_url(custom)
-        except ValidationError:
-            return ""
-        return parse_href(custom) or ""
-
-    value = (select_raw or "").strip()
-    if not value:
+    raw = (raw or "").strip()
+    if not raw:
         return ""
-    if value in ("areas_index", "email", "phone"):
-        return {"kind": value}
-    if ":" in value:
-        kind, _, raw_id = value.partition(":")
-        if kind in ("page", "area") and raw_id.isdigit():
-            return {"kind": kind, "id": int(raw_id)}
-    return ""
-
-
-def _link_form_values(stored):
-    """Lagrad beskrivare (eller legacy-sträng) -> (select-värde, fritext)."""
-    if isinstance(stored, str) and stored:
-        return "", stored
-    if not isinstance(stored, dict):
-        return "", ""
-    kind = stored.get("kind", "")
-    if kind in ("page", "area"):
-        return f"{kind}:{stored.get('id')}", ""
-    if kind in ("areas_index", "email", "phone"):
-        return kind, ""
-    if kind == "external":
-        return "", stored.get("url", "")
-    if kind == "path":
-        return "", stored.get("path", "")
-    return "", ""
+    try:
+        return clean_descriptor(json.loads(raw))
+    except (ValueError, TypeError):
+        return clean_descriptor(parse_href(raw) or "") or ""
 
 
 def _clean_value(spec, raw):
@@ -528,7 +482,7 @@ def clean_block_data(block_type, post):
     data = {}
     for spec in schema["fields"]:
         if spec["type"] == "link":
-            value = _clean_link(post.get(spec["key"], ""), post.get(spec["key"] + "__custom", ""))
+            value = _clean_link(post.get(spec["key"], ""))
         else:
             value = _clean_value(spec, post.get(spec["key"], ""))
         _set_nested(data, spec["key"], value)
@@ -575,10 +529,6 @@ def clean_block_values(block_type, current, values):
 def _collect_rows(lst, post):
     subkeys = [f["key"] for f in lst["fields"]]
     arrays = {sk: post.getlist(f"{lst['key']}__{sk}") for sk in subkeys}
-    # Länkfält bär två parallella inputs per rad (select + fritext).
-    link_keys = [f["key"] for f in lst["fields"] if f["type"] == "link"]
-    for lk in link_keys:
-        arrays[lk + "__custom"] = post.getlist(f"{lst['key']}__{lk}__custom")
     count = max((len(v) for v in arrays.values()), default=0)
     primary = lst["fields"][0]["key"]
     simple = lst.get("simple", False)
@@ -596,7 +546,7 @@ def _collect_rows(lst, post):
             row = {}
             for f in lst["fields"]:
                 if f["type"] == "link":
-                    row[f["key"]] = _clean_link(cell(f["key"], i), cell(f["key"] + "__custom", i))
+                    row[f["key"]] = _clean_link(cell(f["key"], i))
                 else:
                     row[f["key"]] = _clean_value(f, cell(f["key"], i))
             rows.append(row)
@@ -616,15 +566,7 @@ def build_form_context(block):
     data = block.data or {}
 
     def enrich(spec, value):
-        entry = {**spec, "value": value}
-        if spec["type"] == "link":
-            select_value, custom_value = _link_form_values(value)
-            entry.update(
-                link_choices=link_choices(),
-                value_select=select_value,
-                value_custom=custom_value,
-            )
-        return entry
+        return {**spec, "value": value}
 
     fields = []
     for spec in schema["fields"]:
