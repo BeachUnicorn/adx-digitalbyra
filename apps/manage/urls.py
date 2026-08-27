@@ -97,6 +97,7 @@ urlpatterns = [
     path("media/<int:pk>/optimize/", views.media_optimize, name="media_optimize"),
     path("media/<int:pk>/restore/", views.media_restore, name="media_restore"),
     # Menus (header + footer)
+    path("lankar/", views.link_report, name="link_report"),
     path("menus/", menu_views.menus_overview, name="menus_overview"),
     path("menus/footer/columns/new/", menu_views.footer_column_form, name="footer_column_new"),
     path(

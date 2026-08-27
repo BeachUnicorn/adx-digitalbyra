@@ -17,7 +17,7 @@ bottenraden ur sajtinställningarna.
           <div>
             {% if menu.heading %}<h5>[ {{ menu.heading }} ]</h5>{% endif %}
             <ul>
-              {% for item in menu.items.all %}{% if item.is_visible %}
+              {% for item in menu.items.all %}{% if item.is_visible and item.is_alive %}
               <li>{% if item.is_link %}<a href="{{ item.get_url }}">{{ item.label }}</a>{% else %}{{ item.label }}{% endif %}</li>
               {% endif %}{% endfor %}
             </ul>

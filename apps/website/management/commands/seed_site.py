@@ -73,41 +73,45 @@ SERVICES = [
     ),
 ]
 
+# Menyerna refererar SIDOR (slug -> MenuItem.page-FK), inte URL-strängar -
+# länken överlever slug-byten och en avpublicerad sida döljs + larmas
+# (länkregeln i mönsterkatalogen). Ruttmål utanför sidsystemet (städerna)
+# är de enda som bär en path, och de bevakas av resolvern i links.py.
 HEADER_MENU = [
-    ("Hem", "/", False),
-    ("Tjänster", "/tjanster/", False),
-    ("Portfolio", "/portfolio/", False),
-    ("Paket", "/paket/", False),
-    ("Kontakt", "/kontakt/", False),
-    ("Förfrågan", "/kontakt/", True),
+    ("Hem", "hem", False),
+    ("Tjänster", "tjanster", False),
+    ("Portfolio", "portfolio", False),
+    ("Paket", "paket", False),
+    ("Kontakt", "kontakt", False),
+    ("Förfrågan", "kontakt", True),
 ]
 
 FOOTER_MENUS = [
     (
         "Tjänster",
         [
-            ("Webbutveckling", "/webbutveckling/"),
-            ("Automation", "/automation/"),
-            ("Managed Content", "/content/"),
-            ("Managed Hosting", "/hosting/"),
+            ("Webbutveckling", "webbutveckling"),
+            ("Automation", "automation"),
+            ("Managed Content", "content"),
+            ("Managed Hosting", "hosting"),
         ],
     ),
     (
         "Drift",
         [
-            ("Domäner & DNS", "/domain/"),
-            ("E-post", "/epost/"),
-            ("Molntjänster", "/hosting/"),
-            ("Kedjelösningar", "/hosting/"),
+            ("Domäner & DNS", "domain"),
+            ("E-post", "epost"),
+            ("Molntjänster", "hosting"),
+            ("Kedjelösningar", "hosting"),
         ],
     ),
     (
         "Företag",
         [
-            ("Portfolio", "/portfolio/"),
-            ("Paket", "/paket/"),
+            ("Portfolio", "portfolio"),
+            ("Paket", "paket"),
             ("Städer", "/digitalbyra/"),
-            ("Kontakt", "/kontakt/"),
+            ("Kontakt", "kontakt"),
         ],
     ),
 ]
@@ -123,8 +127,8 @@ class Command(BaseCommand):
 
         self._seed_settings()
         self._seed_services()
-        self._seed_menus()
         pages = {p["sida"]: self._seed_page(p, order) for order, p in enumerate(pages_data)}
+        self._seed_menus()
         self._seed_cities(cities_data["stader"])
 
         settings = SiteSettings.load()
@@ -168,9 +172,13 @@ class Command(BaseCommand):
     def _seed_menus(self):
         header, _ = Menu.objects.update_or_create(location="header", defaults={"name": "Huvudmeny"})
         header.items.all().delete()
-        for order, (label, url, is_button) in enumerate(HEADER_MENU):
+        for order, (label, target, is_button) in enumerate(HEADER_MENU):
             MenuItem.objects.create(
-                menu=header, label=label, url=url, is_button=is_button, order=order
+                menu=header,
+                order=order,
+                label=label,
+                is_button=is_button,
+                **self._menu_target(target),
             )
 
         Menu.objects.filter(location="footer").delete()
@@ -178,8 +186,17 @@ class Command(BaseCommand):
             menu = Menu.objects.create(
                 location="footer", name=f"Sidfot: {heading}", heading=heading, order=order
             )
-            for i, (label, url) in enumerate(items):
-                MenuItem.objects.create(menu=menu, label=label, url=url, order=i)
+            for i, (label, target) in enumerate(items):
+                MenuItem.objects.create(
+                    menu=menu, label=label, order=i, **self._menu_target(target)
+                )
+
+    def _menu_target(self, target):
+        """Slug -> sid-FK; "/path/" -> url-sträng (bara för mål utanför
+        sidsystemet). En okänd slug är ett seedfel och ska smälla högt."""
+        if target.startswith("/"):
+            return {"url": target}
+        return {"page": BlockPage.objects.get(slug=target)}
 
     def _seed_page(self, data, order):
         page, _ = BlockPage.objects.update_or_create(

@@ -9,12 +9,12 @@ header-menyn (Menu-modellen); knappen med is_button blir nav-cta
   <div class="wrap nav">
     <a class="pill logo-pill" href="/"><img src="{% static 'images/adx-logo.png' %}" alt="{{ site_settings.name|default:'ADX' }}"></a>
     <nav class="pill nav-links" aria-label="Huvudmeny">
-      {% for item in header_menu.items.all %}{% if item.is_visible and not item.is_button %}
+      {% for item in header_menu.items.all %}{% if item.is_visible and item.is_alive and not item.is_button %}
       <a href="{{ item.get_url }}"{% if item.get_url == active_nav %} class="active"{% endif %}>{{ item.label }}</a>
       {% endif %}{% endfor %}
     </nav>
     <div style="display:flex;gap:10px;align-items:center">
-      {% for item in header_menu.items.all %}{% if item.is_visible and item.is_button %}
+      {% for item in header_menu.items.all %}{% if item.is_visible and item.is_alive and item.is_button %}
       <a class="pill nav-cta" href="{{ item.get_url }}">{{ item.label }}</a>
       {% endif %}{% endfor %}
       <button type="button" class="pill menu-btn" id="menuOpen" aria-haspopup="dialog" aria-controls="mobileMenu">[ Meny ]</button>

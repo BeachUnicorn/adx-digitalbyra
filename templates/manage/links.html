@@ -1,0 +1,34 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Länkar{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Länkar</h1>
+    <p class="m-page-head__subtitle">
+        {% if problems %}{{ problems|length }} länk{{ problems|length|pluralize:"ar" }} pekar på något som inte fungerar.
+        {% else %}Alla lagrade länkar pekar på levande mål.{% endif %}
+    </p>
+</div>
+
+{% if problems %}
+<div class="m-panel">
+    <table class="m-table">
+        <thead><tr><th>Var</th><th>Text</th><th>Mål</th><th>Problem</th><th></th></tr></thead>
+        <tbody>
+        {% for problem in problems %}
+            <tr>
+                <td>{{ problem.location }}{% if problem.detail %}<br><span class="m-form-hint">{{ problem.detail }}</span>{% endif %}</td>
+                <td>{{ problem.label }}</td>
+                <td><code>{{ problem.url }}</code></td>
+                <td>{% if problem.status == "missing" %}<span class="m-badge m-badge--alert">Finns inte</span>{% else %}<span class="m-badge m-badge--draft">Avpublicerad</span>{% endif %}</td>
+                <td>{% if problem.edit_hint %}<a class="m-btn m-btn--ghost m-btn--small" href="{{ problem.edit_hint }}">Laga</a>{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="m-panel"><div class="m-empty">Inga döda länkar. Menyer döljer dessutom avpublicerade mål automatiskt.</div></div>
+{% endif %}
+{% endblock %}

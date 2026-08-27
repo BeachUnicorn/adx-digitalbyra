@@ -37,6 +37,12 @@ def dashboard(request):
         "inquiries_total": Inquiry.objects.count(),
     }
 
+    # Länklarmet (länkregeln): besökare ska aldrig hinna hitta en död länk
+    # före ägaren. Räknaren driver varningsraden på översikten.
+    from apps.website.links import dead_links
+
+    stats["dead_links"] = len(dead_links())
+
     recent_pages = pages.order_by("-updated_at")[:5]
 
     context = {
@@ -46,6 +52,21 @@ def dashboard(request):
         "active": "dashboard",
     }
     return render(request, "manage/dashboard.html", context)
+
+
+@login_required
+def link_report(request):
+    """Länkrapporten: varje lagrad länk vars mål inte fungerar, med plats
+    och en väg till stället där den lagas. Larmets andra halva - räknaren
+    på översikten är den första."""
+    from apps.website.links import dead_links
+
+    context = {
+        "site_settings": SiteSettings.load(),
+        "problems": dead_links(),
+        "active": "dashboard",
+    }
+    return render(request, "manage/links.html", context)
 
 
 # ---------------------------------------------------------------------------

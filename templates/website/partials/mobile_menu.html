@@ -10,7 +10,7 @@ som sidfoten och svc-listan läser, så de kan aldrig glida isär.
     <button type="button" class="mm-close" id="menuClose">[ Stäng ]</button>
   </div>
   <nav aria-label="Huvudmeny (mobil)">
-    {% for item in header_menu.items.all %}{% if item.is_visible and not item.is_button %}
+    {% for item in header_menu.items.all %}{% if item.is_visible and item.is_alive and not item.is_button %}
     <a href="{{ item.get_url }}"{% if item.get_url == active_nav %} class="active"{% endif %}>{{ item.label }}</a>
     {% endif %}{% endfor %}
   </nav>

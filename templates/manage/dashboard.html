@@ -55,6 +55,12 @@
 </div>
 
 
+{% if stats.dead_links %}
+<a href="{% url 'manage:link_report' %}" class="m-panel m-card--highlight" style="display:block;margin-bottom:16px;padding:14px 18px;">
+    <strong>{{ stats.dead_links }} död{{ stats.dead_links|pluralize:"a" }} länk{{ stats.dead_links|pluralize:"ar" }}</strong>
+    &mdash; något på sajten pekar på ett mål som inte fungerar. Klicka för rapporten.
+</a>
+{% endif %}
 <div class="m-stats">
     <div class="m-stat">
         <div class="m-stat__value">{{ stats.pages_published }}</div>

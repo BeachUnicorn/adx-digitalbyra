@@ -134,3 +134,74 @@ class ForeignDatabaseGuardTests(TestCase):
 
         base._refuse_foreign_database("adx_dev")
         base._refuse_foreign_database("adx_db")
+
+
+class LinkIntegrityTests(TestCase):
+    """Länkregeln (Giovannis egen post i mönsterkatalogen): inga döda länkar
+    får existera i tysthet. Referens före sträng, resolvern dömer varje mål,
+    menyer döljer döda poster vid rendering, och ägaren larmas på översikten."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def test_seeded_site_has_zero_dead_links(self):
+        from apps.website.links import dead_links
+
+        problems = dead_links()
+        self.assertEqual(
+            problems,
+            [],
+            "Seedade döda länkar är byggfel: "
+            + "; ".join(f"{p.location}: {p.url} ({p.status})" for p in problems),
+        )
+
+    def test_menu_items_reference_pages_not_strings(self):
+        from apps.website.models import MenuItem
+
+        stringly = MenuItem.objects.filter(page=None).exclude(url="")
+        allowed = {"/digitalbyra/"}  # ruttmål utanför sidsystemet
+        rogue = [i.url for i in stringly if i.url not in allowed]
+        self.assertEqual(rogue, [], f"Menyposter med rå URL i stället för sid-FK: {rogue}")
+
+    def test_unpublishing_a_page_hides_and_alarms(self):
+        from apps.website.links import UNPUBLISHED, dead_links
+        from apps.website.models import BlockPage
+
+        page = BlockPage.objects.get(slug="paket")
+        page.is_published = False
+        page.save(update_fields=["is_published"])
+
+        # 1. Menyn döljer posten för besökare - ingen död länk skickas ut.
+        html = Client().get("/").content.decode()
+        self.assertNotIn('href="/paket/"', html)
+
+        # 2. Ägaren larmas: blockens paket-länkar rapporteras som brutna.
+        problems = dead_links()
+        self.assertTrue(
+            any(p.url.rstrip("/") == "/paket" and p.status == UNPUBLISHED for p in problems),
+            f"Avpublicerad sida gav inget larm: {[(p.url, p.status) for p in problems]}",
+        )
+
+    def test_dashboard_shows_the_alarm(self):
+        from django.contrib.auth import get_user_model
+
+        from apps.website.models import BlockPage
+
+        BlockPage.objects.filter(slug="paket").update(is_published=False)
+        user = get_user_model().objects.create_user("redaktor", password="x")
+        client = Client()
+        client.force_login(user)
+        response = client.get("/manage/")
+        self.assertContains(response, "död")
+        response = client.get("/manage/lankar/")
+        self.assertContains(response, "/paket/")
+
+    def test_resolver_judges_correctly(self):
+        from apps.website import links
+
+        self.assertEqual(links.resolve_status("/kontakt/"), links.OK)
+        self.assertEqual(links.resolve_status("/finns-inte-alls/"), links.MISSING)
+        self.assertEqual(links.resolve_status("https://example.com/"), links.EXTERNAL)
+        self.assertEqual(links.resolve_status(""), links.SKIPPED)
+        self.assertEqual(links.resolve_status("/digitalbyra/goteborg/"), links.OK)

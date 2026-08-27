@@ -215,6 +215,14 @@ class MenuItem(models.Model):
         return self.url
 
     @property
+    def is_alive(self):
+        """False när posten pekar på en avpublicerad sida - menyerna döljer
+        den vid rendering (länkregeln: skicka aldrig ut en död länk)."""
+        if self.page_id:
+            return bool(self.page and self.page.is_published)
+        return True
+
+    @property
     def is_link(self):
         """True when this item points somewhere; False for plain-text labels."""
         return bool(self.page_id or self.url)
