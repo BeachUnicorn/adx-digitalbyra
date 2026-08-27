@@ -61,9 +61,9 @@ BLOCK_EDIT_SCHEMA = {
             _f("title", "text", "Rubrik", help="Radbrytningar behålls."),
             _f("lead", "text", "Ingress"),
             _f("primary.label", "plain", "Primär knapp – text"),
-            _f("primary.url", "url", "Primär knapp – länk"),
+            _f("primary.url", "link", "Primär knapp – länk"),
             _f("secondary.label", "plain", "Sekundär knapp – text"),
-            _f("secondary.url", "url", "Sekundär knapp – länk"),
+            _f("secondary.url", "link", "Sekundär knapp – länk"),
             _f("image_id", "image", "Hero-bild (valfri)"),
         ],
         "lists": [],
@@ -116,7 +116,7 @@ BLOCK_EDIT_SCHEMA = {
             _f("case_title", "plain", "Casets rubrik"),
             _f("body", "text", "Text"),
             _f("link.label", "plain", "Länktext (valfri)"),
-            _f("link.url", "url", "Länkadress (valfri)"),
+            _f("link.url", "link", "Länkadress (valfri)"),
         ],
         "lists": [
             {
@@ -190,7 +190,7 @@ BLOCK_EDIT_SCHEMA = {
         "fields": [
             _f("label", "plain", "Text (vänster)"),
             _f("link.label", "plain", "Länktext"),
-            _f("link.url", "url", "Länkadress"),
+            _f("link.url", "link", "Länkadress"),
         ],
         "lists": [],
     },
@@ -231,7 +231,7 @@ BLOCK_EDIT_SCHEMA = {
                     _f("image_id", "image", "Bild"),
                     _f("title", "plain", "Rubrik"),
                     _f("meta", "plain", "Metarad (t.ex. Webbplats · 2026)"),
-                    _f("url", "url", "Länk (valfri)"),
+                    _f("url", "link", "Länk (valfri)"),
                 ],
             },
         ],
@@ -256,7 +256,7 @@ BLOCK_EDIT_SCHEMA = {
                     _f("price_note", "plain", "Prisnot (under priset)"),
                     _f("features", "text", "Punkter – en per rad"),
                     _f("cta_label", "plain", "Knapptext"),
-                    _f("cta_url", "url", "Knapplänk"),
+                    _f("cta_url", "link", "Knapplänk"),
                 ],
             },
         ],
@@ -333,7 +333,7 @@ BLOCK_EDIT_SCHEMA = {
                 "singular": "länk",
                 "fields": [
                     _f("label", "plain", "Text"),
-                    _f("url", "url", "Länk"),
+                    _f("url", "link", "Länk"),
                 ],
             },
         ],
@@ -349,7 +349,7 @@ BLOCK_EDIT_SCHEMA = {
                 "fields": [
                     _f("kicker", "plain", "Kicker (t.ex. E-post)"),
                     _f("value", "plain", "Värde (t.ex. hej@adx.se)"),
-                    _f("url", "url", "Länk (valfri)"),
+                    _f("url", "link", "Länk (valfri)"),
                 ],
             },
         ],
@@ -387,6 +387,68 @@ BLOCK_EDIT_SCHEMA = {
 # ---------------------------------------------------------------------------
 
 _MAX = {"plain": 300, "text": 2000, "length": 20}
+
+
+def link_choices():
+    """Valen i länkväljaren: sidorna, städerna och specialmålen. Byggs ur
+    databasen vid varje rendering så listan aldrig ruttnar."""
+    from apps.areas.models import Area
+    from apps.website.models import BlockPage
+
+    pages = [(f"page:{p.pk}", p.title) for p in BlockPage.objects.order_by("order", "title")]
+    areas = [
+        (f"area:{a.pk}", a.name)
+        for a in Area.objects.filter(is_active=True).order_by("order", "name")
+    ]
+    special = [
+        ("areas_index", "Stadsöversikten"),
+        ("email", "Sajtens e-post"),
+        ("phone", "Sajtens telefon"),
+    ]
+    return [("Sidor", pages), ("Städer", areas), ("Övrigt", special)]
+
+
+def _clean_link(select_raw, custom_raw):
+    """Länkväljarens två fält -> beskrivare. Fritextfältet vinner om ifyllt
+    (extern adress eller egen intern rutt); annars gäller select-valet."""
+    from apps.website.links import parse_href
+
+    custom = sanitize_plain_text(custom_raw or "", max_length=500).strip()
+    if custom:
+        try:
+            validate_url(custom)
+        except ValidationError:
+            return ""
+        return parse_href(custom) or ""
+
+    value = (select_raw or "").strip()
+    if not value:
+        return ""
+    if value in ("areas_index", "email", "phone"):
+        return {"kind": value}
+    if ":" in value:
+        kind, _, raw_id = value.partition(":")
+        if kind in ("page", "area") and raw_id.isdigit():
+            return {"kind": kind, "id": int(raw_id)}
+    return ""
+
+
+def _link_form_values(stored):
+    """Lagrad beskrivare (eller legacy-sträng) -> (select-värde, fritext)."""
+    if isinstance(stored, str) and stored:
+        return "", stored
+    if not isinstance(stored, dict):
+        return "", ""
+    kind = stored.get("kind", "")
+    if kind in ("page", "area"):
+        return f"{kind}:{stored.get('id')}", ""
+    if kind in ("areas_index", "email", "phone"):
+        return kind, ""
+    if kind == "external":
+        return "", stored.get("url", "")
+    if kind == "path":
+        return "", stored.get("path", "")
+    return "", ""
 
 
 def _clean_value(spec, raw):
@@ -465,7 +527,11 @@ def clean_block_data(block_type, post):
 
     data = {}
     for spec in schema["fields"]:
-        _set_nested(data, spec["key"], _clean_value(spec, post.get(spec["key"], "")))
+        if spec["type"] == "link":
+            value = _clean_link(post.get(spec["key"], ""), post.get(spec["key"] + "__custom", ""))
+        else:
+            value = _clean_value(spec, post.get(spec["key"], ""))
+        _set_nested(data, spec["key"], value)
 
     for lst in schema.get("lists", []):
         data[lst["key"]] = _collect_rows(lst, post)
@@ -509,19 +575,31 @@ def clean_block_values(block_type, current, values):
 def _collect_rows(lst, post):
     subkeys = [f["key"] for f in lst["fields"]]
     arrays = {sk: post.getlist(f"{lst['key']}__{sk}") for sk in subkeys}
+    # Länkfält bär två parallella inputs per rad (select + fritext).
+    link_keys = [f["key"] for f in lst["fields"] if f["type"] == "link"]
+    for lk in link_keys:
+        arrays[lk + "__custom"] = post.getlist(f"{lst['key']}__{lk}__custom")
     count = max((len(v) for v in arrays.values()), default=0)
     primary = lst["fields"][0]["key"]
     simple = lst.get("simple", False)
 
+    def cell(sk, i):
+        return arrays[sk][i] if i < len(arrays.get(sk, [])) else ""
+
     rows = []
     for i in range(count):
-        raw_row = {sk: (arrays[sk][i] if i < len(arrays[sk]) else "") for sk in subkeys}
-        if not str(raw_row.get(primary, "")).strip():
+        if not str(cell(primary, i)).strip():
             continue  # skip empty rows
         if simple:
-            rows.append(_clean_value(lst["fields"][0], raw_row[primary]))
+            rows.append(_clean_value(lst["fields"][0], cell(primary, i)))
         else:
-            rows.append({f["key"]: _clean_value(f, raw_row[f["key"]]) for f in lst["fields"]})
+            row = {}
+            for f in lst["fields"]:
+                if f["type"] == "link":
+                    row[f["key"]] = _clean_link(cell(f["key"], i), cell(f["key"] + "__custom", i))
+                else:
+                    row[f["key"]] = _clean_value(f, cell(f["key"], i))
+            rows.append(row)
     return rows
 
 
@@ -537,9 +615,20 @@ def build_form_context(block):
         return None
     data = block.data or {}
 
+    def enrich(spec, value):
+        entry = {**spec, "value": value}
+        if spec["type"] == "link":
+            select_value, custom_value = _link_form_values(value)
+            entry.update(
+                link_choices=link_choices(),
+                value_select=select_value,
+                value_custom=custom_value,
+            )
+        return entry
+
     fields = []
     for spec in schema["fields"]:
-        fields.append({**spec, "value": _get_nested(data, spec["key"], "")})
+        fields.append(enrich(spec, _get_nested(data, spec["key"], "")))
 
     lists = []
     for lst in schema.get("lists", []):
@@ -550,7 +639,7 @@ def build_form_context(block):
             if simple:
                 rows.append([{**lst["fields"][0], "value": item}])
             else:
-                rows.append([{**f, "value": item.get(f["key"], "")} for f in lst["fields"]])
+                rows.append([enrich(f, item.get(f["key"], "")) for f in lst["fields"]])
         lists.append(
             {
                 "key": lst["key"],

@@ -7,10 +7,12 @@ image_id, crumbs[].{% endcomment %}
     {% if crumbs or kicker %}<div class="kicker">{% if crumbs %}{% for c in crumbs %}<a href="{{ c.url }}">{{ c.label }}</a> / {% endfor %}{{ kicker }}{% else %}[ {{ kicker }} ]{% endif %}</div>{% endif %}
     <h1>{{ title|linebreaksbr }}</h1>
     {% if lead %}<p class="lead">{{ lead }}</p>{% endif %}
-    {% if primary.label or secondary.label %}
+    {% resolve_link primary.url as primary_link %}
+    {% resolve_link secondary.url as secondary_link %}
+    {% if primary.label and primary_link or secondary.label and secondary_link %}
     <div class="hero-actions">
-        {% if primary.label %}<a class="btn" href="{{ primary.url|default:'/kontakt/' }}">{{ primary.label }}</a>{% endif %}
-        {% if secondary.label %}<a class="btn ghost" href="{{ secondary.url|default:'/tjanster/' }}">{{ secondary.label }}</a>{% endif %}
+        {% if primary.label and primary_link %}<a class="btn" href="{{ primary_link.href }}">{{ primary.label }}</a>{% endif %}
+        {% if secondary.label and secondary_link %}<a class="btn ghost" href="{{ secondary_link.href }}">{{ secondary.label }}</a>{% endif %}
     </div>
     {% endif %}
     {% if hero_img %}

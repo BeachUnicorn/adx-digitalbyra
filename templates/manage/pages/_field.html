@@ -55,6 +55,21 @@ For image fields, `all_media` must be in context.
         </select>
         <p class="m-form-hint"><a href="{% url 'manage:faq_overview' %}" rel="noopener">Hantera FAQ-sektioner ↗</a></p>
 
+    {% elif field.type == "link" %}
+        {# Länkväljaren: interna mål som referens (sid-/stads-ID - länken
+           överlever slug-byten), fritextfältet för externa adresser vinner
+           om ifyllt. Lagras som beskrivare, aldrig som sträng. #}
+        <select name="{{ iname }}">
+            <option value="">— Ingen länk —</option>
+            {% for group_label, options in field.link_choices %}
+            <optgroup label="{{ group_label }}">
+                {% for val, lbl in options %}
+                <option value="{{ val }}" {% if field.value_select == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+            </optgroup>
+            {% endfor %}
+        </select>
+        <input type="text" name="{{ iname }}__custom" value="{{ field.value_custom }}" placeholder="…eller egen adress (https://, /rutt/) – vinner om ifylld" class="m-input" style="margin-top:6px;">
     {% elif field.type == "range" %}
         <div class="m-range-field">
             <input type="range" name="{{ iname }}" min="0" max="1" step="0.05" value="{{ field.value|default:'0.45' }}" class="m-range-field__input" oninput="this.nextElementSibling.textContent=this.value">

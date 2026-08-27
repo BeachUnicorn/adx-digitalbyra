@@ -23,7 +23,8 @@ features (en per rad),cta_label,cta_url}]. Mittenpaketet får fylld knapp.{% end
                     {% for feature in plan.features|split_lines %}<li>{{ feature }}</li>{% endfor %}
                 </ul>
                 {% endif %}
-                {% if plan.cta_label %}<a class="btn{% if not forloop.counter == 2 %} ghost{% endif %}" href="{{ plan.cta_url|default:'/kontakt/' }}">{{ plan.cta_label }}</a>{% endif %}
+                {% resolve_link plan.cta_url as plan_link %}
+                {% if plan.cta_label and plan_link %}<a class="btn{% if not forloop.counter == 2 %} ghost{% endif %}" href="{{ plan_link.href }}">{{ plan.cta_label }}</a>{% endif %}
             </div>
             {% endfor %}
         </div>

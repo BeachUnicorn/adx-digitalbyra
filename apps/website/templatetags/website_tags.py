@@ -196,3 +196,13 @@ def active_services():
     from apps.services.models import Service
 
     return Service.objects.filter(is_active=True).order_by("order", "name")
+
+
+@register.simple_tag(name="resolve_link")
+def resolve_link_tag(value):
+    """Länkbeskrivare -> ResolvedLink, eller None när länken inte får visas
+    (dött mål döljs för besökare - ägaren larmas via /manage/ i stället)."""
+    from apps.website.links import resolve_link
+
+    link = resolve_link(value)
+    return link if link.alive else None

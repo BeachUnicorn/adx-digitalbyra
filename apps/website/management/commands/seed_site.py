@@ -129,6 +129,7 @@ class Command(BaseCommand):
         self._seed_services()
         pages = {p["sida"]: self._seed_page(p, order) for order, p in enumerate(pages_data)}
         self._seed_menus()
+        self._convert_links()
         self._seed_cities(cities_data["stader"])
 
         settings = SiteSettings.load()
@@ -263,3 +264,37 @@ class Command(BaseCommand):
                     "order": order,
                 },
             )
+
+    def _convert_links(self):
+        """Seed-JSON:ens länkar är läsbara strängar ("/kontakt/") - portabelt
+        mellan miljöer. Här konverteras de till beskrivare (sid-/stads-ID)
+        via parse_href, EFTER att alla sidor finns. I databasen lagras
+        aldrig en intern länk som adress (länkregeln, hela vägen)."""
+        from apps.website.links import _schema_url_fields, parse_href
+        from apps.website.models import Block
+
+        for block in Block.objects.all():
+            data = block.data or {}
+            changed = False
+            for key, list_key in _schema_url_fields(block.block_type):
+                if list_key:
+                    for row in data.get(list_key) or []:
+                        value = row.get(key) if isinstance(row, dict) else None
+                        if isinstance(value, str) and value:
+                            row[key] = parse_href(value) or ""
+                            changed = True
+                else:
+                    parts = key.split(".")
+                    holder = data
+                    for part in parts[:-1]:
+                        holder = holder.get(part) if isinstance(holder, dict) else None
+                        if holder is None:
+                            break
+                    if isinstance(holder, dict):
+                        value = holder.get(parts[-1])
+                        if isinstance(value, str) and value:
+                            holder[parts[-1]] = parse_href(value) or ""
+                            changed = True
+            if changed:
+                block.data = data
+                block.save(update_fields=["data"])

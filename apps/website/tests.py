@@ -153,7 +153,7 @@ class LinkIntegrityTests(TestCase):
             problems,
             [],
             "Seedade döda länkar är byggfel: "
-            + "; ".join(f"{p.location}: {p.url} ({p.status})" for p in problems),
+            + "; ".join(f"{p.location}: {p.target} ({p.status})" for p in problems),
         )
 
     def test_menu_items_reference_pages_not_strings(self):
@@ -176,11 +176,15 @@ class LinkIntegrityTests(TestCase):
         html = Client().get("/").content.decode()
         self.assertNotIn('href="/paket/"', html)
 
-        # 2. Ägaren larmas: blockens paket-länkar rapporteras som brutna.
+        # 2. Även BLOCKENS länkar mot sidan döljs vid rendering.
+        html_tjanster = Client().get("/tjanster/").content.decode()
+        self.assertNotIn('href="/paket/"', html_tjanster)
+
+        # 3. Ägaren larmas: länkar mot sidan rapporteras som brutna.
         problems = dead_links()
         self.assertTrue(
-            any(p.url.rstrip("/") == "/paket" and p.status == UNPUBLISHED for p in problems),
-            f"Avpublicerad sida gav inget larm: {[(p.url, p.status) for p in problems]}",
+            any("Paket" in p.target and p.status == UNPUBLISHED for p in problems),
+            f"Avpublicerad sida gav inget larm: {[(p.target, p.status) for p in problems]}",
         )
 
     def test_dashboard_shows_the_alarm(self):
@@ -200,8 +204,113 @@ class LinkIntegrityTests(TestCase):
     def test_resolver_judges_correctly(self):
         from apps.website import links
 
-        self.assertEqual(links.resolve_status("/kontakt/"), links.OK)
-        self.assertEqual(links.resolve_status("/finns-inte-alls/"), links.MISSING)
-        self.assertEqual(links.resolve_status("https://example.com/"), links.EXTERNAL)
-        self.assertEqual(links.resolve_status(""), links.SKIPPED)
-        self.assertEqual(links.resolve_status("/digitalbyra/goteborg/"), links.OK)
+        self.assertEqual(links.resolve_link("/kontakt/").status, links.OK)
+        self.assertEqual(links.resolve_link("/finns-inte-alls/").status, links.MISSING)
+        self.assertEqual(links.resolve_link("https://example.com/").status, links.EXTERNAL)
+        self.assertEqual(links.resolve_link("").status, links.SKIPPED)
+        self.assertEqual(links.resolve_link("/digitalbyra/goteborg/").status, links.OK)
+        # Strängar till interna mål blir id-beskrivare vid parse
+        parsed = links.parse_href("/kontakt/")
+        self.assertEqual(parsed["kind"], "page")
+
+
+class LinkDescriptorTests(TestCase):
+    """Hela vägen (Giovannis order): interna länkar lagras som id-referenser,
+    aldrig adresser. Kronjuvelen är slug-bytes-testet - det är själva skälet
+    till att beskrivare finns."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def test_seeded_internal_links_are_descriptors(self):
+        from apps.website.links import _schema_url_fields
+        from apps.website.models import Block
+
+        stringly = []
+        for block in Block.objects.all():
+            data = block.data or {}
+            for key, list_key in _schema_url_fields(block.block_type):
+                rows = data.get(list_key) or [] if list_key else [data]
+                for row in rows:
+                    value = row
+                    for part in key.split("."):
+                        value = value.get(part) if isinstance(value, dict) else None
+                    if isinstance(value, str) and value.startswith("/"):
+                        stringly.append(f"{block.page.slug}/{block.block_type}: {key} = {value}")
+        self.assertEqual(
+            stringly, [], "Interna länkar lagrade som strängar:\n" + "\n".join(stringly)
+        )
+
+    def test_links_survive_a_slug_change(self):
+        """Sidan byter webbadress - varje länk mot den följer med, och
+        larmet förblir tyst. Detta är hela poängen med id-referenser."""
+        from apps.website.links import dead_links
+        from apps.website.models import BlockPage
+
+        page = BlockPage.objects.get(slug="paket")
+        page.slug = "priser-och-paket"
+        page.save()
+
+        html = Client().get("/").content.decode()
+        self.assertIn('href="/priser-och-paket/"', html)
+        self.assertNotIn('href="/paket/"', html)
+        self.assertEqual(dead_links(), [])
+
+    def test_legacy_string_still_renders(self):
+        """Beskrivare väntas, sträng tolereras: gamla rader renderar via
+        parse_href tills de sparas om."""
+        from apps.website.models import Block
+
+        block = Block.objects.filter(block_type="bar", page__slug="hem").first()
+        block.data["link"]["url"] = "/kontakt/"
+        block.save(update_fields=["data"])
+        html = Client().get("/").content.decode()
+        self.assertIn('href="/kontakt/"', html)
+
+    def test_editor_roundtrip_stores_descriptors(self):
+        """POST ur länkväljaren lagrar en beskrivare - och fritextfältet
+        vinner när det är ifyllt."""
+        from django.contrib.auth import get_user_model
+
+        from apps.manage.block_schema import clean_block_data
+        from apps.website.models import BlockPage
+
+        get_user_model()  # symmetri; clean_block_data behöver ingen request
+        kontakt = BlockPage.objects.get(slug="kontakt")
+        data = clean_block_data(
+            "bar",
+            {
+                "label": "Testrad",
+                "link.label": "Skicka",
+                "link.url": f"page:{kontakt.pk}",
+                "link.url__custom": "",
+            },
+        )
+        self.assertEqual(data["link"]["url"], {"kind": "page", "id": kontakt.pk})
+
+        data = clean_block_data(
+            "bar",
+            {
+                "label": "Testrad",
+                "link.label": "Extern",
+                "link.url": f"page:{kontakt.pk}",
+                "link.url__custom": "https://example.com/",
+            },
+        )
+        self.assertEqual(data["link"]["url"], {"kind": "external", "url": "https://example.com/"})
+
+    def test_deleted_target_hides_link_and_alarms(self):
+        from apps.website.links import MISSING, dead_links
+        from apps.website.models import Block, BlockPage
+
+        BlockPage.objects.filter(slug="portfolio").delete()
+        # Hem-sidans folio finns inte, men tjänstesidornas related pekar hit?
+        # Bygg ett säkert fall: peka bar-blocket mot en raderad sida.
+        block = Block.objects.filter(block_type="bar", page__slug="hem").first()
+        block.data["link"]["url"] = {"kind": "page", "id": 99999}
+        block.save(update_fields=["data"])
+
+        html = Client().get("/").content.decode()
+        self.assertNotIn("99999", html)
+        self.assertTrue(any(p.status == MISSING for p in dead_links()))

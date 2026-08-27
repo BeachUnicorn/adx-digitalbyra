@@ -12,11 +12,12 @@
         <div class="folio">
             {% for card in cards %}
             {% media card.image_id as card_img %}
-            {% if card.url %}<a class="folio-card panel" href="{{ card.url }}">{% else %}<div class="folio-card panel">{% endif %}
+            {% resolve_link card.url as card_link %}
+            {% if card_link %}<a class="folio-card panel" href="{{ card_link.href }}">{% else %}<div class="folio-card panel">{% endif %}
                 {% if card_img %}<img src="{{ card_img.file.url }}" alt="{{ card_img.alt_text }}" style="border-radius:var(--radius);width:100%;min-height:230px;object-fit:cover;object-position:var(--focal,50% 50%);--focal:{{ card_img.focal_css }}">{% else %}<div class="ph">Bild</div>{% endif %}
                 <h3>{{ card.title }}</h3>
                 <div class="meta">{{ card.meta }}</div>
-            {% if card.url %}</a>{% else %}</div>{% endif %}
+            {% if card_link %}</a>{% else %}</div>{% endif %}
             {% endfor %}
         </div>
     </div>

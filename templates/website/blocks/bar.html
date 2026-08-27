@@ -1,10 +1,12 @@
+{% load website_tags %}
 {% comment %}CTA-raden. data: label, note (höger), link.{% endcomment %}
 <section>
     <div class="wrap">
         <div class="bar panel">
             <div class="l">{{ label }}</div>
             {% if note %}<div class="r">[ {{ note }} ]</div>{% endif %}
-            {% if link.label %}<a class="btn" href="{{ link.url|default:'/kontakt/' }}">{{ link.label }}</a>{% endif %}
+            {% resolve_link link.url as bar_link %}
+            {% if link.label and bar_link %}<a class="btn" href="{{ bar_link.href }}">{{ link.label }}</a>{% endif %}
         </div>
     </div>
 </section>

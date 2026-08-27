@@ -20,7 +20,7 @@
             <tr>
                 <td>{{ problem.location }}{% if problem.detail %}<br><span class="m-form-hint">{{ problem.detail }}</span>{% endif %}</td>
                 <td>{{ problem.label }}</td>
-                <td><code>{{ problem.url }}</code></td>
+                <td><code>{{ problem.target }}</code></td>
                 <td>{% if problem.status == "missing" %}<span class="m-badge m-badge--alert">Finns inte</span>{% else %}<span class="m-badge m-badge--draft">Avpublicerad</span>{% endif %}</td>
                 <td>{% if problem.edit_hint %}<a class="m-btn m-btn--ghost m-btn--small" href="{{ problem.edit_hint }}">Laga</a>{% endif %}</td>
             </tr>

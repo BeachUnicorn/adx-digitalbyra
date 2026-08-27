@@ -1,3 +1,4 @@
+{% load website_tags %}
 {% comment %}Kontaktkorten på kontaktsidan. data: cards[{kicker,value,url}].{% endcomment %}
 {% if cards %}
 <div class="wrap">
@@ -5,7 +6,8 @@
         {% for card in cards %}
         <div class="contact-card panel">
             <div class="kicker">[ {{ card.kicker }} ]</div>
-            {% if card.url %}<a class="big" href="{{ card.url }}">{{ card.value }}</a>{% else %}<div class="big">{{ card.value }}</div>{% endif %}
+            {% resolve_link card.url as card_link %}
+            {% if card_link %}<a class="big" href="{{ card_link.href }}">{{ card.value }}</a>{% else %}<div class="big">{{ card.value }}</div>{% endif %}
         </div>
         {% endfor %}
     </div>
