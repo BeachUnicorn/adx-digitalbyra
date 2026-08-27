@@ -21,7 +21,7 @@ katalogen): inga döda länkar får existera i tysthet. Tre delar:
    avpublicerad redan vid rendering (MenuItem.is_alive).
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from django.urls import Resolver404, resolve
 
