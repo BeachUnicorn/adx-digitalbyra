@@ -1,0 +1,56 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Menyer{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Menyer</h1>
+    <p class="m-page-head__subtitle">Redigera huvudmenyn och sidfotens kolumner. Texter kan innehålla variabler som <code>{% templatetag openvariable %} phone {% templatetag closevariable %}</code>.</p>
+</div>
+
+{# ===== Header menu ===== #}
+<div class="m-section-row">
+    <p class="m-section-title">Huvudmeny</p>
+    <a href="{% url 'manage:menu_item_new' header.id %}" class="m-btn m-btn--inline m-btn--small">Ny menypunkt</a>
+</div>
+<div class="m-panel">
+    {% for item in header_items %}
+        {% include "manage/menus/_item_row.html" with item=item forloop=forloop %}
+    {% empty %}
+    <div class="m-empty">Huvudmenyn har inga punkter ännu. Lägg till din första ovan.</div>
+    {% endfor %}
+</div>
+
+{# ===== Footer columns ===== #}
+<div class="m-section-row">
+    <p class="m-section-title">Sidfot</p>
+    <a href="{% url 'manage:footer_column_new' %}" class="m-btn m-btn--inline m-btn--small">Ny kolumn</a>
+</div>
+
+{% for col in footer_columns %}
+<div class="m-panel m-menu-col">
+    <div class="m-menu-col__head">
+        <div>
+            <div class="m-list__title">{{ col.menu.heading|default:col.menu.name }}</div>
+            <div class="m-list__meta">
+                {{ col.menu.name }} · #{{ col.menu.order }} · {{ col.items|length }} punkt{{ col.items|length|pluralize:"er" }}
+            </div>
+        </div>
+        <div class="m-row-actions">
+            <a href="{% url 'manage:menu_item_new' col.menu.id %}" class="m-btn m-btn--small">Ny länk</a>
+            <a href="{% url 'manage:footer_column_edit' col.menu.id %}" class="m-btn m-btn--ghost m-btn--small">Kolumninställningar</a>
+            <form method="post" action="{% url 'manage:footer_column_delete' col.menu.id %}" onsubmit="return confirm('Ta bort kolumnen och alla dess punkter?');">{% csrf_token %}<button class="m-btn m-btn--danger m-btn--small">Ta bort</button></form>
+        </div>
+    </div>
+    <div class="m-menu-col__items">
+        {% for item in col.items %}
+            {% include "manage/menus/_item_row.html" with item=item forloop=forloop %}
+        {% empty %}
+        <div class="m-empty">Inga punkter i den här kolumnen ännu.</div>
+        {% endfor %}
+    </div>
+</div>
+{% empty %}
+<div class="m-panel"><div class="m-empty">Inga sidfotskolumner ännu. Lägg till din första ovan.</div></div>
+{% endfor %}
+{% endblock %}

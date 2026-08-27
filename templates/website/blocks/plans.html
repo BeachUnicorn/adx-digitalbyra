@@ -1,0 +1,31 @@
+{% load website_tags %}
+{% comment %}Paketkorten. data: sec-head + plans[{mini,title,desc,price,price_note,
+features (en per rad),cta_label,cta_url}]. Mittenpaketet får fylld knapp.{% endcomment %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="plans">
+            {% for plan in plans %}
+            <div class="plan panel">
+                {% if plan.mini %}<div class="mini">[ {{ plan.mini }} ]</div>{% endif %}
+                <h3>{{ plan.title }}</h3>
+                {% if plan.desc %}<p class="desc">{{ plan.desc }}</p>{% endif %}
+                {% if plan.price %}<div class="price">{{ plan.price }}</div>{% endif %}
+                {% if plan.price_note %}<div class="note">{{ plan.price_note }}</div>{% endif %}
+                {% if plan.features %}
+                <ul>
+                    {% for feature in plan.features|split_lines %}<li>{{ feature }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+                {% if plan.cta_label %}<a class="btn{% if not forloop.counter == 2 %} ghost{% endif %}" href="{{ plan.cta_url|default:'/kontakt/' }}">{{ plan.cta_label }}</a>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>

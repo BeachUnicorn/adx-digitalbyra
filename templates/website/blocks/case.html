@@ -1,0 +1,30 @@
+{% load website_tags %}
+{% comment %}Casepanel: text + statistik + bild. data: kicker/title (sec-head),
+image_id, case_title, body, stats[], link.{% endcomment %}
+{% media image_id as case_img %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="case">
+            <div class="body panel">
+                {% if link.label %}<div class="kicker">[ {{ link.label }} ]</div>{% endif %}
+                {% if case_title %}<h3>{{ case_title|upper }}</h3>{% endif %}
+                {% if body %}<p>{{ body }}</p>{% endif %}
+                {% if stats %}
+                <div class="case-stats">
+                    {% for s in stats %}
+                    <div class="case-stat"><div class="v">{{ s.value }}</div><div class="k">{{ s.label }}</div></div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% if case_img %}<img src="{{ case_img.file.url }}" alt="{{ case_img.alt_text }}" style="border-radius:var(--radius);width:100%;height:100%;min-height:420px;object-fit:cover;object-position:var(--focal,50% 50%);--focal:{{ case_img.focal_css }}">{% else %}<div class="ph">Bildplats</div>{% endif %}
+        </div>
+    </div>
+</section>

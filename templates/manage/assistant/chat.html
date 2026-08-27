@@ -1,0 +1,405 @@
+{% extends "manage/base.html" %}
+
+{% block title %}AI-assistent{% endblock %}
+
+{% block content %}
+<div class="m-page-head m-page-head--orb">
+    {% include "manage/assistant/_orb.html" with orb_class="m-orb--head" %}
+    <div>
+        <h1 class="m-page-head__title">AI-assistent</h1>
+        <p class="m-page-head__subtitle">
+            Be om ändringar i vanlig text. Allt blir förslag som du godkänner.
+        </p>
+    </div>
+</div>
+
+{% include "manage/assistant/_subnav.html" %}
+
+{% if not enabled %}
+<div class="m-panel m-form-panel">
+    <p class="m-field-error">
+        <strong>Assistenten är avstängd.</strong> Ingen modell är konfigurerad.
+        Din egen Claude-app fungerar fortfarande via
+        <a href="{% url 'manage:assistant_connection' %}">anslutningen</a>.
+    </p>
+</div>
+{% elif budget_full %}
+<div class="m-panel m-form-panel">
+    <p class="m-field-error">
+        <strong>Assistenten är pausad till imorgon.</strong>
+        Den har arbetat ovanligt mycket idag och tar paus som säkerhetsåtgärd.
+        {% if user.is_superuser %}Dygnstaket ({{ budget_limit }} USD) är nått.{% endif %}
+    </p>
+</div>
+{% endif %}
+
+<div class="m-chat">
+    <div class="m-chat__main">
+        <div class="m-chat__log{% if not chat_messages %} m-chat__log--empty{% endif %}" id="chat-log">
+            {% for m in chat_messages %}
+            <div class="m-msg m-msg--{{ m.role }}" data-status="{{ m.status }}" data-msg-id="{{ m.pk }}">
+                <div class="m-msg__meta">
+                    {% comment %}
+                    Orben markerar vem som talar och blir samtidigt
+                    statusindikator: den snurrar fortare medan turen pågår.
+                    {% endcomment %}
+                    {% if m.role == 'assistant' %}
+                        {% if m.status == 'pending' %}
+                            {% include "manage/assistant/_orb.html" with orb_class="m-orb--sm is-thinking" %}
+                        {% else %}
+                            {% include "manage/assistant/_orb.html" with orb_class="m-orb--sm" %}
+                        {% endif %}
+                    {% endif %}
+                    <span class="m-msg__who">{{ m.get_role_display }}</span>
+                    <time datetime="{{ m.created_at|date:'c' }}">{{ m.created_at|date:"H:i" }}</time>
+                </div>
+
+                {% comment %}
+                Stegen ligger FÖRE svaret: medan turen pågår är de det enda
+                som händer, och när den är klar läses de som en logg över
+                vad som gjordes innan slutsatsen kom.
+                {% endcomment %}
+                {% if m.labelled_steps %}
+                <ol class="m-msg__steps">
+                    {% for s in m.labelled_steps %}
+                    {% if s.note %}
+                    <li class="m-step m-step--note">
+                        <span class="m-step__dot" aria-hidden="true"></span>
+                        <span class="m-step__label">{{ s.note }}</span>
+                    </li>
+                    {% else %}
+                    <li class="m-step m-step--{{ s.state }}">
+                        <span class="m-step__dot" aria-hidden="true"></span>
+                        <span class="m-step__label">{{ s.label }}{% if s.arg %}: <b>{{ s.arg }}</b>{% endif %}</span>
+                        {% if s.fel %}<span class="m-step__error">{{ s.fel }}</span>{% endif %}
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                </ol>
+                {% endif %}
+
+                {% if m.status == 'pending' %}
+                    <div class="m-msg__body m-msg__body--working">
+                        <span class="m-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span>Arbetar</span>
+                        <span class="m-elapsed" data-since="{{ m.created_at|date:'U' }}"></span>
+                    </div>
+                {% elif m.status == 'failed' %}
+                    <div class="m-msg__body m-field-error">{{ m.error }}</div>
+                {% else %}
+                    {% comment %}
+                    display_html är redan sanerad (rendering.py / mentions.py).
+                    Ingen linebreaksbr på assistentens svar - markdown ger
+                    egna <p> och <li>, och filtret skulle dubblera radbrytningarna.
+                    {% endcomment %}
+                    {% if m.role == 'user' %}
+                        <div class="m-msg__body">{{ m.display_html|linebreaksbr }}</div>
+                    {% else %}
+                        <div class="m-msg__body m-prose">{{ m.display_html }}</div>
+                    {% endif %}
+
+                    {% comment %}
+                    Granskningsknappen ritas bara på det SISTA svaret och
+                    utifrån verkligt antal väntande förslag - då kan den
+                    aldrig visa en föråldrad siffra eller peka på något som
+                    redan är avgjort.
+                    {% endcomment %}
+                    {% comment %}
+                    Förslagen som kort direkt i chatten, på det SISTA svaret:
+                    godkänn där du står. Grupperade som på granskningssidan,
+                    så en FAQ med frågor är en enhet och inte sex.
+                    {% endcomment %}
+                    {% if forloop.last and m.role == 'assistant' and draft_groups %}
+                    <div class="m-chat__drafts-inline">
+                        {% for group in draft_groups %}
+                        <form method="post" action="{% url 'manage:assistant_job_bulk' job.pk %}"
+                              id="chatt-{{ group.gid }}">{% csrf_token %}
+                            {% for id in group.text_ids %}<input type="hidden" name="change_ids" value="{{ id }}">{% endfor %}
+                        </form>
+                        <div class="m-inline-draft">
+                            <div class="m-inline-draft__head">
+                                <span class="m-inline-draft__title">
+                                    {{ group.label }}
+                                    {% if group.has_business %}<span class="m-badge m-badge--business">Affärsdata</span>{% endif %}
+                                </span>
+                                <span class="m-form-hint">{{ group.count }} ändring{{ group.count|pluralize:"ar" }}</span>
+                            </div>
+                            <ul class="m-inline-draft__list">
+                                {% for row in group.rows %}
+                                <li>{{ row.change.summary }}</li>
+                                {% endfor %}
+                            </ul>
+                            <div class="m-inline-draft__actions">
+                                <button type="submit" name="action" value="approve" form="chatt-{{ group.gid }}"
+                                        class="m-btn m-btn--small"
+                                        {% if group.has_business %}onclick="return confirm('Innehåller affärsdata (priser eller vad kunderna ser). Godkänn?');"{% endif %}>Godkänn</button>
+                                <button type="submit" name="action" value="reject" form="chatt-{{ group.gid }}"
+                                        class="m-btn m-btn--ghost m-btn--small">Avslå</button>
+                                <a href="{% url 'manage:assistant_job' job.pk %}" class="m-btn m-btn--ghost m-btn--small">Granska i detalj</a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+            {% empty %}
+            {% comment %}
+            Tomt läge = ingenting: chatten börjar direkt i nivå med
+            sidopanelen. Orben bor i sidhuvudet och instruktionen ligger i
+            skrivrutans placeholder - en rubrik till vore bara avstånd.
+            {% endcomment %}
+            {% endfor %}
+        </div>
+
+        <form method="post" class="m-chat__form{% if not chat_messages %} m-chat__form--flush{% endif %}" id="chat-form"
+              action="{% if job %}{% url 'manage:assistant_chat_send_job' job.pk %}{% else %}{% url 'manage:assistant_chat_send' %}{% endif %}">
+            {% csrf_token %}
+            <div class="m-mention-anchor">
+                <div class="m-mention-menu" id="mention-menu" hidden></div>
+                <textarea name="question" rows="2" maxlength="2000" id="chat-input"
+                          placeholder="Vad vill du ha gjort? Skriv @ för att peka på en tjänst, sida eller ett område."
+                          {% if not enabled or budget_full %}disabled{% endif %}>{{ prefill }}</textarea>
+            </div>
+            <div class="m-chat__actions">
+                <button type="submit" class="m-btn m-btn--inline m-btn--prisma" {% if not enabled or budget_full %}disabled{% endif %}><span>Skicka</span></button>
+                {% if job %}<a href="{% url 'manage:assistant_chat' %}" class="m-btn m-btn--ghost m-btn--inline">Nytt samtal</a>{% endif %}
+                <span class="m-chat__hint">
+                    <kbd>{{ send_key }}</kbd> + <kbd>Enter</kbd> skickar
+                </span>
+            </div>
+        </form>
+    </div>
+
+    <aside class="m-chat__side">
+        {% if job and job.pending_count %}
+        <div class="m-panel m-form-panel m-chat__drafts" id="chat-drafts">
+            <p class="m-section-title">{{ job.pending_count }} utkast väntar</p>
+            <p class="m-form-hint">Inget är publicerat förrän du godkänner det.</p>
+            <a href="{% url 'manage:assistant_job' job.pk %}" class="m-btn m-btn--small m-btn--inline">Granska</a>
+        </div>
+        {% endif %}
+
+        <div class="m-panel m-form-panel">
+            <p class="m-section-title">Tidigare samtal</p>
+            {% for r in recent %}
+            <div class="m-chat__recent{% if job and r.pk == job.pk %} is-active{% endif %}">
+                <div>
+                    <a href="{% url 'manage:assistant_chat_job' r.pk %}">{{ r.title|default:"Utan rubrik" }}</a>
+                    <span class="m-form-hint">{{ r.created_at|date:"j M H:i" }}{% if r.pending_count %} &middot; {{ r.pending_count }} väntar{% endif %}</span>
+                </div>
+                <form method="post" action="{% url 'manage:assistant_job_delete' r.pk %}"
+                      onsubmit="return confirm('Radera samtalet{% if r.pending_count %} och {{ r.pending_count }} väntande förslag{% endif %}?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'manage:assistant_chat' %}">
+                    <button type="submit" class="m-icon-btn" title="Radera samtalet" aria-label="Radera samtalet">&times;</button>
+                </form>
+            </div>
+            {% empty %}
+            <p class="m-form-hint">Inga ännu.</p>
+            {% endfor %}
+        </div>
+    </aside>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var log = document.getElementById('chat-log');
+    var input = document.getElementById('chat-input');
+    var form = document.getElementById('chat-form');
+    if (log) log.scrollTop = log.scrollHeight;
+
+    function grow() {
+        if (!input) return;
+        input.style.height = 'auto';
+        input.style.height = Math.min(input.scrollHeight, 260) + 'px';
+    }
+    if (input) {
+        input.addEventListener('input', grow);
+        input.addEventListener('keydown', function (e) {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && input.value.trim()) {
+                form.requestSubmit();
+            }
+        });
+        if (input.value) grow();  // prefill från underförslag
+    }
+
+    // ===== @-menyn =====
+    // Skriv @ + minst två tecken sa oppnas en sokmeny over rutan. Valet
+    // infogar en token (@tjanst:spolning) som servern oversatter till en
+    // exakt referens for modellen och visar som chip i loggen.
+    var menu = document.getElementById('mention-menu');
+    if (!input || !menu) return;
+    var results = [], active = 0, debounce = null, tokenStart = -1;
+
+    function currentQuery() {
+        var upToCaret = input.value.slice(0, input.selectionStart);
+        // @ i början eller efter blanksteg - annars öppnas menyn mitt i
+        // en e-postadress ("info@...").
+        var m = upToCaret.match(/(^|\s)@([\wåäöÅÄÖ -]{0,40})$/);
+        if (!m) return null;
+        tokenStart = upToCaret.length - m[0].length + m[1].length;
+        return m[2];
+    }
+
+    function close() { menu.hidden = true; results = []; }
+
+    function render() {
+        if (!results.length) { close(); return; }
+        menu.innerHTML = '';
+        results.forEach(function (r, i) {
+            var b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'm-mention-menu__item' + (i === active ? ' is-active' : '');
+            b.innerHTML = '<b></b><span></span>';
+            b.querySelector('b').textContent = r.label;
+            b.querySelector('span').textContent = r.sub;
+            b.addEventListener('mousedown', function (e) { e.preventDefault(); pick(i); });
+            menu.appendChild(b);
+        });
+        menu.hidden = false;
+    }
+
+    function pick(i) {
+        var r = results[i];
+        if (!r) return;
+        var after = input.value.slice(input.selectionStart);
+        var token = '@' + r.typ + ':' + r.ref + ' ';
+        input.value = input.value.slice(0, tokenStart) + token + after;
+        var pos = tokenStart + token.length;
+        input.setSelectionRange(pos, pos);
+        input.focus();
+        close();
+    }
+
+    input.addEventListener('input', function () {
+        var q = currentQuery();
+        if (q === null) { close(); return; }  // tom fråga = bläddringsläge
+        clearTimeout(debounce);
+        debounce = setTimeout(function () {
+            fetch("{% url 'manage:assistant_mention_search' %}?q=" + encodeURIComponent(q))
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                    if (currentQuery() === null) return;  // hann stängas
+                    results = d.results || []; active = 0; render();
+                })
+                .catch(close);
+        }, 150);
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (menu.hidden) return;
+        if (e.key === 'ArrowDown') { e.preventDefault(); active = (active + 1) % results.length; render(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); active = (active - 1 + results.length) % results.length; render(); }
+        else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pick(active); }
+        else if (e.key === 'Escape') { close(); }
+    });
+    input.addEventListener('blur', function () { setTimeout(close, 150); });
+})();
+</script>
+
+{% if job %}
+<script>
+(function () {
+    var pending = document.querySelector('.m-msg[data-status="pending"]');
+    if (!pending) return;
+
+    var log = document.getElementById('chat-log');
+    var url = "{% url 'manage:assistant_chat_poll' job.pk %}";
+    var tries = 0;
+
+    // Poll i stället för strömning: en tur kan ta minuter och körs i en
+    // tråd, så ett tappat svar ska synas som ett fel - inte som tystnad.
+    // Stegen målas om löpande; först när turen är klar laddas sidan om,
+    // eftersom sidopanelen och samtalslistan då också ändrats.
+    var timer = setInterval(function () {
+        tries++;
+        // Måste vara LÄNGRE än tasks.STALE_AFTER (10 min), annars slutar vi
+        // fråga innan sveparen hunnit döma ut turen - och då står "Arbetar"
+        // kvar tills sidan laddas om.
+        if (tries > 390) {  // ~13 min
+            clearInterval(timer);
+            giveUp();
+            return;
+        }
+        fetch(url, {headers: {'X-Requested-With': 'fetch'}})
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.status !== 'pending') { clearInterval(timer); location.reload(); return; }
+                paintSteps(d.steps || []);
+            })
+            .catch(function () { /* nätverksglapp - fortsätt fråga */ });
+    }, 2000);
+
+    function giveUp() {
+        // Tystnad är det sämsta svaret. Säg att vi slutat fråga och hur
+        // man ser efter själv.
+        var body = pending.querySelector('.m-msg__body');
+        if (!body) return;
+        body.classList.remove('m-msg__body--working');
+        body.classList.add('m-field-error');
+        body.textContent = 'Jag har slutat vänta på svar. Ladda om sidan för att se ' +
+                           'om turen blev klar, eller skicka frågan igen.';
+    }
+
+    function paintSteps(steps) {
+        var list = pending.querySelector('.m-msg__steps');
+        if (!list) {
+            list = document.createElement('ol');
+            list.className = 'm-msg__steps';
+            pending.insertBefore(list, pending.querySelector('.m-msg__body'));
+        }
+        // Ett steg byter tillstånd (pågår -> klart), så raden som redan
+        // finns måste kunna ritas om. Bara den sista raden är föränderlig;
+        // resten rörs inte, annars blinkar listan varannan sekund.
+        for (var i = 0; i < steps.length; i++) {
+            var s = steps[i];
+            var li = list.children[i];
+            if (!li) {
+                li = document.createElement('li');
+                li.innerHTML = '<span class="m-step__dot"></span><span class="m-step__label"></span>';
+                list.appendChild(li);
+                if (log) log.scrollTop = log.scrollHeight;
+            } else if (li.dataset.state === s.state && !s.note) {
+                continue;  // oförändrat
+            }
+            li.dataset.state = s.state || '';
+            if (s.note) {
+                li.className = 'm-step m-step--note';
+                li.querySelector('.m-step__label').textContent = s.note;
+            } else {
+                li.className = 'm-step m-step--' + (s.state || 'done');
+                var label = s.label || s.op || '';
+                var span = li.querySelector('.m-step__label');
+                span.textContent = label;
+                if (s.arg) {
+                    span.appendChild(document.createTextNode(': '));
+                    var b = document.createElement('b');
+                    b.textContent = s.arg;
+                    span.appendChild(b);
+                }
+                if (s.fel && !li.querySelector('.m-step__error')) {
+                    var err = document.createElement('span');
+                    err.className = 'm-step__error';
+                    err.textContent = s.fel;
+                    li.appendChild(err);
+                }
+            }
+        }
+    }
+
+    // Klockan: utan den går det inte att skilja "tänker" från "hängde sig".
+    var elapsed = document.querySelector('.m-elapsed');
+    if (elapsed) {
+        var since = parseInt(elapsed.dataset.since, 10) * 1000;
+        setInterval(function () {
+            var s = Math.max(0, Math.round((Date.now() - since) / 1000));
+            elapsed.textContent = s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + (s % 60) + ' s';
+        }, 1000);
+    }
+})();
+</script>
+{% endif %}
+{% endblock %}

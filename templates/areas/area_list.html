@@ -1,0 +1,33 @@
+{% extends "website/base.html" %}
+{% block title %}Städer - digitalbyrå i hela Sverige | {{ site_settings.name|default:"ADX" }}{% endblock %}
+{% block meta %}
+<meta name="description" content="ADX arbetar med kunder i hela Sverige. Hitta din stad - webbutveckling, automation och digital drift, från Stockholm till Umeå.">
+{% endblock %}
+
+{% block content %}
+<div class="wrap hero">
+    <div class="kicker">[ Städer ]</div>
+    <h1>Hela Sverige.<br>Ett team.</h1>
+    <p class="lead">Vi utgår från Stockholm och arbetar med kunder i hela landet. Välj din stad för att läsa mer om hur vi jobbar just där.</p>
+</div>
+
+<section>
+    <div class="wrap">
+        <div class="related">
+            {% for city in cities %}
+            <a href="{{ city.get_absolute_url }}">{{ city.name }} &rarr;</a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section>
+    <div class="wrap">
+        <div class="bar panel">
+            <div class="l">Ser du inte din stad?</div>
+            <div class="r">[ Vi jobbar på distans i hela landet ]</div>
+            <a class="btn" href="/kontakt/">Skicka förfrågan</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

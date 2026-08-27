@@ -1,0 +1,18 @@
+Ny förfrågan: {{ inquiry.reference }}
+
+Kund: {{ inquiry.name }}
+Kundtyp: {{ inquiry.get_customer_type_display }}
+{% if inquiry.company_name %}Organisation: {{ inquiry.company_name }}
+{% endif %}E-post: {{ inquiry.email }}
+{% if inquiry.phone %}Telefon: {{ inquiry.phone }}
+{% endif %}{% if inquiry.topic %}Gäller: {{ inquiry.topic }}
+{% endif %}{% if inquiry.budget %}Budget: {{ inquiry.get_budget_display }}
+{% endif %}{% if inquiry.timeline %}Tidplan: {{ inquiry.get_timeline_display }}
+{% endif %}{% if image_count %}
+Bifogade bilder: {{ image_count }} st (visas i kontrollpanelen)
+{% endif %}
+Beskrivning:
+{{ inquiry.description }}
+
+---
+Hantera förfrågan: {{ manage_url }}

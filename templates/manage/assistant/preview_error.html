@@ -1,0 +1,20 @@
+{% comment %}
+Fristående dokument - visas inuti förhandsgranskningens iframe, alltså utan
+manage-mallen omkring sig. Egna stilar därför, medvetet minimala.
+{% endcomment %}
+<!doctype html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <title>Kan inte förhandsgranskas</title>
+    <style>
+        body {
+            margin: 0; padding: 40px 28px;
+            font: 15px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            color: #5c636b; background: #f4f5f7;
+        }
+        p { max-width: 46ch; margin: 0 auto; text-align: center; }
+    </style>
+</head>
+<body><p>{{ message }}</p></body>
+</html>

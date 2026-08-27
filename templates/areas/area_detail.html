@@ -1,0 +1,75 @@
+{% extends "website/base.html" %}
+{% load render_context %}
+{% comment %}
+Stadssida i ADX-designen: hero + unik brödtext (.prose) + relaterade städer
++ CTA-rad. EN sida per stad som bär både "digitalbyrå" och "webbyrå" i
+copyn - aldrig separata sidor per sökord (doorway-regeln, mönsterkatalogen).
+{% endcomment %}
+{% block title %}{{ area.meta_title|default:area.name }} - {{ site_settings.name|default:"ADX" }}{% endblock %}
+{% block meta %}
+<meta name="description" content="{{ area.meta_description }}">
+{% endblock %}
+
+{% block content %}
+<div class="wrap hero">
+    <div class="kicker"><a href="/">Hem</a> / <a href="{% url 'areas:area_list' %}">Städer</a> / {{ area.name }}</div>
+    <h1>Digitalbyrå<br>i {{ area.name }}.</h1>
+    {% if area.intro %}<p class="lead">{{ area.intro }}</p>{% endif %}
+    <div class="hero-actions">
+        <a class="btn" href="/kontakt/">Skicka förfrågan</a>
+        <a class="btn ghost" href="/tjanster/">Se tjänster</a>
+    </div>
+</div>
+
+{% if area.body %}
+<section>
+    <div class="wrap">
+        <div class="prose">
+            {% for paragraph in area.body_paragraphs %}
+            <p>{{ paragraph }}</p>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="wrap">
+        <div class="sec-head">
+            <div class="kicker">[ Tjänster ]</div>
+            <h2>Vad vi gör</h2>
+        </div>
+        <div class="related">
+            {% for service in nav_services %}
+            <a href="{{ service.get_absolute_url }}">{{ service.name }} &rarr;</a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+{% if other_cities %}
+<section>
+    <div class="wrap">
+        <div class="sec-head">
+            <div class="kicker">[ Fler städer ]</div>
+            <h2>Vi finns nära er</h2>
+        </div>
+        <div class="related">
+            {% for city in other_cities %}
+            <a href="{{ city.get_absolute_url }}">{{ city.name }} &rarr;</a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+<section>
+    <div class="wrap">
+        <div class="bar panel">
+            <div class="l">Redo att ta nästa steg?</div>
+            <div class="r">[ Första mötet kostar ingenting ]</div>
+            <a class="btn" href="/kontakt/">Skicka förfrågan</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

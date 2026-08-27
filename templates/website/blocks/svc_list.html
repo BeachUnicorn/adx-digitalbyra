@@ -1,0 +1,22 @@
+{% load website_tags %}
+{% comment %}Tjänstelistan - datadriven ur Service-modellen (nav_services i
+kontexten): samma källa som mobilmeny och sidfot, kan aldrig glida isär.{% endcomment %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% active_services as services %}
+        {% for service in services %}
+        <a class="svc-row panel" href="{{ service.get_absolute_url }}">
+            <div class="num">[ {{ forloop.counter|stringformat:"02d" }} ]</div>
+            <div><h3>{{ service.name }}</h3>{% if service.description %}<p>{{ service.description }}</p>{% endif %}</div>
+            <span class="tag">L&auml;s mer &rarr;</span>
+        </a>
+        {% endfor %}
+    </div>
+</section>

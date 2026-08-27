@@ -1,0 +1,130 @@
+{% extends "manage/base.html" %}
+{% load static %}
+
+{% block title %}{% if instance %}Redigera tjänst{% else %}Ny tjänst{% endif %}{% endblock %}
+
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tiptap.css' %}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">{% if instance %}Redigera tjänst{% else %}Ny tjänst{% endif %}</h1>
+    {% if instance %}<p class="m-page-head__subtitle"><a href="{{ instance.get_absolute_url }}" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a> <a href="{% url 'manage:history' 'services' 'service' instance.pk %}?next={{ request.get_full_path|urlencode }}" class="m-btn m-btn--ghost m-btn--small">Historik</a></p>{% endif %}
+</div>
+
+<form method="post" class="m-form" novalidate>
+    {% csrf_token %}
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Grundläggande</h2>
+        <div class="m-field">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="m-field-error">{{ form.name.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+            {{ form.category }}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+            {{ form.description }}
+        </div>
+        <div class="m-field">
+            <label>{{ form.body.label }}</label>
+            {{ form.body }}
+        </div>
+        {% include "manage/services/_image_field.html" with field=form.image %}
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Pris &amp; synlighet</h2>
+        <p class="m-form-hint">Ange priser <strong>exkl. moms (netto)</strong>. Totalpris, moms och ROT-avdrag beräknas automatiskt.</p>
+        <p class="m-form-hint">Arbetskostnad (ROT-grundande), exkl. moms:</p>
+        <div class="m-field-inline">
+            <label>{{ form.labor_price_from.label }} {{ form.labor_price_from }}</label>
+            <label>{{ form.labor_price_to.label }} {{ form.labor_price_to }}</label>
+        </div>
+        <p class="m-form-hint">Materialkostnad, exkl. moms:</p>
+        <div class="m-field-inline">
+            <label>{{ form.material_price_from.label }} {{ form.material_price_from }}</label>
+            <label>{{ form.material_price_to.label }} {{ form.material_price_to }}</label>
+        </div>
+
+        <div class="m-price-calc" data-price-calc data-rot-percentage="{{ rot_percentage|default:30 }}" data-vat-rate="{{ vat_rate|default:25 }}">
+            <div class="m-price-calc__row">
+                <span class="m-price-calc__label">Totalpris exkl. moms</span>
+                <span class="m-price-calc__value" data-calc-net>-</span>
+            </div>
+            <div class="m-price-calc__row">
+                <span class="m-price-calc__label">Totalpris inkl. moms (visas utåt)</span>
+                <span class="m-price-calc__value" data-calc-gross>-</span>
+            </div>
+            <div class="m-price-calc__row" data-calc-rot-row hidden>
+                <span class="m-price-calc__label">Möjligt ROT-avdrag ({{ rot_percentage|default:30 }}% av arbete inkl. moms)</span>
+                <span class="m-price-calc__value m-price-calc__value--rot" data-calc-rot>-</span>
+            </div>
+            <div class="m-price-calc__row" data-calc-after-rot-row hidden>
+                <span class="m-price-calc__label">Pris efter ROT (inkl. moms)</span>
+                <span class="m-price-calc__value m-price-calc__value--rot" data-calc-after-rot>-</span>
+            </div>
+        </div>
+
+        <div class="m-field-inline">
+            <label>{{ form.is_rot_eligible }} {{ form.is_rot_eligible.label }}</label>
+            <label>{{ form.is_active.label }} {{ form.is_active }}</label>
+            <label>{{ form.is_featured.label }} {{ form.is_featured }}</label>
+            <label>{{ form.order.label }} {{ form.order }}</label>
+        </div>
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Målgrupper</h2>
+        <div class="m-checkbox-list">{{ form.audiences }}</div>
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">FAQ</h2>
+        <p class="m-form-hint">Valfri FAQ-sektion som visas på tjänstesidan.</p>
+        <div class="m-field">
+            <label for="{{ form.faq_section.id_for_label }}">{{ form.faq_section.label }}</label>
+            {{ form.faq_section }}
+            {% if form.faq_section.errors %}<div class="m-field-error">{{ form.faq_section.errors|join:", " }}</div>{% endif %}
+            <div class="m-field-help"><a href="{% url 'manage:faq_overview' %}" rel="noopener">Hantera FAQ-sektioner ↗</a></div>
+        </div>
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Steg (så går det till)</h2>
+        <p class="m-form-hint">Aktivitet/steg som beskriver hur tjänsten utförs.</p>
+        <div id="steps-list">
+            {% for step in steps %}
+            <div class="m-step-row">
+                <input type="text" name="step_title" value="{{ step.title }}" placeholder="Rubrik" class="m-step-title">
+                <input type="text" name="step_desc" value="{{ step.description }}" placeholder="Beskrivning" class="m-step-desc">
+                <button type="button" class="m-btn m-btn--danger m-btn--small" data-remove-step>Ta bort</button>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="m-btn m-btn--ghost m-btn--small" id="add-step">Lägg till steg</button>
+    </div>
+
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">Spara</button>
+        <a href="{% url 'manage:services_overview' %}" class="m-btn m-btn--ghost m-btn--inline">Avbryt</a>
+    </div>
+</form>
+
+<template id="step-template">
+    <div class="m-step-row">
+        <input type="text" name="step_title" placeholder="Rubrik" class="m-step-title">
+        <input type="text" name="step_desc" placeholder="Beskrivning" class="m-step-desc">
+        <button type="button" class="m-btn m-btn--danger m-btn--small" data-remove-step>Ta bort</button>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dist/tiptap-editor.js' %}" defer></script>
+<script src="{% static 'js/manage-image-field.js' %}" defer></script>
+<script src="{% static 'js/manage-steps.js' %}" defer></script>
+<script src="{% static 'js/manage-price-calc.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Anslutning &ndash; AI-assistent{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Anslutning</h1>
+    <p class="m-page-head__subtitle">Använd AI-assistenten direkt i din vanliga Claude- eller ChatGPT-app.</p>
+</div>
+
+{% include "manage/assistant/_subnav.html" %}
+
+{% comment %}
+Sidan har två publiker. Kunden ska förstå den utan att kunna ett enda
+tekniskt ord: tre steg, inga nycklar, ingen kod. Nyckelhanteringen och
+Claude Code-vägen är byråns verktyg och ligger sist, bakom superuser.
+{% endcomment %}
+
+<div class="m-section-row"><p class="m-section-title">Så ansluter du din AI-app</p></div>
+<div class="m-panel m-form-panel">
+    <ol class="m-steps">
+        <li>Öppna <strong>Claude</strong> eller <strong>ChatGPT</strong> och gå till
+            Inställningar &rarr; <em>Connectors</em> (kopplingar).</li>
+        <li>Välj att lägga till en egen koppling och klistra in adressen:
+            <code>{{ mcp_url }}</code></li>
+        <li>Appen skickar dig hit. Logga in som vanligt och klicka <strong>Tillåt</strong>.</li>
+    </ol>
+    <p class="m-form-hint">
+        Ingen nyckel och ingen kod behövs &ndash; det är din vanliga inloggning på
+        webbplatsen som är godkännandet, och du kan
+        koppla bort appen här när som helst.
+    </p>
+    <p class="m-form-hint">
+        Sedan är det bara att be om saker: <em>&rdquo;Gör texten om badrumsrenovering
+        tydligare&rdquo;</em>. Allt AI:n skriver hamnar som förslag under
+        <a href="{% url 'manage:assistant_jobs' %}">Förslag</a> och syns inte på
+        webbplatsen förrän du godkänt det.
+    </p>
+    {% if not mcp_url_is_https %}
+    <p class="m-field-error">
+        Adressen ovan är inte publik (https), så appen kan inte nå den härifrån.
+        Det här fungerar först på den riktiga webbplatsen.
+    </p>
+    {% endif %}
+</div>
+
+{% if oauth_clients %}
+<div class="m-section-row">
+    <p class="m-section-title">Anslutna appar</p>
+    {% if oauth_clients|length > 1 %}
+    <form method="post" action="{% url 'manage:assistant_oauth_disconnect_all' %}"
+          onsubmit="return confirm('Ta bort alla {{ oauth_clients|length }} anslutningar? Apparna måste anslutas på nytt för att användas igen.');">
+        {% csrf_token %}
+        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Ta bort alla</button>
+    </form>
+    {% endif %}
+</div>
+<div class="m-panel">
+    <table class="m-table">
+        <thead><tr><th>App</th><th>Ansluten</th><th></th></tr></thead>
+        <tbody>
+        {% for app in oauth_clients %}
+            <tr>
+                <td>{{ app.client_name|default:"Namnlös app" }}</td>
+                <td>{{ app.created_at|date:"j M Y" }}</td>
+                <td>
+                    <form method="post" action="{% url 'manage:assistant_oauth_disconnect' app.pk %}"
+                          onsubmit="return confirm('Ta bort anslutningen? Appen måste anslutas och godkännas på nytt för att användas igen.');">
+                        {% csrf_token %}
+                        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Ta bort</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+
+{% if user.is_superuser %}
+{% comment %}
+Byråns verktyg härifrån och ner. Kunden ska aldrig ansluta via kod, så
+nycklar och CLI-instruktionen visas inte för vanliga användare - vyerna
+bakom nyckelknapparna är dessutom gatade i views.py.
+{% endcomment %}
+
+{% if new_key %}
+<div class="m-panel m-key-reveal">
+    <p class="m-section-title">Din nya nyckel</p>
+    <p class="m-form-hint">Kopiera den nu. Av säkerhetsskäl sparas den bara i krypterad form och kan aldrig visas igen.</p>
+    <code class="m-key-reveal__value">{{ new_key }}</code>
+</div>
+{% endif %}
+
+<div class="m-section-row"><p class="m-section-title">Superuser: Claude Code och egna skript</p></div>
+<div class="m-panel m-form-panel">
+    <p class="m-form-hint">
+        Verktyg som kan skicka egna headers använder en personlig nyckel i stället för
+        inloggning. Skapa en nedan och kör:
+    </p>
+    <code class="m-key-reveal__value">claude mcp add --transport http adx {{ mcp_url }} --header "Authorization: Bearer DIN_NYCKEL"</code>
+</div>
+
+<div class="m-section-row"><p class="m-section-title">Superuser: personliga nycklar</p></div>
+<div class="m-panel m-form-panel">
+    {% if tokens %}
+    <table class="m-table">
+        <thead><tr><th>Namn</th><th>Nyckel</th><th>Skapad</th><th>Senast använd</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+        {% for token in tokens %}
+            <tr>
+                <td>{{ token.name }}</td>
+                <td><code>{{ token.key_hint }}&hellip;</code></td>
+                <td>{{ token.created_at|date:"j M Y" }}</td>
+                <td>{% if token.last_used_at %}{{ token.last_used_at|date:"j M H:i" }}{% else %}&ndash;{% endif %}</td>
+                <td>
+                    {% if token.is_active %}<span class="m-badge m-badge--active">Aktiv</span>
+                    {% else %}<span class="m-badge m-badge--draft">Återkallad</span>{% endif %}
+                </td>
+                <td>
+                    {% if token.is_active %}
+                    <form method="post" action="{% url 'manage:assistant_token_revoke' token.pk %}"
+                          onsubmit="return confirm('Återkalla nyckeln? Appen som använder den tappar åtkomsten direkt.');">
+                        {% csrf_token %}
+                        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Återkalla</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="m-form-hint">Inga nycklar ännu.</p>
+    {% endif %}
+
+    <form method="post" action="{% url 'manage:assistant_token_create' %}" class="m-inline-form">
+        {% csrf_token %}
+        <input type="text" name="name" class="m-input" placeholder="Namn, t.ex. Min Claude-app" maxlength="100">
+        <button type="submit" class="m-btn m-btn--small">Skapa nyckel</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

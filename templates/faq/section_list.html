@@ -1,0 +1,45 @@
+{% extends "website/base.html" %}
+{% load website_tags %}
+
+{% block title %}Vanliga frågor - {{ site_settings.name|default:"ADX" }}{% endblock %}
+{% block meta %}
+<meta name="description" content="Vanliga frågor och svar om VVS, värme, vatten och våra tjänster.">
+{% endblock %}
+
+{% block content %}
+<section class="c-hero c-hero--compact has-edit-pencil">
+    {% url 'manage:faq_overview' as edit_url %}
+    {% edit_pencil url=edit_url label="Hantera FAQ" %}
+    <div class="container">
+        <p class="c-hero__label">FAQ</p>
+        <h1 class="c-hero__title">Vanliga frågor</h1>
+        <p class="c-hero__desc">Välj en kategori nedan för att hitta svar på dina frågor.</p>
+    </div>
+</section>
+
+<section class="c-section--tight">
+    <div class="container">
+        {% if sections %}
+        <div class="c-services__grid">
+            {% for section in sections %}
+            <div class="c-service-card-wrap has-edit-pencil">
+                {% url 'manage:faq_detail' section.slug as sec_edit_url %}
+                {% edit_pencil url=sec_edit_url label="Redigera" %}
+                <a href="{{ section.get_absolute_url }}" class="c-service-card">
+                    <div class="c-service-card__body">
+                        <h2 class="c-service-card__title">{{ section.title }}</h2>
+                        {% if section.description %}
+                        <p class="c-service-card__desc">{{ section.description }}</p>
+                        {% endif %}
+                        <span class="c-service-card__meta">{{ section.items.count }} frågor & svar</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>Inga FAQ-sektioner finns ännu.</p>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,116 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Tjänster{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Tjänster</h1>
+</div>
+
+<div class="m-tabs" data-tabs>
+    <div class="m-tabs__nav">
+        <button class="m-tabs__btn is-active" data-tab="services">Tjänster</button>
+        <button class="m-tabs__btn" data-tab="categories">Kategorier</button>
+        <button class="m-tabs__btn" data-tab="audiences">Målgrupper</button>
+    </div>
+
+    {# === Tjänster === #}
+    <div class="m-tabs__panel is-active" data-tab-panel="services">
+        <div class="m-section-row">
+            <p class="m-section-title">Tjänster</p>
+            <a href="{% url 'manage:service_new' %}" class="m-btn m-btn--inline m-btn--small">Ny tjänst</a>
+        </div>
+        <div class="m-panel">
+            {% for service in services %}
+            <div class="m-list__row">
+                <div class="m-list__thumb">
+                    {% if service.image %}
+                    <img src="{{ service.image.file.url }}" alt="">
+                    {% endif %}
+                </div>
+                <div class="m-list__main">
+                    <div class="m-list__title">{{ service.name }}</div>
+                    <div class="m-list__meta">
+                        {% if service.category %}{{ service.category.name }}{% else %}Utan kategori{% endif %}
+                        {% if service.is_featured %} · Utvald{% endif %}
+                    </div>
+                </div>
+                <div class="m-list__prices">
+                    {% if service.labor_price_from or service.labor_price_to %}
+                    <span class="m-list__price" title="Arbetskostnad">A: {{ service.labor_price_from|default:"-" }}–{{ service.labor_price_to|default:"-" }}</span>
+                    {% endif %}
+                    {% if service.material_price_from or service.material_price_to %}
+                    <span class="m-list__price" title="Materialkostnad">M: {{ service.material_price_from|default:"-" }}–{{ service.material_price_to|default:"-" }}</span>
+                    {% endif %}
+                    {% if not service.labor_price_from and not service.material_price_from %}
+                    <span class="m-list__price m-list__price--missing">Pris saknas</span>
+                    {% endif %}
+                </div>
+                <div class="m-row-actions">
+                    {% if not service.is_active %}<span class="m-badge m-badge--draft">Inaktiv</span>{% endif %}
+                    <a href="{% url 'manage:service_edit' service.id %}" class="m-btn m-btn--small">Redigera</a>
+                    <form method="post" action="{% url 'manage:service_delete' service.id %}" onsubmit="return confirm('Ta bort tjänsten?');">{% csrf_token %}<button class="m-btn m-btn--danger m-btn--small">Ta bort</button></form>
+                </div>
+            </div>
+            {% empty %}
+            <div class="m-empty">Inga tjänster ännu.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# === Kategorier === #}
+    <div class="m-tabs__panel" data-tab-panel="categories">
+        <div class="m-section-row">
+            <p class="m-section-title">Kategorier</p>
+            <a href="{% url 'manage:category_new' %}" class="m-btn m-btn--inline m-btn--small">Ny kategori</a>
+        </div>
+        <div class="m-panel">
+            {% for category in categories %}
+            <div class="m-list__row">
+                <div class="m-list__thumb">
+                    {% if category.image %}
+                    <img src="{{ category.image.file.url }}" alt="">
+                    {% endif %}
+                </div>
+                <div class="m-list__main">
+                    <div class="m-list__title">{{ category.name }}</div>
+                    <div class="m-list__meta">/{{ category.slug }}/ · {{ category.services.count }} tjänst{{ category.services.count|pluralize:"er" }}</div>
+                </div>
+                <div class="m-row-actions">
+                    {% if not category.is_active %}<span class="m-badge m-badge--draft">Inaktiv</span>{% endif %}
+                    <a href="{% url 'manage:category_edit' category.id %}" class="m-btn m-btn--small">Redigera</a>
+                    <form method="post" action="{% url 'manage:category_delete' category.id %}" onsubmit="return confirm('Ta bort kategorin?');">{% csrf_token %}<button class="m-btn m-btn--danger m-btn--small">Ta bort</button></form>
+                </div>
+            </div>
+            {% empty %}
+            <div class="m-empty">Inga kategorier ännu.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# === Målgrupper === #}
+    <div class="m-tabs__panel" data-tab-panel="audiences">
+        <div class="m-section-row">
+            <p class="m-section-title">Målgrupper</p>
+            <a href="{% url 'manage:audience_new' %}" class="m-btn m-btn--inline m-btn--small">Ny målgrupp</a>
+        </div>
+        <div class="m-panel">
+            {% for audience in audiences %}
+            <div class="m-list__row">
+                <div>
+                    <div class="m-list__title">{{ audience.name }}</div>
+                    <div class="m-list__meta">/for/{{ audience.slug }}/ · {{ audience.services.count }} tjänst{{ audience.services.count|pluralize:"er" }}</div>
+                </div>
+                <div class="m-row-actions">
+                    {% if not audience.is_active %}<span class="m-badge m-badge--draft">Inaktiv</span>{% endif %}
+                    <a href="{% url 'manage:audience_edit' audience.id %}" class="m-btn m-btn--small">Redigera</a>
+                    <form method="post" action="{% url 'manage:audience_delete' audience.id %}" onsubmit="return confirm('Ta bort målgruppen?');">{% csrf_token %}<button class="m-btn m-btn--danger m-btn--small">Ta bort</button></form>
+                </div>
+            </div>
+            {% empty %}
+            <div class="m-empty">Inga målgrupper ännu.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

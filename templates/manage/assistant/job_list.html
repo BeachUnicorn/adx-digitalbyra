@@ -1,0 +1,49 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Förslag &ndash; AI-assistent{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Förslag</h1>
+    <p class="m-page-head__subtitle">
+        Allt AI:n föreslagit, samlat per uppdrag. Inget är publicerat förrän du godkänt det.
+    </p>
+</div>
+
+{% include "manage/assistant/_subnav.html" %}
+
+{% if not jobs %}
+<div class="m-panel m-empty">
+    <p>Inga förslag hittades.</p>
+</div>
+{% else %}
+<div class="m-panel">
+    <table class="m-table">
+        <thead>
+            <tr><th>Jobb</th><th>När</th><th>Status</th><th>Väntar</th><th></th></tr>
+        </thead>
+        <tbody>
+        {% for job in jobs %}
+            <tr>
+                <td><a href="{% url 'manage:assistant_job' job.pk %}">{{ job }}</a></td>
+                <td>{{ job.created_at|date:"j M H:i" }}</td>
+                <td>
+                    {% if job.status == 'open' %}<span class="m-badge m-badge--draft">{{ job.get_status_display }}</span>
+                    {% else %}<span class="m-badge m-badge--active">{{ job.get_status_display }}</span>{% endif %}
+                </td>
+                <td>{% if job.pending_count %}<strong>{{ job.pending_count }}</strong>{% else %}&ndash;{% endif %}</td>
+                <td class="m-row-actions">
+                    <a href="{% url 'manage:assistant_job' job.pk %}" class="m-btn m-btn--ghost m-btn--small">Granska</a>
+                    <form method="post" action="{% url 'manage:assistant_job_delete' job.pk %}"
+                          onsubmit="return confirm('Radera förslaget{% if job.pending_count %} och {{ job.pending_count }} väntande ändringar{% endif %}? Genomförda ändringar finns kvar i historiken.');">
+                        {% csrf_token %}
+                        <button type="submit" class="m-icon-btn" title="Radera" aria-label="Radera förslaget">&times;</button>
+                    </form>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Blocksidor{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Blocksidor</h1>
+    <p class="m-page-head__subtitle">Välj en sida för att redigera dess innehållsblock.</p>
+</div>
+
+<div class="m-section-row">
+    <p class="m-section-title">Alla sidor</p>
+    <a href="{% url 'manage:page_new' %}" class="m-btn m-btn--inline m-btn--small">Ny sida</a>
+</div>
+
+<div class="m-panel">
+    {% for page in pages %}
+    <div class="m-list__row">
+        <a class="m-list__main m-list__row--link" href="{% url 'manage:page_detail' page.id %}">
+            <div class="m-list__title">{{ page.title }}</div>
+            <div class="m-list__meta">/{{ page.slug }}/ · {{ page.blocks.count }} block</div>
+        </a>
+        <div class="m-row-actions">
+            {% if page.is_published %}
+            <span class="m-badge m-badge--published">Publicerad</span>
+            {% else %}
+            <span class="m-badge m-badge--draft">Utkast</span>
+            {% endif %}
+            <a class="m-btn m-btn--small" href="{% url 'manage:page_detail' page.id %}">Redigera block</a>
+            <a class="m-btn m-btn--ghost m-btn--small" href="{% url 'manage:page_edit' page.id %}">Inställningar</a>
+            <form method="post" action="{% url 'manage:page_delete' page.id %}" onsubmit="return confirm('Ta bort sidan och alla dess block?');">{% csrf_token %}<button class="m-btn m-btn--danger m-btn--small">Ta bort</button></form>
+        </div>
+    </div>
+    {% empty %}
+    <div class="m-empty">Inga sidor ännu. <a href="{% url 'manage:page_new' %}">Skapa din första sida</a> eller kör <code>seed_site</code>.</div>
+    {% endfor %}
+</div>
+{% endblock %}

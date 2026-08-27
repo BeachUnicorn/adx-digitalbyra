@@ -1,0 +1,23 @@
+{% load website_tags %}
+{% comment %}Teamkorten. data: sec-head + members[{image_id,name,role}].{% endcomment %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="team">
+            {% for member in members %}
+            {% media member.image_id as member_img %}
+            <div class="member panel">
+                {% if member_img %}<img src="{{ member_img.file.url }}" alt="{{ member.name }}" style="border-radius:var(--radius);width:100%;min-height:240px;object-fit:cover;object-position:var(--focal,50% 50%);--focal:{{ member_img.focal_css }}">{% else %}<div class="ph">Foto</div>{% endif %}
+                <div class="name">{{ member.name }}</div>
+                <div class="role">{{ member.role }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>

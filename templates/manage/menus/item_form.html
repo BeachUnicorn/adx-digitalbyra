@@ -1,0 +1,49 @@
+{% extends "manage/base.html" %}
+
+{% block title %}{% if instance %}Redigera menypunkt{% else %}Ny menypunkt{% endif %}{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <p class="m-crumb-row"><a href="{% url 'manage:menus_overview' %}">Menyer</a> ›</p>
+    <h1 class="m-page-head__title">{% if instance %}Redigera menypunkt{% else %}Ny menypunkt{% endif %}</h1>
+    <p class="m-page-head__subtitle">
+        {% if menu.location == "header" %}Huvudmeny{% else %}Sidfot: {{ menu.heading|default:menu.name }}{% endif %}
+    </p>
+</div>
+
+<form method="post" class="m-form" novalidate>
+    {% csrf_token %}
+    <div class="m-panel m-form-panel">
+        <div class="m-field">
+            <label for="{{ form.label.id_for_label }}">{{ form.label.label }}</label>
+            {{ form.label }}
+            {% if form.label.errors %}<div class="m-field-error">{{ form.label.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.page.id_for_label }}">{{ form.page.label }}</label>
+            {{ form.page }}
+            {% if form.page.help_text %}<div class="m-field-help">{{ form.page.help_text }}</div>{% endif %}
+            {% if form.page.errors %}<div class="m-field-error">{{ form.page.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.url.id_for_label }}">{{ form.url.label }}</label>
+            {{ form.url }}
+            {% if form.url.help_text %}<div class="m-field-help">{{ form.url.help_text }}</div>{% endif %}
+            {% if form.url.errors %}<div class="m-field-error">{{ form.url.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field-inline">
+            <label>{{ form.open_in_new_tab }} {{ form.open_in_new_tab.label }}</label>
+            <label>{{ form.is_visible }} {{ form.is_visible.label }}</label>
+        </div>
+        {% if menu.location == "header" %}
+        <div class="m-field-inline">
+            <label>{{ form.is_button }} {{ form.is_button.label }}</label>
+        </div>
+        {% endif %}
+    </div>
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">{% if instance %}Spara{% else %}Lägg till{% endif %}</button>
+        <a href="{% url 'manage:menus_overview' %}" class="m-btn m-btn--ghost m-btn--inline">Avbryt</a>
+    </div>
+</form>
+{% endblock %}

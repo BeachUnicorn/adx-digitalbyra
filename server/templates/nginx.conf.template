@@ -1,0 +1,51 @@
+# Rendered per site by provision-site.sh (envsubst). Do not edit on the server;
+# edit the template in the repo and re-provision.
+#
+# TLS cert path uses ${CERT_NAME} (a stable, manually chosen name), NOT the
+# domain. That means DOMAINS can change (beta -> live) without the cert path
+# changing.
+
+# HTTP -> HTTPS, and redirect every domain to the primary one.
+server {
+    listen 80;
+    server_name ${ALL_DOMAINS};
+    return 301 https://${PRIMARY_DOMAIN}$request_uri;
+}
+${SECONDARY_REDIRECT_BLOCK}
+# The site itself, on the primary domain.
+server {
+    listen 443 ssl;
+    server_name ${PRIMARY_DOMAIN};
+
+    ssl_certificate /etc/letsencrypt/live/${CERT_NAME}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${CERT_NAME}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 85M;
+
+    location / {
+        proxy_pass http://unix:${SOCKET};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /static/ {
+        alias ${STATIC_DIR}/;
+        expires 30d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    location /media/ {
+        alias ${MEDIA_DIR}/;
+        expires 30d;
+        add_header Cache-Control "public";
+        access_log off;
+    }
+
+    access_log /var/log/nginx/${SITE_SLUG}_access.log;
+    error_log /var/log/nginx/${SITE_SLUG}_error.log;
+}

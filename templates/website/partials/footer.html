@@ -1,0 +1,35 @@
+{% load static %}
+{% comment %}
+Sidfoten ur strict-design-guide.html: glaspanel med logotyp, beskrivning,
+länkkolumner ur footer-menyerna (Menu-modellen, en meny = en kolumn) och
+bottenraden ur sajtinställningarna.
+{% endcomment %}
+<footer>
+  <div class="wrap">
+    <div class="foot panel">
+      <div class="foot-top">
+        <div>
+          <img src="{% static 'images/adx-logo.png' %}" alt="{{ site_settings.name|default:'ADX' }}">
+          {% if site_settings.footer_about %}<p class="foot-desc">{{ site_settings.footer_about }}</p>{% endif %}
+        </div>
+        <div class="foot-cols">
+          {% for menu in footer_menus %}
+          <div>
+            {% if menu.heading %}<h5>[ {{ menu.heading }} ]</h5>{% endif %}
+            <ul>
+              {% for item in menu.items.all %}{% if item.is_visible %}
+              <li>{% if item.is_link %}<a href="{{ item.get_url }}">{{ item.label }}</a>{% else %}{{ item.label }}{% endif %}</li>
+              {% endif %}{% endfor %}
+            </ul>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="foot-bottom">
+        <span>&copy; {% now "Y" %} {{ site_settings.name|default:"ADX" }}</span>
+        {% if site_settings.street_address %}<span>{{ site_settings.street_address }}{% if site_settings.postal_code %}, {{ site_settings.postal_code }} {{ site_settings.city }}{% endif %}</span>{% endif %}
+        {% if site_settings.email %}<span>{{ site_settings.email }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</footer>

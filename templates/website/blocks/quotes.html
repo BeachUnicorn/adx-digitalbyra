@@ -1,0 +1,21 @@
+{% comment %}Citatkorten. data: sec-head + quotes[{text,who}].{% endcomment %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="quotes">
+            {% for q in quotes %}
+            <div class="quote panel">
+                <div class="mark">&rdquo;</div>
+                <p>{{ q.text }}</p>
+                <div class="who">[ {{ q.who }} ]</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>

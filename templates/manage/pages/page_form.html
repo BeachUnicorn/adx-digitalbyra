@@ -1,0 +1,48 @@
+{% extends "manage/base.html" %}
+
+{% block title %}{% if instance %}Sidinställningar{% else %}Ny sida{% endif %}{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <p class="m-crumb-row"><a href="{% url 'manage:page_list' %}">Blocksidor</a> ›</p>
+    <h1 class="m-page-head__title">{% if instance %}Redigera: {{ instance.title }}{% else %}Ny sida{% endif %}</h1>
+    {% if instance %}
+    <p class="m-page-head__subtitle"><a href="/{{ instance.slug }}/" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a></p>
+    {% else %}
+    <p class="m-page-head__subtitle">Skapa sidan först - sedan lägger du till innehållsblock.</p>
+    {% endif %}
+</div>
+
+<form method="post" class="m-form" novalidate>
+    {% csrf_token %}
+    <div class="m-panel m-form-panel">
+        <div class="m-field">
+            <label for="{{ form.title.id_for_label }}">{{ form.title.label }}</label>
+            {{ form.title }}
+            {% if form.title.errors %}<div class="m-field-error">{{ form.title.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.slug.id_for_label }}">{{ form.slug.label }}</label>
+            {{ form.slug }}
+            {% if form.slug.help_text %}<div class="m-field-help">{{ form.slug.help_text }}</div>{% endif %}
+            {% if form.slug.errors %}<div class="m-field-error">{{ form.slug.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.meta_title.id_for_label }}">{{ form.meta_title.label }}</label>
+            {{ form.meta_title }}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.meta_description.id_for_label }}">{{ form.meta_description.label }}</label>
+            {{ form.meta_description }}
+        </div>
+        <div class="m-field-inline">
+            <label>{{ form.is_published }} {{ form.is_published.label }}</label>
+            <label>{{ form.order.label }} {{ form.order }}</label>
+        </div>
+    </div>
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">{% if instance %}Spara{% else %}Skapa sida{% endif %}</button>
+        <a href="{% url 'manage:page_list' %}" class="m-btn m-btn--ghost m-btn--inline">Avbryt</a>
+    </div>
+</form>
+{% endblock %}

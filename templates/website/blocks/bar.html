@@ -1,0 +1,10 @@
+{% comment %}CTA-raden. data: label, note (höger), link.{% endcomment %}
+<section>
+    <div class="wrap">
+        <div class="bar panel">
+            <div class="l">{{ label }}</div>
+            {% if note %}<div class="r">[ {{ note }} ]</div>{% endif %}
+            {% if link.label %}<a class="btn" href="{{ link.url|default:'/kontakt/' }}">{{ link.label }}</a>{% endif %}
+        </div>
+    </div>
+</section>

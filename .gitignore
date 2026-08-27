@@ -1,0 +1,26 @@
+# Python / uv
+__pycache__/
+*.py[cod]
+.venv/
+
+# Django
+db.sqlite3
+/collected-staticfiles/
+/user-uploaded-media/
+*.log
+
+# Secrets - never commit these
+.env
+*.pem
+*.key
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Node / frontend build
+node_modules/
+
+# Built JS bundle - must be in repo since server has no node.
+!static/js/dist/

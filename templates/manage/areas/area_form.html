@@ -1,0 +1,268 @@
+{% extends "manage/base.html" %}
+{% load static %}
+
+{% block title %}{% if instance %}{{ instance.name }}{% else %}Nytt serviceområde{% endif %}{% endblock %}
+
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tiptap.css' %}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head m-page-head--split">
+    <div>
+        <p class="m-page-head__back"><a href="{% url 'manage:areas_overview' %}">&larr; Serviceområden</a></p>
+        <h1 class="m-page-head__title">
+            {% if instance %}{{ instance.name }}{% else %}Nytt serviceområde{% endif %}
+            {% if instance %}
+                {% if instance.hidden_by_parent %}<span class="m-badge m-badge--draft">Dold av {{ instance.parent.name }}</span>
+                {% elif instance.is_active %}<span class="m-badge m-badge--published">Publicerad</span>
+                {% else %}<span class="m-badge m-badge--draft">Utkast</span>{% endif %}
+            {% endif %}
+        </h1>
+    </div>
+    {% if instance %}
+    <span>
+        <a href="{% url 'manage:history' 'areas' 'area' instance.pk %}?next={{ request.get_full_path|urlencode }}" class="m-btn m-btn--ghost m-btn--inline">Historik</a>
+        <a href="{{ instance.get_absolute_url }}" rel="noopener" class="m-btn m-btn--ghost m-btn--inline">Visa på webbplatsen ↗</a>
+    </span>
+    {% endif %}
+</div>
+
+<form method="post" class="m-form m-form--wide" novalidate>
+    {% csrf_token %}
+
+    {# ----- Grunduppgifter ----- #}
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Grunduppgifter</h2>
+        <p class="m-form-hint">
+            {% verbatim %}Namnet ersätter <code>{{ ort }}</code> i all text på sidan. I texter går även
+            <code>{{ kommun }}</code> och <code>{{ lan }}</code> att använda.{% endverbatim %}
+        </p>
+        <div class="m-field-grid">
+            <div class="m-field">
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                {{ form.name }}
+                {% if form.name.errors %}<div class="m-field-error">{{ form.name.errors|join:", " }}</div>{% endif %}
+            </div>
+            <div class="m-field">
+                <label for="{{ form.slug.id_for_label }}">{{ form.slug.label }}</label>
+                {{ form.slug }}
+                <div class="m-field-help">Lämnas tomt genereras den från namnet.</div>
+            </div>
+            <div class="m-field">
+                <label for="{{ form.level.id_for_label }}">{{ form.level.label }}</label>
+                {{ form.level }}
+            </div>
+            <div class="m-field">
+                <label for="{{ form.parent.id_for_label }}">{{ form.parent.label }}</label>
+                {{ form.parent }}
+                {% if form.parent.errors %}<div class="m-field-error">{{ form.parent.errors|join:", " }}</div>{% endif %}
+                <div class="m-field-help">Län för en kommun, kommun för en ort.</div>
+            </div>
+        </div>
+        <div class="m-field-inline">
+            <label>{{ form.is_active }} {{ form.is_active.label }}</label>
+            <label>{{ form.order.label }} {{ form.order }}</label>
+        </div>
+        <p class="m-form-hint">Av döljer området <strong>och alla underområden</strong> från webbplatsen och sitemap.</p>
+    </div>
+
+    {# ----- Innehåll ----- #}
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Innehåll</h2>
+        <div class="m-field">
+            <label for="{{ form.heading.id_for_label }}">{{ form.heading.label }}</label>
+            {{ form.heading }}
+            <div class="m-field-help">{{ form.heading.help_text }}</div>
+        </div>
+        <div class="m-field">
+            <label for="{{ form.intro.id_for_label }}">{{ form.intro.label }}</label>
+            {{ form.intro }}
+        </div>
+        {% include "manage/services/_image_field.html" with field=form.image %}
+        <div class="m-field">
+            <label>{{ form.body.label }}</label>
+            {{ form.body }}
+            <div class="m-field-help">
+                Skriv något som bara stämmer för det här området &mdash; hustyper, kvarter, vanliga jobb.
+                Det är den texten som gör att sidan rankar i stället för att se ut som en mall.
+            </div>
+        </div>
+    </div>
+
+    {# ----- Underområden ----- #}
+    {% if instance and child_level_label %}
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">{{ child_level_label }}</h2>
+        <p class="m-form-hint">
+            Listas på sidan. Kryssa i <strong>Egen sida</strong> för att området ska bli en
+            klickbar undersida &mdash; annars visas bara namnet som text. En undersida ärver
+            {{ instance.name }}s tjänster, frågor och grannområden tills den får egna.
+        </p>
+        <div id="children-list">
+            {% for child in children %}
+            <div class="m-repeat-row">
+                <input type="hidden" name="child_uid" value="{{ child.pk }}">
+                <input type="hidden" name="child_id" value="{{ child.pk }}">
+                <input type="text" name="child_name" value="{{ child.name }}" placeholder="Namn" class="m-repeat-row__main">
+                <label class="m-repeat-row__check"><input type="checkbox" name="child_active" value="{{ child.pk }}" {% if child.is_active %}checked{% endif %}> Egen sida</label>
+                <a href="{% url 'manage:area_edit' child.pk %}" class="m-btn m-btn--ghost m-btn--small">Redigera</a>
+                <button type="button" class="m-btn m-btn--danger m-btn--small" data-remove-row>Ta bort</button>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="m-btn m-btn--ghost m-btn--small" data-add-row="children-list" data-template="child-template">Lägg till {{ child_singular }}</button>
+    </div>
+    {% endif %}
+
+    {# ----- FAQ ----- #}
+    {% if instance %}
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Vanliga frågor</h2>
+        <p class="m-form-hint">
+            Visas på sidan och skickas till Google som strukturerad data (FAQPage).
+            Både fråga och svar måste fyllas i för att raden ska sparas.{% if instance.parent %}
+            Lämnas listan tom visas {{ instance.parent.name }}s frågor i stället, med
+            {% verbatim %}<code>{{ ort }}</code>{% endverbatim %} utbytt mot {{ instance.name }}.{% endif %}
+        </p>
+        <div id="faq-list">
+            {% for item in faq_items %}
+            <div class="m-repeat-block">
+                <div class="m-field">
+                    <label>Fråga</label>
+                    <input type="text" name="faq_question" value="{{ item.question }}" placeholder="Hur snabbt kan ni komma?">
+                </div>
+                <div class="m-field">
+                    <label>Svar</label>
+                    <textarea name="faq_answer" rows="3">{{ item.answer }}</textarea>
+                </div>
+                <button type="button" class="m-btn m-btn--danger m-btn--small" data-remove-row>Ta bort frågan</button>
+            </div>
+            {% endfor %}
+        </div>
+        <button type="button" class="m-btn m-btn--ghost m-btn--small" data-add-row="faq-list" data-template="faq-template">Lägg till fråga</button>
+        <div class="m-field" style="margin-top:16px;">
+            <label for="{{ form.faq_section.id_for_label }}">{{ form.faq_section.label }}</label>
+            {{ form.faq_section }}
+            <div class="m-field-help">Valfritt. Visas efter områdets egna frågor.</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {# ----- Karta ----- #}
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Karta</h2>
+        <p class="m-form-hint">
+            Fylls i automatiskt av <code>manage.py geocode_areas</code>. Justera bara
+            om kartan hamnar snett. Utan koordinater visas ingen karta på sidan.
+        </p>
+        <div class="m-field-grid">
+            <div class="m-field">
+                <label for="{{ form.latitude.id_for_label }}">{{ form.latitude.label }}</label>
+                {{ form.latitude }}
+            </div>
+            <div class="m-field">
+                <label for="{{ form.longitude.id_for_label }}">{{ form.longitude.label }}</label>
+                {{ form.longitude }}
+            </div>
+        </div>
+        <div class="m-field">
+            <label for="{{ form.map_zoom.id_for_label }}">{{ form.map_zoom.label }}</label>
+            {{ form.map_zoom }}
+            <div class="m-field-help">{{ form.map_zoom.help_text }}</div>
+        </div>
+        {% if instance.has_map %}
+        <div class="m-field-help">
+            Nuvarande position:
+            <a href="https://www.google.com/maps/search/?api=1&amp;query={{ instance.latitude }},{{ instance.longitude }}"
+               target="_blank" rel="noopener">{{ instance.latitude }}, {{ instance.longitude }} ↗</a>
+        </div>
+        {% else %}
+        <div class="m-field-help">Inga koordinater ännu - kartan är dold på sidan.</div>
+        {% endif %}
+    </div>
+
+    {# ----- Grannområden ----- #}
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Grannområden</h2>
+        <p class="m-form-hint">
+            Länkas längst ner på sidan. Hjälper både besökare och sökmotorer att hitta rätt.
+            {% if instance.level != 'region' %}Väljs inget visas i stället de andra områdena under {{ instance.parent.name|default:"samma område" }}.{% endif %}
+        </p>
+        <div class="m-filter-box">
+            <input type="search" class="m-search-input" placeholder="Sök område…"
+                   data-filter-list="neighbours-list" aria-label="Sök bland grannområden">
+            <span class="m-filter-box__count" data-filter-count="neighbours-list"></span>
+        </div>
+        <div class="m-checkbox-list m-checkbox-list--scroll" id="neighbours-list">{{ form.neighbours }}</div>
+    </div>
+
+    {# ----- SEO ----- #}
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Sökmotor</h2>
+        <p class="m-form-hint">Lämna tomt så genereras titel och beskrivning från rubriken.</p>
+        <div class="m-field">
+            <label for="{{ form.meta_title.id_for_label }}">{{ form.meta_title.label }}</label>
+            {{ form.meta_title }}
+            <div class="m-field-help">Max 70 tecken. Ha med ortsnamnet.</div>
+        </div>
+        <div class="m-field">
+            <label for="{{ form.meta_description.id_for_label }}">{{ form.meta_description.label }}</label>
+            {{ form.meta_description }}
+            <div class="m-field-help">Max 200 tecken. Cirka 155 visas i Google.</div>
+        </div>
+        {% if instance %}
+        <div class="m-serp">
+            <p class="m-serp__label">Så här kan träffen se ut i Google</p>
+            <p class="m-serp__url">{{ site_settings.domain|default:"adx.se" }} › vvs › {{ instance.slug }}</p>
+            <p class="m-serp__title">{{ instance.meta_title|default:instance.display_heading }}</p>
+            <p class="m-serp__desc">{{ instance.meta_description|default:instance.intro }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">Spara</button>
+        <a href="{% url 'manage:areas_overview' %}" class="m-btn m-btn--ghost m-btn--inline">Avbryt</a>
+        {% if instance %}
+        <span class="m-form-actions__spacer"></span>
+        {% endif %}
+    </div>
+</form>
+
+{% if instance %}
+<form method="post" action="{% url 'manage:area_delete' instance.pk %}" class="m-danger-zone"
+      onsubmit="return confirm('Ta bort {{ instance.name }}? Alla underområden tas bort med det.');">
+    {% csrf_token %}
+    <button type="submit" class="m-btn m-btn--danger m-btn--small">Ta bort området</button>
+</form>
+{% endif %}
+
+<template id="child-template">
+    <div class="m-repeat-row">
+        <input type="hidden" name="child_uid" value="">
+        <input type="hidden" name="child_id" value="">
+        <input type="text" name="child_name" placeholder="Namn" class="m-repeat-row__main">
+        <label class="m-repeat-row__check"><input type="checkbox" name="child_active" value="" checked> Egen sida</label>
+        <button type="button" class="m-btn m-btn--danger m-btn--small" data-remove-row>Ta bort</button>
+    </div>
+</template>
+
+<template id="faq-template">
+    <div class="m-repeat-block">
+        <div class="m-field">
+            <label>Fråga</label>
+            <input type="text" name="faq_question" placeholder="Hur snabbt kan ni komma?">
+        </div>
+        <div class="m-field">
+            <label>Svar</label>
+            <textarea name="faq_answer" rows="3"></textarea>
+        </div>
+        <button type="button" class="m-btn m-btn--danger m-btn--small" data-remove-row>Ta bort frågan</button>
+    </div>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dist/tiptap-editor.js' %}" defer></script>
+<script src="{% static 'js/manage-image-field.js' %}" defer></script>
+<script src="{% static 'js/manage-repeat-rows.js' %}" defer></script>
+{% endblock %}

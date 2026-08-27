@@ -1,0 +1,554 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Statistik{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Statistik</h1>
+    <p class="m-page-head__subtitle">
+        Besökare och trafik på webbplatsen. Egen insamling &mdash; ingen data lämnar servern.
+    </p>
+</div>
+
+<div class="m-stats-head">
+    <div class="m-filter" role="group" aria-label="Välj period">
+        {% for key, label, days in periods %}
+        <a href="?period={{ key }}{% if attribution == 'first' %}&amp;attribution=first{% endif %}"
+           class="m-filter__item {% if period_key == key %}is-active{% endif %}"
+           {% if period_key == key %}aria-current="true"{% endif %}>{{ label }}</a>
+        {% endfor %}
+    </div>
+    <div class="m-toggle" role="group" aria-label="Attributionsmodell">
+        <a href="?period={{ period_key }}" class="{% if attribution == 'last' %}is-active{% endif %}"
+           {% if attribution == 'last' %}aria-current="true"{% endif %}>Sista källa</a>
+        <a href="?period={{ period_key }}&amp;attribution=first" class="{% if attribution == 'first' %}is-active{% endif %}"
+           {% if attribution == 'first' %}aria-current="true"{% endif %}>Första källa</a>
+    </div>
+</div>
+
+{% if not has_data %}
+<div class="m-panel">
+    <div class="m-empty">
+        Ingen trafik registrerad för den här perioden ännu. Statistiken fylls på automatiskt
+        när besökare kommer till webbplatsen.
+    </div>
+</div>
+{% else %}
+
+{# ===== TRAFIK ===== #}
+<p class="m-section-title">Trafik &middot; {{ period_label|lower }}</p>
+<div class="m-stats">
+    <div class="m-stat">
+        <div class="m-stat__value">{{ summary.visitors }}</div>
+        <div class="m-stat__label">Unika besökare</div>
+        <div class="m-stat__sub">{{ summary.visitors_new }} nya &middot; {{ summary.visitors_returning }} återkommande</div>
+    </div>
+    <div class="m-stat">
+        <div class="m-stat__value">{{ summary.sessions }}</div>
+        <div class="m-stat__label">Besök</div>
+        <div class="m-stat__sub">{{ summary.sessions_per_visitor }} besök per besökare</div>
+    </div>
+    <div class="m-stat">
+        <div class="m-stat__value">{{ summary.pageviews }}</div>
+        <div class="m-stat__label">Sidvisningar</div>
+        <div class="m-stat__sub">{{ summary.pages_per_session }} sidor per besök</div>
+    </div>
+    <div class="m-stat">
+        <div class="m-stat__value">{{ summary.inquiries }}</div>
+        <div class="m-stat__label">Förfrågningar</div>
+        <div class="m-stat__sub">{{ summary.inquiry_rate }} % av alla besök</div>
+    </div>
+</div>
+
+{# ===== KONTAKT & ENGAGEMANG ===== #}
+<p class="m-section-title">Kontakt &amp; engagemang</p>
+<div class="m-stats">
+    <div class="m-stat">
+        <div class="m-stat__value">{{ summary.tel_clicks }}</div>
+        <div class="m-stat__label">Telefonklick</div>
+        <div class="m-stat__sub">{{ summary.tel_rate }} % av besöken</div>
+    </div>
+    <div class="m-stat">
+        <div class="m-stat__value">{{ summary.email_clicks }}</div>
+        <div class="m-stat__label">E-postklick</div>
+        <div class="m-stat__sub">{{ summary.email_rate }} % av besöken</div>
+    </div>
+    <div class="m-stat">
+        <div class="m-stat__value">{{ summary.engaged_avg_display }}</div>
+        <div class="m-stat__label">Engagerad tid per besök</div>
+        <div class="m-stat__sub">Aktiv tid, inte tid med öppen flik</div>
+    </div>
+    <div class="m-stat">
+        <div class="m-stat__value">{{ summary.engaged_share }} %</div>
+        <div class="m-stat__label">Engagerade besök</div>
+        <div class="m-stat__sub">&gt; 15 s aktiv tid, flera sidor eller en kontakt</div>
+    </div>
+</div>
+
+{# ===== BESÖK PER DAG ===== #}
+{% if daily.days %}
+<div class="m-block">
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Besök och förfrågningar per dag</h2>
+            {% if daily.peak %}<p>Toppdag: {{ daily.peak.date|date:"j M" }} ({{ daily.peak.sessions }} besök)</p>{% endif %}
+        </div>
+        <div class="m-bars" role="img"
+             aria-label="Kolumndiagram över besök per dag. Toppdag {{ daily.peak.date|date:'j F' }} med {{ daily.peak.sessions }} besök.">
+            {% for day in daily.days %}
+            <div class="m-bars__col" title="{{ day.date|date:'j M' }}: {{ day.sessions }} besök, {{ day.inquiries }} förfrågningar">
+                <div class="m-bars__bar" style="height:{{ day.height }}%"></div>
+                {% if day.inquiries %}<div class="m-bars__bar m-bars__bar--conv" style="height:{{ day.inquiry_height }}%"></div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="m-axis">
+            <span>{{ daily.first|date:"j M" }}</span>
+            {% if daily.middle %}<span>{{ daily.middle|date:"j M" }}</span>{% endif %}
+            <span>{{ daily.last|date:"j M" }}</span>
+        </div>
+        <div class="m-legend">
+            <span><b class="m-legend__dot"></b>Besök</span>
+            <span><b class="m-legend__dot m-legend__dot--conv"></b>Förfrågningar</span>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ===== TRAFIKKÄLLOR ===== #}
+<div class="m-block">
+    <p class="m-section-title">Varifrån kommer besökarna</p>
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Trafikkällor rangordnade efter kontaktgrad</h2>
+            <p>{% if attribution == 'first' %}Första källa &mdash; hur de ursprungligen hittade er{% else %}Sista källa &mdash; besöket som konverterade{% endif %}</p>
+        </div>
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Källa</th>
+                        <th scope="col" class="m-num">Besök</th>
+                        <th scope="col" class="m-num">Andel</th>
+                        <th scope="col" class="m-num">Engagerad tid</th>
+                        <th scope="col" class="m-num">Telefon</th>
+                        <th scope="col" class="m-num">Förfrågn.</th>
+                        <th scope="col" class="m-num">Kontaktgrad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in sources %}
+                    <tr>
+                        <td>
+                            {{ row.label }}
+                            {% if row.detail %}<div class="m-cell-detail">{{ row.detail }}</div>{% endif %}
+                        </td>
+                        <td class="m-num">{{ row.sessions }}</td>
+                        <td class="m-num">{{ row.share }} %</td>
+                        <td class="m-num">{{ row.engaged_display }}</td>
+                        <td class="m-num">{{ row.tel }}</td>
+                        <td class="m-num">{{ row.bookings }}</td>
+                        <td class="m-num">
+                            {{ row.contact_rate }} %
+                            <span class="m-meter"><span class="m-meter__fill" style="width:{{ row.bar }}%"></span></span>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="m-muted">Ingen källdata ännu.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="m-empty m-empty--note">
+            Sorterat på kontaktgrad istället för volym, så en liten kanal som faktiskt ger
+            kunder inte hamnar längst ner.
+        </div>
+    </div>
+</div>
+
+{# ===== KAMPANJER ===== #}
+{% if campaigns %}
+<div class="m-block">
+    <p class="m-section-title">Kampanjer</p>
+    <div class="m-panel">
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Kampanj</th>
+                        <th scope="col">Källa / medium</th>
+                        <th scope="col">Variant</th>
+                        <th scope="col" class="m-num">Besök</th>
+                        <th scope="col" class="m-num">Engagerad tid</th>
+                        <th scope="col" class="m-num">Telefon</th>
+                        <th scope="col" class="m-num">Förfrågn.</th>
+                        <th scope="col" class="m-num">Kontaktgrad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in campaigns %}
+                    <tr>
+                        <td>{{ row.campaign }}</td>
+                        <td class="m-muted">{{ row.source }} / {{ row.medium }}</td>
+                        <td class="m-muted">{{ row.variant|default:"&mdash;" }}</td>
+                        <td class="m-num">{{ row.sessions }}</td>
+                        <td class="m-num">{{ row.engaged_display }}</td>
+                        <td class="m-num">{{ row.tel }}</td>
+                        <td class="m-num">{{ row.bookings }}</td>
+                        <td class="m-num">{{ row.contact_rate }} %</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="m-empty m-empty--note">
+            Varianten kommer från <code>utm_term</code> och <code>utm_content</code>. Tagga
+            annonserna olika för att kunna se vilken av dem som fungerar.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ===== SIDOR ===== #}
+<div class="m-block">
+    <p class="m-section-title">Sidor</p>
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Mest besökta sidor</h2>
+            <p>{{ summary.pageviews }} sidvisningar</p>
+        </div>
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Sida</th>
+                        <th scope="col" class="m-num">Visningar</th>
+                        <th scope="col" class="m-num">Unika</th>
+                        <th scope="col" class="m-num">Engagerad tid</th>
+                        <th scope="col" class="m-num">Telefonklick</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in pages %}
+                    <tr>
+                        <td>
+                            {% if row.title %}<div class="m-cell-title">{{ row.title }}</div>{% endif %}
+                            <div class="m-path">{{ row.path }}</div>
+                        </td>
+                        <td class="m-num">{{ row.views }}</td>
+                        <td class="m-num">{{ row.unique }}</td>
+                        <td class="m-num">{{ row.engaged_display }}</td>
+                        <td class="m-num">{{ row.tel }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="m-muted">Inga sidvisningar ännu.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# ===== UTGÅNGSSIDOR + LOJALITET ===== #}
+<div class="m-grid-2">
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Var besökarna lämnar webbplatsen</h2>
+            <p>Sista sidan i besöket</p>
+        </div>
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Sida</th>
+                        <th scope="col" class="m-num">Utgångar</th>
+                        <th scope="col" class="m-num">Andel av visningar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in exit_pages %}
+                    <tr>
+                        <td>
+                            {% if row.title %}<div class="m-cell-title">{{ row.title }}</div>{% endif %}
+                            <div class="m-path">{{ row.path }}</div>
+                        </td>
+                        <td class="m-num">{{ row.exits }}</td>
+                        <td class="m-num">{{ row.share }} %</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="m-muted">Ingen data ännu.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="m-empty m-empty--note">
+            Hög utgång på kontaktsidan är inte nödvändigtvis dåligt &mdash; många ringer
+            därifrån och lämnar sedan.
+        </div>
+    </div>
+
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Återkommande besökare</h2>
+            <p>Antal besök per besökare</p>
+        </div>
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Antal besök</th>
+                        <th scope="col" class="m-num">Besökare</th>
+                        <th scope="col" class="m-num">Andel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in loyalty %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td class="m-num">{{ row.visitors }}</td>
+                        <td class="m-num">{{ row.share }} %</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="m-empty m-empty--note">
+            Bygger på en tvåårscookie. Byter någon enhet eller rensar cookies räknas de som ny.
+        </div>
+    </div>
+</div>
+
+{# ===== FUNNEL ===== #}
+<div class="m-block">
+    <p class="m-section-title">Förfrågningsflödet steg för steg</p>
+    <div class="m-panel">
+        {% for step in funnel %}
+        <div class="m-funnel__step">
+            <div class="m-funnel__label">
+                <div class="m-funnel__name">{{ step.label }}</div>
+                <div class="m-path">{{ step.path }}</div>
+            </div>
+            <div class="m-funnel__track">
+                <div class="m-funnel__fill" style="width:{{ step.width }}%">
+                    <span>{{ step.sessions }}</span>
+                </div>
+            </div>
+            <div class="m-funnel__drop">
+                {% if step.dropped %}
+                &minus;{{ step.dropped }} ({{ step.drop_share }} %)
+                {% endif %}
+                {% if step.errors or step.abandons %}
+                <em>
+                    {% if step.errors %}{{ step.errors }} formulärfel{% endif %}
+                    {% if step.errors and step.abandons %} &middot; {% endif %}
+                    {% if step.abandons %}{{ step.abandons }} avhopp{% endif %}
+                </em>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+        <div class="m-empty m-empty--note">
+            Räknat i besök, inte sidvisningar, så en omladdning inte ser ut som framsteg.
+            Formulärfel loggas på servern med vilket fält som brast; avhopp registreras när
+            någon lämnar ett steg utan att skicka.
+        </div>
+    </div>
+</div>
+
+{# ===== TELEFONKLICK PER PLACERING ===== #}
+<div class="m-grid-2">
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Telefonklick per placering</h2>
+            <p>{{ placements.total }} klick med känd placering</p>
+        </div>
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Placering på sidan</th>
+                        <th scope="col" class="m-num">Klick</th>
+                        <th scope="col" class="m-num">Andel</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in placements.rows %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td class="m-num">{{ row.clicks }}</td>
+                        <td class="m-num">{{ row.share }} %</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="3" class="m-muted">Inga telefonklick med placering ännu.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="m-empty m-empty--note">
+            Visar vilken knapp som faktiskt ger samtal, så ni vet vilken ni inte ska ta bort.
+        </div>
+    </div>
+
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Enhet</h2>
+            <p>Kontaktgrad per enhetstyp</p>
+        </div>
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Typ</th>
+                        <th scope="col" class="m-num">Besök</th>
+                        <th scope="col" class="m-num">Andel</th>
+                        <th scope="col" class="m-num">Kontaktgrad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in devices %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        <td class="m-num">{{ row.sessions }}</td>
+                        <td class="m-num">{{ row.share }} %</td>
+                        <td class="m-num">{{ row.contact_rate }} %</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# ===== HEATMAP ===== #}
+{% if heatmap.peak %}
+<div class="m-block">
+    <p class="m-section-title">När hör kunderna av sig</p>
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Telefonklick per veckodag och timme</h2>
+            <p>Underlag för bemanning av telefonen</p>
+        </div>
+        <div class="m-heat">
+            <table>
+                <caption>Mörkare ruta = fler telefonklick. Högsta värde: {{ heatmap.peak }} klick.</caption>
+                <thead>
+                    <tr>
+                        <th scope="col"><span class="m-sr-only">Veckodag</span></th>
+                        {% for hour in heatmap.hours %}<th scope="col">{{ hour }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in heatmap.rows %}
+                    <tr>
+                        <th scope="row">{{ row.day }}</th>
+                        {% for cell in row.cells %}
+                        <td data-level="{{ cell.level }}" title="{{ row.day }} kl {{ cell.hour }}: {{ cell.count }} klick"></td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="m-heat-legend">
+            Färre
+            <i data-level="0"></i><i data-level="1"></i><i data-level="2"></i>
+            <i data-level="3"></i><i data-level="4"></i><i data-level="5"></i>
+            Fler
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# ===== VYPORT + WEBBLÄSARE ===== #}
+<div class="m-grid-2">
+    <div class="m-panel">
+        <div class="m-panel-head">
+            <h2>Vyportbredd</h2>
+            <p>Styr vilka CSS-brytpunkter som spelar roll</p>
+        </div>
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr><th scope="col">Bredd</th><th scope="col" class="m-num">Besök</th></tr>
+                </thead>
+                <tbody>
+                    {% for row in viewports.rows %}
+                    <tr><td>{{ row.label }}</td><td class="m-num">{{ row.sessions }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if viewports.missing %}
+        <div class="m-empty m-empty--note">
+            Saknas för {{ viewports.missing }} besök där JavaScript inte hann rapportera.
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="m-panel">
+        <div class="m-panel-head"><h2>Webbläsare</h2></div>
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr><th scope="col">Webbläsare</th><th scope="col" class="m-num">Besök</th></tr>
+                </thead>
+                <tbody>
+                    {% for row in browsers %}
+                    <tr><td>{{ row.label }}</td><td class="m-num">{{ row.sessions }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# ===== SENASTE FÖRFRÅGNINGAR ===== #}
+{% if recent_inquiries %}
+<div class="m-block">
+    <p class="m-section-title">Senaste förfrågningar och deras resa</p>
+    <div class="m-panel">
+        <div class="m-table-wrap">
+            <table class="m-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Referens</th>
+                        <th scope="col">Första källa</th>
+                        <th scope="col">Sista källa</th>
+                        <th scope="col">Resa</th>
+                        <th scope="col" class="m-num">Besök innan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in recent_inquiries %}
+                    <tr>
+                        <td>
+                            {{ row.reference }}
+                            <div class="m-cell-detail">{{ row.created_at|date:"j M, H:i" }}</div>
+                        </td>
+                        <td>
+                            {{ row.first_label|default:"&mdash;" }}
+                            {% if row.first_detail %}<div class="m-cell-detail">{{ row.first_detail }}</div>{% endif %}
+                        </td>
+                        <td>
+                            {{ row.last_label }}
+                            {% if row.last_detail %}<div class="m-cell-detail">{{ row.last_detail }}</div>{% endif %}
+                        </td>
+                        <td class="m-journey">
+                            {% for hop in row.journey %}{% if not forloop.first %} &rarr; {% endif %}<code title="{{ hop.path }}">{{ hop.title|default:hop.path }}</code>{% empty %}<span class="m-muted">Ingen sessionsdata</span>{% endfor %}
+                        </td>
+                        <td class="m-num">{{ row.visits_before|default_if_none:"&mdash;" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="m-empty m-empty--note">
+            Första och sista källa skiljer sig ofta. Hittade någon er via Facebook men kom
+            tillbaka via Google får Facebook ingen kredit om man bara tittar på sista källan.
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

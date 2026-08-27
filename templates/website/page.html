@@ -1,0 +1,10 @@
+{% extends "website/base.html" %}
+{% load website_tags %}
+
+{% block title %}{% if page.meta_title %}{{ page.meta_title }}{% else %}{{ page.title }} - {{ site_settings.name|default:"ADX" }}{% endif %}{% endblock %}
+
+{% block content %}
+    {% for block in blocks %}
+        {% render_block block %}
+    {% endfor %}
+{% endblock %}

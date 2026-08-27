@@ -1,0 +1,61 @@
+{% extends "manage/base.html" %}
+{% load static %}
+
+{% block title %}{% if instance %}Redigera målgrupp{% else %}Ny målgrupp{% endif %}{% endblock %}
+
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tiptap.css' %}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">{% if instance %}Redigera målgrupp{% else %}Ny målgrupp{% endif %}</h1>
+</div>
+
+<form method="post" class="m-form" novalidate>
+    {% csrf_token %}
+    <div class="m-panel m-form-panel">
+        <div class="m-field">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.errors %}<div class="m-field-error">{{ form.name.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field">
+            <label>{{ form.intro.label }}</label>
+            {{ form.intro }}
+        </div>
+        {% include "manage/services/_image_field.html" with field=form.image %}
+        <div class="m-field-inline">
+            <label>{{ form.is_active.label }} {{ form.is_active }}</label>
+            <label>{{ form.rot_applies }} {{ form.rot_applies.label }}</label>
+            <label>{{ form.prices_include_vat }} {{ form.prices_include_vat.label }}</label>
+            <label>{{ form.order.label }} {{ form.order }}</label>
+        </div>
+        <div class="m-field">
+            <label for="{{ form.price_note.id_for_label }}">{{ form.price_note.label }}</label>
+            {{ form.price_note }}
+            {% if form.price_note.help_text %}<div class="m-field-help">{{ form.price_note.help_text }}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">SEO</h2>
+        <div class="m-field">
+            <label for="{{ form.meta_title.id_for_label }}">{{ form.meta_title.label }}</label>
+            {{ form.meta_title }}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.meta_description.id_for_label }}">{{ form.meta_description.label }}</label>
+            {{ form.meta_description }}
+        </div>
+    </div>
+
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">Spara</button>
+        <a href="{% url 'manage:services_overview' %}" class="m-btn m-btn--ghost m-btn--inline">Avbryt</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dist/tiptap-editor.js' %}" defer></script>
+<script src="{% static 'js/manage-image-field.js' %}" defer></script>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% comment %}Relaterade länk-pillren. data: sec-head + links[{label,url}].{% endcomment %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="related">
+            {% for link in links %}
+            <a href="{{ link.url }}">{{ link.label }} &rarr;</a>
+            {% endfor %}
+        </div>
+    </div>
+</section>

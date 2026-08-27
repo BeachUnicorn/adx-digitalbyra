@@ -1,0 +1,40 @@
+{% extends "manage/base.html" %}
+{% load static %}
+
+{% block title %}{% if instance %}Redigera fråga{% else %}Ny fråga{% endif %}{% endblock %}
+
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tiptap.css' %}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <p class="m-crumb-row"><a href="{% url 'manage:faq_overview' %}">FAQ</a> › <a href="{% url 'manage:faq_detail' section.slug %}">{{ section.title }}</a> ›</p>
+    <h1 class="m-page-head__title">{% if instance %}Redigera fråga{% else %}Ny fråga{% endif %}</h1>
+</div>
+
+<form method="post" class="m-form" novalidate>
+    {% csrf_token %}
+    <div class="m-panel m-form-panel">
+        <div class="m-field">
+            <label for="{{ form.question.id_for_label }}">{{ form.question.label }}</label>
+            {{ form.question }}
+            {% if form.question.errors %}<div class="m-field-error">{{ form.question.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field">
+            <label>{{ form.answer.label }}</label>
+            {{ form.answer }}
+            {% if form.answer.errors %}<div class="m-field-error">{{ form.answer.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field-inline">
+            <label>{{ form.is_active }} {{ form.is_active.label }}</label>
+        </div>
+    </div>
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">{% if instance %}Spara{% else %}Lägg till{% endif %}</button>
+        <a href="{% url 'manage:faq_detail' section.slug %}" class="m-btn m-btn--ghost m-btn--inline">Avbryt</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dist/tiptap-editor.js' %}" defer></script>
+{% endblock %}

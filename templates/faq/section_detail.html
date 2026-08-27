@@ -1,0 +1,38 @@
+{% extends "website/base.html" %}
+{% load faq_tags render_context website_tags %}
+
+{% block title %}{{ section.title|vars }} - FAQ - {{ site_settings.name|default:"ADX" }}{% endblock %}
+{% block meta %}
+<meta name="description" content="{{ section.get_meta_description|vars }}">
+{% endblock %}
+
+{% block extra_head %}
+{% faq_schema_json faq_items section.title %}
+{% endblock %}
+
+{% block content %}
+<section class="c-faq has-edit-pencil" id="faq">
+    {% url 'manage:faq_detail' section.slug as edit_url %}
+    {% edit_pencil url=edit_url label="Redigera FAQ" %}
+    <div class="container c-faq__inner">
+        <div class="c-faq__header">
+            <p class="c-faq__label"><a href="{% url 'faq:section_list' %}">FAQ</a></p>
+            <h1 class="c-faq__title">{{ section.title|vars }}</h1>
+            {% if section.description %}<p class="c-faq__desc">{{ section.description|vars }}</p>{% endif %}
+        </div>
+        <div class="c-faq__items">
+            {% for item in faq_items %}
+            <details class="c-faq-item" id="faq-{{ item.id }}">
+                <summary class="c-faq-item__question">{{ item.question|vars }}</summary>
+                <div class="c-faq-item__answer">{{ item.answer|vars_html }}</div>
+            </details>
+            {% empty %}
+            <p>Inga frågor i denna sektion ännu.</p>
+            {% endfor %}
+        </div>
+        <div style="margin-top: var(--space-4xl);">
+            <a href="{% url 'faq:section_list' %}" class="btn-secondary">← Alla FAQ-sektioner</a>
+        </div>
+    </div>
+</section>
+{% endblock %}

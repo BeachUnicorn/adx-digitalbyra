@@ -1,0 +1,19 @@
+{% load website_tags %}
+{% comment %}Hero ur guiden: kicker (ev. med brödsmulor), H1 med radbrytningar,
+ingress, två knappar, valfri bild. data: kicker, title, lead, primary/secondary,
+image_id, crumbs[].{% endcomment %}
+{% media image_id as hero_img %}
+<div class="wrap hero">
+    {% if crumbs or kicker %}<div class="kicker">{% if crumbs %}{% for c in crumbs %}<a href="{{ c.url }}">{{ c.label }}</a> / {% endfor %}{{ kicker }}{% else %}[ {{ kicker }} ]{% endif %}</div>{% endif %}
+    <h1>{{ title|linebreaksbr }}</h1>
+    {% if lead %}<p class="lead">{{ lead }}</p>{% endif %}
+    {% if primary.label or secondary.label %}
+    <div class="hero-actions">
+        {% if primary.label %}<a class="btn" href="{{ primary.url|default:'/kontakt/' }}">{{ primary.label }}</a>{% endif %}
+        {% if secondary.label %}<a class="btn ghost" href="{{ secondary.url|default:'/tjanster/' }}">{{ secondary.label }}</a>{% endif %}
+    </div>
+    {% endif %}
+    {% if hero_img %}
+    <div class="hero-media"><img src="{{ hero_img.file.url }}" alt="{{ hero_img.alt_text }}" style="border-radius:var(--radius);width:100%;object-fit:cover;object-position:var(--focal,50% 50%);max-height:min(420px,52vw);--focal:{{ hero_img.focal_css }}"></div>
+    {% endif %}
+</div>

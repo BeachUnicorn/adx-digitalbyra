@@ -1,0 +1,9 @@
+{% comment %}Rullande bandet. Dubbleras för sömlös loop, ✳ läggs av mallen.{% endcomment %}
+{% if items %}
+<div class="marquee" aria-hidden="true">
+    <div class="marquee-track">
+        {% for i in items %}<span>{{ i }}</span><span>&#10035;</span>{% endfor %}
+        {% for i in items %}<span>{{ i }}</span><span>&#10035;</span>{% endfor %}
+    </div>
+</div>
+{% endif %}

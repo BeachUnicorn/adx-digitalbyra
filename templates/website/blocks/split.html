@@ -1,0 +1,22 @@
+{% load website_tags %}
+{% comment %}Bild + textpanel. data: kicker, title, body, bullets[], image_id,
+image_side (left/right).{% endcomment %}
+{% media image_id as split_img %}
+<section>
+    <div class="wrap">
+        <div class="split">
+            {% if image_side != "right" %}{% include "website/blocks/_split_media.html" %}{% endif %}
+            <div class="body panel">
+                {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+                {% if title %}<h3>{{ title|upper }}</h3>{% endif %}
+                {% if body %}<p>{{ body }}</p>{% endif %}
+                {% if bullets %}
+                <ul>
+                    {% for b in bullets %}<li>{{ b }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% if image_side == "right" %}{% include "website/blocks/_split_media.html" %}{% endif %}
+        </div>
+    </div>
+</section>

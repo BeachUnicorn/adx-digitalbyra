@@ -1,0 +1,38 @@
+{% load website_tags %}
+{% comment %}
+Reusable media picker. Shows a thumbnail preview of the selected image and a
+visual grid of all available media (thumbnail + filename) to pick from.
+Expects: field (the hidden form field), all_media (queryset of MediaFile).
+{% endcomment %}
+<div class="m-field m-image-field" data-image-field>
+    <label>{{ field.label }}</label>
+    {{ field }}
+    <div class="m-image-field__preview">
+        {% media field.value as current_img %}
+        {% if current_img %}
+        <img src="{{ current_img.file.url }}" alt="{{ current_img.alt_text }}" data-image-preview>
+        {% else %}
+        <div class="m-image-field__empty" data-image-preview-empty>Ingen bild vald</div>
+        {% endif %}
+    </div>
+    <div class="m-media-picker" data-media-picker>
+        <button type="button" class="m-btn m-btn--ghost m-btn--small" data-media-picker-toggle>Välj bild</button>
+        <div class="m-media-picker__panel" data-media-picker-panel hidden>
+            <div class="m-media-picker__grid">
+                <button type="button" class="m-media-picker__item m-media-picker__item--none" data-media-id="" data-media-url="">
+                    <span class="m-media-picker__none-label">Ingen bild</span>
+                </button>
+                {% for m in all_media %}
+                {% if m.mime_type|slice:":5" == "image" %}
+                <button type="button" class="m-media-picker__item{% if field.value|stringformat:'s' == m.id|stringformat:'s' %} is-selected{% endif %}" data-media-id="{{ m.id }}" data-media-url="{{ m.file.url }}">
+                    <img src="{{ m.file.url }}" alt="{{ m.alt_text }}" class="m-media-picker__thumb">
+                    <span class="m-media-picker__name">{{ m.original_filename }}</span>
+                </button>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <br />
+    <p class="m-form-hint"><a href="{% url 'manage:media_library' %}" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Ladda upp nya bilder ↗</a></p>
+</div>

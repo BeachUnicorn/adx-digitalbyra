@@ -1,0 +1,56 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Historik{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Historik: {{ object }}</h1>
+    <p class="m-page-head__subtitle">{{ model_label }} &middot; <a href="{{ back_url }}" class="m-btn m-btn--ghost m-btn--small">&larr; Tillbaka</a></p>
+</div>
+
+{% if not rows %}
+<div class="m-panel m-empty"><p>Ingen historik ännu. Versioner skapas vid varje sparning.</p></div>
+{% endif %}
+
+{% for row in rows %}
+<div class="m-panel m-history-entry">
+    <div class="m-history-entry__head">
+        <div>
+            <strong>{{ row.revision.date_created|date:"j F Y H:i" }}</strong>
+            {% if row.is_current %}<span class="m-badge m-badge--active">Nuvarande</span>{% endif %}
+            {% if row.meta %}
+                <span class="m-badge {% if row.meta.source == 'ai' %}m-badge--ai{% endif %}">{{ row.meta.get_source_display }}</span>
+            {% endif %}
+        </div>
+        <div class="m-history-entry__who">
+            {% if row.revision.user %}{{ row.revision.user.get_username }}{% endif %}
+            {% if row.revision.comment %} &middot; {{ row.revision.comment }}{% endif %}
+        </div>
+    </div>
+
+    {% if row.diffs %}
+    <table class="m-table m-history-diff">
+        <tbody>
+        {% for d in row.diffs %}
+            <tr>
+                <th>{{ d.label }}</th>
+                <td class="m-history-diff__value">{{ d.diff }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="m-form-hint">Inga fältändringar (t.ex. relationsändring eller utgångsversion).</p>
+    {% endif %}
+
+    {% if not row.is_current %}
+    <form method="post" action="{% url 'manage:history_revert' row.version.pk %}" class="m-history-entry__actions"
+          onsubmit="return confirm('Återställa till denna version? Nuvarande innehåll sparas i historiken.');">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Återställ till denna version</button>
+    </form>
+    {% endif %}
+</div>
+{% endfor %}
+{% endblock %}

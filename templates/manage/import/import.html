@@ -1,0 +1,94 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Importera innehåll{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Importera innehåll</h1>
+    <p class="m-page-head__subtitle">Klistra in JSON för att importera tjänstekategorier, tjänster och FAQ-sektioner. Befintligt innehåll rörs aldrig.</p>
+</div>
+
+{% if errors %}
+<div class="m-panel" style="border-color: #f5c6c2; margin-bottom: 20px;">
+    <div style="padding: 14px 18px; color: #dc2626; font-size: 0.9rem;">
+        {% for error in errors %}
+        <p>{{ error }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if preview %}
+<div class="m-panel" style="margin-bottom: 20px;">
+    <div style="padding: 18px;">
+        <h2 class="m-form-section">Förhandsvisning</h2>
+
+        {% if preview.errors %}
+        <div style="color: #dc2626; margin-bottom: 12px;">
+            {% for err in preview.errors %}<p>⚠️ {{ err }}</p>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% if preview.categories %}
+        <p class="m-form-hint"><strong>Kategorier:</strong></p>
+        <ul style="margin: 0 0 12px 18px; font-size: 0.88rem;">
+            {% for cat in preview.categories %}
+            <li>{{ cat.name }} {% if cat.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if preview.services %}
+        <p class="m-form-hint"><strong>Tjänster:</strong></p>
+        <ul style="margin: 0 0 12px 18px; font-size: 0.88rem;">
+            {% for svc in preview.services %}
+            <li>{{ svc.name }}{% if svc.category %} ({{ svc.category }}){% endif %} — {{ svc.steps }} steg {% if svc.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if preview.faq_sections %}
+        <p class="m-form-hint"><strong>FAQ-sektioner:</strong></p>
+        <ul style="margin: 0 0 12px 18px; font-size: 0.88rem;">
+            {% for sec in preview.faq_sections %}
+            <li>{{ sec.title }} — {{ sec.items }} frågor {% if sec.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        <p style="font-size: 0.9rem; font-weight: 600; margin-top: 12px;">
+            Skapar {{ preview.totals.create }} nya, hoppar över {{ preview.totals.skip }} (finns redan).
+        </p>
+
+        {% if preview.totals.create and not preview.errors %}
+        <form method="post" style="margin-top: 16px;">
+            {% csrf_token %}
+            <input type="hidden" name="json_data" value="{{ raw_json }}">
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="m-btn m-btn--inline">Bekräfta import</button>
+            <a href="{% url 'manage:import_view' %}" class="m-btn m-btn--ghost m-btn--inline">Avbryt</a>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<form method="post" class="m-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="preview">
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">JSON-data</h2>
+        <div class="m-field">
+            <textarea name="json_data" rows="16" style="font-family: monospace; font-size: 0.82rem;" placeholder="Klistra in JSON här...">{{ raw_json }}</textarea>
+        </div>
+    </div>
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">Förhandsgranska</button>
+    </div>
+</form>
+
+<details style="margin-top: 24px;">
+    <summary class="m-form-hint" style="cursor: pointer; font-weight: 600;">Visa JSON-format (kopiera till AI)</summary>
+    <pre style="background: #f4f5f7; padding: 14px; border-radius: 8px; font-size: 0.78rem; overflow-x: auto; margin-top: 8px;">{{ json_format }}</pre>
+</details>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "manage/base.html" %}
+{% load static %}
+
+{% block title %}{{ inquiry.reference }} - Förfrågan{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <p class="m-crumb-row"><a href="{% url 'manage:inquiry_list' %}">← Förfrågningar</a></p>
+    <div class="m-page-head__row">
+        <div>
+            <h1 class="m-page-head__title">{{ inquiry.reference }}</h1>
+            <p class="m-page-head__subtitle">Inkommen {{ inquiry.created_at|date:"j M Y, H:i" }}</p>
+        </div>
+        <form method="post" action="{% url 'manage:inquiry_status' pk=inquiry.pk %}" class="m-inq-status-form">
+            {% csrf_token %}
+            <label for="id_status" class="m-inq-status-label">Status</label>
+            <select name="status" id="id_status" class="m-select" onchange="this.form.submit()">
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if inquiry.status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+</div>
+
+<!-- Contact details -->
+<div class="m-panel m-inq-section">
+    <div class="m-inq-section__head">
+        <h2 class="m-inq-section__title">Kontaktuppgifter</h2>
+    </div>
+    <div class="m-inq-detail-grid">
+        <div class="m-inq-detail-item">
+            <span class="m-inq-detail-label">Kundtyp</span>
+            <span class="m-inq-detail-value">{{ inquiry.get_customer_type_display }}</span>
+        </div>
+        {% if inquiry.company_name %}
+        <div class="m-inq-detail-item">
+            <span class="m-inq-detail-label">Organisation</span>
+            <span class="m-inq-detail-value">{{ inquiry.company_name }}</span>
+        </div>
+        {% endif %}
+        <div class="m-inq-detail-item">
+            <span class="m-inq-detail-label">Namn</span>
+            <span class="m-inq-detail-value">{{ inquiry.name }}</span>
+        </div>
+        <div class="m-inq-detail-item">
+            <span class="m-inq-detail-label">E-post</span>
+            <span class="m-inq-detail-value"><a href="mailto:{{ inquiry.email }}">{{ inquiry.email }}</a></span>
+        </div>
+        <div class="m-inq-detail-item">
+            <span class="m-inq-detail-label">Telefon</span>
+            <span class="m-inq-detail-value"><a href="tel:{{ inquiry.phone }}">{{ inquiry.phone }}</a></span>
+        </div>
+        <div class="m-inq-detail-item">
+            <span class="m-inq-detail-label">Adress</span>
+            <span class="m-inq-detail-value">{{ inquiry.street_address }}, {{ inquiry.postal_code }} {{ inquiry.city }}</span>
+        </div>
+    </div>
+</div>
+
+<!-- Description -->
+<div class="m-panel m-inq-section">
+    <div class="m-inq-section__head">
+        <h2 class="m-inq-section__title">Beskrivning</h2>
+    </div>
+    <div class="m-inq-section__body">
+        <p class="m-inq-description">{{ inquiry.description|linebreaksbr }}</p>
+    </div>
+</div>
+
+<!-- Traffic source -->
+<div class="m-panel m-inq-section">
+    <div class="m-inq-section__head">
+        <h2 class="m-inq-section__title">Varifrån kom besökaren?</h2>
+    </div>
+    <div class="m-inq-detail-grid">
+        <div class="m-inq-detail-item">
+            <span class="m-inq-detail-label">Trafikkälla</span>
+            <span class="m-inq-detail-value">{{ inquiry.traffic_source_display }}</span>
+        </div>
+        {% if inquiry.traffic_referrer %}
+        <div class="m-inq-detail-item">
+            <span class="m-inq-detail-label">Hänvisning</span>
+            <span class="m-inq-detail-value">{{ inquiry.traffic_referrer }}</span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Images -->
+{% if images %}
+<div class="m-panel m-inq-section">
+    <div class="m-inq-section__head">
+        <h2 class="m-inq-section__title">Bifogade bilder <span class="m-badge m-badge--draft">{{ images|length }} st</span></h2>
+    </div>
+    <div class="m-inq-section__body">
+        <div class="m-inq-images">
+            {% for img in images %}
+            <a href="{{ img.file.url }}" target="_blank" rel="noopener" class="m-inq-images__item">
+                <img src="{{ img.file.url }}" alt="{{ img.original_filename }}" loading="lazy">
+                <span class="m-inq-images__name">{{ img.original_filename }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

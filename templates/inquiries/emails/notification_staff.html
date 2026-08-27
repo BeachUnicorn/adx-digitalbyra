@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background-color:#f5f5f5;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f5;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:8px;overflow:hidden;">
+
+<!-- Header -->
+<tr><td style="background-color:#1a2b4a;padding:24px 32px;">
+    <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:600;">📩 Ny förfrågan</h1>
+</td></tr>
+
+<!-- Body -->
+<tr><td style="padding:32px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;width:120px;vertical-align:top;">Referens</td>
+        <td style="padding:4px 0;font-size:14px;color:#1a2b4a;font-weight:600;">{{ inquiry.reference }}</td>
+    </tr>
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Kund</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.name }}</td>
+    </tr>
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Kundtyp</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.get_customer_type_display }}</td>
+    </tr>
+    {% if inquiry.company_name %}
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Organisation</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.company_name }}</td>
+    </tr>
+    {% endif %}
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">E-post</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;"><a href="mailto:{{ inquiry.email }}" style="color:#2563eb;">{{ inquiry.email }}</a></td>
+    </tr>
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Telefon</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;"><a href="tel:{{ inquiry.phone }}" style="color:#2563eb;">{{ inquiry.phone }}</a></td>
+    </tr>
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Adress</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.street_address }}, {{ inquiry.postal_code }} {{ inquiry.city }}</td>
+    </tr>
+    {% if image_count %}
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Bilder</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ image_count }} st bifogade (visas i kontrollpanelen)</td>
+    </tr>
+    {% endif %}
+    </table>
+
+    <!-- Description -->
+    <p style="margin:0 0 4px;font-size:13px;color:#777;font-weight:600;text-transform:uppercase;">Beskrivning</p>
+    <div style="margin:0 0 24px;padding:12px 16px;background:#f7f7f7;border-radius:6px;border-left:3px solid #1a2b4a;">
+        <p style="margin:0;font-size:14px;color:#333;line-height:1.6;white-space:pre-wrap;">{{ inquiry.description }}</p>
+    </div>
+
+    <!-- CTA -->
+    {% if manage_url %}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+    <tr><td style="background:#1a2b4a;border-radius:6px;padding:12px 24px;">
+        <a href="{{ manage_url }}" style="color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;">Visa i kontrollpanelen →</a>
+    </td></tr>
+    </table>
+    {% endif %}
+</td></tr>
+
+<!-- Footer -->
+<tr><td style="padding:16px 32px;background:#f9f9f9;border-top:1px solid #eee;text-align:center;">
+    <p style="margin:0;font-size:12px;color:#999;">{{ site_name }} - Automatiskt meddelande</p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{% load render_context %}
+{% comment %}SEO-textblock (.prose). data: title, body (rich).{% endcomment %}
+<section>
+    <div class="wrap">
+        <div class="prose">
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% render_with_context_rich body %}
+        </div>
+    </div>
+</section>

@@ -1,0 +1,16 @@
+{% comment %}
+AI-orben. Ren CSS - inga bilder, inget JS, ingen extern begäran.
+
+Tre suddade fläckar som roterar i olika takt bakom en cirkel med
+overflow: hidden. Att de rör sig olika fort är hela tricket: samma
+hastighet läser som ett snurrande hjul, olika hastighet läser som moln.
+
+Använd `m-orb--sm` i menyn, `m-orb--lg` i chatten. `is-thinking` snabbar
+upp rörelsen medan en tur pågår.
+{% endcomment %}
+<span class="m-orb {{ orb_class }}" aria-hidden="true">
+    <span class="m-orb__cloud m-orb__cloud--a"></span>
+    <span class="m-orb__cloud m-orb__cloud--b"></span>
+    <span class="m-orb__cloud m-orb__cloud--c"></span>
+    <span class="m-orb__gloss"></span>
+</span>

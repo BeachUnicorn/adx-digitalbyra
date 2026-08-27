@@ -1,0 +1,39 @@
+{% load render_context %}
+{% comment %}
+One menu-item row. Expects `item` (MenuItem) and `forloop` (the including
+loop, used to disable the move-up/down buttons at the ends).
+{% endcomment %}
+<div class="m-list__row">
+    <div class="m-list__main">
+        <div class="m-list__title">
+            {% render_with_context item.label as item_label %}{{ item_label }}
+            {% if not item.is_visible %}<span class="m-badge m-badge--draft">Dold</span>{% endif %}
+            {% if not item.is_link %}<span class="m-badge">Endast text</span>{% endif %}
+        </div>
+        <div class="m-list__meta">
+            {% if item.page_id %}Sida: {{ item.page.title }}{% elif item.url %}{{ item.url }}{% else %}-{% endif %}
+            {% if item.open_in_new_tab %} · ny flik{% endif %}
+        </div>
+    </div>
+    <div class="m-row-actions">
+        <form method="post" action="{% url 'manage:menu_item_move' item.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="direction" value="up">
+            <button class="m-btn m-btn--ghost m-btn--small" type="submit" {% if forloop.first %}disabled{% endif %} aria-label="Flytta upp">↑</button>
+        </form>
+        <form method="post" action="{% url 'manage:menu_item_move' item.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="direction" value="down">
+            <button class="m-btn m-btn--ghost m-btn--small" type="submit" {% if forloop.last %}disabled{% endif %} aria-label="Flytta ner">↓</button>
+        </form>
+        <form method="post" action="{% url 'manage:menu_item_toggle' item.id %}">
+            {% csrf_token %}
+            <button class="m-btn m-btn--ghost m-btn--small" type="submit">{% if item.is_visible %}Dölj{% else %}Visa{% endif %}</button>
+        </form>
+        <a class="m-btn m-btn--small" href="{% url 'manage:menu_item_edit' item.id %}">Redigera</a>
+        <form method="post" action="{% url 'manage:menu_item_delete' item.id %}" onsubmit="return confirm('Ta bort menypunkten?');">
+            {% csrf_token %}
+            <button class="m-btn m-btn--danger m-btn--small" type="submit">Ta bort</button>
+        </form>
+    </div>
+</div>

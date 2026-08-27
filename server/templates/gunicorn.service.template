@@ -1,0 +1,23 @@
+[Unit]
+Description=Gunicorn for ${SITE_SLUG}
+After=network.target
+
+[Service]
+User=${SYSTEM_USER}
+Group=${SYSTEM_USER}
+WorkingDirectory=${APP_DIR}
+EnvironmentFile=${ENV_FILE}
+ExecStart=${VENV_DIR}/bin/gunicorn \
+    --workers ${GUNICORN_WORKERS} \
+    --worker-class ${GUNICORN_WORKER_CLASS} \
+    --threads ${GUNICORN_THREADS} \
+    --bind unix:${SOCKET} \
+    --access-logfile - \
+    --error-logfile - \
+    ${APP_MODULE}
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

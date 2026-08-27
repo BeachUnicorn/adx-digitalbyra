@@ -1,0 +1,19 @@
+Hej {{ inquiry.name }},
+
+Tack för din förfrågan till {{ site_name }}!
+
+Vi har tagit emot ditt ärende och återkommer inom 1–2 arbetsdagar.
+
+Referensnummer: {{ inquiry.reference }}
+
+Sammanfattning:
+- Kundtyp: {{ inquiry.get_customer_type_display }}
+{% if inquiry.company_name %}- Organisation: {{ inquiry.company_name }}
+{% endif %}- {% if image_count %}- Bifogade bilder: {{ image_count }} st
+{% endif %}
+Beskrivning:
+{{ inquiry.description }}
+
+---
+Med vänlig hälsning,
+{{ site_name }}

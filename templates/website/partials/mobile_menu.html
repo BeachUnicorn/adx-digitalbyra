@@ -1,0 +1,31 @@
+{% load static %}
+{% comment %}
+Mobilmenyn ur strict-design-guide.html: huvudlänkarna ur header-menyn,
+underlänkarna [ Tjänster ] ur tjänstelistan (nav_services) - samma data
+som sidfoten och svc-listan läser, så de kan aldrig glida isär.
+{% endcomment %}
+<div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="Meny">
+  <div class="mm-head">
+    <img src="{% static 'images/adx-logo.png' %}" alt="{{ site_settings.name|default:'ADX' }}">
+    <button type="button" class="mm-close" id="menuClose">[ Stäng ]</button>
+  </div>
+  <nav aria-label="Huvudmeny (mobil)">
+    {% for item in header_menu.items.all %}{% if item.is_visible and not item.is_button %}
+    <a href="{{ item.get_url }}"{% if item.get_url == active_nav %} class="active"{% endif %}>{{ item.label }}</a>
+    {% endif %}{% endfor %}
+  </nav>
+  {% if nav_services %}
+  <div class="mm-sub">
+    <h6>[ Tjänster ]</h6>
+    <div class="mm-sub-links">
+      {% for service in nav_services %}
+      <a href="{{ service.get_absolute_url }}">{{ service.name }}</a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+  <div class="mm-foot">
+    {% if site_settings.email %}<span>[ {{ site_settings.email }} ]</span>{% endif %}
+    <span>[ Stockholm ]</span>
+  </div>
+</div>

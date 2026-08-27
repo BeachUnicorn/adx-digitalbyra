@@ -1,0 +1,129 @@
+/**
+ * Tiptap editor styles for /manage/.
+ * Standardized editor chrome (yellow-green toolbar, Inter, SVG-free pills).
+ */
+
+.tiptap-field {
+    border: 1px solid var(--m-border, #e3e6ea);
+    border-radius: 8px;
+    overflow: visible;
+    position: relative;
+    background: #fff;
+}
+
+/* ===== TOOLBAR ===== */
+.tiptap-tb {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    background: oklch(0.96 0.18 115.3);
+    border-bottom: 1px solid oklch(0.85 0.15 115.3);
+    border-radius: 8px 8px 0 0;
+}
+.tiptap-tb__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 5px;
+    background: #fff;
+    color: #000;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+}
+.tiptap-tb__btn:hover,
+.tiptap-tb__btn.is-active {
+    background: #000;
+    color: oklch(0.96 0.18 115.3);
+}
+.tiptap-tb__btn--var { font-size: 0.72rem; font-weight: 700; }
+.tiptap-tb__sep { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.2); margin: 0 3px; }
+
+.tiptap-tb__var-wrapper { position: relative; }
+.tiptap-tb__var-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    min-width: 180px;
+    padding: 4px 0;
+    max-height: 260px;
+    overflow-y: auto;
+    z-index: 60;
+}
+.tiptap-tb__var-menu[hidden] { display: none; }
+.tiptap-tb__var-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 7px 14px;
+    border: none;
+    background: none;
+    font-size: 0.85rem;
+    color: #1f2937;
+    cursor: pointer;
+}
+.tiptap-tb__var-item:hover { background: #f3f4f6; }
+
+/* ===== EDITOR CONTENT ===== */
+.tiptap-editor .tiptap {
+    min-height: 120px;
+    padding: 12px 14px;
+    border-radius: 0 0 8px 8px;
+    outline: none;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+.tiptap-editor .tiptap:focus { outline: none; }
+.tiptap-editor .tiptap p { margin: 0 0 0.6em; }
+.tiptap-editor .tiptap p:last-child { margin-bottom: 0; }
+.tiptap-editor .tiptap ul,
+.tiptap-editor .tiptap ol { padding-left: 1.4em; margin: 0 0 0.6em; }
+.tiptap-editor .tiptap blockquote {
+    border-left: 3px solid #d1d5db;
+    padding-left: 1em;
+    color: #6b7280;
+    margin: 0 0 0.6em;
+}
+.tiptap-editor .tiptap a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: #3b82f6;
+    text-underline-offset: 2px;
+}
+.tiptap-editor .tiptap p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    color: #9ca3af;
+    pointer-events: none;
+    height: 0;
+    font-style: italic;
+}
+
+/* ===== VARIABLE PILLS ===== */
+.tiptap-variable-pill {
+    display: inline;
+    background: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #93c5fd;
+    border-radius: 4px;
+    padding: 0.1em 0.4em;
+    font-size: 0.85em;
+    font-weight: 500;
+    cursor: default;
+    user-select: all;
+    white-space: nowrap;
+}
+.tiptap-variable-pill.ProseMirror-selectednode {
+    background: #bfdbfe;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}

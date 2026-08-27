@@ -1,0 +1,45 @@
+# sites.d/jungfru.conf - PER-SITE config. One file = one site = one git repo =
+# one systemd service = one nginx vhost = one Postgres database.
+#
+# One file per site in sites.d/. Each site names its own repo below, so a box
+# can host several independent sites, each from a different repo. A multi-site
+# product that shares one repo just points several site files at the same
+# GIT_REPO_URL and differs by DJANGO_SETTINGS_MODULE.
+
+# Short slug. Drives service name, socket name, paths, logs, Sentry env.
+SITE_SLUG="jungfru"
+
+# Git source for THIS site. Each site config names its own repo and branch.
+GIT_REPO_URL="git@github.com:youraccount/jungfru.git"
+GIT_BRANCH="main"
+
+# Django settings module for this site. If several site files share one repo,
+# this is how each gets its own ALLOWED_HOSTS / branding (config/settings/<x>.py).
+DJANGO_SETTINGS_MODULE="config.settings.production"
+
+# Let's Encrypt certificate name. Chosen by you and kept STABLE for the life of
+# the site. It is the folder name under /etc/letsencrypt/live/<CERT_NAME>/ and
+# the certbot --cert-name. Because nginx points at this path, you can change the
+# DOMAINS below (e.g. beta -> live) WITHOUT touching the cert path. Keep it
+# simple and domain-agnostic, e.g. the slug.
+CERT_NAME="jungfru"
+
+# Domains for this site. The FIRST entry is the canonical/primary domain that
+# everything else redirects to; the rest are aliases on the same certificate.
+#
+# DURING DEVELOPMENT (customer still has their old site on the apex), serve on a
+# subdomain only:
+#   DOMAINS=("beta.jungfru.se")
+#
+# AT LAUNCH, switch to the real domains and re-run certs.sh + provision-site.sh:
+#   DOMAINS=("jungfru.se" "www.jungfru.se")
+#
+# See server/README.md "Going from beta to live" for what certbot does here.
+DOMAINS=("beta.jungfru.se")
+
+# Postgres database for this site.
+DB_NAME="jungfru_db"
+
+# Optional per-site overrides (otherwise inherited from project.conf):
+# DB_USER="jungfru_dbuser"
+# GUNICORN_WORKERS="2"

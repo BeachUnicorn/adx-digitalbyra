@@ -1,0 +1,10 @@
+{% comment %}Nyckeltalen under heron. data: chips[{value,label}].{% endcomment %}
+{% if chips %}
+<div class="wrap">
+    <div class="chips">
+        {% for chip in chips %}
+        <div class="chip panel"><div class="v">{{ chip.value }}</div><div class="k">{{ chip.label }}</div></div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

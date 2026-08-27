@@ -1,0 +1,39 @@
+{% load static %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logga in - Hantera</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/manage.css' %}">
+</head>
+<body class="m-body">
+<div class="m-login-wrap">
+    <form class="m-login" method="post" action="{% url 'login' %}">
+        {% csrf_token %}
+        <h1 class="m-login__title">Logga in</h1>
+        <p class="m-login__subtitle">Hantera din webbplats</p>
+
+        {% if form.non_field_errors %}
+        <div class="m-form-error">
+            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="m-field">
+            <label for="{{ form.username.id_for_label }}">Användarnamn</label>
+            {{ form.username }}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.password.id_for_label }}">Lösenord</label>
+            {{ form.password }}
+        </div>
+
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit" class="m-btn">Logga in</button>
+    </form>
+</div>
+</body>
+</html>

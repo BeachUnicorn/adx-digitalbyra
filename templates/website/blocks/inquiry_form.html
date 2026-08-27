@@ -1,0 +1,14 @@
+{% load website_tags %}
+{% comment %}Förfrågningsformuläret (inquiries-appen) i designens formspråk.{% endcomment %}
+<section id="forfragan">
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% inquiry_form %}
+    </div>
+</section>

@@ -1,0 +1,74 @@
+{% comment %}
+Ett utkast: sammanfattning, diff och beslutsknappar.
+
+`form_id` kopplar kryssrutan till jobbets gemensamma klumpformulär. Kortet får INTE
+ligga inuti det formuläret - kortets egen beslutsknapp är också ett formulär,
+och nästlade <form> är ogiltig HTML som webbläsaren tyst river isär.
+
+Kryssrutan är omarkerad från början. Ett granskningsverktyg vars snabbaste
+klick godkänner allt är inget granskningsverktyg; markeringen ska vara ett
+aktivt val. Affärsdata går att markera (kundens beslut 2026-08-21) men
+behåller sin märkning, så det syns vad markeringen innehåller.
+{% endcomment %}
+<div class="m-draft{% if row.change.risk == 'business' %} m-draft--business{% endif %}"
+     id="utkast-{{ row.change.pk }}">
+    <div class="m-draft__head">
+        <div class="m-draft__title">
+            {% if form_id and row.change.status == 'pending' %}
+            <label class="m-draft__check">
+                <input type="checkbox" name="change_ids" value="{{ row.change.pk }}"
+                       form="{{ form_id }}" class="js-draft-check" data-group="{{ group_id }}"
+                       data-business="{% if row.change.risk == 'business' %}1{% endif %}">
+            </label>
+            {% endif %}
+            <span>{{ row.change.summary }}</span>
+        </div>
+        <div class="m-draft__meta">
+            {% if row.change.risk == 'business' %}<span class="m-badge m-badge--business">Affärsdata</span>{% endif %}
+            {% if row.is_new %}<span class="m-badge">Nytt</span>{% endif %}
+            {% if row.change.status != 'pending' %}<span class="m-badge">{{ row.change.get_status_display }}</span>{% endif %}
+            <code class="m-draft__op">{{ row.change.operation }}</code>
+        </div>
+    </div>
+
+    {% if row.diffs %}
+    <table class="m-table m-history-diff">
+        <tbody>
+        {% for d in row.diffs %}
+            <tr><th>{{ d.label }}</th><td class="m-history-diff__value">{{ d.diff }}</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="m-form-hint">Ingen textändring att visa.</p>
+    {% endif %}
+
+    {% if row.change.error %}<p class="m-field-error">{{ row.change.error }}</p>{% endif %}
+
+    {% if row.stale %}
+    <p class="m-field-error">
+        <strong>Ändrat sedan förslaget lades:</strong> {{ row.stale|join:", " }}.
+        Godkänner du nu skrivs den ändringen över.
+    </p>
+    {% endif %}
+
+    {% comment %}
+    Knapparna ligger i EN rad-behållare. Länken låg tidigare utanför
+    formuläret, alltså utanför flex-behållaren, och hamnade på egen rad.
+    {% endcomment %}
+    {% if row.change.status == 'pending' %}
+    <div class="m-draft__actions">
+        <form method="post" action="{% url 'manage:assistant_change_decide' row.change.pk %}">
+            {% csrf_token %}
+            {% if row.stale %}<input type="hidden" name="force" value="1">{% endif %}
+            <button type="submit" name="action" value="approve" class="m-btn m-btn--small"
+                    {% if row.stale %}onclick="return confirm('Skriv över ändringen som gjorts sedan förslaget lades?');"{% endif %}>Godkänn{% if row.stale %} ändå{% endif %}</button>
+            <button type="submit" name="action" value="reject" class="m-btn m-btn--ghost m-btn--small">Avslå</button>
+        </form>
+        {% if show_preview %}
+        <a href="{% url 'manage:assistant_change_preview' row.change.pk %}"
+           class="m-btn m-btn--ghost m-btn--small">Förhandsgranska</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>

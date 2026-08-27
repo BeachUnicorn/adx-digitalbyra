@@ -1,0 +1,70 @@
+{% load website_tags %}
+{% comment %}
+Render one block field by type. Expects `field` with keys:
+  key, type, label, value, choices (for choice), help (optional)
+and `name` = the input name to use (defaults to field.key).
+For image fields, `all_media` must be in context.
+{% endcomment %}
+{% with iname=name|default:field.key %}
+<div class="m-field {% if field.type == 'image' %}m-image-field{% endif %}"{% if field.type == 'image' %} data-image-field{% endif %}>
+    <label>{{ field.label }}</label>
+
+    {% if field.type == "text" %}
+        <textarea name="{{ iname }}" rows="3">{{ field.value }}</textarea>
+
+    {% elif field.type == "rich" %}
+        <textarea name="{{ iname }}" data-tiptap="basic" rows="4">{{ field.value }}</textarea>
+
+    {% elif field.type == "choice" %}
+        <select name="{{ iname }}">
+            {% for val, lbl in field.choices %}
+            <option value="{{ val }}" {% if field.value == val %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+        </select>
+
+    {% elif field.type == "image" %}
+        <input type="hidden" name="{{ iname }}" value="{{ field.value }}">
+        <div class="m-image-field__preview">
+            {% media field.value as cur %}
+            {% if cur %}<img src="{{ cur.file.url }}" alt="{{ cur.alt_text }}" data-image-preview>
+            {% else %}<div class="m-image-field__empty" data-image-preview-empty>Ingen bild vald</div>{% endif %}
+        </div>
+        <div class="m-media-picker" data-media-picker>
+            <button type="button" class="m-btn m-btn--ghost m-btn--small" data-media-picker-toggle>Välj bild</button>
+            <div class="m-media-picker__panel" data-media-picker-panel hidden>
+                <div class="m-media-picker__grid">
+                    <button type="button" class="m-media-picker__item m-media-picker__item--none" data-media-id="" data-media-url="">
+                        <span class="m-media-picker__none-label">Ingen bild</span>
+                    </button>
+                    {% for m in all_media %}
+                    <button type="button" class="m-media-picker__item{% if field.value|stringformat:'s' == m.id|stringformat:'s' %} is-selected{% endif %}" data-media-id="{{ m.id }}" data-media-url="{{ m.file.url }}">
+                        <img src="{{ m.file.url }}" alt="{{ m.alt_text }}" class="m-media-picker__thumb">
+                        <span class="m-media-picker__name">{{ m.original_filename }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+    {% elif field.type == "faq_section" %}
+        <select name="{{ iname }}">
+            <option value="">- Ingen FAQ-sektion -</option>
+            {% for sec in all_faq_sections %}
+            <option value="{{ sec.id }}" {% if field.value|stringformat:'s' == sec.id|stringformat:'s' %}selected{% endif %}>{{ sec.title }} ({{ sec.items.count }} frågor)</option>
+            {% endfor %}
+        </select>
+        <p class="m-form-hint"><a href="{% url 'manage:faq_overview' %}" rel="noopener">Hantera FAQ-sektioner ↗</a></p>
+
+    {% elif field.type == "range" %}
+        <div class="m-range-field">
+            <input type="range" name="{{ iname }}" min="0" max="1" step="0.05" value="{{ field.value|default:'0.45' }}" class="m-range-field__input" oninput="this.nextElementSibling.textContent=this.value">
+            <span class="m-range-field__value">{{ field.value|default:"0.45" }}</span>
+        </div>
+
+    {% else %}
+        <input type="text" name="{{ iname }}" value="{{ field.value }}">
+    {% endif %}
+
+    {% if field.help %}<p class="m-form-hint">{{ field.help }}</p>{% endif %}
+</div>
+{% endwith %}

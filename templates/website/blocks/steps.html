@@ -1,0 +1,21 @@
+{% comment %}Stegen (Så jobbar vi). data: sec-head + steps[{title,text}].{% endcomment %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="steps">
+            {% for step in steps %}
+            <div class="step panel">
+                <div class="num">[ {{ forloop.counter|stringformat:"02d" }} ]</div>
+                <h3>{{ step.title }}</h3>
+                <p>{{ step.text }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>

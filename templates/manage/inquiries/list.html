@@ -1,0 +1,80 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Förfrågningar{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">
+        Förfrågningar
+        {% if unread_count %}
+        <span class="m-badge m-badge--alert">{{ unread_count }} oläst{{ unread_count|pluralize:"a" }}</span>
+        {% endif %}
+    </h1>
+</div>
+
+<!-- Status filter -->
+<div class="m-filter">
+    <a href="{% url 'manage:inquiry_list' %}" class="m-filter__item {% if not status_filter %}is-active{% endif %}">Alla</a>
+    {% for value, label in status_choices %}
+    <a href="{% url 'manage:inquiry_list' %}?status={{ value }}" class="m-filter__item {% if status_filter == value %}is-active{% endif %}">{{ label }}</a>
+    {% endfor %}
+</div>
+
+<!-- Desktop table -->
+<div class="m-panel m-inq-table-wrap">
+    <table class="m-inq-table">
+        <thead>
+            <tr>
+                <th></th>
+                <th>Namn</th>
+                <th>Kundtyp</th>
+                <th>Bilder</th>
+                <th>Datum</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inquiry in inquiries %}
+            <tr class="{% if not inquiry.is_read %}m-inq-table__row--unread{% endif %}">
+                <td class="m-inq-table__dot-cell">{% if not inquiry.is_read %}<span class="m-dot"></span>{% endif %}</td>
+                <td>
+                    <a href="{% url 'manage:inquiry_detail' pk=inquiry.pk %}" class="m-inq-table__name">
+                        {{ inquiry.name }}
+                        {% if inquiry.company_name %}<span class="m-inq-table__org">{{ inquiry.company_name }}</span>{% endif %}
+                    </a>
+                </td>
+                <td class="m-inq-table__meta">{{ inquiry.get_customer_type_display }}</td>
+                <td class="m-inq-table__meta">{% if inquiry.image_count %}📷 {{ inquiry.image_count }}{% else %}-{% endif %}</td>
+                <td class="m-inq-table__meta">{{ inquiry.created_at|date:"j M Y" }}</td>
+                <td><span class="m-badge m-badge--{{ inquiry.status }}">{{ inquiry.get_status_display }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="m-empty">Inga förfrågningar ännu.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Mobile cards -->
+<div class="m-inq-mobile-list">
+    {% for inquiry in inquiries %}
+    <a href="{% url 'manage:inquiry_detail' pk=inquiry.pk %}" class="m-inq-mobile-card {% if not inquiry.is_read %}m-inq-mobile-card--unread{% endif %}">
+        <div class="m-inq-mobile-card__top">
+            <div class="m-inq-mobile-card__name">
+                {% if not inquiry.is_read %}<span class="m-dot"></span>{% endif %}
+                {{ inquiry.name }}
+            </div>
+            <span class="m-badge m-badge--{{ inquiry.status }}">{{ inquiry.get_status_display }}</span>
+        </div>
+        <div class="m-inq-mobile-card__meta">
+            {{ inquiry.get_customer_type_display }}
+            {% if inquiry.company_name %} · {{ inquiry.company_name }}{% endif %}
+            {% if inquiry.image_count %} · 📷 {{ inquiry.image_count }}{% endif %}
+            · {{ inquiry.created_at|date:"j M" }}
+        </div>
+    </a>
+    {% empty %}
+    <div class="m-empty">Inga förfrågningar ännu.</div>
+    {% endfor %}
+</div>
+{% endblock %}

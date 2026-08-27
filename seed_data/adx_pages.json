@@ -1,0 +1,1399 @@
+[
+ {
+  "sida": "hem",
+  "meta_title": "ADX — Digitalbyrå i Stockholm",
+  "meta_description": "ADX är en digitalbyrå i Stockholm: webbutveckling, automation, managed content, hosting, domäner och e-post. Ett team, ett ansvar.",
+  "gradient_color": "#f7fcff",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "Digitalbyrå — Stockholm",
+     "title": "Digitala\nlösningar\nsom lyfter.",
+     "lead": "Webbutveckling, automation, innehåll och drift. Vi bygger, förvaltar och vidareutvecklar er digitala verksamhet — ett team, ett ansvar.",
+     "primary": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     },
+     "secondary": {
+      "label": "Se tjänster",
+      "url": "/tjanster/"
+     }
+    }
+   },
+   {
+    "type": "chips",
+    "data": {
+     "chips": [
+      {
+       "value": "99,9 %",
+       "label": "drifttid — managed hosting"
+      },
+      {
+       "value": "6 områden",
+       "label": "tjänster under samma tak"
+      },
+      {
+       "value": "Multi-tenant",
+       "label": "plattform för kedjor"
+      },
+      {
+       "value": "Stockholm",
+       "label": "kunder i hela landet"
+      }
+     ]
+    }
+   },
+   {
+    "type": "marquee",
+    "data": {
+     "items": [
+      "E-handel",
+      "Detaljhandel",
+      "Restaurangkedjor",
+      "Bygg & Fastighet",
+      "Juridik",
+      "Vård & Klinik",
+      "Logistik",
+      "Utbildning"
+     ]
+    }
+   },
+   {
+    "type": "case",
+    "data": {
+     "kicker": "Utvalt case",
+     "title": "En plattform. 23 enheter.",
+     "case_title": "Kedjeplattform för restauranger",
+     "body": "En rikstäckande kedja behövde en gemensam webbplattform där varje enhet får sin egen sida — men allt driftas, uppdateras och förvaltas centralt.",
+     "link": {
+      "label": "Multi-tenant · Kedja",
+      "url": ""
+     },
+     "stats": [
+      {
+       "value": "23 st",
+       "label": "enheter på plattformen"
+      },
+      {
+       "value": "+124 %",
+       "label": "organisk trafik"
+      },
+      {
+       "value": "40 h/mån",
+       "label": "sparade genom automation"
+      }
+     ]
+    }
+   },
+   {
+    "type": "steps",
+    "data": {
+     "kicker": "Så jobbar vi",
+     "title": "Från skiss till drift.",
+     "intro": "",
+     "steps": [
+      {
+       "title": "Analys",
+       "text": "Vi kartlägger er verksamhet, era system och era mål — och föreslår vägen dit."
+      },
+      {
+       "title": "Design",
+       "text": "Struktur, innehåll och form som gör att rätt kunder hittar er och stannar."
+      },
+      {
+       "title": "Bygg",
+       "text": "Webb, integrationer och automatiserade flöden — byggt för att prestera."
+      },
+      {
+       "title": "Förvalta",
+       "text": "Drift, övervakning, säkerhet och vidareutveckling. Löpande, varje dag."
+      }
+     ]
+    }
+   },
+   {
+    "type": "quotes",
+    "data": {
+     "kicker": "Röster",
+     "title": "Vad kunder säger",
+     "quotes": [
+      {
+       "text": "ADX tog över hela vår digitala miljö — webb, e-post och domäner. För första gången har vi en enda kontakt för allt.",
+       "who": "VD — Detaljhandelskedja"
+      },
+      {
+       "text": "Automationsflödena sparar oss tiotals timmar i månaden. Saker som föll mellan stolarna sköter sig nu själva.",
+       "who": "Driftchef — Logistikbolag"
+      },
+      {
+       "text": "Ny webbplats, bättre innehåll och synlighet som faktiskt märks i affären. Rakt igenom professionellt.",
+       "who": "Marknadschef — Advokatbyrå"
+      }
+     ]
+    }
+   },
+   {
+    "type": "why",
+    "data": {
+     "kicker": "Varför ADX",
+     "title": "En partner. Hela vägen.",
+     "items": [
+      {
+       "title": "Allt under samma tak",
+       "text": "Webb, automation, innehåll, hosting, domäner och e-post — samlat hos ett team i Stockholm. Ett nummer att ringa, ett avtal att hålla koll på."
+      },
+      {
+       "title": "Byggt för förvaltning",
+       "text": "Vi lämnar inte över och försvinner. Allt vi bygger driftas, övervakas och vidareutvecklas löpande — med säkerhet och backup som standard."
+      },
+      {
+       "title": "Skalar med er",
+       "text": "Från enskild sajt till multi-tenant-plattform för hela kedjan. Börja smått och väx utan att byta leverantör på vägen."
+      }
+     ]
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Redo att lyfta?",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "tjanster",
+  "meta_title": "Tjänster — Webb, automation, drift & innehåll | ADX",
+  "meta_description": "Alla ADX tjänster: webbutveckling, automation & integrationer, managed content, managed hosting, domain management och e-post.",
+  "gradient_color": "#5252CC",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "Tjänster",
+     "title": "Allt digitalt.\nEtt team.",
+     "lead": "Från första skiss till löpande förvaltning — vi tar helhetsansvar för er digitala närvaro. Klicka på en tjänst för att läsa mer."
+    }
+   },
+   {
+    "type": "svc_list",
+    "data": {
+     "kicker": "",
+     "title": "",
+     "intro": ""
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Vill ni veta mer?",
+     "note": "Vi svarar samma dag",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "webbutveckling",
+  "meta_title": "Webbutveckling Stockholm — färdiga paket & skräddarsytt | ADX",
+  "meta_description": "Webbutveckling i Stockholm: färdiga paket och skräddarsydda webbplatser och intranät. Snabba, säkra och byggda för att förvaltas över tid.",
+  "gradient_color": "#2456b0",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "Webbutveckling",
+     "crumbs": [
+      {
+       "label": "Hem",
+       "url": "/"
+      },
+      {
+       "label": "Tjänster",
+       "url": "/tjanster/"
+      }
+     ],
+     "title": "Webbutveckling\ni Stockholm.",
+     "lead": "Vi bygger webbplatser och intranät som presterar — som färdiga paket när ni vill lansera snabbt, eller helt skräddarsydda när ni vill sticka ut. Alltid snabba, säkra och byggda för att förvaltas över tid.",
+     "primary": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     },
+     "secondary": {
+      "label": "Se paket & priser",
+      "url": "/paket/"
+     }
+    }
+   },
+   {
+    "type": "why",
+    "data": {
+     "kicker": "Vad vi bygger",
+     "title": "Tre vägar till ny webb",
+     "items": [
+      {
+       "title": "Färdiga paket",
+       "text": "Professionell webbplats på beprövat ramverk, lanserad på veckor i stället för månader. Fast månadskostnad med hosting, domän och support inkluderat."
+      },
+      {
+       "title": "Skräddarsytt",
+       "text": "Unik design och funktionalitet byggd kring er affär — e-handel, bokningssystem, medlemsportaler eller integrationer mot era verksamhetssystem."
+      },
+      {
+       "title": "Intranät",
+       "text": "Interna portaler och verktyg som samlar dokument, nyheter och processer på ett ställe — med behörighetsstyrning och koppling till er e-postmiljö."
+      }
+     ]
+    }
+   },
+   {
+    "type": "split",
+    "data": {
+     "kicker": "Byggt för att prestera",
+     "title": "Snabbt, säkert och synligt",
+     "body": "Varje webbplats vi bygger levereras med teknisk grund som sökmotorer och besökare älskar.",
+     "image_side": "left",
+     "bullets": [
+      "Blixtsnabba laddtider och hög prestanda",
+      "Sökmotoroptimerad struktur från start",
+      "Responsiv design — mobil, surfplatta, desktop",
+      "Tillgänglighetsanpassad (WCAG)",
+      "SSL, säkerhetsuppdateringar och backup"
+     ]
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Webbplatser som gör jobbet",
+     "body": "<p>En webbplats är inte ett projekt som blir klart — det är ett verktyg som ska arbeta för er varje dag. Därför bygger vi webbplatser med förvaltning i åtanke: tydlig struktur, redigerbart innehåll och teknik som går att vidareutveckla i stället för att byggas om från grunden vart tredje år.</p><p>Som digitalbyrå i Stockholm arbetar vi med allt från enmansbolag som behöver en professionell närvaro till kedjor som behöver en multi-tenant-plattform för dussintals enheter. Oavsett storlek får ni samma grund: snabb hosting, säker drift och en webbplats som är byggd för att hittas i sökmotorer.</p>"
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Från idé till lansering — och vidare",
+     "body": "<p>Vi börjar alltid i er affär: vilka ska hitta er, och vad ska de göra när de gör det? Sedan tar vi hand om hela kedjan — struktur, design, innehåll, utveckling, lansering och löpande förvaltning. Ni behöver aldrig samordna flera leverantörer, och när sajten är live fortsätter vi att övervaka, uppdatera och förbättra den.</p>"
+    }
+   },
+   {
+    "type": "faq",
+    "data": {
+     "kicker": "FAQ — Webbutveckling",
+     "title": "Vanliga frågor",
+     "faq_verbatim": [
+      {
+       "q": "Vad kostar en ny webbplats?",
+       "a": "Våra färdiga paket har fast månadskostnad där hosting, domän och support ingår. Skräddarsydda webbplatser och intranät prissätts efter omfattning — ni får alltid en tydlig offert innan vi börjar."
+      },
+      {
+       "q": "Hur lång tid tar det att bygga en webbplats?",
+       "a": "Ett färdigt paket kan vara live inom några veckor. Skräddarsydda projekt tar oftast en till tre månader beroende på funktionalitet och innehåll."
+      },
+      {
+       "q": "Kan ni ta över och vidareutveckla vår befintliga webbplats?",
+       "a": "Ja. Vi gör en teknisk genomgång, flyttar sajten till vår driftmiljö och tar därefter ansvar för förvaltning, säkerhet och vidareutveckling."
+      }
+     ]
+    }
+   },
+   {
+    "type": "related",
+    "data": {
+     "kicker": "Relaterat",
+     "title": "Kombinera med",
+     "links": [
+      {
+       "label": "Managed Content",
+       "url": "/content/"
+      },
+      {
+       "label": "Managed Hosting",
+       "url": "/hosting/"
+      },
+      {
+       "label": "Automation",
+       "url": "/automation/"
+      }
+     ]
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Dags för ny webb?",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "automation",
+  "meta_title": "Automation & API-integrationer — effektivisera era processer | ADX",
+  "meta_description": "Effektivisera interna processer med skript, API-integrationer och automatiserade arbetsflöden. Kartläggning, bygge och övervakning av ADX i Stockholm.",
+  "gradient_color": "#c05a2e",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "Automation & Integrationer",
+     "crumbs": [
+      {
+       "label": "Hem",
+       "url": "/"
+      },
+      {
+       "label": "Tjänster",
+       "url": "/tjanster/"
+      }
+     ],
+     "title": "Automation &\nintegrationer.",
+     "lead": "Sluta klippa och klistra mellan system. Vi effektiviserar era interna processer med skript, API-integrationer och automatiserade arbetsflöden — så att er tid läggs på rätt saker.",
+     "primary": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     },
+     "secondary": {
+      "label": "Se case",
+      "url": "/portfolio/"
+     }
+    }
+   },
+   {
+    "type": "steps",
+    "data": {
+     "kicker": "Så går det till",
+     "title": "Från manuellt\ntill automatiskt",
+     "steps": [
+      {
+       "title": "Kartläggning",
+       "text": "Vi går igenom era processer och hittar momenten som stjäl mest tid — och som är enklast att automatisera."
+      },
+      {
+       "title": "Flödesdesign",
+       "text": "Vi ritar upp det nya flödet: vad som triggar vad, vilka system som pratar med varandra och vad som händer vid fel."
+      },
+      {
+       "title": "Integration",
+       "text": "Vi bygger skript och API-kopplingar som flyttar data automatiskt — korrekt, spårbart och utan dubbelarbete."
+      },
+      {
+       "title": "Övervakning",
+       "text": "Flödena övervakas i drift. Går något fel larmas vi — och åtgärdar det innan det påverkar er verksamhet."
+      }
+     ]
+    }
+   },
+   {
+    "type": "split",
+    "data": {
+     "kicker": "Exempel på vad vi automatiserar",
+     "title": "Låt systemen göra jobbet",
+     "body": "Nästan allt som görs manuellt mellan två system kan automatiseras.",
+     "image_side": "left",
+     "bullets": [
+      "Ordrar och kunddata som synkas mellan system",
+      "Automatiska rapporter och sammanställningar",
+      "Fakturaunderlag och bokföringsexport",
+      "Notiser och påminnelser i rätt kanal",
+      "On- och offboarding av användare"
+     ]
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Låt systemen prata med varandra",
+     "body": "<p>De flesta verksamheter har data i flera system — affärssystem, e-handel, CRM, ekonomi — och någon som manuellt flyttar information mellan dem. Det är långsamt, dyrt och felbenäget. Med API-integrationer kopplar vi ihop systemen så att datan flödar automatiskt, i realtid, utan inmatningsfel.</p>"
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Små skript, stor effekt",
+     "body": "<p>Automation behöver inte vara ett stort IT-projekt. Ofta är det ett välplacerat skript som sparar mest: en rapport som skapar sig själv varje måndag, ett dokument som fylls i automatiskt, en påminnelse som aldrig glöms bort. Vi börjar där effekten är störst och bygger vidare därifrån — varje automatiserat moment betalar sig månad efter månad.</p>"
+    }
+   },
+   {
+    "type": "faq",
+    "data": {
+     "kicker": "FAQ — Automation",
+     "title": "Vanliga frågor",
+     "faq_verbatim": [
+      {
+       "q": "Vilka system kan ni integrera?",
+       "a": "De flesta moderna system har API:er — affärssystem, e-handelsplattformar, CRM, ekonomisystem, Office 365 och Google Workspace. Saknas API löser vi det ofta med skript eller filbaserade flöden."
+      },
+      {
+       "q": "Hur vet vi vad som är värt att automatisera?",
+       "a": "Vi börjar med en kartläggning där vi mäter hur mycket tid olika moment tar i dag. Sedan prioriterar vi flödena med störst besparing i förhållande till byggkostnaden."
+      },
+      {
+       "q": "Vad händer om en automation slutar fungera?",
+       "a": "Alla flöden vi bygger övervakas. Vid fel larmas vi automatiskt och åtgärdar problemet — oftast innan ni ens märkt något."
+      }
+     ]
+    }
+   },
+   {
+    "type": "related",
+    "data": {
+     "kicker": "Relaterat",
+     "title": "Kombinera med",
+     "links": [
+      {
+       "label": "Webbutveckling",
+       "url": "/webbutveckling/"
+      },
+      {
+       "label": "Managed Hosting",
+       "url": "/hosting/"
+      },
+      {
+       "label": "E-post",
+       "url": "/epost/"
+      }
+     ]
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Vad kan ni automatisera?",
+     "note": "Vi kartlägger gratis",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "content",
+  "meta_title": "Managed Content — copywriting & SEO som löpande tjänst | ADX",
+  "meta_description": "Copywriting och sökmotoroptimering som gör att rätt kunder hittar er och stannar. Sökordsanalys, innehåll och månadsrapportering från ADX.",
+  "gradient_color": "#a8842a",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "crumbs": [
+      {
+       "label": "Hem",
+       "url": "/"
+      },
+      {
+       "label": "Tjänster",
+       "url": "/tjanster/"
+      }
+     ],
+     "kicker": "Managed Content",
+     "title": "Copy & SEO\nsom syns.",
+     "lead": "Managed Content är copywriting och sökmotoroptimering som löpande tjänst — innehåll som gör att rätt kunder hittar er i sökresultaten, och som får dem att stanna när de kommit fram.",
+     "primary": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     },
+     "secondary": {
+      "label": "Ingår i Tillväxt-paketet",
+      "url": "/paket/"
+     }
+    }
+   },
+   {
+    "type": "why",
+    "data": {
+     "kicker": "Vad som ingår",
+     "title": "Innehåll som löpande tjänst",
+     "items": [
+      {
+       "title": "Copywriting",
+       "text": "Texter som låter som ni och säljer som proffs — webbtexter, tjänstesidor, artiklar och nyhetsbrev, skrivna för både människor och sökmotorer."
+      },
+      {
+       "title": "Sökmotoroptimering",
+       "text": "Sökordsanalys, teknisk SEO och on-page-optimering. Vi ser till att era sidor rankar på sökningarna som faktiskt leder till affärer."
+      },
+      {
+       "title": "Löpande förvaltning",
+       "text": "Innehåll är färskvara. Vi uppdaterar, utökar och optimerar löpande — och rapporterar varje månad hur synligheten utvecklas."
+      }
+     ]
+    }
+   },
+   {
+    "type": "split",
+    "data": {
+     "kicker": "Arbetssätt",
+     "title": "Data först, magkänsla sen",
+     "body": "Allt innehåll vi producerar bygger på analys av vad era kunder faktiskt söker efter.",
+     "image_side": "left",
+     "bullets": [
+      "Sökordsanalys och konkurrentkartläggning",
+      "Innehållsplan med prioriterade ämnen",
+      "On-page-optimering av befintliga sidor",
+      "Nytt innehåll varje månad",
+      "Månadsrapport med ranking och trafik"
+     ]
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Syns ni inte, finns ni inte",
+     "body": "<p>De flesta köpresor börjar med en sökning. Företaget som dyker upp med rätt svar på rätt fråga vinner kunden — ofta innan konkurrenterna ens vet att affären fanns. Sökmotoroptimering handlar därför inte om tekniska trick, utan om att systematiskt besvara de frågor era kunder faktiskt ställer, bättre än någon annan.</p>"
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Innehåll är en färskvara",
+     "body": "<p>En text som skrevs för tre år sedan rankar sällan i dag. Sökmotorer premierar webbplatser som hålls levande: uppdaterade tjänstesidor, nya artiklar, korrekt information. Med Managed Content sköter vi det åt er — ni godkänner, vi producerar, publicerar och följer upp. Månad efter månad.</p>"
+    }
+   },
+   {
+    "type": "faq",
+    "data": {
+     "kicker": "FAQ — Managed Content",
+     "title": "Vanliga frågor",
+     "faq_verbatim": [
+      {
+       "q": "Hur snabbt ger SEO resultat?",
+       "a": "Räkna med tre till sex månader innan förbättringarna syns tydligt i ranking och trafik. SEO är en långsiktig investering — men när den börjar verka fortsätter den att leverera utan annonsbudget."
+      },
+      {
+       "q": "Skriver ni allt innehåll åt oss?",
+       "a": "Ja. Vi intervjuar er, lär oss ert tonläge och skriver allt — ni behöver bara godkänna innan publicering. Vill ni skriva själva optimerar vi gärna era utkast i stället."
+      },
+      {
+       "q": "Hur mäter ni effekten?",
+       "a": "Ni får en månadsrapport med ranking på prioriterade sökord, organisk trafik och konverteringar — i klartext, utan svårtolkade diagram."
+      }
+     ]
+    }
+   },
+   {
+    "type": "related",
+    "data": {
+     "kicker": "Relaterat",
+     "title": "Kombinera med",
+     "links": [
+      {
+       "label": "Webbutveckling",
+       "url": "/webbutveckling/"
+      },
+      {
+       "label": "Domain Management",
+       "url": "/domain/"
+      },
+      {
+       "label": "Automation",
+       "url": "/automation/"
+      }
+     ]
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Vill ni synas mer?",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "hosting",
+  "meta_title": "Managed Hosting & molntjänster — trygg drift & multi-tenant | ADX",
+  "meta_description": "Managed hosting med övervakning 24/7, dagliga backuper och SSL. Multi-tenant-lösningar för kedjor. 99,9 % drifttid från ADX i Stockholm.",
+  "gradient_color": "#0e3a52",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "Managed Hosting & Moln",
+     "crumbs": [
+      {
+       "label": "Hem",
+       "url": "/"
+      },
+      {
+       "label": "Tjänster",
+       "url": "/tjanster/"
+      }
+     ],
+     "title": "Managed hosting\n& molntjänster.",
+     "lead": "Trygg drift ni slipper tänka på: övervakning dygnet runt, dagliga backuper, säkerhetsuppdateringar och SSL som standard. Och för kedjor — multi-tenant-lösningar som driftar många enheter på en gemensam plattform.",
+     "primary": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     },
+     "secondary": {
+      "label": "Se paket",
+      "url": "/paket/"
+     }
+    }
+   },
+   {
+    "type": "chips",
+    "data": {
+     "chips": [
+      {
+       "value": "99,9 %",
+       "label": "drifttid"
+      },
+      {
+       "value": "24/7",
+       "label": "övervakning"
+      },
+      {
+       "value": "Dagligen",
+       "label": "backup"
+      },
+      {
+       "value": "SSL",
+       "label": "standard på allt"
+      }
+     ]
+    }
+   },
+   {
+    "type": "split",
+    "data": {
+     "kicker": "För kedjor",
+     "title": "En plattform, många enheter",
+     "body": "Multi-tenant betyder att varje enhet i kedjan får sin egen webbplats — men att allt driftas, uppdateras och förvaltas centralt.",
+     "image_side": "left",
+     "bullets": [
+      "Central drift och gemensamma uppdateringar",
+      "Enhetlig design med lokal anpassning",
+      "Ny enhet live på dagar, inte månader",
+      "Lägre kostnad per enhet än separata sajter"
+     ]
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Drift ni slipper tänka på",
+     "body": "<p>Managed hosting betyder att vi tar hela ansvaret för att er webbplats är snabb, säker och tillgänglig — inte bara att den ligger på en server. Vi övervakar dygnet runt, installerar säkerhetsuppdateringar, tar dagliga backuper och agerar direkt om något avviker. Oftast har vi löst problemet innan någon hunnit märka det.</p>"
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Molntjänster som växer med er",
+     "body": "<p>Behoven förändras — kampanjer ger trafiktoppar, verksamheten växer, nya marknader tillkommer. Vår molnbaserade driftmiljö skalar med er utan flyttprojekt: mer kapacitet när ni behöver det, och aldrig betalt för mer än ni använder.</p>"
+    }
+   },
+   {
+    "type": "faq",
+    "data": {
+     "kicker": "FAQ — Hosting",
+     "title": "Vanliga frågor",
+     "faq_verbatim": [
+      {
+       "q": "Vad ingår i managed hosting?",
+       "a": "Drift, övervakning dygnet runt, säkerhetsuppdateringar, dagliga backuper och SSL-certifikat. Vi ansvarar för att er webbplats är snabb, säker och tillgänglig — och agerar innan problem hinner påverka er."
+      },
+      {
+       "q": "Kan ni flytta oss från vår nuvarande leverantör?",
+       "a": "Ja. Vi sköter hela flytten — webbplats, domäner och e-post — utan avbrott för era besökare. Ni behöver bara ge oss åtkomst, resten tar vi hand om."
+      },
+      {
+       "q": "Vad händer om sajten går ner?",
+       "a": "Vår övervakning larmar oss inom minuter och vi påbörjar åtgärd direkt, oavsett tid på dygnet. Med dagliga backuper kan vi dessutom alltid återställa till en fungerande version."
+      }
+     ]
+    }
+   },
+   {
+    "type": "related",
+    "data": {
+     "kicker": "Relaterat",
+     "title": "Kombinera med",
+     "links": [
+      {
+       "label": "Webbutveckling",
+       "url": "/webbutveckling/"
+      },
+      {
+       "label": "Domain Management",
+       "url": "/domain/"
+      },
+      {
+       "label": "E-post",
+       "url": "/epost/"
+      }
+     ]
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Trött på driftstrul?",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "domain",
+  "meta_title": "Domain Management — domäner, DNS & bevakning | ADX",
+  "meta_description": "Registrering, överlåtelser, DNS-konfiguration och bevakning av varumärken och HTTPS/SSL-certifikat. Full kontroll på era domäner med ADX.",
+  "gradient_color": "#4a2d73",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "crumbs": [
+      {
+       "label": "Hem",
+       "url": "/"
+      },
+      {
+       "label": "Tjänster",
+       "url": "/tjanster/"
+      }
+     ],
+     "kicker": "Domain Management",
+     "title": "Domäner & DNS\nunder kontroll.",
+     "lead": "Domänen är er digitala adress — och förvånansvärt lätt att tappa kontrollen över. Vi sköter registrering, överlåtelser, DNS-konfiguration och bevakning av varumärken och SSL-certifikat, så att inget löper ut eller kapas.",
+     "primary": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     },
+     "secondary": {
+      "label": "Se även hosting",
+      "url": "/hosting/"
+     }
+    }
+   },
+   {
+    "type": "why",
+    "data": {
+     "kicker": "Vad som ingår",
+     "title": "Full koll,\nhela vägen",
+     "items": [
+      {
+       "title": "Registrering & överlåtelser",
+       "text": "Vi registrerar nya domäner, samlar era befintliga hos en registrar och sköter överlåtelser vid företagsköp eller namnbyten — med korrekt ägarinformation."
+      },
+      {
+       "title": "Bevakning",
+       "text": "Vi bevakar era varumärken mot liknande domänregistreringar och håller koll på att förnyelser och HTTPS/SSL-certifikat aldrig löper ut."
+      },
+      {
+       "title": "DNS-konfiguration",
+       "text": "Korrekt uppsatt DNS för webb, e-post och tjänster — med SPF, DKIM och DMARC som skyddar er domän mot spoofing och förbättrar leveransbarheten."
+      }
+     ]
+    }
+   },
+   {
+    "type": "split",
+    "data": {
+     "kicker": "Därför spelar det roll",
+     "title": "Sov gott om era domäner",
+     "body": "En utgången domän eller ett utgånget certifikat kan stoppa både webbplats och e-post på minuter.",
+     "image_side": "left",
+     "bullets": [
+      "Förnyelser hanteras i tid, varje gång",
+      "SSL-certifikat utfärdas och förnyas automatiskt",
+      "Varumärkesbevakning mot domänkapning",
+      "Samlad portfölj i stället för spridda konton"
+     ]
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Domänen är er digitala adress",
+     "body": "<p>Allt pekar mot domänen: webbplatsen, e-posten, inloggningar och integrationer. Ändå ligger många företags domäner registrerade på en tidigare anställds privata konto, hos en leverantör ingen minns lösenordet till. Vi samlar er domänportfölj, dokumenterar ägarskapet och ser till att rätt personer har kontroll — i dag och den dag något förändras.</p>"
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Bevakning som förebygger problem",
+     "body": "<p>Domänkapning och varumärkesintrång upptäcks bäst innan de blir problem. Vi bevakar registreringar som liknar era varumärken och flaggar misstänkta domäner tidigt. Samtidigt håller vi era certifikat och förnyelser under uppsikt — det tråkiga arbetet som ingen märker av, förrän den dag det inte blivit gjort.</p>"
+    }
+   },
+   {
+    "type": "faq",
+    "data": {
+     "kicker": "FAQ — Domain Management",
+     "title": "Vanliga frågor",
+     "faq_verbatim": [
+      {
+       "q": "Kan ni ta över våra befintliga domäner?",
+       "a": "Ja. Vi flyttar era domäner till en samlad portfölj utan avbrott för webb eller e-post, och dokumenterar ägarskap och åtkomst ordentligt."
+      },
+      {
+       "q": "Vad innebär varumärkesbevakning?",
+       "a": "Vi bevakar nyregistrerade domäner som liknar era varumärken — till exempel felstavningar eller andra toppdomäner — och flaggar dem så att ni kan agera innan de används mot er."
+      },
+      {
+       "q": "Hanterar ni SSL-certifikat?",
+       "a": "Ja. Vi ser till att alla era domäner har giltiga HTTPS/SSL-certifikat som förnyas automatiskt — inga utgångna certifikat, inga varningar i besökarnas webbläsare."
+      }
+     ]
+    }
+   },
+   {
+    "type": "related",
+    "data": {
+     "kicker": "Relaterat",
+     "title": "Kombinera med",
+     "links": [
+      {
+       "label": "Managed Hosting",
+       "url": "/hosting/"
+      },
+      {
+       "label": "E-post",
+       "url": "/epost/"
+      },
+      {
+       "label": "Webbutveckling",
+       "url": "/webbutveckling/"
+      }
+     ]
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Var är era domäner i dag?",
+     "note": "Vi gör en gratis genomgång",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "epost",
+  "meta_title": "E-post för företag — Office 365 & Google Workspace | ADX",
+  "meta_description": "Uppsättning, licenshantering, användaradministration och säkerhet för Office 365 och Google Workspace. Migrering utan avbrott med ADX.",
+  "gradient_color": "#813a63",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "E-post",
+     "crumbs": [
+      {
+       "label": "Hem",
+       "url": "/"
+      },
+      {
+       "label": "Tjänster",
+       "url": "/tjanster/"
+      }
+     ],
+     "title": "E-post som\nbara fungerar.",
+     "lead": "Office 365 och Google Workspace — uppsatt, förvaltat och säkrat av oss. Licenshantering, användaradministration och säkerhet, så att er e-post alltid fungerar och aldrig blir en risk.",
+     "primary": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     },
+     "secondary": {
+      "label": "Se även domäner",
+      "url": "/domain/"
+     }
+    }
+   },
+   {
+    "type": "why",
+    "data": {
+     "kicker": "Vad som ingår",
+     "title": "Hela e-postmiljön, förvaltad",
+     "items": [
+      {
+       "title": "Office 365",
+       "text": "Exchange, Teams, OneDrive och Office-paketet — uppsatt med rätt licenser, säkerhetspolicys och delningsinställningar för er organisation."
+      },
+      {
+       "title": "Google Workspace",
+       "text": "Gmail, Drive, Meet och Kalender på er egen domän — konfigurerat, administrerat och säkrat, med rätt nivå för varje användare."
+      },
+      {
+       "title": "Säkerhet & administration",
+       "text": "Tvåfaktorsautentisering, behörighetsstyrning, skydd mot nätfiske och ordnad on- och offboarding när medarbetare börjar och slutar."
+      }
+     ]
+    }
+   },
+   {
+    "type": "split",
+    "data": {
+     "kicker": "Byte utan avbrott",
+     "title": "Migrering utan magont",
+     "body": "Att byta e-postplattform känns riskabelt — men med rätt förberedelser märker användarna knappt att det hänt.",
+     "image_side": "left",
+     "bullets": [
+      "All historik, alla mappar och kontakter följer med",
+      "Ingen nertid — gammal och ny miljö går parallellt",
+      "DNS, SPF, DKIM och DMARC konfigureras rätt",
+      "Utbildning och support efter flytten"
+     ]
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Professionell e-post på egen domän",
+     "body": "<p>E-post är fortfarande företagets viktigaste kommunikationskanal — och den kanal som oftast angrips. En korrekt uppsatt miljö på er egen domän ger både trovärdighet i varje utskick och skydd mot nätfiske och spoofing. Vi ser till att tekniken bakom kulisserna — DNS, SPF, DKIM, DMARC — är rätt konfigurerad, så att era mejl kommer fram och ingen annan kan skicka i ert namn.</p>"
+    }
+   },
+   {
+    "type": "prose",
+    "data": {
+     "title": "Administration utan huvudvärk",
+     "body": "<p>Nya medarbetare ska ha rätt konto och rätt behörigheter från dag ett — och den som slutar ska förlora åtkomsten samma dag. Med oss som förvaltare sköts licenser, användare och säkerhetspolicys löpande, och ni betalar aldrig för licenser ingen använder. En förfrågan till oss, resten sker automatiskt.</p>"
+    }
+   },
+   {
+    "type": "faq",
+    "data": {
+     "kicker": "FAQ — E-post",
+     "title": "Vanliga frågor",
+     "faq_verbatim": [
+      {
+       "q": "Kan ni migrera oss utan avbrott?",
+       "a": "Ja. Vi kör gammal och ny miljö parallellt under övergången, flyttar all historik och pekar om domänen när allt är verifierat. Användarna märker i praktiken bara att de fått en bättre miljö."
+      },
+      {
+       "q": "Office 365 eller Google Workspace — vad ska vi välja?",
+       "a": "Båda är utmärkta. Valet handlar om hur ni arbetar: Office-tunga organisationer trivs oftast bäst i Microsoft-miljön, medan Google passar team som lever i webbläsaren. Vi hjälper er välja utifrån era arbetssätt och befintliga verktyg."
+      },
+      {
+       "q": "Sköter ni licenserna åt oss?",
+       "a": "Ja. Vi hanterar inköp, tilldelning och uppsägning av licenser löpande — och ser till att ni aldrig betalar för fler än ni faktiskt använder."
+      }
+     ]
+    }
+   },
+   {
+    "type": "related",
+    "data": {
+     "kicker": "Relaterat",
+     "title": "Kombinera med",
+     "links": [
+      {
+       "label": "Domain Management",
+       "url": "/domain/"
+      },
+      {
+       "label": "Managed Hosting",
+       "url": "/hosting/"
+      },
+      {
+       "label": "Automation",
+       "url": "/automation/"
+      }
+     ]
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Strulande e-post?",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "portfolio",
+  "meta_title": "Portfolio — utvalda projekt | ADX",
+  "meta_description": "Ett urval av webbplatser, plattformar och automationsflöden som ADX byggt och förvaltar.",
+  "gradient_color": "#2f6f4f",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "Portfolio",
+     "title": "Utvalda\nprojekt.",
+     "lead": "Ett urval av webbplatser, plattformar och automationsflöden vi byggt — och fortfarande förvaltar."
+    }
+   },
+   {
+    "type": "folio",
+    "data": {
+     "kicker": "",
+     "title": "",
+     "intro": "",
+     "cards": [
+      {
+       "image_id": "",
+       "title": "Skandi VVS — webbplats & AI-redaktör",
+       "meta": "Webb · SEO · AI-innehåll · Hosting",
+       "url": ""
+      },
+      {
+       "image_id": "",
+       "title": "ADX-plattformen — kedjelösning",
+       "meta": "Multi-tenant · 30 teman · Drift",
+       "url": ""
+      },
+      {
+       "image_id": "",
+       "title": "Kronan — omdömesplattform",
+       "meta": "Plattform · BankID · Under utveckling",
+       "url": ""
+      },
+      {
+       "image_id": "",
+       "title": "Automationsflöde — Logistik",
+       "meta": "Skript · API",
+       "url": ""
+      },
+      {
+       "image_id": "",
+       "title": "Webbplats — Advokatbyrå",
+       "meta": "Webb · Copy · SEO",
+       "url": ""
+      },
+      {
+       "image_id": "",
+       "title": "Workspace-flytt — Klinik",
+       "meta": "E-post · Säkerhet",
+       "url": ""
+      }
+     ]
+    }
+   },
+   {
+    "type": "case",
+    "data": {
+     "kicker": "Djupdykning",
+     "title": "En rörfirma.\nHela länet.",
+     "case_title": "Skandi VVS — synlig i hela Stockholms län",
+     "body": "Skandi VVS behövde synas i varje kommun och stadsdel utan att bygga hundratals sidor för hand. Vi byggde sajten, ortssidorna och en AI-redaktör som låter firman uppdatera innehållet direkt från Claude.",
+     "stats": [
+      {
+       "value": "252 st",
+       "label": "ortssidor i Stockholms län"
+      },
+      {
+       "value": "AI",
+       "label": "innehållsredigering via Claude"
+      },
+      {
+       "value": "1 team",
+       "label": "webb, drift och innehåll"
+      }
+     ],
+     "link": {
+      "label": "Webb · SEO · AI",
+      "url": ""
+     }
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Vill ni bli nästa case?",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "paket",
+  "meta_title": "Paket & priser — Start, Tillväxt, Enterprise | ADX",
+  "meta_description": "Jämför ADX paket: Start, Tillväxt och Enterprise. Webbplats, hosting, SEO, automation och multi-tenant-lösningar för kedjor.",
+  "gradient_color": "#121111",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "Paket",
+     "title": "Upplägg som\npassar er.",
+     "lead": "Börja smått eller skala upp — utan att byta leverantör på vägen."
+    }
+   },
+   {
+    "type": "plans",
+    "data": {
+     "kicker": "",
+     "title": "",
+     "intro": "",
+     "plans": [
+      {
+       "mini": "Färdigt paket",
+       "title": "Start",
+       "desc": "För er som behöver en professionell webbplats — snabbt",
+       "price": "från X XXX kr /mån",
+       "price_note": "Fast månadskostnad",
+       "features": "Webbplats på färdigt ramverk\nManaged hosting & SSL\nDomän & DNS-konfiguration\nE-postuppsättning\nSupport & löpande uppdateringar",
+       "cta_label": "Skicka förfrågan",
+       "cta_url": "/kontakt/"
+      },
+      {
+       "mini": "Vanligaste valet",
+       "title": "Tillväxt",
+       "desc": "För er som vill synas, växa och automatisera",
+       "price": "från X XXX kr /mån",
+       "price_note": "Paket + managed content",
+       "features": "Allt i Start\nSkräddarsydd design\nCopywriting & SEO\nAutomatiserade arbetsflöden\nDomänbevakning (varumärken & SSL)\nMånadsrapportering",
+       "cta_label": "Skicka förfrågan",
+       "cta_url": "/kontakt/"
+      },
+      {
+       "mini": "Skräddarsytt",
+       "title": "Enterprise",
+       "desc": "För kedjor och verksamheter med särskilda behov",
+       "price": "Offert",
+       "price_note": "Prissätts efter omfattning",
+       "features": "Skräddarsydd webbplats eller intranät\nMulti-tenant-lösning för kedjor\nAPI-integrationer mot era system\nOffice 365 / Google Workspace\nDedikerad kontaktperson",
+       "cta_label": "Boka möte",
+       "cta_url": "/kontakt/"
+      }
+     ]
+    }
+   },
+   {
+    "type": "compare",
+    "data": {
+     "kicker": "Jämför",
+     "title": "Paketen i detalj",
+     "col1": "Start",
+     "col2": "Tillväxt",
+     "col3": "Enterprise",
+     "rows": [
+      {
+       "label": "Webbplats",
+       "v1": "Färdigt ramverk",
+       "v2": "Skräddarsydd",
+       "v3": "Skräddarsydd / Intranät"
+      },
+      {
+       "label": "Managed hosting & SSL",
+       "v1": "+",
+       "v2": "+",
+       "v3": "+"
+      },
+      {
+       "label": "Domän & DNS",
+       "v1": "+",
+       "v2": "+",
+       "v3": "+"
+      },
+      {
+       "label": "E-post (O365 / Workspace)",
+       "v1": "Uppsättning",
+       "v2": "Uppsättning",
+       "v3": "Full förvaltning"
+      },
+      {
+       "label": "Copywriting & SEO",
+       "v1": "-",
+       "v2": "+",
+       "v3": "+"
+      },
+      {
+       "label": "Automatiserade arbetsflöden",
+       "v1": "-",
+       "v2": "+",
+       "v3": "+"
+      },
+      {
+       "label": "API-integrationer",
+       "v1": "-",
+       "v2": "Enklare",
+       "v3": "Mot era system"
+      },
+      {
+       "label": "Domänbevakning (varumärke & SSL)",
+       "v1": "-",
+       "v2": "+",
+       "v3": "+"
+      },
+      {
+       "label": "Multi-tenant för kedjor",
+       "v1": "-",
+       "v2": "-",
+       "v3": "+"
+      },
+      {
+       "label": "Rapportering",
+       "v1": "-",
+       "v2": "Månadsvis",
+       "v3": "Skräddarsydd"
+      },
+      {
+       "label": "Support",
+       "v1": "Vardagar",
+       "v2": "Prioriterad",
+       "v3": "Dedikerad kontaktperson"
+      }
+     ]
+    }
+   },
+   {
+    "type": "newsletter",
+    "data": {
+     "kicker": "Nyhetsbrev",
+     "title": "Få våra bästa tips om digital drift",
+     "note": "Max ett utskick i månaden. Avsluta när ni vill."
+    }
+   },
+   {
+    "type": "bar",
+    "data": {
+     "label": "Osäker på vilket paket?",
+     "note": "Första mötet kostar ingenting",
+     "link": {
+      "label": "Skicka förfrågan",
+      "url": "/kontakt/"
+     }
+    }
+   }
+  ]
+ },
+ {
+  "sida": "kontakt",
+  "meta_title": "Kontakt — skicka en förfrågan | ADX",
+  "meta_description": "Kontakta ADX, digitalbyrå i Stockholm. Berätta var ni står och vart ni vill — första mötet kostar ingenting.",
+  "gradient_color": "#7a2b35",
+  "blocks": [
+   {
+    "type": "hero",
+    "data": {
+     "kicker": "Kontakt",
+     "title": "Redo att ta\nnästa steg?",
+     "lead": "Berätta var ni står och vart ni vill — så föreslår vi vägen dit. Första mötet kostar ingenting.",
+     "primary": {
+      "label": "",
+      "url": ""
+     },
+     "secondary": {
+      "label": "",
+      "url": ""
+     },
+     "image_id": ""
+    }
+   },
+   {
+    "type": "contact_cards",
+    "data": {
+     "cards": [
+      {
+       "kicker": "E-post",
+       "value": "hej@adx.se",
+       "url": "mailto:hej@adx.se"
+      },
+      {
+       "kicker": "Besök",
+       "value": "Gatan 1, Stockholm",
+       "url": ""
+      }
+     ]
+    }
+   },
+   {
+    "type": "inquiry_form",
+    "data": {
+     "kicker": "Förfrågan",
+     "title": "Berätta vad ni behöver",
+     "intro": "Fyll i formuläret så återkommer vi senast nästa vardag. Ju mer ni berättar, desto bättre förslag kan vi ge direkt."
+    }
+   },
+   {
+    "type": "team",
+    "data": {
+     "kicker": "Teamet",
+     "title": "Vilka ni möter",
+     "members": [
+      {
+       "image_id": "",
+       "name": "Namn Namnsson",
+       "role": "Grundare · Teknik"
+      },
+      {
+       "image_id": "",
+       "name": "Namn Namnsson",
+       "role": "Projektledning"
+      },
+      {
+       "image_id": "",
+       "name": "Namn Namnsson",
+       "role": "Design · Innehåll"
+      },
+      {
+       "image_id": "",
+       "name": "Namn Namnsson",
+       "role": "Drift · Säkerhet"
+      }
+     ]
+    }
+   },
+   {
+    "type": "faq",
+    "data": {
+     "kicker": "FAQ",
+     "title": "Vanliga frågor",
+     "faq_verbatim": [
+      {
+       "q": "Vad ingår i managed hosting?",
+       "a": "Drift, övervakning, säkerhetsuppdateringar, backup och SSL-certifikat. Vi ansvarar för att er webbplats är snabb, säker och tillgänglig — och agerar innan problem hinner påverka er."
+      },
+      {
+       "q": "Kan ni ta över en befintlig webbplats?",
+       "a": "Ja. Vi flyttar er webbplats, era domäner och er e-post till vår plattform utan avbrott, och tar därefter över drift och förvaltning."
+      },
+      {
+       "q": "Vad är multi-tenant för kedjor?",
+       "a": "En gemensam plattform där varje enhet i kedjan får sin egen webbplats eller del av lösningen, men allt driftas, uppdateras och förvaltas centralt. Det ger enhetlighet, lägre kostnader och snabbare utrullning."
+      },
+      {
+       "q": "Hjälper ni till med e-post och licenser?",
+       "a": "Ja. Vi sätter upp och förvaltar Office 365 och Google Workspace — inklusive licenshantering, användaradministration och säkerhet."
+      },
+      {
+       "q": "Hur fungerar era automationstjänster?",
+       "a": "Vi kartlägger era interna processer och bygger skript, API-integrationer och automatiserade arbetsflöden som tar bort manuella moment — så att er tid läggs på rätt saker."
+      }
+     ]
+    }
+   },
+   {
+    "type": "newsletter",
+    "data": {
+     "kicker": "Nyhetsbrev",
+     "title": "Håll er uppdaterade",
+     "note": "Max ett utskick i månaden. Avsluta när ni vill."
+    }
+   }
+  ]
+ }
+]

@@ -1,0 +1,38 @@
+{% extends "manage/base.html" %}
+
+{% block title %}{{ section.title }} - FAQ{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <p class="m-crumb-row"><a href="{% url 'manage:faq_overview' %}">FAQ</a> ›</p>
+    <h1 class="m-page-head__title">{{ section.title }}</h1>
+    <p class="m-page-head__subtitle">
+        <a href="{{ section.get_absolute_url }}" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a>
+        <a href="{% url 'manage:faq_section_edit' section.slug %}" class="m-btn m-btn--ghost m-btn--small">Sektionsinställningar</a>
+        <a href="{% url 'manage:history' 'faq' 'faqsection' section.id %}?next={{ request.get_full_path|urlencode }}" class="m-btn m-btn--ghost m-btn--small">Historik</a>
+    </p>
+</div>
+
+<div class="m-section-row">
+    <p class="m-section-title">Frågor &amp; svar</p>
+    <a href="{% url 'manage:faq_item_new' section.slug %}" class="m-btn m-btn--inline m-btn--small">Ny fråga</a>
+</div>
+<div class="m-panel">
+    {% for item in items %}
+    <div class="m-list__row">
+        <div class="m-list__main">
+            <div class="m-list__title">{{ item.question }}</div>
+            <div class="m-list__meta">#{{ item.order }}{% if not item.is_active %} · Inaktiv{% endif %}</div>
+        </div>
+        <div class="m-row-actions">
+            <form method="post" action="{% url 'manage:faq_item_move' item.id %}">{% csrf_token %}<input type="hidden" name="direction" value="up"><button class="m-btn m-btn--ghost m-btn--small" type="submit" {% if forloop.first %}disabled{% endif %}>↑</button></form>
+            <form method="post" action="{% url 'manage:faq_item_move' item.id %}">{% csrf_token %}<input type="hidden" name="direction" value="down"><button class="m-btn m-btn--ghost m-btn--small" type="submit" {% if forloop.last %}disabled{% endif %}>↓</button></form>
+            <a class="m-btn m-btn--small" href="{% url 'manage:faq_item_edit' item.id %}">Redigera</a>
+            <form method="post" action="{% url 'manage:faq_item_delete' item.id %}" onsubmit="return confirm('Ta bort frågan?');">{% csrf_token %}<button class="m-btn m-btn--danger m-btn--small">Ta bort</button></form>
+        </div>
+    </div>
+    {% empty %}
+    <div class="m-empty">Inga frågor ännu. <a href="{% url 'manage:faq_item_new' section.slug %}">Lägg till din första</a>.</div>
+    {% endfor %}
+</div>
+{% endblock %}

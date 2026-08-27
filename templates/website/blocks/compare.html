@@ -1,0 +1,35 @@
+{% comment %}Jämförelsetabellen. Cellvärden: "+" ger [ ✓ ], "-"/"–" ger [ — ],
+annat renderas som text.{% endcomment %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="panel table-scroll">
+            <table class="compare">
+                <thead>
+                    <tr>
+                        <th>Ing&aring;r</th>
+                        <th>{{ col1 }}</th>
+                        <th>{{ col2 }}</th>
+                        <th>{{ col3 }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td>{{ row.label }}</td>
+                        {% include "website/blocks/_compare_cell.html" with v=row.v1 %}
+                        {% include "website/blocks/_compare_cell.html" with v=row.v2 %}
+                        {% include "website/blocks/_compare_cell.html" with v=row.v3 %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

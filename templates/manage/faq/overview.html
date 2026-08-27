@@ -1,0 +1,33 @@
+{% extends "manage/base.html" %}
+
+{% block title %}FAQ{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">FAQ-sektioner</h1>
+    <p class="m-page-head__subtitle">Hantera vanliga frågor. Koppla sektioner till blocksidor eller tjänster.</p>
+</div>
+
+<div class="m-section-row">
+    <p class="m-section-title">Sektioner</p>
+    <a href="{% url 'manage:faq_section_new' %}" class="m-btn m-btn--inline m-btn--small">Ny FAQ</a>
+</div>
+<div class="m-panel">
+    {% for section in sections %}
+    <div class="m-list__row">
+        <a class="m-list__main" href="{% url 'manage:faq_detail' section.slug %}">
+            <div class="m-list__title">{{ section.title }}</div>
+            <div class="m-list__meta">/faq/{{ section.slug }}/ · {{ section.items.count }} frågor</div>
+        </a>
+        <div class="m-row-actions">
+            {% if not section.is_active %}<span class="m-badge m-badge--draft">Inaktiv</span>{% endif %}
+            <a href="{% url 'manage:faq_detail' section.slug %}" class="m-btn m-btn--small">Redigera frågor</a>
+            <a href="{% url 'manage:faq_section_edit' section.slug %}" class="m-btn m-btn--ghost m-btn--small">Inställningar</a>
+            <form method="post" action="{% url 'manage:faq_section_delete' section.slug %}" onsubmit="return confirm('Ta bort sektionen och alla dess frågor?');">{% csrf_token %}<button class="m-btn m-btn--danger m-btn--small">Ta bort</button></form>
+        </div>
+    </div>
+    {% empty %}
+    <div class="m-empty">Inga FAQ-sektioner ännu. <a href="{% url 'manage:faq_section_new' %}">Skapa din första</a>.</div>
+    {% endfor %}
+</div>
+{% endblock %}

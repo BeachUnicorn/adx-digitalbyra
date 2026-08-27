@@ -1,0 +1,25 @@
+{% load website_tags render_context %}
+{% comment %}FAQ ur FAQ-appen (sektion väljs i editorn) i guidens details/summary-form.{% endcomment %}
+{% faq_section faq_section_id as section %}
+{% if section %}
+<section>
+    <div class="wrap">
+        {% if kicker or title or intro %}
+        <div class="sec-head">
+            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% if intro %}<p>{{ intro }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="faq">
+            {% for item in section.items.all %}{% if item.is_active %}
+            <details class="panel">
+                <summary>{{ item.question }}</summary>
+                <div class="faq-answer">{{ item.answer|vars_html }}</div>
+            </details>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}

@@ -1,0 +1,46 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Tillåt anslutning{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Tillåt anslutning</h1>
+    <p class="m-page-head__subtitle">
+        <strong>{{ client.client_name|default:"En AI-app" }}</strong> vill koppla upp sig mot din webbplats.
+    </p>
+</div>
+
+<div class="m-panel m-form-panel">
+    <p class="m-section-title">Vad appen får göra</p>
+    <ul class="m-steps">
+        <li>Läsa innehållet på webbplatsen: sidor, tjänster, serviceområden och FAQ.</li>
+        <li><strong>Föreslå</strong> ändringar och nytt innehåll.</li>
+    </ul>
+
+    <p class="m-section-title">Vad appen inte får göra</p>
+    <ul class="m-steps">
+        <li>Publicera något. Allt den skriver blir utkast som du godkänner här i verktyget.</li>
+        <li>Radera innehåll.</li>
+        <li>Godkänna sina egna förslag.</li>
+    </ul>
+
+    <p class="m-form-hint">
+        Du kan när som helst dra tillbaka åtkomsten under
+        <a href="{% url 'manage:assistant_connection' %}">Anslutning &amp; nycklar</a>.
+        Ansluter som <strong>{{ request.user.get_username }}</strong>.
+    </p>
+
+    <form method="post" class="m-draft__actions">
+        {% csrf_token %}
+        <button type="submit" name="decision" value="allow" class="m-btn">Tillåt</button>
+        <button type="submit" name="decision" value="deny" class="m-btn m-btn--ghost">Neka</button>
+    </form>
+</div>
+
+<div class="m-panel m-form-panel">
+    <p class="m-form-hint">
+        Appen skickas tillbaka till <code>{{ redirect_uri }}</code> när du valt.
+        Känner du inte igen adressen ska du neka.
+    </p>
+</div>
+{% endblock %}

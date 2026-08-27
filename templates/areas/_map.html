@@ -1,0 +1,29 @@
+{% comment %}
+Service-area map. Rendered only when the area has coordinates and a Maps key is
+configured - a page without either simply has no map section rather than an
+empty grey box.
+
+Click-to-load: nothing is requested from Google until the visitor presses the
+button, which keeps the page free of third-party cookies by default and avoids
+paying for a map load on every single page view.
+{% endcomment %}
+<section class="c-map" data-area-map data-maps-key="{{ google_maps_api_key }}">
+    <div class="container">
+        <p class="c-map__label">Serviceområde</p>
+        <h2 class="c-map__title">Vi arbetar i hela {{ area.name }}</h2>
+        <div class="c-map__frame">
+            <div class="c-map__canvas"
+                 data-map-canvas
+                 data-lat="{{ area.latitude|stringformat:'s' }}"
+                 data-lng="{{ area.longitude|stringformat:'s' }}"
+                 data-zoom="{{ area.zoom }}"
+                 data-radius="{{ map_radius }}"
+                 role="img"
+                 aria-label="Karta över vårt serviceområde i {{ area.name }}"></div>
+            <div class="c-map__overlay">
+                <p class="c-map__overlay-text">Kartan laddas från Google Maps.</p>
+                <button type="button" class="btn-primary c-map__btn" data-map-load>Visa karta</button>
+            </div>
+        </div>
+    </div>
+</section>

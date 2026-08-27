@@ -1,0 +1,204 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Granska förslag &ndash; AI-assistent{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <p class="m-crumb-row"><a href="{% url 'manage:assistant_jobs' %}">Förslag</a> ›</p>
+    <h1 class="m-page-head__title">{{ job }}</h1>
+    <p class="m-page-head__subtitle">
+        {{ job.created_at|date:"j F Y H:i" }} &middot; {{ job.get_status_display }}
+        {% if job.pending_count %} &middot; <strong>{{ job.pending_count }} väntar på beslut</strong>{% endif %}
+    </p>
+</div>
+
+{% include "manage/assistant/_subnav.html" %}
+
+<div class="m-section-row">
+    <div></div>
+    <form method="post" action="{% url 'manage:assistant_job_delete' job.pk %}"
+          onsubmit="return confirm('Radera hela förslaget{% if job.pending_count %} med {{ job.pending_count }} väntande ändringar{% endif %}?{% if can_undo %} Ångra-möjligheten försvinner - genomförda ändringar finns kvar i historiken.{% endif %}');">
+        {% csrf_token %}
+        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Radera förslaget</button>
+    </form>
+</div>
+
+{% if job.prompt %}
+<div class="m-panel m-form-panel">
+    <p class="m-section-title">Instruktionen bakom</p>
+    <p>{{ job.prompt }}</p>
+</div>
+{% endif %}
+
+{% comment %}
+ETT formulär för hela jobbet, inte ett per grupp. Formuläret ligger utanför
+korten (id + form="…") eftersom nästlade <form> är ogiltig HTML - varje kort
+har ju en egen beslutsknapp som också är ett formulär.
+
+Ett formulär per grupp var buggen: kryssrutor i olika grupper hörde till
+olika formulär, så en klumpknapp skickade bara sin egen grupps rutor och
+det såg ut som att ingenting hände. Knappen upprepades dessutom en gång per
+grupp - och nya objekt hamnade i var sin grupp.
+{% endcomment %}
+{% if groups %}
+<form method="post" action="{% url 'manage:assistant_job_bulk' job.pk %}" id="bulk-form">{% csrf_token %}</form>
+
+{% if selectable %}
+<div class="m-bulkbar" id="bulkbar">
+    <label class="m-bulkbar__all">
+        <input type="checkbox" id="check-all">
+        <span>Markera alla ({{ selectable }})</span>
+    </label>
+    <span class="m-bulkbar__count" id="bulk-count">Inget markerat</span>
+    <div class="m-bulkbar__actions">
+        <button type="submit" name="action" value="approve" form="bulk-form"
+                class="m-btn m-btn--small" id="bulk-approve" disabled>Godkänn markerade</button>
+        <button type="submit" name="action" value="reject" form="bulk-form"
+                class="m-btn m-btn--ghost m-btn--small" id="bulk-reject" disabled>Avslå markerade</button>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+{% for group in groups %}
+    {% comment %}
+    Ett formulär per grupp för "Godkänn hela" - det ligger utanför korten
+    (nästlade <form> är ogiltig HTML) och innehåller gruppens id:n som
+    dolda fält. Klumpmarkeringen ovan är fortfarande gemensam för jobbet.
+    {% endcomment %}
+    <form method="post" action="{% url 'manage:assistant_job_bulk' job.pk %}"
+          id="helgrupp-{{ group.gid }}">{% csrf_token %}
+        {% for id in group.text_ids %}<input type="hidden" name="change_ids" value="{{ id }}">{% endfor %}
+    </form>
+
+    <div class="m-section-row">
+        <p class="m-section-title">
+            {% if group.text_ids %}
+            <label class="m-group-check">
+                <input type="checkbox" class="js-group-check" data-group="{{ group.gid }}">
+                <span>{{ group.label }}</span>
+            </label>
+            {% else %}{{ group.label }}{% endif %}
+        </p>
+        {% if group.count > 1 %}
+        <button type="submit" name="action" value="approve" form="helgrupp-{{ group.gid }}"
+                class="m-btn m-btn--small"
+                {% if group.has_business %}onclick="return confirm('Gruppen innehåller affärsdata (priser eller vad kunderna ser). Godkänn alla {{ group.count }}?');"{% endif %}>Godkänn alla {{ group.count }}</button>
+        {% endif %}
+    </div>
+
+    {% if group.has_business %}
+    <p class="m-form-hint">Ändringar märkta <strong>Affärsdata</strong> påverkar priser eller vad kunderna ser &ndash; läs dem extra noga.</p>
+    {% endif %}
+
+    {% for row in group.rows %}
+        {% include "manage/assistant/_change_card.html" with row=row form_id="bulk-form" group_id=group.gid show_preview=True %}
+    {% endfor %}
+{% empty %}
+<div class="m-panel m-form-panel"><p>Inga utkast väntar på beslut i det här jobbet.</p></div>
+{% endfor %}
+
+{% if followups %}
+{% comment %}
+Underförslag: när något godkänts visas nästa naturliga steg för samma
+objekt. Klicket fyller chatten med en prompt som bär en @-token - inget
+skickas förrän kunden trycker Skicka.
+{% endcomment %}
+<div class="m-panel m-form-panel m-followups">
+    <p class="m-section-title">Nästa steg</p>
+    <div class="m-chat__examples">
+        {% for f in followups %}
+        <a class="m-example" href="{% url 'manage:assistant_chat' %}?q={{ f.prompt|urlencode }}">
+            {{ f.title }}
+            <span>{{ f.target }}</span>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% if decided_rows %}
+<div class="m-section-row"><p class="m-section-title">Avgjorda ({{ decided_rows|length }})</p></div>
+{% for row in decided_rows %}
+    {% include "manage/assistant/_change_card.html" with row=row form_id="" %}
+{% endfor %}
+{% endif %}
+
+{% if can_undo %}
+<div class="m-section-row"><p class="m-section-title">Ångra</p></div>
+<div class="m-panel m-form-panel">
+    <form method="post" action="{% url 'manage:assistant_job_undo' job.pk %}"
+          onsubmit="return confirm('Ångra alla genomförda ändringar i det här jobbet? Ångringen sparas i historiken.');">
+        {% csrf_token %}
+        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Ångra hela jobbet</button>
+        <span class="m-form-hint">Återställer varje ändring jobbet gjorde. Historiken behålls.</span>
+    </form>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    var all = document.getElementById('check-all');
+    if (!all) return;
+    var boxes = [].slice.call(document.querySelectorAll('.js-draft-check'));
+    var groups = [].slice.call(document.querySelectorAll('.js-group-check'));
+    var count = document.getElementById('bulk-count');
+    var approve = document.getElementById('bulk-approve');
+    var reject = document.getElementById('bulk-reject');
+
+    function inGroup(gid) {
+        return boxes.filter(function (b) { return b.dataset.group === gid; });
+    }
+
+    function businessPicked() {
+        return boxes.filter(function (b) { return b.checked && b.dataset.business === '1'; }).length;
+    }
+
+    function sync() {
+        var n = boxes.filter(function (b) { return b.checked; }).length;
+        // Knapparna är avstängda när inget är markerat: ett klick som inte
+        // gör något läses som en trasig knapp.
+        approve.disabled = reject.disabled = n === 0;
+        count.textContent = n === 0 ? 'Inget markerat'
+            : n === 1 ? '1 markerad' : n + ' markerade';
+        approve.textContent = n ? 'Godkänn ' + n : 'Godkänn markerade';
+        all.checked = n > 0 && n === boxes.length;
+        all.indeterminate = n > 0 && n < boxes.length;
+        groups.forEach(function (g) {
+            var mine = inGroup(g.dataset.group);
+            var picked = mine.filter(function (b) { return b.checked; }).length;
+            g.checked = picked > 0 && picked === mine.length;
+            g.indeterminate = picked > 0 && picked < mine.length;
+        });
+    }
+
+    all.addEventListener('change', function () {
+        boxes.forEach(function (b) { b.checked = all.checked; });
+        sync();
+    });
+    groups.forEach(function (g) {
+        g.addEventListener('change', function () {
+            inGroup(g.dataset.group).forEach(function (b) { b.checked = g.checked; });
+            sync();
+        });
+    });
+    boxes.forEach(function (b) { b.addEventListener('change', sync); });
+
+    // Affärsdata går att klumpgodkänna, men ska inte kunna slinka med
+    // obemärkt: en bekräftelse som säger hur många det gäller. Bara vid
+    // godkännande - att avslå något av misstag går att göra om.
+    document.getElementById('bulk-approve').addEventListener('click', function (e) {
+        var risky = businessPicked();
+        if (!risky) return;
+        var text = risky === 1
+            ? '1 av ändringarna är märkt Affärsdata (priser eller vad kunderna ser). Godkänn ändå?'
+            : risky + ' av ändringarna är märkta Affärsdata (priser eller vad kunderna ser). Godkänn ändå?';
+        if (!confirm(text)) e.preventDefault();
+    });
+
+    sync();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "website/base.html" %}
+{% comment %}Felläget: ogiltig POST renderas här med felen kvar - kontakt-
+sidans block kan inte bära ett bundet formulär.{% endcomment %}
+{% block title %}Förfrågan - {{ site_settings.name|default:"ADX" }}{% endblock %}
+{% block content %}
+<div class="wrap hero">
+    <div class="kicker">[ Förfrågan ]</div>
+    <h1>Nästan<br>framme.</h1>
+    <p class="lead">Något i formuläret behöver rättas – fälten är kvar som du fyllde i dem.</p>
+</div>
+<section>
+    <div class="wrap">
+        {% include "inquiries/_form.html" %}
+    </div>
+</section>
+{% endblock %}

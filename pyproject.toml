@@ -1,0 +1,44 @@
+[project]
+name = "webapp"
+version = "0.1.0"
+description = "Django & Postgres"
+requires-python = ">=3.12"
+
+dependencies = [
+    # Track the latest stable Django minor; bump the lock deliberately with
+    #   uv lock --upgrade-package django
+    "django>=6.0,<6.1",
+    "gunicorn>=23.0",
+    "psycopg[binary]>=3.2",
+    "django-environ>=0.12",
+    "sentry-sdk[django]>=2.0",
+    # HTML sanitization for all customer-supplied, outward-facing content.
+    # The security boundary lives in apps/common/security.py.
+    "nh3>=0.2",
+    # Shared essentials maintained by you, pulled in via uv from its own repo.
+    # Pin to a tag so each customer upgrades on purpose, never by accident.
+    # "atlas-core @ git+https://github.com/youraccount/atlas-core.git@v0.1.0",
+    "pillow>=10.0",
+    "django-reversion>=6.3.0",
+    "mcp>=2.0.0",
+    "anthropic[bedrock]>=1.0.0",
+    "markdown>=3.5",
+]
+
+[dependency-groups]
+# Dev-only tooling. Installed with `uv sync`, excluded with `uv sync --no-dev`.
+dev = [
+    "ruff>=0.6",
+    "django-debug-toolbar>=4.4",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "DJ", "UP"]
+
+[tool.ruff.lint.per-file-ignores]
+# Autogenererade migrationer får ha långa help_text-rader.
+"*/migrations/*" = ["E501"]

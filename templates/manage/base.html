@@ -1,0 +1,117 @@
+{% load static %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Hantera{% endblock %} - {{ site_settings.name|default:"ADX" }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'css/manage.css' %}?v={{ static_version }}">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="m-body">
+
+<nav class="m-nav" aria-label="Kontrollpanel">
+    <div class="m-container m-nav__inner">
+        <ul class="m-nav__links">
+            <li><a href="{% url 'manage:dashboard' %}" class="m-nav__link {% if active == 'dashboard' %}is-active{% endif %}">Översikt</a></li>
+            
+            <li><a href="{% url 'manage:inquiry_list' %}" class="m-nav__link {% if active == 'inquiries' %}is-active{% endif %}">Förfrågningar{% if unread_inquiries %} <span class="m-badge m-badge--alert">{{ unread_inquiries }}</span>{% endif %}</a></li>
+
+            {% if user.is_superuser %}{# Dold för kunden tills sidan är godkänd. #}
+            <li><a href="{% url 'manage:stats' %}" class="m-nav__link {% if active == 'stats' %}is-active{% endif %}">Statistik</a></li>
+            {% endif %}
+
+            <li class="m-nav__dropdown">
+                <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'pages' or active == 'services' or active == 'faq' or active == 'areas' %}is-active{% endif %}">Innehåll ▾</button>
+                <ul class="m-nav__dropdown-menu">
+                    <li><a href="{% url 'manage:page_list' %}">Blocksidor</a></li>
+                    <li><a href="{% url 'manage:services_overview' %}">Tjänster</a></li>
+                    <li><a href="{% url 'manage:faq_overview' %}">FAQ</a></li>
+                    <li><a href="{% url 'manage:areas_overview' %}">Serviceområden</a></li>
+                </ul>
+            </li>
+
+            <li><a href="{% url 'manage:media_library' %}" class="m-nav__link {% if active == 'media' %}is-active{% endif %}">Media</a></li>
+            <li><a href="{% url 'manage:assistant_chat' %}" class="m-nav__link {% if active == 'assistant' %}is-active{% endif %}">{% include "manage/assistant/_orb.html" with orb_class="m-orb--sm" %}AI{% if pending_drafts %} <span class="m-badge m-badge--alert">{{ pending_drafts }}</span>{% endif %}</a></li>
+            <li class="m-nav__dropdown">
+                <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'settings' or active == 'menus' %}is-active{% endif %}">Inställningar ▾</button>
+                <ul class="m-nav__dropdown-menu">
+                    <li><a href="{% url 'manage:settings' %}">Inställningar</a></li>
+                    <li><a href="{% url 'manage:menus_overview' %}">Menyer</a></li>
+                    <li>
+                        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                            {% csrf_token %}
+                            <button type="submit" class="m-nav__dropdown-logout">Logga ut</button>
+                        </form>
+                    </li>
+                </ul>
+            </li>
+            {% if user.is_superuser %}
+            <li class="m-nav__dropdown">
+                <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'superuser' %}is-active{% endif %}">Superuser ▾</button>
+                <ul class="m-nav__dropdown-menu">
+                    <li><a href="{% url 'manage:import_view' %}">Import</a></li>
+                    <li><a href="/admin/" target="_blank" rel="noopener">Django Admin ↗</a></li>
+                </ul>
+            </li>
+            {% endif %}
+        </ul>
+
+        <div class="m-nav__right">
+            <a href="/" rel="noopener" class="m-nav__view-site">Visa sajt ↗</a>
+        </div>
+
+        <button class="m-nav__hamburger" aria-label="Öppna meny" aria-expanded="false" aria-controls="m-mobile-nav">
+            <span></span><span></span><span></span>
+        </button>
+    </div>
+</nav>
+
+<div class="m-nav__mobile" id="m-mobile-nav" aria-hidden="true">
+    <a href="{% url 'manage:dashboard' %}">Översikt</a>
+    <a href="{% url 'manage:inquiry_list' %}">Förfrågningar{% if unread_inquiries %} <span class="m-badge m-badge--alert">{{ unread_inquiries }}</span>{% endif %}</a>
+    {% if user.is_superuser %}<a href="{% url 'manage:stats' %}">Statistik</a>{% endif %}
+    <span class="m-nav__mobile-label">Innehåll</span>
+    <a href="{% url 'manage:page_list' %}">Blocksidor</a>
+    <a href="{% url 'manage:services_overview' %}">Tjänster</a>
+    <a href="{% url 'manage:faq_overview' %}">FAQ</a>
+    <a href="{% url 'manage:areas_overview' %}">Serviceområden</a>
+    <span class="m-nav__mobile-label">Webbplats</span>
+    <a href="{% url 'manage:menus_overview' %}">Menyer</a>
+    <a href="{% url 'manage:media_library' %}">Media</a>
+    <a href="{% url 'manage:assistant_chat' %}">AI{% if pending_drafts %} ({{ pending_drafts }}){% endif %}</a>
+    <a href="{% url 'manage:settings' %}">Inställningar</a>
+    {% if user.is_superuser %}
+    <span class="m-nav__mobile-label">Superuser</span>
+    <a href="{% url 'manage:import_view' %}">Import</a>
+    <a href="/admin/" target="_blank" rel="noopener">Django Admin ↗</a>
+    {% endif %}
+    <a href="/" rel="noopener">Visa sajt ↗</a>
+    {% if user.is_authenticated %}
+    <div class="m-nav__mobile-user">Inloggad som {{ user.get_username }}</div>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="m-nav__signout" style="width:100%; margin-top:8px;">Logga ut</button>
+    </form>
+    {% endif %}
+</div>
+
+<main class="m-main">
+    <div class="m-container">
+        {% if messages %}
+        <ul class="m-messages">
+            {% for message in messages %}
+            <li class="m-message m-message--{{ message.tags }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </div>
+</main>
+
+<script src="{% static 'js/manage.js' %}?v={{ static_version }}" defer></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

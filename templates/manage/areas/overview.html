@@ -1,0 +1,104 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Serviceområden{% endblock %}
+
+{% block content %}
+<div class="m-page-head m-page-head--split">
+    <div>
+        <h1 class="m-page-head__title">Serviceområden</h1>
+        <p class="m-page-head__subtitle">
+            Län, kommuner och orter där ni arbetar. Varje område får en egen sida.
+            Släcker ni en kommun döljs alla dess orter automatiskt.
+        </p>
+    </div>
+    <a href="{% url 'manage:area_new' %}" class="m-btn m-btn--inline">+ Nytt område</a>
+</div>
+
+<form method="get" class="m-stats-head m-areas-filter">
+    <div class="m-filter" role="group" aria-label="Status">
+        {% for key, label in status_filters %}
+        <a href="?status={{ key }}{% if level %}&amp;level={{ level }}{% endif %}{% if query %}&amp;q={{ query }}{% endif %}"
+           class="m-filter__item {% if status == key %}is-active{% endif %}">{{ label }}{% if key == 'all' %} {{ totals.all }}{% elif key == 'published' %} {{ totals.published }}{% elif key == 'draft' %} {{ totals.draft }}{% elif key == 'empty' %} {{ totals.empty }}{% endif %}</a>
+        {% endfor %}
+    </div>
+    <div class="m-areas-filter__right">
+        <select name="level" class="m-select" onchange="this.form.submit()">
+            <option value="">Alla nivåer</option>
+            {% for value, label in levels %}
+            <option value="{{ value }}" {% if level == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <input type="search" name="q" value="{{ query }}" placeholder="Sök område" class="m-search-input">
+        <input type="hidden" name="status" value="{{ status }}">
+        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Sök</button>
+    </div>
+</form>
+
+<div class="m-panel">
+    <div class="m-table-wrap">
+        <table class="m-table">
+            <thead>
+                <tr>
+                    <th scope="col">Område</th>
+                    <th scope="col">Nivå</th>
+                    <th scope="col">Tillhör</th>
+                    <th scope="col" class="m-num">Underområden</th>
+                    <th scope="col">Status</th>
+                    <th scope="col"></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for area in areas %}
+                <tr>
+                    <td>
+                        <div class="m-cell-title">{{ area.name }}</div>
+                        <div class="m-path">{{ area.get_absolute_url }}</div>
+                    </td>
+                    <td class="m-muted">{{ area.get_level_display }}</td>
+                    <td class="m-muted">{{ area.parent.name|default:"—" }}</td>
+                    <td class="m-num">{{ area.child_count }}</td>
+                    <td>
+                        {% if area.hidden_by_parent %}
+                        <span class="m-badge m-badge--draft" title="Aktiv, men ett överordnat område är dolt">Dold av {{ area.parent.name }}</span>
+                        {% elif area.is_active %}
+                        <span class="m-badge m-badge--published">Publicerad</span>
+                        {% else %}
+                        <span class="m-badge m-badge--draft">Utkast</span>
+                        {% endif %}
+                        {% if not area.body %}<span class="m-badge m-badge--draft" title="Ingen lokal text skriven">Saknar text</span>{% endif %}
+                    </td>
+                    <td>
+                        <div class="m-row-actions">
+                            <form method="post" action="{% url 'manage:area_toggle' area.pk %}" class="m-inline-form">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                <button type="submit" class="m-btn m-btn--ghost m-btn--small">{% if area.is_active %}Dölj{% else %}Publicera{% endif %}</button>
+                            </form>
+                            <a href="{% url 'manage:area_edit' area.pk %}" class="m-btn m-btn--ghost m-btn--small">Redigera</a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="7" class="m-muted">Inga områden matchar filtret.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if page.has_other_pages %}
+    <div class="m-pager">
+        {% if page.has_previous %}
+        <a href="?page={{ page.previous_page_number }}{{ carry }}" class="m-btn m-btn--ghost m-btn--small">&larr; Föregående</a>
+        {% endif %}
+        <span class="m-pager__status">Sida {{ page.number }} av {{ page.paginator.num_pages }} &middot; {{ page.paginator.count }} områden</span>
+        {% if page.has_next %}
+        <a href="?page={{ page.next_page_number }}{{ carry }}" class="m-btn m-btn--ghost m-btn--small">Nästa &rarr;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+    <div class="m-empty m-empty--note">
+        Importera län, kommuner och orter i en klump med
+        <code>manage.py import_areas seed_data/areas.json</code>. Områden som redan
+        finns uppdateras inte &mdash; importen lägger bara till det som saknas.
+    </div>
+</div>
+{% endblock %}

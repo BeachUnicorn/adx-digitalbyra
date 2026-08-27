@@ -1,0 +1,50 @@
+{% load website_tags %}
+{% comment %}
+Förfrågningsformuläret i designens formspråk (glaspanel, pill-inputs,
+mono-etiketter). Inkluderas av inquiry_form-blocket och av form_page.html
+(felläget). Botskyddet: honeypot + signerad tidsstämpel + JS-bevis, och
+vyn svarar en fälld bot med tyst fejkad framgång.
+{% endcomment %}
+<form class="adx-form panel" method="post" action="{% url 'inquiries:submit' %}" {% botcheck_attr %}>
+    {% csrf_token %}
+    {% botcheck_fields %}
+    {% if form.errors %}
+    <div class="errors">Något saknas – kontrollera fälten markerade nedan.</div>
+    {% endif %}
+    <div class="field full">
+        <label for="id_topic">Vad gäller det?</label>
+        {{ form.topic }}
+    </div>
+    <div class="field">
+        <label for="id_company_name">Företag / organisation</label>
+        {{ form.company_name }}
+    </div>
+    <div class="field">
+        <label for="id_name">Namn{% if form.name.errors %} – obligatoriskt{% endif %}</label>
+        {{ form.name }}
+    </div>
+    <div class="field">
+        <label for="id_email">E-post{% if form.email.errors %} – kontrollera{% endif %}</label>
+        {{ form.email }}
+    </div>
+    <div class="field">
+        <label for="id_phone">Telefon (valfritt)</label>
+        {{ form.phone }}
+    </div>
+    <div class="field">
+        <label for="id_budget">Ungefärlig budget (valfritt)</label>
+        {{ form.budget }}
+    </div>
+    <div class="field">
+        <label for="id_timeline">Önskad tidplan (valfritt)</label>
+        {{ form.timeline }}
+    </div>
+    <div class="field full">
+        <label for="id_description">Berätta om ert behov{% if form.description.errors %} – obligatoriskt{% endif %}</label>
+        {{ form.description }}
+    </div>
+    <div class="form-actions">
+        <button class="btn" type="submit">Skicka förfrågan</button>
+        <span class="form-note">[ Vi svarar samma dag · Första mötet kostar ingenting ]</span>
+    </div>
+</form>

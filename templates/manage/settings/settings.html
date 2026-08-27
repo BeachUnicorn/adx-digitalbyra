@@ -1,0 +1,107 @@
+{% extends "manage/base.html" %}
+{% load static %}
+
+{% block title %}Inställningar{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/tiptap.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Inställningar</h1>
+    <p class="m-page-head__subtitle">Kontaktuppgifter används som variabler i innehåll, menyer och sidfot.</p>
+</div>
+
+<form method="post" class="m-form" novalidate>
+    {% csrf_token %}
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Företag &amp; kontakt</h2>
+        {% for field in form %}
+            {% if field.name == "name" or field.name == "phone" or field.name == "email" or field.name == "street_address" or field.name == "postal_code" or field.name == "city" or field.name == "org_number" %}
+            <div class="m-field">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div class="m-field-error">{{ field.errors|join:", " }}</div>{% endif %}
+            </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Logotyp &amp; favicon</h2>
+        <p class="m-form-hint">Logotypen visas i sidhuvudet och sidfoten. Stäng av växlarna nedan för att visa företagsnamnet som text istället.</p>
+        {% include "manage/services/_image_field.html" with field=form.logo %}
+        <div class="m-field-inline">
+            <label>{{ form.show_logo_in_header }} {{ form.show_logo_in_header.label }}</label>
+            <label>{{ form.show_logo_in_footer }} {{ form.show_logo_in_footer.label }}</label>
+        </div>
+        {% include "manage/services/_image_field.html" with field=form.favicon %}
+    </div>
+
+    <div class="m-panel m-form-panel" id="footer-text">
+        <h2 class="m-form-section">Sidfotstext</h2>
+        <p class="m-form-hint">Visas i sidfotens första kolumn.</p>
+        <div class="m-field">
+            {{ form.footer_about }}
+            {% if form.footer_about.errors %}<div class="m-field-error">{{ form.footer_about.errors|join:", " }}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Reco-widget</h2>
+        <div class="m-field-inline">
+            <label>{{ form.show_reco_widget }} {{ form.show_reco_widget.label }}</label>
+        </div>
+        <div class="m-field">
+            <label for="{{ form.reco_widget_url.id_for_label }}">{{ form.reco_widget_url.label }}</label>
+            {{ form.reco_widget_url }}
+            {% if form.reco_widget_url.errors %}<div class="m-field-error">{{ form.reco_widget_url.errors|join:", " }}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Google Analytics</h2>
+        <div class="m-field-inline">
+            <label>{{ form.ga_enabled }} {{ form.ga_enabled.label }}</label>
+        </div>
+        <div class="m-field">
+            <label for="{{ form.ga_tracking_id.id_for_label }}">{{ form.ga_tracking_id.label }}</label>
+            {{ form.ga_tracking_id }}
+            <div class="m-field-help">Format: G-XXXXXXXXXX (GA4) eller UA-XXXXXXXX-X</div>
+            {% if form.ga_tracking_id.errors %}<div class="m-field-error">{{ form.ga_tracking_id.errors|join:", " }}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Priser, moms &amp; ROT</h2>
+        <p class="m-form-hint">Tjänstepriser lagras exkl. moms. Moms och ROT-avdrag beräknas utifrån dessa satser. Ändra här om lagstiftningen ändras.</p>
+        <div class="m-field-inline">
+            <label>{{ form.vat_rate.label }} {{ form.vat_rate }}</label>
+            <label>{{ form.rot_percentage.label }} {{ form.rot_percentage }}</label>
+        </div>
+        {% if form.vat_rate.errors %}<div class="m-field-error">{{ form.vat_rate.errors|join:", " }}</div>{% endif %}
+        {% if form.rot_percentage.errors %}<div class="m-field-error">{{ form.rot_percentage.errors|join:", " }}</div>{% endif %}
+    </div>
+
+    <div class="m-panel m-form-panel">
+        <h2 class="m-form-section">Sidfots-blocksida</h2>
+        <p class="m-form-hint">Välj en blocksida vars block ska visas längst ner på alla sidor, precis ovanför sidfoten. Lämpligt för en CTA eller annan global uppmaning.</p>
+        <div class="m-field">
+            <label for="{{ form.footer_component_page.id_for_label }}">{{ form.footer_component_page.label }}</label>
+            {{ form.footer_component_page }}
+            {% if form.footer_component_page.errors %}<div class="m-field-error">{{ form.footer_component_page.errors|join:", " }}</div>{% endif %}
+        </div>
+    </div>
+
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">Spara inställningar</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/dist/tiptap-editor.js' %}" defer></script>
+<script src="{% static 'js/manage-image-field.js' %}" defer></script>
+{% endblock %}

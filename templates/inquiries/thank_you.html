@@ -1,0 +1,14 @@
+{% extends "website/base.html" %}
+{% block title %}Tack för din förfrågan - {{ site_settings.name|default:"ADX" }}{% endblock %}
+{% block meta %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<div class="wrap hero">
+    <div class="kicker">[ Förfrågan mottagen ]</div>
+    <h1>Tack!<br>Vi hör av oss.</h1>
+    <p class="lead">Din förfrågan har referensnummer <strong>{{ reference }}</strong>. En bekräftelse är på väg till din e-post, och vi återkommer senast nästa vardag.</p>
+    <div class="hero-actions">
+        <a class="btn" href="/">Till startsidan</a>
+        <a class="btn ghost" href="/portfolio/">Se våra projekt</a>
+    </div>
+</div>
+{% endblock %}

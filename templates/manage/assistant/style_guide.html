@@ -1,0 +1,33 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Skrivguide &ndash; AI-assistent{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Skrivguide</h1>
+    <p class="m-page-head__subtitle">Tonläget AI:n följer. Den läser guiden först i varje samtal.</p>
+</div>
+
+{% include "manage/assistant/_subnav.html" %}
+
+<form method="post" class="m-panel m-form-panel">
+    {% csrf_token %}
+    <p class="m-form-hint">
+        Skriv hur texterna ska låta: tilltal, längd, ord att undvika, sådant som
+        är typiskt för er. {% if is_default %}<strong>Just nu används standardguiden</strong> &ndash;
+        skriv något här för att ersätta den.{% endif %}
+    </p>
+    <textarea name="ai_style_guide" rows="10" maxlength="4000" class="m-guide-input"
+              placeholder="T.ex: Du-tilltal. Korta meningar. Skriv aldrig 'givetvis'. Nämn alltid att vi lämnar offert.">{{ value }}</textarea>
+    <div class="m-chat__actions">
+        <button type="submit" class="m-btn m-btn--small">Spara skrivguiden</button>
+        <span class="m-form-hint">Töm rutan för att återgå till standard.</span>
+    </div>
+</form>
+
+<div class="m-section-row"><p class="m-section-title">Standardguiden</p></div>
+<div class="m-panel m-form-panel">
+    <p class="m-form-hint">Den här används när rutan ovan är tom:</p>
+    <p>{{ default_guide }}</p>
+</div>
+{% endblock %}

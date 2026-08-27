@@ -1,0 +1,55 @@
+{% load static theme_tags %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ site_settings.name|default:"ADX" }}{% endblock %}</title>
+    {% if site_settings.favicon %}<link rel="icon" href="{{ site_settings.favicon.file.url }}">{% endif %}
+    {% block meta %}
+    <meta name="description" content="{{ page.meta_description|default:'' }}">
+    {% endblock %}
+    {% comment %}
+    Typsnitten är självhostade (static/fonts) - inga anrop till tredjepartsdomäner
+    från kundsidor (mönsterkatalogen §4). Designen kommer EXAKT ur
+    strict-design-guide.html; rör du utseendet: ändra guiden först.
+    {% endcomment %}
+    <link rel="stylesheet" href="{% static 'css/site.css' %}?v={{ site_css_version }}">
+    {% if site_settings.ga_enabled and site_settings.ga_tracking_id %}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{ site_settings.ga_tracking_id }}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{{ site_settings.ga_tracking_id }}');
+    </script>
+    {% endif %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body {% body_theme page_color %}>
+
+<a href="#main" class="skip-link">Hoppa till innehåll</a>
+
+<canvas id="gradient-canvas"></canvas>
+
+{% include "website/partials/mobile_menu.html" %}
+
+<div class="page-root">
+
+{% include "website/partials/header.html" %}
+
+<main id="main" class="page">
+    {% block content %}{% endblock %}
+</main>
+
+{% include "website/partials/footer.html" %}
+
+</div>
+
+{% include "website/partials/admin_dock.html" %}
+
+<script src="{% static 'js/gradient.js' %}?v={{ site_css_version }}" defer></script>
+<script src="{% static 'js/site.js' %}?v={{ site_css_version }}" defer></script>
+{% if analytics_enabled %}<script src="{% static 'js/analytics.js' %}?v={{ site_css_version }}" defer></script>{% endif %}
+{% block extra_js %}{% endblock %}
+</body>
+</html>

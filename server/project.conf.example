@@ -1,0 +1,23 @@
+# project.conf - REPO-LEVEL config, shared by every site in this checkout.
+#
+# Copy to project.conf and edit. This file holds only the machine-wide defaults.
+# Everything site-specific (including which git repo each site comes from) lives
+# in sites.d/<site>.conf.
+#
+# Copy: cp project.conf.example project.conf
+
+# Linux system user that owns and runs the sites.
+SYSTEM_USER="djangouser"
+
+# Where all sites for this repo live on disk.
+BASE_DIR="/home/${SYSTEM_USER}/sites"
+
+# Postgres role shared by sites in this repo (each site still gets its own DB).
+# For full isolation you can override DB_USER per site in sites.d/<site>.conf.
+DB_USER="jungfru_dbuser"
+DB_HOST="localhost"
+DB_PORT="5432"
+
+# Gunicorn worker tuning (applied to every site unless overridden per site).
+GUNICORN_WORKERS="3"
+GUNICORN_THREADS="2"

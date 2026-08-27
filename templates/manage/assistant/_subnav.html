@@ -1,0 +1,28 @@
+{% comment %}
+Sektionsnavigation för hela AI-delen.
+
+Låg tidigare som knappar i chattsidans rubrik, vilket gjorde att de försvann
+så fort man klickade sig vidare till utkasten eller anslutningen - man hamnade
+i en återvändsgränd och fick gå via toppmenyn tillbaka. Undermenyn hör till
+sektionen, inte till en av dess sidor, och inkluderas därför överallt.
+{% endcomment %}
+<nav class="m-subnav" aria-label="AI-assistenten">
+    <a href="{% url 'manage:assistant_chat' %}"
+       class="m-subnav__item {% if ai_section == 'chat' %}is-active{% endif %}"
+       {% if ai_section == 'chat' %}aria-current="page"{% endif %}>Chatt</a>
+
+    <a href="{% url 'manage:assistant_jobs' %}"
+       class="m-subnav__item {% if ai_section == 'drafts' %}is-active{% endif %}"
+       {% if ai_section == 'drafts' %}aria-current="page"{% endif %}>
+        Förslag
+        {% if pending_drafts %}<span class="m-badge m-badge--alert">{{ pending_drafts }}</span>{% endif %}
+    </a>
+
+    <a href="{% url 'manage:assistant_style_guide' %}"
+       class="m-subnav__item {% if ai_section == 'guide' %}is-active{% endif %}"
+       {% if ai_section == 'guide' %}aria-current="page"{% endif %}>Skrivguide</a>
+
+    <a href="{% url 'manage:assistant_connection' %}"
+       class="m-subnav__item {% if ai_section == 'connection' %}is-active{% endif %}"
+       {% if ai_section == 'connection' %}aria-current="page"{% endif %}>Anslutning</a>
+</nav>

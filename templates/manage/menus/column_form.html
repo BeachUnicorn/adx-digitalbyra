@@ -1,0 +1,35 @@
+{% extends "manage/base.html" %}
+
+{% block title %}{% if instance %}Redigera kolumn{% else %}Ny sidfotskolumn{% endif %}{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <p class="m-crumb-row"><a href="{% url 'manage:menus_overview' %}">Menyer</a> ›</p>
+    <h1 class="m-page-head__title">{% if instance %}Redigera kolumn{% else %}Ny sidfotskolumn{% endif %}</h1>
+</div>
+
+<form method="post" class="m-form" novalidate>
+    {% csrf_token %}
+    <div class="m-panel m-form-panel">
+        <div class="m-field">
+            <label for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+            {{ form.name }}
+            {% if form.name.help_text %}<div class="m-field-help">{{ form.name.help_text }}</div>{% endif %}
+            {% if form.name.errors %}<div class="m-field-error">{{ form.name.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.heading.id_for_label }}">{{ form.heading.label }}</label>
+            {{ form.heading }}
+            {% if form.heading.help_text %}<div class="m-field-help">{{ form.heading.help_text }}</div>{% endif %}
+            {% if form.heading.errors %}<div class="m-field-error">{{ form.heading.errors|join:", " }}</div>{% endif %}
+        </div>
+        <div class="m-field-inline">
+            <label>{{ form.order.label }} {{ form.order }}</label>
+        </div>
+    </div>
+    <div class="m-form-actions">
+        <button type="submit" class="m-btn m-btn--inline">{% if instance %}Spara{% else %}Skapa kolumn{% endif %}</button>
+        <a href="{% url 'manage:menus_overview' %}" class="m-btn m-btn--ghost m-btn--inline">Avbryt</a>
+    </div>
+</form>
+{% endblock %}

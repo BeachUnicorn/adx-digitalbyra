@@ -1,0 +1,67 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Förhandsgranska &ndash; AI-assistent{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <p class="m-crumb-row">
+        <a href="{% url 'manage:assistant_jobs' %}">Förslag</a> ›
+        <a href="{% url 'manage:assistant_job' job.pk %}">{{ job }}</a> ›
+    </p>
+    <h1 class="m-page-head__title">Förhandsgranskning</h1>
+    <p class="m-page-head__subtitle">{{ change.summary }}</p>
+</div>
+
+{% comment %}
+Beslutsknapparna sitter HÄR, inte bara på granskningssidan: har man just
+sett hur sidan blir ska man kunna säga ja direkt, utan att klicka sig
+tillbaka och leta rätt på samma kort igen.
+{% endcomment %}
+{% if change.status == 'pending' %}
+<div class="m-bulkbar">
+    <span class="m-preview__label">
+        Så här blir sidan om du godkänner
+        {% if change.risk == 'business' %}<span class="m-badge m-badge--business">Affärsdata</span>{% endif %}
+    </span>
+    <div class="m-bulkbar__actions">
+        <form method="post" action="{% url 'manage:assistant_change_decide' change.pk %}">
+            {% csrf_token %}
+            {% if row.stale %}<input type="hidden" name="force" value="1">{% endif %}
+            <button type="submit" name="action" value="approve" class="m-btn m-btn--small"
+                    {% if row.stale %}onclick="return confirm('Skriv över ändringen som gjorts sedan förslaget lades?');"{% endif %}>Godkänn{% if row.stale %} ändå{% endif %}</button>
+            <button type="submit" name="action" value="reject" class="m-btn m-btn--ghost m-btn--small">Avslå</button>
+        </form>
+        <a href="{% url 'manage:assistant_job' job.pk %}" class="m-btn m-btn--ghost m-btn--small">Tillbaka</a>
+    </div>
+</div>
+{% else %}
+<div class="m-panel m-empty">
+    <p>Utkastet är redan {{ change.get_status_display|lower }}. Sidan nedan visas som den skulle ha blivit.</p>
+</div>
+{% endif %}
+
+{% if row.stale %}
+<p class="m-field-error">
+    <strong>Ändrat sedan förslaget lades:</strong> {{ row.stale|join:", " }}.
+    Godkänner du nu skrivs den ändringen över.
+</p>
+{% endif %}
+
+<div class="m-preview">
+    {% comment %}
+    sandbox utan allow-scripts: den renderade sidan innehåller text som AI:n
+    skrivit, och den texten kan i sin tur komma från något den läst. Den ska
+    visas, inte köras.
+    {% endcomment %}
+    <iframe class="m-preview__frame"
+            src="{% url 'manage:assistant_change_preview_frame' change.pk %}"
+            title="Förhandsgranskning av sidan"
+            sandbox="allow-same-origin"
+            loading="lazy"></iframe>
+</div>
+
+<details class="m-preview__diff">
+    <summary>Visa fältändringarna</summary>
+    {% include "manage/assistant/_change_card.html" with row=row form_id="" group_id="" %}
+</details>
+{% endblock %}

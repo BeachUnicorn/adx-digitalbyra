@@ -1,0 +1,113 @@
+{% extends "manage/base.html" %}
+
+{% block title %}Media{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+    <h1 class="m-page-head__title">Media</h1>
+    <p class="m-page-head__subtitle">{{ media_count }} fil{{ media_count|pluralize:"er" }} i biblioteket.</p>
+</div>
+
+<div class="m-media-toolbar">
+    <form method="post" action="{% url 'manage:media_upload' %}" enctype="multipart/form-data" class="m-upload-form">
+        {% csrf_token %}
+        <label class="m-btn m-btn--inline" for="media-file-input">Ladda upp bild</label>
+        <input id="media-file-input" type="file" name="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onchange="this.form.requestSubmit()">
+    </form>
+
+    {% if optimize_ids %}
+    {# Kör en bild per anrop via manage.js - stora bibliotek kan aldrig tima ut. #}
+    <button type="button" class="m-btn m-btn--inline" data-optimize-all
+            data-ids="{{ optimize_ids|join:',' }}"
+            data-url-template="{% url 'manage:media_optimize' 0 %}">
+        &#9889; Optimera alla bilder ({{ optimize_ids|length }})
+    </button>
+    <span class="m-optimize-progress" data-optimize-progress hidden aria-live="polite"></span>
+    {% endif %}
+
+    <form method="get" class="m-search-form" role="search">
+        <input type="search" name="q" value="{{ query }}" placeholder="Sök på filnamn eller alt-text" class="m-search-input" aria-label="Sök media">
+    </form>
+</div>
+
+<p class="m-form-hint">
+    Pricken i varje bild är dess <strong>fokuspunkt</strong> &ndash; klicka där motivet är,
+    så hålls den delen i bild när bilden beskärs, till exempel i mobilens smalare format.
+</p>
+
+{% if media %}
+<div class="m-media-grid">
+    {% for item in media %}
+    <figure class="m-media-card">
+        {% if item.mime_type|slice:":6" == "image/" %}
+        {# Fokuspunktsväljare: hela bilden visas (contain), klicket sparas direkt. #}
+        <div class="m-media-card__thumb m-focal" data-focal-picker
+             data-url="{% url 'manage:media_update' item.id %}"
+             data-x="{{ item.focal_x }}" data-y="{{ item.focal_y }}"
+             title="Klicka där motivet är – den delen hålls i bild när bilden beskärs">
+            <img src="{{ item.file.url }}" alt="{{ item.alt_text }}" loading="lazy">
+            <span class="m-focal__dot" hidden></span>
+            <span class="m-focal__flash" hidden></span>
+        </div>
+        {% else %}
+        <div class="m-media-card__thumb">
+            <span class="m-media-card__file">{{ item.original_filename }}</span>
+        </div>
+        {% endif %}
+        <figcaption class="m-media-card__meta">
+            <div class="m-media-card__name" title="{{ item.original_filename }}">{{ item.original_filename }}</div>
+            <div class="m-media-card__info">
+                {% if item.width %}{{ item.width }}×{{ item.height }} · {% endif %}
+                {{ item.file_size|filesizeformat }}
+            </div>
+
+            <form method="post" action="{% url 'manage:media_update' item.id %}" class="m-media-card__alt">
+                {% csrf_token %}
+                <label for="alt-{{ item.id }}">Alt-text</label>
+                <input id="alt-{{ item.id }}" type="text" name="alt_text" value="{{ item.alt_text }}" placeholder="Beskriv bilden" maxlength="255">
+                <button type="submit" class="m-btn m-btn--small">Spara</button>
+            </form>
+
+            <form method="post" action="{% url 'manage:media_delete' item.id %}" class="m-media-card__delete" onsubmit="return confirm('Ta bort denna bild?');">
+                {% csrf_token %}
+                <button type="submit" class="m-btn m-btn--danger m-btn--small">Ta bort</button>
+            </form>
+
+            {% if item.can_optimize %}
+            <div class="m-media-card__opt-wrap">
+                <button type="button" class="m-media-card__opt-btn" data-opt-toggle>⚡ Optimera</button>
+                <div class="m-media-card__opt-popover" hidden data-opt-popover>
+                    <p class="m-media-card__opt-info">{{ item.optimization_hint }}</p>
+                    <form method="post" action="{% url 'manage:media_optimize' item.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="m-btn m-btn--small">Bekräfta</button>
+                    </form>
+                </div>
+            </div>
+            {% elif item.is_optimized %}
+            <div class="m-media-card__optimized">
+                <span class="m-badge m-badge--published">Optimerad ✓</span>
+                {% if item.original_file %}
+                <form method="post" action="{% url 'manage:media_restore' item.id %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="m-btn m-btn--ghost m-btn--small">Återställ</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endif %}
+        </figcaption>
+    </figure>
+    {% endfor %}
+</div>
+{% else %}
+<div class="m-panel">
+    <div class="m-empty">
+        {% if query %}
+        Inga träffar för "{{ query }}".
+        {% else %}
+        Inga bilder ännu. Ladda upp din första bild ovan.
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
