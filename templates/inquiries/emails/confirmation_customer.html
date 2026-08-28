@@ -35,7 +35,6 @@
         <p style="margin:0 0 8px;font-size:13px;color:#777;font-weight:600;text-transform:uppercase;">Sammanfattning</p>
         <p style="margin:0 0 4px;font-size:14px;color:#333;"><strong>Kundtyp:</strong> {{ inquiry.get_customer_type_display }}</p>
         {% if inquiry.company_name %}<p style="margin:0 0 4px;font-size:14px;color:#333;"><strong>Organisation:</strong> {{ inquiry.company_name }}</p>{% endif %}
-        <p style="margin:0 0 4px;font-size:14px;color:#333;"><strong>Adress:</strong> {{ inquiry.street_address }}, {{ inquiry.postal_code }} {{ inquiry.city }}</p>
         {% if image_count %}<p style="margin:0 0 4px;font-size:14px;color:#333;"><strong>Bifogade bilder:</strong> {{ image_count }} st</p>{% endif %}
     </td></tr>
     </table>

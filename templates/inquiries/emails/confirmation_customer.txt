@@ -9,7 +9,7 @@ Referensnummer: {{ inquiry.reference }}
 Sammanfattning:
 - Kundtyp: {{ inquiry.get_customer_type_display }}
 {% if inquiry.company_name %}- Organisation: {{ inquiry.company_name }}
-{% endif %}- {% if image_count %}- Bifogade bilder: {{ image_count }} st
+{% endif %}{% if image_count %}- Bifogade bilder: {{ image_count }} st
 {% endif %}
 Beskrivning:
 {{ inquiry.description }}

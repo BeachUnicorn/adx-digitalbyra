@@ -39,14 +39,30 @@
         <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">E-post</td>
         <td style="padding:4px 0;font-size:14px;color:#333;"><a href="mailto:{{ inquiry.email }}" style="color:#2563eb;">{{ inquiry.email }}</a></td>
     </tr>
+    {% if inquiry.phone %}
     <tr>
         <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Telefon</td>
         <td style="padding:4px 0;font-size:14px;color:#333;"><a href="tel:{{ inquiry.phone }}" style="color:#2563eb;">{{ inquiry.phone }}</a></td>
     </tr>
+    {% endif %}
+    {% if inquiry.topic %}
     <tr>
-        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Adress</td>
-        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.street_address }}, {{ inquiry.postal_code }} {{ inquiry.city }}</td>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Gäller</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.topic }}</td>
     </tr>
+    {% endif %}
+    {% if inquiry.budget %}
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Budget</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.get_budget_display }}</td>
+    </tr>
+    {% endif %}
+    {% if inquiry.timeline %}
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Tidplan</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.get_timeline_display }}</td>
+    </tr>
+    {% endif %}
     {% if image_count %}
     <tr>
         <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Bilder</td>
