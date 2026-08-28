@@ -27,13 +27,6 @@ BODY_HTML_NOTE = (
     "arbetsgången som steg med satt_tjanst_steg i stället, aldrig som en lista "
     "i body."
 )
-PRICE_FIELDS = [
-    "labor_price_from",
-    "labor_price_to",
-    "material_price_from",
-    "material_price_to",
-    "is_rot_eligible",
-]
 
 
 def _service(slug):
@@ -81,7 +74,6 @@ def _hamta(user, slug):
         {
             "beskrivning": svc.description,
             "body_html": svc.body,
-            "priser": {f: str(getattr(svc, f) or "") for f in PRICE_FIELDS},
             "steg": [{"rubrik": s.title, "beskrivning": s.description} for s in svc.steps.all()],
             # Kopplingarna, av samma skäl som för områden: utan dem kan
             # modellen föreslå en FAQ till en tjänst som redan har en.
@@ -122,21 +114,6 @@ def _apply_form_update(form_class, allowed):
         return form.save()
 
     return _apply
-
-
-def _prepare_priser(user, slug, **values):
-    svc = _service(slug)
-    changed = {k: v for k, v in values.items() if v is not None}
-    if not changed:
-        raise OperationError("Ange minst ett prisfält att ändra.")
-    form, before = run_form(ServiceForm, svc, changed, PRICE_FIELDS)
-    payload = cleaned_subset(form, changed)
-    return Prepared(
-        payload={k: str(v) if v is not None else None for k, v in payload.items()},
-        before={k: str(v) if v is not None else None for k, v in (before or {}).items()},
-        summary=f"Prisändring: {svc.name}",
-        target=svc,
-    )
 
 
 def _clean_steps(steg):
@@ -304,7 +281,7 @@ register(
     Operation(
         name="hamta_tjanst",
         description=(
-            "Hämta en tjänsts fullständiga innehåll (text, priser, steg). Innehåller "
+            "Hämta en tjänsts fullständiga innehåll (text och steg). Innehåller "
             "bildens filnamn och alt-text om en bild finns, annars null."
         ),
         input_schema={
@@ -322,8 +299,7 @@ register(
         name="uppdatera_tjanst_text",
         description=(
             "Föreslå ny text för en tjänst (namn, beskrivning och/eller body-HTML). "
-            "Blir ett utkast som kunden godkänner. Rör INTE priser - använd "
-            "uppdatera_tjanst_priser för det.\n\n" + BODY_HTML_NOTE
+            "Blir ett utkast som kunden godkänner.\n\n" + BODY_HTML_NOTE
         ),
         input_schema={
             "type": "object",
@@ -339,32 +315,6 @@ register(
         risk=Risk.TEXT,
         prepare=lambda user, slug, **v: _prepare_text(user, slug, **v),
         apply=_apply_form_update(ServiceForm, TEXT_FIELDS),
-    )
-)
-register(
-    Operation(
-        name="uppdatera_tjanst_priser",
-        description=(
-            "Föreslå ändrade priser (exkl. moms) eller ROT-berättigande för en "
-            "tjänst. Affärsdata - godkänns alltid separat av kunden. Hitta ALDRIG "
-            "på priser; ange bara värden kunden uttryckligen gett dig."
-        ),
-        input_schema={
-            "type": "object",
-            "properties": {
-                "slug": _S,
-                "labor_price_from": {"type": ["string", "null"]},
-                "labor_price_to": {"type": ["string", "null"]},
-                "material_price_from": {"type": ["string", "null"]},
-                "material_price_to": {"type": ["string", "null"]},
-                "is_rot_eligible": {"type": ["boolean", "null"]},
-            },
-            "required": ["slug"],
-            "additionalProperties": False,
-        },
-        risk=Risk.BUSINESS,
-        prepare=lambda user, slug, **v: _prepare_priser(user, slug, **v),
-        apply=_apply_form_update(ServiceForm, PRICE_FIELDS),
     )
 )
 register(
@@ -423,7 +373,7 @@ register(
             "Föreslå en ny, komplett tjänst: namn, beskrivning, brödtext OCH "
             "arbetsgång i samma anrop. Arbetsgången är obligatorisk - en tjänst "
             "utan 'Så går det till' är en halvfärdig sida. Tjänsten blir synlig "
-            "när kunden godkänner förslaget. Sätt inga priser här; alla "
+            "när kunden godkänner förslaget. Alla "
             "målgrupper kopplas automatiskt. Föreslå gärna i samma tur även en "
             "FAQ-sektion för tjänsten (skapa_faq_sektion + skapa_faq_fraga) - "
             "kunden godkänner varje del för sig och kan avslå det den inte vill ha."

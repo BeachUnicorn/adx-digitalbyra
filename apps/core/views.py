@@ -1,11 +1,5 @@
-from django.conf import settings
 from django.db import connection
 from django.http import FileResponse, Http404, JsonResponse
-from django.shortcuts import render
-
-
-def home(request):
-    return render(request, "core/home.html", {"site_slug": settings.SITE_SLUG})
 
 
 def favicon(request):

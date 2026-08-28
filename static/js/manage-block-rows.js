@@ -11,7 +11,7 @@
             const frag = tpl.content.cloneNode(true);
             list.appendChild(frag);
             const row = list.lastElementChild;
-            if (window.SkandiTiptap && window.SkandiTiptap.init) window.SkandiTiptap.init();
+            if (window.AdxTiptap && window.AdxTiptap.init) window.AdxTiptap.init();
             if (window.MImageField && window.MImageField.init) window.MImageField.init(row);
         });
     });

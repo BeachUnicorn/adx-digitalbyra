@@ -185,11 +185,6 @@ def _execute_import(data, preview):
             description=(svc.get("description") or "").strip()[:200],
             body=svc.get("body") or "",
             is_active=True,
-            is_rot_eligible=bool(svc.get("is_rot_eligible", False)),
-            labor_price_from=svc.get("labor_price_from"),
-            labor_price_to=svc.get("labor_price_to"),
-            material_price_from=svc.get("material_price_from"),
-            material_price_to=svc.get("material_price_to"),
         )
         created_svcs += 1
 
@@ -264,11 +259,6 @@ _JSON_FORMAT_HELP = """{
       "category": "Kategorinamn",
       "description": "Kort beskrivning (max 200 tecken)",
       "body": "<p>Brödtext (HTML)</p>",
-      "is_rot_eligible": true,
-      "labor_price_from": 2000,
-      "labor_price_to": 4000,
-      "material_price_from": 500,
-      "material_price_to": 1000,
       "steps": [
         { "title": "Steg 1", "description": "Beskrivning av steget" }
       ]

@@ -114,9 +114,10 @@ def _hamta(user, slug):
         "tips": (
             "Variabler som {{ ort }}, {{ kommun }}, {{ lan }} och {{ phone }} "
             "ersätts automatiskt vid visning - använd dem i stället för "
-            "hårdkodade namn. Tom rubrik är NORMALT: sidan visar då "
-            "'Rörmokare i <ort>' automatiskt, se rubrik_som_visas. "
-            "Är tjänstelistan tom ärvs den från närmaste överordnade område."
+            "hårdkodade namn. Tom rubrik är NORMALT: publika stadssidan visar "
+            "alltid rubriken 'Digitalbyrå i <stad>' (se rubrik_som_visas); ett "
+            "eget värde används bara som reservtitel i förhandsvisningar. "
+            "Stadssidan listar alla aktiva tjänster automatiskt."
         ),
     }
 

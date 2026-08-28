@@ -290,7 +290,7 @@ class TokenTests(BaseCase):
         self.assertIsNone(AssistantToken.authenticate(raw))
 
     def test_garbage_is_rejected(self):
-        for value in ("", None, "inte-en-nyckel", "skvvs_fel"):
+        for value in ("", None, "inte-en-nyckel", "adx_fel"):
             self.assertIsNone(AssistantToken.authenticate(value))
 
 
@@ -305,10 +305,6 @@ class VersioningTests(BaseCase):
                 "description": "Manuellt ändrad",
                 "body": "",
                 "image": "",
-                "labor_price_from": "",
-                "labor_price_to": "",
-                "material_price_from": "",
-                "material_price_to": "",
                 "faq_section": "",
                 "order": 0,
                 "is_active": "on",
@@ -521,19 +517,19 @@ class BearerHeaderTests(TestCase):
         return {"headers": [(b"authorization", value)]}
 
     def test_plain_bearer(self):
-        self.assertEqual(_bearer_token(self._scope(b"Bearer skvvs_abc")), "skvvs_abc")
+        self.assertEqual(_bearer_token(self._scope(b"Bearer adx_abc")), "adx_abc")
 
     def test_non_breaking_space_as_utf8(self):
         """Det verkliga fallet: U+00A0 går på tråden som \\xc2\\xa0."""
-        self.assertEqual(_bearer_token(self._scope("Bearer  skvvs_abc".encode())), "skvvs_abc")
+        self.assertEqual(_bearer_token(self._scope("Bearer  adx_abc".encode())), "adx_abc")
 
     def test_odd_but_harmless_whitespace(self):
-        for raw in (b"bearer  skvvs_abc", b"BEARER\tskvvs_abc", b"Bearer skvvs_abc  "):
+        for raw in (b"bearer  adx_abc", b"BEARER\tadx_abc", b"Bearer adx_abc  "):
             with self.subTest(raw=raw):
-                self.assertEqual(_bearer_token(self._scope(raw)), "skvvs_abc")
+                self.assertEqual(_bearer_token(self._scope(raw)), "adx_abc")
 
     def test_rejects_other_schemes_and_empty(self):
-        for raw in (b"Basic skvvs_abc", b"Bearer", b"skvvs_abc", b""):
+        for raw in (b"Basic adx_abc", b"Bearer", b"adx_abc", b""):
             with self.subTest(raw=raw):
                 self.assertIsNone(_bearer_token(self._scope(raw)))
 
@@ -2405,15 +2401,17 @@ class ReadVisibilityTests(TestCase):
         area = Area.objects.create(name="Bromma", level=AreaLevel.DISTRICT, heading="")
         data = REGISTRY["hamta_omrade"].read(None, slug=area.slug)
         self.assertEqual(data["rubrik"], "")
-        self.assertEqual(data["rubrik_som_visas"], "Rörmokare i Bromma")
+        self.assertEqual(data["rubrik_som_visas"], "Digitalbyrå i Bromma")
         self.assertTrue(data["rubrik_autogenererad"])
 
     def test_set_heading_is_reported_as_not_generated(self):
         from apps.assistant.operations import REGISTRY
 
-        area = Area.objects.create(name="Solna", level=AreaLevel.DISTRICT, heading="VVS i Solna")
+        area = Area.objects.create(
+            name="Solna", level=AreaLevel.DISTRICT, heading="Webbyrå i Solna"
+        )
         data = REGISTRY["hamta_omrade"].read(None, slug=area.slug)
-        self.assertEqual(data["rubrik_som_visas"], "VVS i Solna")
+        self.assertEqual(data["rubrik_som_visas"], "Webbyrå i Solna")
         self.assertFalse(data["rubrik_autogenererad"])
 
     def test_area_read_shows_its_links(self):

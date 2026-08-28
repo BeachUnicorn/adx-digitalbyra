@@ -47,7 +47,7 @@ inte heller godkänna, eftersom godkännandet bara finns i /manage/.
 |---|---|---|
 | `READ` | `hamta_sida`, `lista_omraden` | Inget - körs direkt |
 | `TEXT` | `uppdatera_block`, `skapa_faq_fraga` | Utkast, får klumpgodkännas |
-| `BUSINESS` | `uppdatera_tjanst_priser`, `satt_omrade_aktiv`, `skapa_sida` | Utkast, **alltid en i taget** |
+| `BUSINESS` | `skapa_tjanst`, `satt_omrade_aktiv`, `skapa_sida` | Utkast, **alltid en i taget** |
 
 **Riskklassen begränsar inte längre markeringen** (kundens beslut
 2026-08-21): den som granskar väljer själv vad hen godkänner, även
@@ -437,8 +437,8 @@ Tom ruta = `DEFAULT_STYLE_GUIDE` i `context_ops`. AI:n läser den via
 
 | Objekt | Skapa | Ändra |
 |---|---|---|
-| Serviceområde | ja | texter, SEO, synlighet, FAQ-koppling, grannområden |
-| Tjänst | ja (med steg) | texter, priser, arbetsgång, synlighet, FAQ-koppling |
+| Stad (område) | ja | texter, SEO, synlighet, FAQ-koppling, grannområden |
+| Tjänst | ja (med steg) | texter, arbetsgång, synlighet, FAQ-koppling |
 | FAQ-sektion | ja | titel, beskrivning, synlighet |
 | FAQ-fråga | ja | fråga, svar |
 | Blocksida | ja | titel, SEO, publicering |
@@ -451,19 +451,19 @@ TILL modellen, inte något modellen ska kunna skriva om. Radering finns inte
 alls; AI:n kan avaktivera, aldrig ta bort. Kvarvarande lucka: blockens
 ordning och synlighet.
 
-## Varför AI:n inte kopplar tjänster till orter
+## Varför AI:n inte kopplar tjänster till städer
 
-Kundens beslut 2026-08-23. Kombinationssidan
-(`/rormokare/<ort>/<tjanst>/`) renderar `service.body` - identisk för alla
-orter - plus `area.body` - identisk för alla tjänster - med ortsnamnet
-inbytt i rubriken. 5 tjänster x 252 områden vore 1 260 nästan identiska
-sidor, alltså doorway pages som Google straffar.
+Beslut 2026-08-23 (ärvt och fortsatt giltigt i ADX). En kombinationssida
+per tjänst och stad renderar `service.body` - identisk för alla städer -
+plus `area.body` - identisk för alla tjänster - med stadsnamnet inbytt i
+rubriken. Tjänster gånger städer blir hundratals nästan identiska sidor,
+alltså doorway pages som Google straffar.
 
-Hela funktionen är borttagen 2026-08-23, inte bara AI:ns del: matrisen i
-/manage/, URL:en `/rormokare/<ort>/<tjanst>/`, vyn och sitemap-posten.
-Firman utför alla tjänster i alla områden, så en koppling per område var
-dessutom fel modell från början - ortssidan listar nu helt enkelt ALLA
-aktiva tjänster, utan något att underhålla.
+Hela funktionen är borttagen, inte bara AI:ns del: matrisen i /manage/,
+kombinations-URL:en, vyn och sitemap-posten. Byrån levererar alla tjänster
+i alla städer, så en koppling per stad var dessutom fel modell från början
+- stadssidan listar nu helt enkelt ALLA aktiva tjänster, utan något att
+underhålla.
 
 `DoorwayPageGuardTests` faller om någon återinför operationerna eller låter
 en annan operation skriva `AreaService`-rader. Vill man ta upp funktionen

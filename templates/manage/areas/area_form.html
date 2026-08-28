@@ -1,16 +1,16 @@
 {% extends "manage/base.html" %}
 {% load static %}
 
-{% block title %}{% if instance %}{{ instance.name }}{% else %}Nytt serviceområde{% endif %}{% endblock %}
+{% block title %}{% if instance %}{{ instance.name }}{% else %}Ny stad{% endif %}{% endblock %}
 
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/tiptap.css' %}">{% endblock %}
 
 {% block content %}
 <div class="m-page-head m-page-head--split">
     <div>
-        <p class="m-page-head__back"><a href="{% url 'manage:areas_overview' %}">&larr; Serviceområden</a></p>
+        <p class="m-page-head__back"><a href="{% url 'manage:areas_overview' %}">&larr; Städer</a></p>
         <h1 class="m-page-head__title">
-            {% if instance %}{{ instance.name }}{% else %}Nytt serviceområde{% endif %}
+            {% if instance %}{{ instance.name }}{% else %}Ny stad{% endif %}
             {% if instance %}
                 {% if instance.hidden_by_parent %}<span class="m-badge m-badge--draft">Dold av {{ instance.parent.name }}</span>
                 {% elif instance.is_active %}<span class="m-badge m-badge--published">Publicerad</span>
@@ -212,7 +212,7 @@
         {% if instance %}
         <div class="m-serp">
             <p class="m-serp__label">Så här kan träffen se ut i Google</p>
-            <p class="m-serp__url">{{ site_settings.domain|default:"adx.se" }} › vvs › {{ instance.slug }}</p>
+            <p class="m-serp__url">{{ site_settings.domain|default:"adx.se" }} › digitalbyra › {{ instance.slug }}</p>
             <p class="m-serp__title">{{ instance.meta_title|default:instance.display_heading }}</p>
             <p class="m-serp__desc">{{ instance.meta_description|default:instance.intro }}</p>
         </div>

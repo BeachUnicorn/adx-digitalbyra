@@ -35,17 +35,6 @@
                         {% if service.is_featured %} · Utvald{% endif %}
                     </div>
                 </div>
-                <div class="m-list__prices">
-                    {% if service.labor_price_from or service.labor_price_to %}
-                    <span class="m-list__price" title="Arbetskostnad">A: {{ service.labor_price_from|default:"-" }}–{{ service.labor_price_to|default:"-" }}</span>
-                    {% endif %}
-                    {% if service.material_price_from or service.material_price_to %}
-                    <span class="m-list__price" title="Materialkostnad">M: {{ service.material_price_from|default:"-" }}–{{ service.material_price_to|default:"-" }}</span>
-                    {% endif %}
-                    {% if not service.labor_price_from and not service.material_price_from %}
-                    <span class="m-list__price m-list__price--missing">Pris saknas</span>
-                    {% endif %}
-                </div>
                 <div class="m-row-actions">
                     {% if not service.is_active %}<span class="m-badge m-badge--draft">Inaktiv</span>{% endif %}
                     <a href="{% url 'manage:service_edit' service.id %}" class="m-btn m-btn--small">Redigera</a>

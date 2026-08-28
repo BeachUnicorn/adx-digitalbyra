@@ -2,13 +2,10 @@
 Dynamic XML sitemap for all public pages.
 
 Generates entries for:
-- Homepage
+- Homepage and FAQ index
 - Block pages (published)
-- Service categories (active)
-- Services (active)
-- Audiences (active)
-- Pricing pages (index + per audience)
 - FAQ sections (active)
+- Städer (visible areas)
 """
 
 from django.contrib.sitemaps import Sitemap
@@ -61,7 +58,7 @@ class FAQSitemap(Sitemap):
 
 
 class AreaSitemap(Sitemap):
-    """Serviceområden. Hidden areas are excluded via the inherited filter."""
+    """Städerna. Hidden areas are excluded via the visible() filter."""
 
     changefreq = "monthly"
     priority = 0.7

@@ -302,22 +302,9 @@ class SiteSettings(models.Model):
         related_name="+",
     )
 
-    # Reco widget
-    show_reco_widget = models.BooleanField(default=False)
-    reco_widget_url = models.URLField(blank=True)
-
     # Google Analytics
     ga_enabled = models.BooleanField(default=False)
     ga_tracking_id = models.CharField(max_length=50, blank=True)
-
-    # ROT deduction percentage (of labour cost). 30% as of 2024; configurable
-    # so it survives legislative changes without a code edit.
-    rot_percentage = models.PositiveSmallIntegerField(default=30)
-
-    # VAT rate (%) applied at display time. Prices are STORED net (exkl moms);
-    # gross is computed as net * (1 + vat_rate/100). Configurable so a VAT
-    # change is a one-field edit, never a re-keying of every price.
-    vat_rate = models.PositiveSmallIntegerField(default=25)
 
     # Custom CSS
     custom_css = models.TextField(blank=True)

@@ -17,12 +17,9 @@ from .forms import AudienceForm, ServiceCategoryForm, ServiceForm
 
 
 def _ctx(**extra):
-    settings = SiteSettings.load()
     ctx = {
-        "site_settings": settings,
+        "site_settings": SiteSettings.load(),
         "active": "services",
-        "rot_percentage": settings.rot_percentage,
-        "vat_rate": settings.vat_rate,
     }
     ctx.update(extra)
     return ctx

@@ -50,18 +50,6 @@
     </div>
 
     <div class="m-panel m-form-panel">
-        <h2 class="m-form-section">Reco-widget</h2>
-        <div class="m-field-inline">
-            <label>{{ form.show_reco_widget }} {{ form.show_reco_widget.label }}</label>
-        </div>
-        <div class="m-field">
-            <label for="{{ form.reco_widget_url.id_for_label }}">{{ form.reco_widget_url.label }}</label>
-            {{ form.reco_widget_url }}
-            {% if form.reco_widget_url.errors %}<div class="m-field-error">{{ form.reco_widget_url.errors|join:", " }}</div>{% endif %}
-        </div>
-    </div>
-
-    <div class="m-panel m-form-panel">
         <h2 class="m-form-section">Google Analytics</h2>
         <div class="m-field-inline">
             <label>{{ form.ga_enabled }} {{ form.ga_enabled.label }}</label>
@@ -72,17 +60,6 @@
             <div class="m-field-help">Format: G-XXXXXXXXXX (GA4) eller UA-XXXXXXXX-X</div>
             {% if form.ga_tracking_id.errors %}<div class="m-field-error">{{ form.ga_tracking_id.errors|join:", " }}</div>{% endif %}
         </div>
-    </div>
-
-    <div class="m-panel m-form-panel">
-        <h2 class="m-form-section">Priser, moms &amp; ROT</h2>
-        <p class="m-form-hint">Tjänstepriser lagras exkl. moms. Moms och ROT-avdrag beräknas utifrån dessa satser. Ändra här om lagstiftningen ändras.</p>
-        <div class="m-field-inline">
-            <label>{{ form.vat_rate.label }} {{ form.vat_rate }}</label>
-            <label>{{ form.rot_percentage.label }} {{ form.rot_percentage }}</label>
-        </div>
-        {% if form.vat_rate.errors %}<div class="m-field-error">{{ form.vat_rate.errors|join:", " }}</div>{% endif %}
-        {% if form.rot_percentage.errors %}<div class="m-field-error">{{ form.rot_percentage.errors|join:", " }}</div>{% endif %}
     </div>
 
     <div class="m-panel m-form-panel">

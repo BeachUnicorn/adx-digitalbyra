@@ -1,27 +1,125 @@
-"""Tester för serviceområden."""
+"""
+Tester för städerna (/digitalbyra/).
+
+Omskrivna vid genomlysningen 2026-08-27: den gamla filen var byte-identisk
+med systersajtens och testade rutter och beteenden som inte finns i ADX.
+Här testas det ADX faktiskt gör: stadsöversikt, stadssida med hårdkodad
+"Digitalbyrå i {stad}"-rubrik, synlighetsarv och doorway-vakten.
+"""
 
 from django.test import TestCase
 
 
-class AreaServiceRemovalTests(TestCase):
+class CityPageTests(TestCase):
+    """Stadssidan i ADX-designen: hero + unik brödtext + alla aktiva
+    tjänster + övriga städer. EN sida per stad (doorway-regeln)."""
+
+    def setUp(self):
+        from apps.areas.models import Area, AreaLevel
+        from apps.services.models import Service, ServiceCategory
+
+        self.goteborg = Area.objects.create(
+            name="Göteborg",
+            level=AreaLevel.REGION,
+            intro="Vi bygger digitalt för Göteborg.",
+            body="Första stycket.\n\nAndra stycket.",
+        )
+        self.malmo = Area.objects.create(name="Malmö", level=AreaLevel.REGION)
+        category = ServiceCategory.objects.create(name="Utveckling")
+        self.service = Service.objects.create(
+            category=category, name="Webbutveckling", is_active=True
+        )
+
+    def test_city_list_links_every_active_city(self):
+        html = self.client.get("/digitalbyra/").content.decode()
+        self.assertIn(self.goteborg.get_absolute_url(), html)
+        self.assertIn(self.malmo.get_absolute_url(), html)
+
+    def test_inactive_city_is_absent_from_the_list(self):
+        self.malmo.is_active = False
+        self.malmo.save(update_fields=["is_active"])
+        html = self.client.get("/digitalbyra/").content.decode()
+        self.assertNotIn(self.malmo.get_absolute_url(), html)
+
+    def test_city_page_shows_adx_heading_intro_and_body(self):
+        html = self.client.get(self.goteborg.get_absolute_url()).content.decode()
+        self.assertIn("Digitalbyrå", html)
+        self.assertIn("Göteborg", html)
+        self.assertIn("Vi bygger digitalt för Göteborg.", html)
+        self.assertIn("Första stycket.", html)
+        self.assertIn("Andra stycket.", html)
+
+    def test_city_page_lists_all_active_services_and_other_cities(self):
+        html = self.client.get(self.goteborg.get_absolute_url()).content.decode()
+        self.assertIn("Webbutveckling", html)
+        self.assertIn(self.malmo.get_absolute_url(), html)
+
+    def test_hidden_city_is_404(self):
+        self.goteborg.is_active = False
+        self.goteborg.save(update_fields=["is_active"])
+        response = self.client.get(self.goteborg.get_absolute_url())
+        self.assertEqual(response.status_code, 404)
+
+    def test_inactive_parent_hides_the_child_page(self):
+        """Synlighetsarvet: släcks kommunen ska stadsdelen se ut att inte
+        finnas, utan att dess egen flagga rörs."""
+        from apps.areas.models import Area, AreaLevel
+
+        kommun = Area.objects.create(
+            name="Solna", level=AreaLevel.MUNICIPALITY, parent=self.goteborg
+        )
+        district = Area.objects.create(name="Råsunda", level=AreaLevel.DISTRICT, parent=kommun)
+        self.assertEqual(self.client.get(district.get_absolute_url()).status_code, 200)
+
+        kommun.is_active = False
+        kommun.save(update_fields=["is_active"])
+        self.assertEqual(self.client.get(district.get_absolute_url()).status_code, 404)
+        district.refresh_from_db()
+        self.assertTrue(district.is_active)
+
+    def test_sitemap_lists_visible_cities_only(self):
+        self.malmo.is_active = False
+        self.malmo.save(update_fields=["is_active"])
+        xml = self.client.get("/sitemap.xml").content.decode()
+        self.assertIn(self.goteborg.get_absolute_url(), xml)
+        self.assertNotIn(self.malmo.get_absolute_url(), xml)
+
+
+class DisplayHeadingTests(TestCase):
+    """Rubrikfallbacken är ADX:s, inte systersajtens."""
+
+    def test_empty_heading_falls_back_to_digitalbyra(self):
+        from apps.areas.models import Area, AreaLevel
+
+        area = Area.objects.create(name="Uppsala", level=AreaLevel.REGION, heading="")
+        self.assertEqual(area.display_heading, "Digitalbyrå i Uppsala")
+
+    def test_set_heading_wins(self):
+        from apps.areas.models import Area, AreaLevel
+
+        area = Area.objects.create(
+            name="Uppsala", level=AreaLevel.REGION, heading="Webbyrå i Uppsala"
+        )
+        self.assertEqual(area.display_heading, "Webbyrå i Uppsala")
+
+
+class DoorwayGuardTests(TestCase):
     """
-    Tjänst-och-ort-sidorna är borttagna (2026-08-23): samma tjänstetext och
-    samma ortstext med ortsnamnet inbytt i rubriken är doorway pages.
-    Ortssidan visar i stället ALLA aktiva tjänster - firman utför alla
-    tjänster i alla områden, så en koppling per område vore både felaktig
-    och en underhållsbörda.
+    Tjänst-och-stad-sidorna finns inte (doorway-regeln): samma tjänstetext
+    och samma stadstext med stadsnamnet inbytt i rubriken är doorway pages.
+    Stadssidan visar i stället ALLA aktiva tjänster.
     """
 
     def setUp(self):
         from apps.areas.models import Area, AreaLevel
         from apps.services.models import Service, ServiceCategory
 
-        self.area = Area.objects.create(name="Bromma", level=AreaLevel.DISTRICT, body="Lokal text")
-        category = ServiceCategory.objects.create(name="Vatten")
-        self.service = Service.objects.create(category=category, name="Spolning", is_active=True)
+        self.area = Area.objects.create(name="Örebro", level=AreaLevel.REGION)
+        category = ServiceCategory.objects.create(name="Utveckling")
+        self.service = Service.objects.create(category=category, name="Automation", is_active=True)
 
     def test_combination_url_is_gone(self):
-        response = self.client.get(f"/rormokare/{self.area.slug}/{self.service.slug}/")
+        response = self.client.get(f"/digitalbyra/{self.area.slug}/{self.service.slug}/")
         self.assertEqual(response.status_code, 404)
 
     def test_url_name_no_longer_resolvable(self):
@@ -35,13 +133,13 @@ class AreaServiceRemovalTests(TestCase):
 
         self.assertEqual(AreaService.objects.count(), 0)
         html = self.client.get(self.area.get_absolute_url()).content.decode()
-        self.assertIn("Spolning", html)
+        self.assertIn("Automation", html)
 
     def test_sitemap_has_no_combination_pages(self):
         xml = self.client.get("/sitemap.xml").content.decode()
         self.assertNotIn(f"/{self.area.slug}/{self.service.slug}/", xml)
 
-    def test_admin_area_form_has_no_service_matrix(self):
+    def test_manage_area_form_has_no_service_matrix(self):
         from django.contrib.auth import get_user_model
 
         user = get_user_model().objects.create_user("areaadm", password="x", is_staff=True)
@@ -49,63 +147,3 @@ class AreaServiceRemovalTests(TestCase):
         html = self.client.get(f"/manage/serviceomraden/{self.area.pk}/").content.decode()
         self.assertNotIn("Tjänster och målgrupper", html)
         self.assertNotIn('name="svc_on"', html)
-
-
-class CategoryCardTests(TestCase):
-    """
-    Ortssidan visar KATEGORIER, inte tjänster: 76 tjänster upprepade på 232
-    ortssidor vore en katalog - samma tunna innehåll som tjänst-och-ort-
-    sidorna. Antalet kategorier är dessutom stabilt när utbudet växer.
-    """
-
-    def setUp(self):
-        from apps.areas.models import Area, AreaLevel
-        from apps.services.models import Service, ServiceCategory
-
-        self.bromma = Area.objects.create(name="Bromma", level=AreaLevel.DISTRICT, body="Text")
-        self.solna = Area.objects.create(name="Solna", level=AreaLevel.DISTRICT, body="Text")
-        for i in range(3):
-            category = ServiceCategory.objects.create(name=f"Kategori {i}", order=i)
-            for j in range(4):
-                Service.objects.create(category=category, name=f"Tjänst {i}-{j}", is_active=True)
-
-    def _examples(self, area):
-        from apps.areas.views import _category_cards
-
-        return [card["example"].name for card in _category_cards(area)]
-
-    def test_one_card_per_category(self):
-        from apps.areas.views import _category_cards
-
-        self.assertEqual(len(_category_cards(self.bromma)), 3)
-
-    def test_examples_are_stable_for_the_same_area(self):
-        """
-        Fröet är orten, inte slumpen: sidan ska se likadan ut varje gång
-        någon besöker den eller Google hämtar den.
-        """
-        self.assertEqual(self._examples(self.bromma), self._examples(self.bromma))
-
-    def test_different_areas_get_different_examples(self):
-        """Det som gör 232 ortssidor mindre lika varandra, inte mer."""
-        self.assertNotEqual(self._examples(self.bromma), self._examples(self.solna))
-
-    def test_inactive_services_are_never_examples(self):
-        from apps.services.models import Service
-
-        Service.objects.update(is_active=False)
-        Service.objects.filter(name="Tjänst 0-2").update(is_active=True)
-        from apps.areas.views import _category_cards
-
-        cards = _category_cards(self.bromma)
-        self.assertEqual([c["example"].name for c in cards], ["Tjänst 0-2"])
-
-    def test_category_without_active_services_is_skipped(self):
-        from apps.services.models import Service, ServiceCategory
-
-        ServiceCategory.objects.create(name="Tom kategori", order=9)
-        from apps.areas.views import _category_cards
-
-        names = [c["category"].name for c in _category_cards(self.bromma)]
-        self.assertNotIn("Tom kategori", names)
-        self.assertTrue(Service.objects.filter(is_active=True).exists())

@@ -62,7 +62,7 @@ def tool_descriptions():
             description += "\n\nSkapar ett utkast som kunden godkänner."
         elif op.risk == Risk.BUSINESS:
             description += (
-                "\n\nPåverkar priser eller vad som syns publikt. Skapar ett "
+                "\n\nPåverkar affärsdata eller vad som syns publikt. Skapar ett "
                 "utkast som kunden godkänner separat, en i taget."
             )
         yield op.name, description, op.input_schema, op.risk == Risk.READ
@@ -196,7 +196,6 @@ STEP_LABELS = {
     "lista_tjanster": "Listar tjänster",
     "hamta_tjanst": "Läser tjänst",
     "uppdatera_tjanst_text": "Skriver om tjänstetext",
-    "uppdatera_tjanst_priser": "Uppdaterar priser",
     "satt_tjanst_steg": "Sätter arbetsgång",
     "satt_tjanst_aktiv": "Ändrar tjänstens synlighet",
     "skapa_tjanst": "Skapar tjänst",

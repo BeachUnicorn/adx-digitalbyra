@@ -7,6 +7,7 @@ och wrappern renderar okända typer som INGENTING, tyst. Synkvakten gör en
 missad registrering till ett byggfel med namnet på det som saknas.
 """
 
+import re
 from pathlib import Path
 
 from django.conf import settings as django_settings
@@ -457,3 +458,76 @@ class RawDescriptorLeakGuardTests(TestCase):
         html = client.get(f"/manage/blocks/{block.pk}/").content.decode()
         self.assertIn(target.label, html)
         self.assertIn("Byt länk", html)
+
+
+class VvsLegacyGuardTests(TestCase):
+    """
+    Identitetsvakten från genomlysningen 2026-08-27 (mönster efter
+    ForeignDatabaseGuardTests): ADX-webappen är kopierad från skandivvs-
+    webappen, och oreviderat VVS-arv låg kvar i modeller, mallar, AI-verktyg
+    och byggkonfiguration tills det rensades 2026-08-28. Vakten grep-ar kod,
+    mallar och package.json efter kända arv-markörer och failar med fil:rad
+    så en regression aldrig passerar tyst.
+
+    Vitlistat: config/settings/base.py (bootvakten mot främmande databaser
+    nämner systersajterna vid namn - det är dess jobb) och den här filen
+    (vaktens egna mönster plus ForeignDatabaseGuardTests). Migrationer
+    skannas inte - de är frusen historik.
+    """
+
+    #: Markörer för skandivvs-arvet. `reco` matchas bara som eget ord eller
+    #: följt av skiljetecken (reco.se, reco_widget, Reco-widget) - annars
+    #: träffar den oskyldiga ord som "record" och "recognizes".
+    PATTERNS = [
+        re.compile(r"skandivvs", re.IGNORECASE),
+        re.compile(r"skanditiptap", re.IGNORECASE),
+        re.compile(r"skvvs", re.IGNORECASE),
+        re.compile(r"r[öo]rmokare", re.IGNORECASE),
+        re.compile(r"plumber", re.IGNORECASE),
+        re.compile(r"jungfru", re.IGNORECASE),
+        re.compile(r"rot-?avdrag", re.IGNORECASE),
+        re.compile(r"\breco\b|reco[._-]", re.IGNORECASE),
+    ]
+
+    SCAN_ROOTS = ["apps", "config", "templates", "src", "static/js"]
+    EXTRA_FILES = ["package.json", "esbuild.config.mjs"]
+    EXTENSIONS = {".py", ".html", ".js", ".mjs", ".json", ".md"}
+    SKIP_DIRS = {"migrations", "dist", "node_modules", "__pycache__"}
+    #: Incidentdokumentation får nämna arvet vid namn: bootvakten mot
+    #: främmande databaser, den här filen, och mejlporteringsincidentens
+    #: tvillingtest (2026-08-27).
+    WHITELIST = {
+        "config/settings/base.py",
+        "apps/website/tests.py",
+        "apps/inquiries/tests.py",
+    }
+
+    def _files(self):
+        base = Path(django_settings.BASE_DIR)
+        for root in self.SCAN_ROOTS:
+            for path in sorted((base / root).rglob("*")):
+                if not path.is_file() or path.suffix not in self.EXTENSIONS:
+                    continue
+                rel = path.relative_to(base)
+                if self.SKIP_DIRS & set(rel.parts):
+                    continue
+                yield rel, path
+        for name in self.EXTRA_FILES:
+            yield Path(name), base / name
+
+    def test_no_vvs_legacy_markers_in_code_templates_or_build(self):
+        hits = []
+        for rel, path in self._files():
+            if str(rel) in self.WHITELIST:
+                continue
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            for lineno, line in enumerate(text.splitlines(), start=1):
+                for pattern in self.PATTERNS:
+                    if pattern.search(line):
+                        hits.append(f"{rel}:{lineno}: {line.strip()[:120]}")
+                        break
+        self.assertEqual(
+            hits,
+            [],
+            "Skandivvs-arv i ADX-koden (se genomlysningen 2026-08-27):\n" + "\n".join(hits),
+        )

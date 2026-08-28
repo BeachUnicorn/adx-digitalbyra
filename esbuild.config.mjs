@@ -3,13 +3,13 @@ import * as esbuild from "esbuild";
 const isWatch = process.argv.includes("--watch");
 
 // Tiptap rich-text editor - IIFE (loaded via a regular <script> tag, exposed
-// as window.SkandiTiptap). Only loaded in /manage/, never on the public site.
+// as window.AdxTiptap). Only loaded in /manage/, never on the public site.
 const tiptapConfig = {
   entryPoints: ["src/js/tiptap-editor.js"],
   bundle: true,
   outfile: "static/js/dist/tiptap-editor.js",
   format: "iife",
-  globalName: "SkandiTiptap",
+  globalName: "AdxTiptap",
   target: ["es2020"],
   minify: !isWatch,
   sourcemap: isWatch,

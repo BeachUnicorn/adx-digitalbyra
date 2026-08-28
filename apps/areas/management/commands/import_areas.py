@@ -1,9 +1,13 @@
 """
-Import serviceområden from a JSON file.
+Import areas (län/kommuner/orter) from a JSON file.
 
-    manage.py import_areas seed_data/areas.json
-    manage.py import_areas seed_data/areas.json --update
-    manage.py import_areas seed_data/areas.json --dry-run
+    manage.py import_areas path/till/areas.json
+    manage.py import_areas path/till/areas.json --update
+    manage.py import_areas path/till/areas.json --dry-run
+
+Det finns ingen spårad areas-fil i repot: ADX:s städer seedas av
+`manage.py seed_site` ur seed_data/adx_cities.json. Det här kommandot är
+verktyget för att bulk-importera ett större geografiskt träd ur en egen fil.
 
 Additive by default, matching the other importers in this project: an area
 that already exists (matched on slug) is left exactly as it is, so re-running

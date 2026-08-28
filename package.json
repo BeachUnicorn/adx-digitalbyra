@@ -1,8 +1,8 @@
 {
-  "name": "skandivvs-frontend",
+  "name": "adx-frontend",
   "version": "0.1.0",
   "private": true,
-  "description": "SkandiVVS /manage/ frontend build (Tiptap rich-text editor)",
+  "description": "ADX /manage/ frontend build (Tiptap rich-text editor)",
   "scripts": {
     "build": "node esbuild.config.mjs",
     "watch": "node esbuild.config.mjs --watch"

@@ -36,40 +36,8 @@
     </div>
 
     <div class="m-panel m-form-panel">
-        <h2 class="m-form-section">Pris &amp; synlighet</h2>
-        <p class="m-form-hint">Ange priser <strong>exkl. moms (netto)</strong>. Totalpris, moms och ROT-avdrag beräknas automatiskt.</p>
-        <p class="m-form-hint">Arbetskostnad (ROT-grundande), exkl. moms:</p>
+        <h2 class="m-form-section">Synlighet</h2>
         <div class="m-field-inline">
-            <label>{{ form.labor_price_from.label }} {{ form.labor_price_from }}</label>
-            <label>{{ form.labor_price_to.label }} {{ form.labor_price_to }}</label>
-        </div>
-        <p class="m-form-hint">Materialkostnad, exkl. moms:</p>
-        <div class="m-field-inline">
-            <label>{{ form.material_price_from.label }} {{ form.material_price_from }}</label>
-            <label>{{ form.material_price_to.label }} {{ form.material_price_to }}</label>
-        </div>
-
-        <div class="m-price-calc" data-price-calc data-rot-percentage="{{ rot_percentage|default:30 }}" data-vat-rate="{{ vat_rate|default:25 }}">
-            <div class="m-price-calc__row">
-                <span class="m-price-calc__label">Totalpris exkl. moms</span>
-                <span class="m-price-calc__value" data-calc-net>-</span>
-            </div>
-            <div class="m-price-calc__row">
-                <span class="m-price-calc__label">Totalpris inkl. moms (visas utåt)</span>
-                <span class="m-price-calc__value" data-calc-gross>-</span>
-            </div>
-            <div class="m-price-calc__row" data-calc-rot-row hidden>
-                <span class="m-price-calc__label">Möjligt ROT-avdrag ({{ rot_percentage|default:30 }}% av arbete inkl. moms)</span>
-                <span class="m-price-calc__value m-price-calc__value--rot" data-calc-rot>-</span>
-            </div>
-            <div class="m-price-calc__row" data-calc-after-rot-row hidden>
-                <span class="m-price-calc__label">Pris efter ROT (inkl. moms)</span>
-                <span class="m-price-calc__value m-price-calc__value--rot" data-calc-after-rot>-</span>
-            </div>
-        </div>
-
-        <div class="m-field-inline">
-            <label>{{ form.is_rot_eligible }} {{ form.is_rot_eligible.label }}</label>
             <label>{{ form.is_active.label }} {{ form.is_active }}</label>
             <label>{{ form.is_featured.label }} {{ form.is_featured }}</label>
             <label>{{ form.order.label }} {{ form.order }}</label>
@@ -126,5 +94,4 @@
 <script src="{% static 'js/dist/tiptap-editor.js' %}" defer></script>
 <script src="{% static 'js/manage-image-field.js' %}" defer></script>
 <script src="{% static 'js/manage-steps.js' %}" defer></script>
-<script src="{% static 'js/manage-price-calc.js' %}" defer></script>
 {% endblock %}

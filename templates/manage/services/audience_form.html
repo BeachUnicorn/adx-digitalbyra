@@ -25,14 +25,7 @@
         {% include "manage/services/_image_field.html" with field=form.image %}
         <div class="m-field-inline">
             <label>{{ form.is_active.label }} {{ form.is_active }}</label>
-            <label>{{ form.rot_applies }} {{ form.rot_applies.label }}</label>
-            <label>{{ form.prices_include_vat }} {{ form.prices_include_vat.label }}</label>
             <label>{{ form.order.label }} {{ form.order }}</label>
-        </div>
-        <div class="m-field">
-            <label for="{{ form.price_note.id_for_label }}">{{ form.price_note.label }}</label>
-            {{ form.price_note }}
-            {% if form.price_note.help_text %}<div class="m-field-help">{{ form.price_note.help_text }}</div>{% endif %}
         </div>
     </div>
 

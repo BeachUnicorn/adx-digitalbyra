@@ -1,16 +1,15 @@
 """
-Serviceområden (areas) - the geographic pages.
+Städer (areas) - the geographic pages.
 
 A single self-referencing `Area` tree covers all three levels:
 
     Län (region) -> Kommun (municipality) -> Stadsdel/Ort (district)
 
 Every level is a page in its own right and lives in one flat URL namespace
-(`/vvs/<slug>/`). Keeping the URL flat rather than nesting the hierarchy is
-deliberate: it means the second path segment is *always* a service, so
-`/vvs/solna/byte-av-blandare/` can never be mistaken for a district called
-"byte-av-blandare". Hierarchy still exists in the data - it drives breadcrumbs,
-the child list on a parent page, and visibility inheritance.
+(`/digitalbyra/<slug>/`). Keeping the URL flat rather than nesting the
+hierarchy is deliberate: `/digitalbyra/centrum-solna/` can never collide with
+another branch of the tree. Hierarchy still exists in the data - it drives
+breadcrumbs, the child list on a parent page, and visibility inheritance.
 
 Visibility is inherited downwards: hiding a kommun hides all of its districts
 without touching their own flag, so the customer can import the whole country
@@ -122,7 +121,7 @@ class Area(TimeStampedModel):
         _("Rubrik (H1)"),
         max_length=200,
         blank=True,
-        help_text=_("Lämna tomt för 'Rörmokare i {namn}'."),
+        help_text=_("Lämna tomt för 'Digitalbyrå i {namn}'."),
     )
     intro = models.CharField(
         _("Underrubrik"),
@@ -239,8 +238,8 @@ class Area(TimeStampedModel):
         """
         Slugs live in one flat namespace, so names that repeat across
         municipalities (Centrum, Björkhagen, ...) need disambiguating. Suffix
-        with the parent's slug first - '/vvs/centrum-solna/' reads better than
-        '/vvs/centrum-2/' - and fall back to a counter.
+        with the parent's slug first - '/digitalbyra/centrum-solna/' reads
+        better than '/digitalbyra/centrum-2/' - and fall back to a counter.
         """
         base = base or "omrade"
         candidates = [base]
@@ -267,7 +266,7 @@ class Area(TimeStampedModel):
 
     @property
     def display_heading(self):
-        return self.heading or f"Rörmokare i {self.name}"
+        return self.heading or f"Digitalbyrå i {self.name}"
 
     @property
     def is_visible(self):
@@ -363,7 +362,7 @@ class AreaService(models.Model):
     has_own_page = models.BooleanField(
         _("Egen sida"),
         default=False,
-        help_text=_("Skapar t.ex. /vvs/solna/byte-av-blandare/."),
+        help_text=_("Används inte - kombinationssidor per tjänst och stad finns inte i ADX."),
     )
     order = models.PositiveIntegerField(_("Sortering"), default=0)
 

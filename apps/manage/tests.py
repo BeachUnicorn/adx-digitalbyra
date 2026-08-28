@@ -335,7 +335,7 @@ class FocalPointTests(TestCase):
         self.media = MediaFile.objects.create(
             file="media/hero.webp",
             original_filename="hero.webp",
-            alt_text="Rörmokare i arbete",
+            alt_text="Utvecklare i arbete",
             mime_type="image/webp",
         )
 
@@ -354,7 +354,7 @@ class FocalPointTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.media.refresh_from_db()
         self.assertEqual((self.media.focal_x, self.media.focal_y), (20, 80))
-        self.assertEqual(self.media.alt_text, "Rörmokare i arbete")
+        self.assertEqual(self.media.alt_text, "Utvecklare i arbete")
         self.assertEqual(self.media.focal_css, "20% 80%")
 
     def test_alt_update_keeps_focal(self):

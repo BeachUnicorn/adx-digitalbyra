@@ -6,72 +6,63 @@ Your **content** (pages, blocks, menus, services, site settings) and your
 - The database lives in Postgres, not in git.
 - `user-uploaded-media/` is `.gitignore`d.
 
-To get the content you built locally onto the production server, we ship it
-through git in a tracked `seed_data/` folder, using two management commands.
+## The ADX way: `seed_site`
 
-## What gets exported
+The tracked seed for this project is `seed_data/`:
 
-`export_site_data` writes everything under `<repo>/seed_data/`:
+- `adx_pages.json` - the eleven pages, transcribed from the design guide
+  (blocks, colours, SEO meta).
+- `adx_cities.json` - the unique city texts for `/digitalbyra/<stad>/`.
 
-- `site_content.json` - a Django fixture of the **content models only**
-  (`website` + `services`). Auth users, sessions and admin logs are
-  deliberately **excluded**, so importing never touches the production
-  superuser or anyone's login.
-- `media/…` - a copy of every file referenced by a `MediaFile` row
-  (e.g. `media/element.jpg`), so the image bytes ride along with git.
-
-`element.jpg` at the repo root is the *source* placeholder; the media-library
-copy is a `MediaFile` row pointing at `media/element.jpg` under `MEDIA_ROOT`.
-The exporter copies that resolved file, so it lands correctly on the server.
-
-## 1. Locally - export and push
-
-Run this whenever your local DB holds the content you want live:
+One command loads it all, idempotently (pages and blocks are replaced per
+slug, services/cities upserted per slug):
 
 ```bash
-uv run python manage.py export_site_data
-git add seed_data
-git commit -m "Update site seed data"
-git push
+uv run python manage.py seed_site
 ```
 
-## 2. On the server - pull and import
-
-After the normal deploy (or any time), from the site's app dir:
+On the server, run the same command once from the app dir:
 
 ```bash
 # as the system user, in BASE_DIR/<slug>/app
 git pull --ff-only
-../.venv/bin/python manage.py import_site_data            # asks for confirmation
-# or, non-interactive:
-../.venv/bin/python manage.py import_site_data --noinput
+../.venv/bin/python manage.py seed_site
 ```
 
-`import_site_data`:
+Run it **once** for the initial seed. After the customer starts editing
+through `/manage/` on production, production is the source of truth -
+re-running `seed_site` replaces the seeded pages' blocks with the tracked
+JSON and discards live edits to them. That is also why seeding is **not**
+wired into `deploy.sh`: deploys must be safe to run repeatedly without
+clobbering customer content.
 
-1. Copies the bundled `seed_data/media/…` files into the server's
-   `MEDIA_ROOT` (`user-uploaded-media/`). Files are **copied, never deleted**.
-2. Runs `loaddata` on `site_content.json`.
+## Optional: shipping a full content snapshot
 
-The fixture preserves primary keys, so `loaddata` is an **upsert**: re-running
-updates the same rows instead of creating duplicates.
+`export_site_data` / `import_site_data` exist for moving a complete content
+snapshot (DB rows + referenced media) between environments through git:
 
-> Tip: if your venv isn't at `../.venv`, use the project's `manage()` helper
-> path. The deploy scripts run manage.py as
-> `${VENV_DIR}/bin/python manage.py …` from `${APP_DIR}`.
+```bash
+# locally, when your dev DB holds the content you want live
+uv run python manage.py export_site_data
+git add seed_data && git commit -m "Update site seed data" && git push
 
-## ⚠️ Important: this REPLACES live content
+# on the server
+git pull --ff-only
+../.venv/bin/python manage.py import_site_data   # asks for confirmation
+```
 
-`import_site_data` overwrites the content rows with whatever is in the fixture.
-That is exactly what you want for an **initial** production seed.
+Notes:
 
-But once the customer starts editing their site through `/manage/` on
-production, re-importing will **discard those live edits**. After the first
-seed, treat production as the source of truth and avoid re-importing unless you
-intend to overwrite it.
-
-This is why importing is **not** wired into `deploy.sh` - deploys must be safe
-to run repeatedly without clobbering customer content.
+- The export writes `seed_data/site_content.json` + `seed_data/media/…`.
+  Neither exists in the repo until you run the export - `import_site_data`
+  errors out clearly if the fixture is missing.
+- The fixture covers the `website` + `services` content models only (no auth
+  users or sessions, so the production superuser is never touched). Cities
+  (`areas`) and FAQ are **not** included - they come from `seed_site` or are
+  created in `/manage/`.
+- `loaddata` preserves primary keys, so re-importing updates the same rows
+  (idempotent) - but like `seed_site`, importing over live customer edits
+  **replaces** them. Treat it as an initial-seed tool.
 
 ## Always back up first
 

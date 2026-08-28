@@ -104,12 +104,8 @@ class SiteSettingsForm(forms.ModelForm):
             "show_logo_in_header",
             "show_logo_in_footer",
             "footer_about",
-            "show_reco_widget",
-            "reco_widget_url",
             "ga_enabled",
             "ga_tracking_id",
-            "rot_percentage",
-            "vat_rate",
             "footer_component_page",
         ]
         widgets = {
@@ -124,7 +120,6 @@ class SiteSettingsForm(forms.ModelForm):
             # drives these hidden inputs (MediaFile id) + a live thumbnail.
             "logo": forms.HiddenInput(),
             "favicon": forms.HiddenInput(),
-            "reco_widget_url": forms.URLInput(attrs={"placeholder": "https://app.reco.se/..."}),
             "ga_tracking_id": forms.TextInput(attrs={"placeholder": "G-XXXXXXXXXX"}),
             # data-tiptap triggers the rich-text editor; it stays a plain
             # textarea (and degrades gracefully) if the JS bundle is absent.
@@ -149,12 +144,8 @@ class SiteSettingsForm(forms.ModelForm):
             "show_logo_in_header": _("Visa logotyp i sidhuvud"),
             "show_logo_in_footer": _("Visa logotyp i sidfot"),
             "footer_about": _("Sidfotstext"),
-            "show_reco_widget": _("Visa Reco-widget"),
-            "reco_widget_url": _("Reco widget-URL"),
             "ga_enabled": _("Aktivera Google Analytics"),
             "ga_tracking_id": _("GA Tracking ID"),
-            "rot_percentage": _("ROT-avdrag (% av arbetskostnad)"),
-            "vat_rate": _("Momssats (%)"),
             "footer_component_page": _("Sidfots-blocksida"),
         }
 
@@ -194,11 +185,6 @@ class ServiceForm(forms.ModelForm):
             "description",
             "body",
             "image",
-            "is_rot_eligible",
-            "labor_price_from",
-            "labor_price_to",
-            "material_price_from",
-            "material_price_to",
             "audiences",
             "faq_section",
             "is_active",
@@ -241,9 +227,6 @@ class AudienceForm(forms.ModelForm):
             "image",
             "order",
             "is_active",
-            "rot_applies",
-            "prices_include_vat",
-            "price_note",
             "meta_title",
             "meta_description",
         ]
@@ -254,9 +237,6 @@ class AudienceForm(forms.ModelForm):
 
     def clean_intro(self):
         return sanitize_rich_html_basic(self.cleaned_data.get("intro", ""))
-
-    def clean_price_note(self):
-        return sanitize_plain_text(self.cleaned_data.get("price_note", ""), max_length=200)
 
 
 # ---------------------------------------------------------------------------
@@ -398,7 +378,7 @@ class AreaForm(forms.ModelForm):
         widgets = {
             "name": forms.TextInput(),
             "slug": forms.TextInput(attrs={"placeholder": _("genereras från namnet")}),
-            "heading": forms.TextInput(attrs={"placeholder": _("Rörmokare i …")}),
+            "heading": forms.TextInput(attrs={"placeholder": _("Digitalbyrå i …")}),
             "intro": forms.Textarea(attrs={"rows": 2}),
             "body": forms.Textarea(attrs=_BASIC_TIPTAP),
             "image": forms.HiddenInput(),

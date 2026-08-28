@@ -24,14 +24,12 @@ class ServiceAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "category",
-        "price_display",
         "is_active",
         "is_featured",
-        "is_emergency",
         "order",
     )
-    list_editable = ("is_active", "is_featured", "is_emergency", "order")
-    list_filter = ("category", "is_active", "is_featured", "is_emergency", "audiences")
+    list_editable = ("is_active", "is_featured", "order")
+    list_filter = ("category", "is_active", "is_featured", "audiences")
     prepopulated_fields = {"slug": ("name",)}
     filter_horizontal = ("audiences",)
     inlines = [ServiceStepInline]
