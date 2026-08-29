@@ -51,6 +51,11 @@ _SIDE_CHOICES = [["left", "Bild till vänster"], ["right", "Bild till höger"]]
 BLOCK_EDIT_SCHEMA = {
     "hero": {
         "label": "Hero",
+        "purpose": (
+            "Sidhuvudet: stor rubrik (H1) med ingress och upp till två knappar, "
+            "valfri bild under. ALLTID sidans första block - varje sida i "
+            "designen börjar med ett hero."
+        ),
         "fields": [
             _f(
                 "kicker",
@@ -70,6 +75,11 @@ BLOCK_EDIT_SCHEMA = {
     },
     "chips": {
         "label": "Nyckeltal (chips)",
+        "purpose": (
+            "Rad med nyckeltal i små pillerformade rutor, t.ex. '99,9 %' + "
+            "'Upptid'. Ligger oftast direkt under hero som förtroendemarkör. "
+            "Allt innehåll ligger i listan 'chips'."
+        ),
         "fields": [],
         "lists": [
             {
@@ -85,6 +95,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "marquee": {
         "label": "Rullande band",
+        "purpose": (
+            "Ett band med ord som rullar horisontellt i loop. Rent dekorativt, "
+            "bryter av mellan sektioner. Allt innehåll ligger i listan 'items'."
+        ),
         "fields": [],
         "lists": [
             {
@@ -100,6 +114,11 @@ BLOCK_EDIT_SCHEMA = {
     },
     "svc_list": {
         "label": "Tjänstelista",
+        "purpose": (
+            "Listar sajtens AKTIVA tjänster automatiskt ur tjänstekatalogen. "
+            "Fälten här är bara sektionshuvudet - själva korten kommer från "
+            "tjänsterna och redigeras med tjänstverktygen."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -109,6 +128,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "case": {
         "label": "Case",
+        "purpose": (
+            "Ett kundcase: bild, rubrik, brödtext, valfri länk och en rad "
+            "nyckeltal (listan 'stats')."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Sektionsrubrik"),
@@ -132,6 +155,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "steps": {
         "label": "Steg",
+        "purpose": (
+            "Numrerad arbetsgång, t.ex. 'Så går det till'. Varje steg har "
+            "rubrik och text i listan 'steps'."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -151,6 +178,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "quotes": {
         "label": "Citat",
+        "purpose": (
+            "Kundcitat med namn eller roll under. Två till tre citat räcker; de "
+            "ligger i listan 'quotes'."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -169,6 +200,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "why": {
         "label": "Varför vi",
+        "purpose": (
+            "Punkter om varför man ska välja er - rubrik plus text per punkt i "
+            "ett rutnät (listan 'items')."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -187,6 +222,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "bar": {
         "label": "CTA-rad",
+        "purpose": (
+            "Smal avslutande uppmaningsrad (CTA): text till vänster, länkknapp "
+            "till höger. Ligger SIST på nästan varje sida."
+        ),
         "fields": [
             _f("label", "plain", "Text (vänster)"),
             _f("link.label", "plain", "Länktext"),
@@ -196,6 +235,11 @@ BLOCK_EDIT_SCHEMA = {
     },
     "split": {
         "label": "Bild + text",
+        "purpose": (
+            "Bild bredvid text i två spalter, med valfria punkter under texten "
+            "(listan 'bullets'). Fältet image_side väljer vilken sida bilden "
+            "står på."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -217,6 +261,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "folio": {
         "label": "Portfolio-kort",
+        "purpose": (
+            "Rutnät av portfoliokort med bild, titel och en kort metarad. "
+            "Korten ligger i listan 'cards' och kan länkas."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -238,6 +286,11 @@ BLOCK_EDIT_SCHEMA = {
     },
     "plans": {
         "label": "Paket",
+        "purpose": (
+            "Prispaket bredvid varandra: namn, pris, beskrivning och "
+            "punktlista. Paketen ligger i listan 'plans'; 'features' skrivs som "
+            "en punkt per rad."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -263,6 +316,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "compare": {
         "label": "Jämförelsetabell",
+        "purpose": (
+            "Jämförelsetabell med tre kolumner - en rad per egenskap i listan "
+            "'rows'. Använd '+' och '-' i cellerna för ja och nej."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -286,6 +343,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "team": {
         "label": "Team",
+        "purpose": (
+            "Personer med bild, namn och roll i ett rutnät (listan 'members'). "
+            "Bilder kan du inte sätta, så raderna får namn och roll."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -305,6 +366,11 @@ BLOCK_EDIT_SCHEMA = {
     },
     "faq": {
         "label": "FAQ",
+        "purpose": (
+            "Visar en FAQ-sektions frågor som utfällbara rader. Sektionen väljs "
+            "med faq_section (sektionens slug) - frågorna hämtas därifrån och "
+            "skrivs inte i blocket."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -314,6 +380,11 @@ BLOCK_EDIT_SCHEMA = {
     },
     "prose": {
         "label": "SEO-text",
+        "purpose": (
+            "Löpande brödtext med rubrik - SEO-texten. Enda blocket som tar "
+            "formaterad text (fetstil, kursiv, länkar). Sidor har ofta två i "
+            "rad."
+        ),
         "fields": [
             _f("title", "plain", "Rubrik"),
             _f("body", "rich", "Text"),
@@ -322,6 +393,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "related": {
         "label": "Relaterade länkar",
+        "purpose": "Rad med länkar till relaterade sidor (listan 'links').",
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -340,6 +412,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "contact_cards": {
         "label": "Kontaktkort",
+        "purpose": (
+            "Kontaktuppgifter som kort - en rad per uppgift i listan 'cards', "
+            "t.ex. kicker 'Mejl' och värde 'info@exempel.se', valfritt länkad."
+        ),
         "fields": [],
         "lists": [
             {
@@ -356,6 +432,10 @@ BLOCK_EDIT_SCHEMA = {
     },
     "inquiry_form": {
         "label": "Förfrågningsformulär",
+        "purpose": (
+            "Renderar sajtens förfrågningsformulär. Fälten är bara "
+            "sektionshuvudet - formuläret självt är inbyggt."
+        ),
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -365,6 +445,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "newsletter": {
         "label": "Nyhetsbrev",
+        "purpose": "Anmälan till nyhetsbrevet: rubrik, e-postfält och en not under.",
         "fields": [
             _f("kicker", "plain", "Kicker"),
             _f("title", "plain", "Rubrik"),
@@ -374,6 +455,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "spacer": {
         "label": "Mellanrum",
+        "purpose": ("Tomt vertikalt utrymme. Använd bara när två sektioner behöver luft emellan."),
         "fields": [
             _f("height", "length", "Höjd (t.ex. 4rem eller 48px)"),
         ],
@@ -499,6 +581,78 @@ def field_keys(block_type):
     return [spec["key"] for spec in schema["fields"]] if schema else []
 
 
+def list_specs(block_type):
+    """The repeating-row declarations for a block type ([] if it has none)."""
+    schema = BLOCK_EDIT_SCHEMA.get(block_type)
+    return list(schema.get("lists", [])) if schema else []
+
+
+def clean_block_rows(block_type, current, lists):
+    """
+    Sanitise repeating-row content ({list_key: [row, ...]}) onto a block's data.
+
+    The counterpart to ``clean_block_values`` for the half of the schema that
+    lives in ``lists``. Callers that hold rows rather than a POST (the AI
+    operations) had no way in at all before this: ``clean_block_values`` only
+    ever looked at ``fields``, so a block whose content is entirely rows -
+    chips, marquee, contact_cards - could only be created empty, and every
+    other list (steps, plans, quotes, ...) was unreachable.
+
+    A row is a dict of sub-field keys, or a plain string for ``simple`` lists.
+    Rows whose first sub-field is blank are dropped, exactly as the form path
+    does. Unknown list keys or unknown sub-keys raise KeyError so the caller
+    can turn it into a validation error the model can act on.
+    """
+    schema = BLOCK_EDIT_SCHEMA.get(block_type)
+    if schema is None:
+        raise KeyError(block_type)
+
+    declared = {lst["key"]: lst for lst in schema.get("lists", [])}
+    unknown = set(lists) - set(declared)
+    if unknown:
+        raise KeyError(", ".join(sorted(unknown)))
+
+    data = copy.deepcopy(current or {})
+    for key, rows in lists.items():
+        lst = declared[key]
+        if not isinstance(rows, list):
+            raise KeyError(f"{key} (måste vara en lista av rader)")
+        data[key] = _clean_rows(lst, rows)
+    return data
+
+
+def _clean_rows(lst, rows):
+    """Sanitise one list's rows against its sub-field specs."""
+    specs = {f["key"]: f for f in lst["fields"]}
+    primary = lst["fields"][0]["key"]
+    simple = lst.get("simple", False)
+
+    cleaned = []
+    for row in rows:
+        if simple:
+            # A simple list stores plain strings; accept {"<primary>": v} too
+            # so the model can use one consistent row shape everywhere.
+            raw = row.get(primary, "") if isinstance(row, dict) else row
+            value = _clean_value(lst["fields"][0], raw)
+            if str(value).strip():
+                cleaned.append(value)
+            continue
+
+        if not isinstance(row, dict):
+            raise KeyError(f"{lst['key']} (varje rad måste vara ett objekt)")
+        unknown = set(row) - set(specs)
+        if unknown:
+            raise KeyError(", ".join(f"{lst['key']}.{k}" for k in sorted(unknown)))
+        if not str(row.get(primary, "")).strip():
+            continue  # skip empty rows, same rule as the form path
+        out = {}
+        for f in lst["fields"]:
+            raw = row.get(f["key"], "")
+            out[f["key"]] = _clean_link(raw) if f["type"] == "link" else _clean_value(f, raw)
+        cleaned.append(out)
+    return cleaned
+
+
 def clean_block_values(block_type, current, values):
     """
     Sanitise a partial `{key: value}` update on top of a block's current data.
@@ -522,7 +676,14 @@ def clean_block_values(block_type, current, values):
 
     data = copy.deepcopy(current or {})
     for key, raw in values.items():
-        _set_nested(data, key, _clean_value(specs[key], raw))
+        spec = specs[key]
+        # Link fields must go through _clean_link, exactly as the POST path
+        # does. Without this they fell through to plain-text sanitising and
+        # were stored as raw strings, so an AI-set link never became the
+        # page-FK descriptor that survives a slug change (and never got the
+        # dead-target handling in links.resolve_link).
+        value = _clean_link(raw) if spec["type"] == "link" else _clean_value(spec, raw)
+        _set_nested(data, key, value)
     return data
 
 

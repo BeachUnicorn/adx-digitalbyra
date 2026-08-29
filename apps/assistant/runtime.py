@@ -206,6 +206,9 @@ STEP_LABELS = {
     "satt_faq_sektion_aktiv": "Ändrar FAQ-sektionens synlighet",
     "satt_sida_publicerad": "Ändrar sidans publicering",
     "satt_grannomraden": "Sätter grannområden",
+    "hamta_blockkatalog": "Läser blockkatalogen",
+    "ordna_block": "Lägger om blockordningen",
+    "satt_block_synligt": "Ändrar blockets synlighet",
 }
 
 

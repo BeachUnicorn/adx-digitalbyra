@@ -37,9 +37,21 @@ class PreviewUnavailable(Exception):
     """Utkastet går inte att visa på en sida - med förklaring till kunden."""
 
 
+#: Objekt som inte har en egen adress men som visas PÅ något som har det.
+#: Ett block är det tydligaste fallet: det har ingen egen URL, men frågan
+#: kunden ska svara på är just hur sidan ser ut med blocket i sig. Utan den
+#: här hoppningen svarade förhandsgranskningen "hör inte till någon egen
+#: sida" på varje blockändring - alltså på den vanligaste ändringen av alla.
+_SHOWN_ON = ("page",)
+
+
 def _public_url(obj):
     getter = getattr(obj, "get_absolute_url", None)
     if getter is None:
+        for attr in _SHOWN_ON:
+            owner = getattr(obj, attr, None)
+            if owner is not None and hasattr(owner, "get_absolute_url"):
+                return owner.get_absolute_url()
         raise PreviewUnavailable(
             "Den här ändringen hör inte till någon egen sida, så det finns "
             "inget att förhandsgranska. Diffen ovan visar hela ändringen."

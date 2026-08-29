@@ -63,7 +63,9 @@ _NEW_GROUP_LABELS = {
     "skapa_faq_fraga": "Nya FAQ-frågor",
     "skapa_faq_sektion": "Ny FAQ med frågor",
     "skapa_tjanst": "Nya tjänster",
-    "skapa_sida": "Nya sidor",
+    # Blocken hänger på sidutkastet via depends_on, så _grouped lägger hela
+    # sidbygget i EN grupp - etiketten säger det, precis som FAQ-sektionens.
+    "skapa_sida": "Ny sida med block",
     "skapa_block": "Nya textblock",
     "skapa_omrade": "Nya områden",
 }

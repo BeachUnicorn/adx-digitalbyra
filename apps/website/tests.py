@@ -41,6 +41,41 @@ class BlockRegistrySyncTests(TestCase):
             f"Schemaposter utan modell-choice (redigerbara men orenderbara): {phantom}",
         )
 
+    def test_every_block_type_describes_itself(self):
+        """
+        Fjärde registreringen: 'purpose'. AI-redaktören kan inte se sajten -
+        blockkatalogen (hamta_blockkatalog) är dess enda bild av hur ett block
+        ser ut, och den byggs härifrån. En ny blocktyp utan beskrivning blir
+        ett block modellen väljer på namnet och fyller på måfå, så den saknade
+        raden ska smälla vid bygget och inte hos kunden.
+        """
+        missing = [
+            key
+            for key, schema in BLOCK_EDIT_SCHEMA.items()
+            if not schema.get("purpose", "").strip()
+        ]
+        self.assertEqual(
+            missing, [], f"Blocktyper utan 'purpose' i BLOCK_EDIT_SCHEMA: {missing}"
+        )
+
+    def test_list_only_block_types_say_where_their_content_lives(self):
+        """
+        Ett block vars innehåll ligger helt i listor blir tomt om modellen
+        bara sätter fält. Tre typer är sådana (chips, marquee, contact_cards)
+        och de gick länge bara att skapa tomma - beskrivningen måste därför
+        nämna listan vid namn.
+        """
+        for key, schema in BLOCK_EDIT_SCHEMA.items():
+            if schema["fields"] or not schema.get("lists"):
+                continue
+            with self.subTest(typ=key):
+                purpose = schema["purpose"]
+                names = [lst["key"] for lst in schema["lists"]]
+                self.assertTrue(
+                    any(f"'{name}'" in purpose for name in names),
+                    f"{key}: beskrivningen nämner inte listan {names}",
+                )
+
 
 class ThemePortTests(TestCase):
     """Python-porten av guidens luminansregel får aldrig driva ifrån JS:en.

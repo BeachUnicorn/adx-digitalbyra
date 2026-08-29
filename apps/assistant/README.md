@@ -441,15 +441,68 @@ Tom ruta = `DEFAULT_STYLE_GUIDE` i `context_ops`. AI:n läser den via
 | Tjänst | ja (med steg) | texter, arbetsgång, synlighet, FAQ-koppling |
 | FAQ-sektion | ja | titel, beskrivning, synlighet |
 | FAQ-fråga | ja | fråga, svar |
-| Blocksida | ja | titel, SEO, publicering |
-| Textblock | ja | fältinnehåll |
+| Blocksida | ja (med block) | titel, SEO, publicering |
+| Block | ja | fält, listrader, ordning, synlighet |
 
 Medvetet UTANFÖR verktygsytan: bilder (kräver mediebibliotek och
 alt-texter), koordinater, slugs (bryter länkar), menyer, kategorier,
 målgrupper som objekt, och skrivguiden själv - den är kundens instruktion
 TILL modellen, inte något modellen ska kunna skriva om. Radering finns inte
-alls; AI:n kan avaktivera, aldrig ta bort. Kvarvarande lucka: blockens
-ordning och synlighet.
+alls; AI:n kan avaktivera, aldrig ta bort.
+
+## Att bygga en hel sida (2026-08-29)
+
+En blocksida är en ordnad stapel block. Tre saker gjorde att modellen inte
+kunde bygga en sådan, och alla tre är åtgärdade.
+
+**1. Sidan och blocken i samma tur.** `skapa_block` krävde en sida som redan
+fanns i databasen - men en föreslagen sida är ett utkast tills kunden godkänt
+den. Modellen fick "Okänd sida" och *inget utkast alls*: den kunde skapa sidor
+men aldrig ge dem innehåll. Exakt samma fälla som de tomma FAQ-sektionerna,
+och löst på samma sätt (`wants_job` + `depends_on` + slug-uppslag vid apply).
+Sidan och dess block hamnar därmed i EN godkännandegrupp, och `approve_many`
+sorterar sidan först.
+
+**2. Listinnehållet var oåtkomligt.** `clean_block_values` läste bara schemats
+`fields`, aldrig `lists`. Fjorton av tjugoen blocktyper har innehåll i listor
+och tre (`chips`, `marquee`, `contact_cards`) har ALLT där - de gick bara att
+skapa tomma. `clean_block_rows` täcker nu listorna med samma sanerare, och
+operationerna tar en `listor`-parameter vid sidan av `falt`.
+
+**3. Modellen visste inte hur block ser ut.** `hamta_blockkatalog` beskriver
+varje blocktyp: utseende, fält, listornas radform, kompositionsreglerna (hero
+först, bar sist) och vad som inte går att sätta. Beskrivningen bor i
+`BLOCK_EDIT_SCHEMA["<typ>"]["purpose"]`, alltså på samma ställe som resten av
+blocktypens registrering - synkvakten i `apps/website/tests.py` kräver den, så
+en ny blocktyp utan beskrivning blir ett byggfel. Lärdomen från `har_bild`
+gäller: modellen läser scheman och beskrivningar, inte payloads.
+
+Nytt i verktygsytan: `hamta_blockkatalog`, `ordna_block` (hela sidans block-id
+i ny ordning) och `satt_block_synligt`. Därmed är luckan "blockens ordning och
+synlighet" stängd.
+
+### Tre saker som tyst gick fel på vägen
+
+* **Länkar sparades som råa strängar.** `clean_block_values` körde inte
+  `link`-fält genom `_clean_link` som POST-vägen gör, så en AI-satt länk blev
+  `"/kontakt/"` i stället för `{"kind": "page", "id": 11}` - alltså utanför
+  hela länksystemet som gör att länken överlever ett slug-byte och att ett
+  dött mål döljs. Rättat i schemat, med regressionstest.
+* **Ogiltiga värden sparades tomma.** `_clean_value` svarar med tom sträng på
+  en trasig url eller längd och med första alternativet på ett ogiltigt
+  choice-värde. Modellen såg bara kvittot. `_assert_kept` gör det till ett
+  verktygsfel, i samma anda som `assert_nothing_lost`.
+* **Blockändringar gick inte att förhandsgranska.** `apply` returnerar ett
+  `Block`, och ett block har ingen egen adress - så kunden fick "hör inte till
+  någon egen sida" på den vanligaste ändringen som finns. `preview._SHOWN_ON`
+  hoppar nu till blockets sida.
+
+### Vad modellen får veta att den INTE kan
+
+Katalogens `det_du_inte_kan` säger det rakt ut, eftersom en modell som inte
+vet var gränsen går lovar kunden fel saker: bilder (den kan inte se dem),
+sidans adress, menyplacering (**en ny sida hamnar inte i någon meny** - kunden
+måste lägga in den), radering, och publicering.
 
 ## Varför AI:n inte kopplar tjänster till städer
 

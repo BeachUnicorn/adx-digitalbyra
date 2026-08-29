@@ -23,6 +23,7 @@ from reversion.models import Version
 
 from apps.areas.models import Area, AreaLevel
 from apps.faq.models import FAQItem, FAQSection
+from apps.manage.block_schema import BLOCK_EDIT_SCHEMA
 from apps.services.models import Audience, Service, ServiceCategory, ServiceStep
 from apps.website.models import Block, BlockPage
 
@@ -2736,3 +2737,435 @@ class DeepLinkTests(TestCase):
         )
         html = self.client.get(reverse("manage:assistant_job", args=[job.pk])).content.decode()
         self.assertIn(f'id="utkast-{change.pk}"', html)
+
+
+class BlockPageBuildingTests(TestCase):
+    """
+    Att bygga en HEL sida i en tur: sidan, blocken, ordningen, innehållet.
+
+    Tidigare gick det inte. skapa_block krävde en sida som redan fanns i
+    databasen, men en föreslagen sida är bara ett utkast tills kunden godkänt
+    den - så modellen kunde skapa sidor men aldrig ge dem innehåll. Exakt
+    samma fälla som de tomma FAQ-sektionerna (2026-08-21), och lika osynlig
+    för modellen: den fick "Okänd sida" och inget utkast alls.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("sidbyggare", password="x")
+        self.client.force_login(self.user)
+        self.job = AIJob.objects.create(user=self.user, title="Bygg sida")
+
+    def _page_draft(self, titel="Om oss"):
+        return draft.propose(self.job, "skapa_sida", {"titel": titel})
+
+    def _block(self, slug, blocktyp, **params):
+        return draft.propose(
+            self.job, "skapa_block", {"sid_slug": slug, "blocktyp": blocktyp, **params}
+        )
+
+    # --- sidan och blocken hänger ihop ------------------------------------
+
+    def test_block_can_be_added_to_a_page_that_is_only_a_draft(self):
+        page = self._page_draft()
+        block = self._block(page.payload["slug"], "hero", falt={"title": "Vi är ADX"})
+        self.assertEqual(block.depends_on_id, page.pk)
+
+    def test_the_slug_is_in_the_summary_so_the_model_can_use_it(self):
+        """Sluggen är handtaget till skapa_block - syns den inte går sidan inte att fylla."""
+        page = self._page_draft()
+        self.assertIn(page.payload["slug"], page.summary)
+
+    def test_approving_the_group_creates_the_page_with_its_blocks(self):
+        page = self._page_draft()
+        self._block(page.payload["slug"], "hero", falt={"title": "Vi är ADX"})
+        self._block(page.payload["slug"], "bar", falt={"label": "Redo?"})
+
+        draft.approve_many(list(self.job.changes.all()), self.user)
+
+        created = BlockPage.objects.get(slug=page.payload["slug"])
+        self.assertEqual(list(created.blocks.values_list("block_type", flat=True)), ["hero", "bar"])
+
+    def test_blocks_keep_the_order_they_were_created_in(self):
+        page = self._page_draft()
+        for block_type in ("hero", "chips", "prose", "bar"):
+            self._block(page.payload["slug"], block_type, falt={})
+        draft.approve_many(list(self.job.changes.all()), self.user)
+        created = BlockPage.objects.get(slug=page.payload["slug"])
+        self.assertEqual(
+            list(created.blocks.values_list("block_type", flat=True)),
+            ["hero", "chips", "prose", "bar"],
+        )
+
+    def test_block_before_its_page_is_refused(self):
+        page = self._page_draft()
+        block = self._block(page.payload["slug"], "hero", falt={"title": "X"})
+        with self.assertRaises(OperationError):
+            draft.approve(block, self.user)
+        self.assertFalse(BlockPage.objects.filter(slug=page.payload["slug"]).exists())
+
+    def test_unknown_page_still_errors(self):
+        with self.assertRaises(OperationError):
+            self._block("finns-inte", "hero", falt={"title": "X"})
+
+    def test_a_new_page_is_never_published_by_itself(self):
+        """Säkerhetsgränsen: ett godkänt sidförslag får inte gå ut publikt."""
+        page = self._page_draft()
+        draft.approve(page, self.user)
+        self.assertFalse(BlockPage.objects.get(slug=page.payload["slug"]).is_published)
+
+    def test_duplicate_slug_is_refused_with_advice(self):
+        BlockPage.objects.create(title="Om oss", slug="om-oss")
+        with self.assertRaises(OperationError) as exc:
+            self._page_draft("Om oss")
+        self.assertIn("om-oss", str(exc.exception))
+
+
+class BlockListContentTests(TestCase):
+    """
+    Radinnehållet i block - listorna.
+
+    clean_block_values läste bara schemats `fields`, aldrig `lists`. Fjorton
+    av tjugoen blocktyper har sitt innehåll i listor, och tre (chips, marquee,
+    contact_cards) har ALLT där: de gick bara att skapa tomma. Modellen fick
+    ett kvitto på att blocket skapats och kunde inte se att det var tomt.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("listor", password="x")
+        self.job = AIJob.objects.create(user=self.user, title="Listor")
+        self.page = BlockPage.objects.create(title="Sida", slug="sida")
+
+    def _block(self, blocktyp, **params):
+        return draft.propose(
+            self.job, "skapa_block", {"sid_slug": "sida", "blocktyp": blocktyp, **params}
+        )
+
+    def test_rows_reach_a_block_whose_content_is_only_rows(self):
+        change = self._block("chips", listor={"chips": [{"value": "99,9 %", "label": "Upptid"}]})
+        self.assertEqual(change.payload["data"]["chips"], [{"value": "99,9 %", "label": "Upptid"}])
+        draft.approve(change, self.user)
+        block = self.page.blocks.get()
+        self.assertEqual(block.data["chips"][0]["label"], "Upptid")
+
+    def test_simple_lists_accept_plain_strings(self):
+        change = self._block("marquee", listor={"items": ["Webb", "Drift"]})
+        self.assertEqual(change.payload["data"]["items"], ["Webb", "Drift"])
+
+    def test_simple_lists_also_accept_row_objects(self):
+        """Modellen ska inte behöva veta vilken lista som är 'simple'."""
+        change = self._block("marquee", listor={"items": [{"text": "Webb"}]})
+        self.assertEqual(change.payload["data"]["items"], ["Webb"])
+
+    def test_fields_and_rows_can_be_set_together(self):
+        change = self._block(
+            "steps",
+            falt={"title": "Så går det till"},
+            listor={"steps": [{"title": "Kontakt", "text": "Du hör av dig."}]},
+        )
+        self.assertEqual(change.payload["data"]["title"], "Så går det till")
+        self.assertEqual(change.payload["data"]["steps"][0]["title"], "Kontakt")
+
+    def test_empty_rows_are_dropped_like_in_the_form(self):
+        change = self._block(
+            "chips", listor={"chips": [{"value": "", "label": "Tom"}, {"value": "1", "label": "A"}]}
+        )
+        self.assertEqual(len(change.payload["data"]["chips"]), 1)
+
+    def test_rows_are_sanitised(self):
+        change = self._block(
+            "quotes", listor={"quotes": [{"text": "<script>x</script>Bra jobb", "who": "Kund"}]}
+        )
+        self.assertNotIn("<script>", str(change.payload["data"]))
+
+    def test_unknown_list_key_names_the_valid_ones(self):
+        with self.assertRaises(OperationError) as exc:
+            self._block("chips", listor={"nyckeltal": []})
+        self.assertIn("chips", str(exc.exception))
+
+    def test_unknown_row_field_is_refused(self):
+        with self.assertRaises(OperationError):
+            self._block("chips", listor={"chips": [{"varde": "1"}]})
+
+    def test_updating_a_list_replaces_it(self):
+        block = Block.objects.create(
+            page=self.page, block_type="chips", data={"chips": [{"value": "1", "label": "A"}]}
+        )
+        change = draft.propose(
+            self.job,
+            "uppdatera_block",
+            {"block_id": block.pk, "listor": {"chips": [{"value": "2", "label": "B"}]}},
+        )
+        draft.approve(change, self.user)
+        block.refresh_from_db()
+        self.assertEqual(block.data["chips"], [{"value": "2", "label": "B"}])
+
+
+class BlockFieldGuardTests(TestCase):
+    """
+    Värden som saneringen annars slukar tyst.
+
+    _clean_value svarar med tom sträng på en ogiltig url eller längd och med
+    första alternativet på ett ogiltigt choice-värde. Modellen ser bara
+    kvittot och skulle upprepa felet - samma resonemang som assert_nothing_lost,
+    fast för de fälttyper där förlusten inte syns som kapad text.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("falt", password="x")
+        self.job = AIJob.objects.create(user=self.user, title="Fält")
+        self.page = BlockPage.objects.create(title="Sida", slug="sida")
+
+    def _block(self, blocktyp, **params):
+        return draft.propose(
+            self.job, "skapa_block", {"sid_slug": "sida", "blocktyp": blocktyp, **params}
+        )
+
+    def test_links_are_stored_as_descriptors_not_raw_strings(self):
+        """
+        Länksystemets hela poäng: en länk till en sida överlever att sidan
+        byter slug, och ett dött mål döljs. Fältet gick inte genom _clean_link
+        i AI-vägen, så AI-satta länkar sparades som råa strängar och stod
+        utanför det skyddet.
+        """
+        target = BlockPage.objects.create(title="Kontakt", slug="kontakt")
+        change = self._block("bar", falt={"label": "Redo?", "link.url": "/kontakt/"})
+        self.assertEqual(change.payload["data"]["link"]["url"], {"kind": "page", "id": target.pk})
+
+    def test_an_image_field_is_refused_with_a_reason(self):
+        with self.assertRaises(OperationError) as exc:
+            self._block("hero", falt={"title": "X", "image_id": "3"})
+        self.assertIn("mediebiblioteket", str(exc.exception))
+
+    def test_an_invalid_choice_lists_the_valid_ones(self):
+        with self.assertRaises(OperationError) as exc:
+            self._block("split", falt={"title": "X", "image_side": "mitten"})
+        self.assertIn("left", str(exc.exception))
+
+    def test_a_value_that_would_be_stored_empty_is_refused(self):
+        with self.assertRaises(OperationError) as exc:
+            self._block("spacer", falt={"height": "ganska mycket"})
+        self.assertIn("height", str(exc.exception))
+
+    def test_faq_block_takes_a_section_slug(self):
+        section = FAQSection.objects.create(title="Vanliga frågor", slug="vanliga")
+        change = self._block("faq", falt={"title": "FAQ", "faq_section_id": "vanliga"})
+        self.assertEqual(change.payload["data"]["faq_section_id"], section.pk)
+
+    def test_unknown_faq_section_is_refused(self):
+        with self.assertRaises(OperationError):
+            self._block("faq", falt={"faq_section_id": "finns-inte"})
+
+
+class BlockOrderAndVisibilityTests(TestCase):
+    """Blockens ordning och synlighet - luckan som stod kvar i README."""
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("ordning", password="x")
+        self.job = AIJob.objects.create(user=self.user, title="Ordning")
+        self.page = BlockPage.objects.create(title="Sida", slug="sida")
+        self.blocks = [
+            Block.objects.create(page=self.page, block_type=t, order=i, data={})
+            for i, t in enumerate(("hero", "prose", "bar"), start=1)
+        ]
+
+    def _ids(self):
+        return list(self.page.blocks.values_list("pk", flat=True))
+
+    def test_reordering_moves_the_blocks(self):
+        hero, prose, bar = self.blocks
+        change = draft.propose(
+            self.job,
+            "ordna_block",
+            {"sid_slug": "sida", "block_ids": [hero.pk, bar.pk, prose.pk]},
+        )
+        draft.approve(change, self.user)
+        self.assertEqual(self._ids(), [hero.pk, bar.pk, prose.pk])
+
+    def test_a_partial_list_is_refused(self):
+        """Halva sidan omordnad är tyst dataförlust - kräv hela listan."""
+        with self.assertRaises(OperationError) as exc:
+            draft.propose(
+                self.job, "ordna_block", {"sid_slug": "sida", "block_ids": [self.blocks[0].pk]}
+            )
+        self.assertIn("alla", str(exc.exception))
+
+    def test_a_foreign_block_id_is_refused(self):
+        other = BlockPage.objects.create(title="Annan", slug="annan")
+        stray = Block.objects.create(page=other, block_type="hero", order=1, data={})
+        with self.assertRaises(OperationError):
+            draft.propose(
+                self.job,
+                "ordna_block",
+                {"sid_slug": "sida", "block_ids": [b.pk for b in self.blocks] + [stray.pk]},
+            )
+
+    def test_hiding_a_block_keeps_its_content(self):
+        block = self.blocks[1]
+        change = draft.propose(
+            self.job, "satt_block_synligt", {"block_id": block.pk, "synligt": False}
+        )
+        draft.approve(change, self.user)
+        block.refresh_from_db()
+        self.assertFalse(block.is_visible)
+        self.assertTrue(Block.objects.filter(pk=block.pk).exists())
+
+    def test_visibility_is_business_risk(self):
+        """Synlighet är affärsdata överallt annars i systemet - även här."""
+        self.assertEqual(REGISTRY["satt_block_synligt"].risk, Risk.BUSINESS)
+
+
+class BlockCatalogTests(TestCase):
+    """
+    Katalogen är AI:ns enda bild av hur sajten SER UT.
+
+    Modellen kan inte se sidorna. Utan beskrivningar valde den block på
+    namnet och gissade fältnycklar; lärdomen från har_bild var att den läser
+    scheman och beskrivningar, inte payloads.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("katalog", password="x")
+
+    def _catalog(self):
+        return REGISTRY["hamta_blockkatalog"].read(self.user)
+
+    def test_every_block_type_is_described(self):
+        catalog = self._catalog()
+        self.assertEqual(len(catalog["blocktyper"]), len(BLOCK_EDIT_SCHEMA))
+        for entry in catalog["blocktyper"]:
+            with self.subTest(typ=entry["typ"]):
+                self.assertTrue(entry["beskrivning"].strip())
+
+    def test_list_shapes_are_described(self):
+        """Utan radformen gissar modellen nycklarna och blocket blir tomt."""
+        chips = next(e for e in self._catalog()["blocktyper"] if e["typ"] == "chips")
+        self.assertEqual(chips["listor"][0]["nyckel"], "chips")
+        self.assertEqual(chips["listor"][0]["radform"], {"value": "plain", "label": "plain"})
+
+    def test_simple_lists_say_they_are_strings(self):
+        marquee = next(e for e in self._catalog()["blocktyper"] if e["typ"] == "marquee")
+        self.assertEqual(marquee["listor"][0]["radform"], "sträng")
+
+    def test_choices_are_listed(self):
+        split = next(e for e in self._catalog()["blocktyper"] if e["typ"] == "split")
+        side = next(f for f in split["falt"] if f["nyckel"] == "image_side")
+        self.assertIn("left", side["alternativ"])
+
+    def test_unsettable_fields_are_marked(self):
+        hero = next(e for e in self._catalog()["blocktyper"] if e["typ"] == "hero")
+        image = next(f for f in hero["falt"] if f["nyckel"] == "image_id")
+        self.assertIn("kan_inte_sattas", image)
+
+    def test_composition_rules_cover_first_and_last_block(self):
+        rules = " ".join(self._catalog()["sa_byggs_en_sida"]).lower()
+        self.assertIn("hero", rules)
+        self.assertIn("bar", rules)
+
+    def test_the_limitations_are_spelled_out(self):
+        """Vad den INTE kan är lika viktigt - annars lovar den kunden fel saker."""
+        limits = " ".join(self._catalog()["det_du_inte_kan"]).lower()
+        for word in ("bilder", "meny", "publicera"):
+            self.assertIn(word, limits)
+
+
+class BlockPageReviewGroupingTests(TestCase):
+    """
+    Sidan och dess block är EN sak att godkänna, inte sju.
+
+    Blocken hänger på sidutkastet via depends_on, och _grouped följer kedjan
+    upp till roten. Utan det fick kunden en knapp per block och en åttonde
+    för sidan - och kunde godkänna dem i fel ordning.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("gruppering", password="x")
+        self.client.force_login(self.user)
+        self.job = AIJob.objects.create(user=self.user, title="Sidbygge")
+        self.page = draft.propose(self.job, "skapa_sida", {"titel": "Om oss"})
+        for block_type in ("hero", "prose", "bar"):
+            draft.propose(
+                self.job,
+                "skapa_block",
+                {"sid_slug": self.page.payload["slug"], "blocktyp": block_type},
+            )
+
+    def test_the_whole_page_build_is_one_group(self):
+        from apps.assistant.views import _grouped
+
+        groups = _grouped(list(self.job.changes.all()))
+        self.assertEqual(len(groups), 1)
+
+    def test_bulk_approve_builds_the_page_in_order(self):
+        self.client.post(
+            reverse("manage:assistant_job_bulk", args=[self.job.pk]),
+            {
+                "change_ids": [c.pk for c in self.job.changes.all().order_by("-pk")],
+                "action": "approve",
+            },
+        )
+        page = BlockPage.objects.get(slug=self.page.payload["slug"])
+        self.assertEqual(
+            list(page.blocks.values_list("block_type", flat=True)), ["hero", "prose", "bar"]
+        )
+
+
+class BlockPagePreviewTests(TestCase):
+    """
+    Kunden ska kunna SE den föreslagna sidan innan hon godkänner den.
+
+    Förhandsgranskningen applicerar utkastet i en transaktion och rullar
+    tillbaka. En sida som bara finns som utkast har ingen publik vy att
+    rendera, och det ska ge ett vänligt besked - inte ett fel.
+    """
+
+    def setUp(self):
+        self.user = get_user_model().objects.create_superuser("forhand", password="x")
+        self.client.force_login(self.user)
+        self.job = AIJob.objects.create(user=self.user, title="Förhandsgranskning")
+
+    def test_a_block_on_an_existing_page_previews_its_content(self):
+        page = BlockPage.objects.create(title="Om oss", slug="om-oss", is_published=True)
+        change = draft.propose(
+            self.job,
+            "skapa_block",
+            {
+                "sid_slug": page.slug,
+                "blocktyp": "hero",
+                "falt": {"title": "Vi bygger webb som håller"},
+            },
+        )
+        response = self.client.get(
+            reverse("manage:assistant_change_preview_frame", args=[change.pk])
+        )
+        self.assertContains(response, "Vi bygger webb som håller")
+
+    def test_the_preview_does_not_write_anything(self):
+        page = BlockPage.objects.create(title="Om oss", slug="om-oss", is_published=True)
+        change = draft.propose(
+            self.job,
+            "skapa_block",
+            {"sid_slug": page.slug, "blocktyp": "hero", "falt": {"title": "Utkast"}},
+        )
+        self.client.get(reverse("manage:assistant_change_preview_frame", args=[change.pk]))
+        self.assertEqual(page.blocks.count(), 0)
+        change.refresh_from_db()
+        self.assertEqual(change.status, DraftChange.Status.PENDING)
+
+    def test_a_block_text_change_previews_on_its_page(self):
+        """
+        Blockändringar hade ingen förhandsgranskning alls: apply returnerar
+        ett Block, och ett block har ingen egen adress. Kunden fick "hör inte
+        till någon egen sida" på den vanligaste ändringen som finns.
+        """
+        page = BlockPage.objects.create(title="Om oss", slug="om-oss", is_published=True)
+        block = Block.objects.create(
+            page=page, block_type="hero", data={"title": "Gammal rubrik"}, order=1
+        )
+        change = draft.propose(
+            self.job, "uppdatera_block", {"block_id": block.pk, "falt": {"title": "Ny rubrik"}}
+        )
+        response = self.client.get(
+            reverse("manage:assistant_change_preview_frame", args=[change.pk])
+        )
+        self.assertContains(response, "Ny rubrik")
+        self.assertNotContains(response, "Gammal rubrik")
