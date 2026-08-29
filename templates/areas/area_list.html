@@ -1,30 +1,37 @@
 {% extends "website/base.html" %}
-{% block title %}Städer - digitalbyrå i hela Sverige | {{ site_settings.name|default:"ADX" }}{% endblock %}
+{% block title %}Webbyrå i hela Sverige - hitta din ort | {{ site_settings.name|default:"ADX" }}{% endblock %}
 {% block meta %}
-<meta name="description" content="ADX arbetar med kunder i hela Sverige. Hitta din stad - webbutveckling, automation och digital drift, från Stockholm till Umeå.">
+<meta name="description" content="ADX är en webbyrå som bygger hemsidor för företag i hela Sverige. Hitta ditt län och din ort - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.">
 {% endblock %}
 
 {% block content %}
 <div class="wrap hero">
-    <div class="kicker">[ Städer ]</div>
-    <h1>Hela Sverige.<br>Ett team.</h1>
-    <p class="lead">Vi utgår från Stockholm och arbetar med kunder i hela landet. Välj din stad för att läsa mer om hur vi jobbar just där.</p>
+    <div class="kicker">[ Orter ]</div>
+    <h1>Webbyrå i<br>hela Sverige.</h1>
+    <p class="lead">Vi utgår från Stockholm och arbetar på distans med kunder i hela landet. Välj ditt län eller din ort för att läsa mer om hur vi jobbar just där.</p>
 </div>
 
+{% for row in regions %}
 <section>
     <div class="wrap">
+        <div class="sec-head">
+            <h2><a href="{{ row.region.get_absolute_url }}">{{ row.region.name }}</a></h2>
+        </div>
         <div class="related">
-            {% for city in cities %}
-            <a href="{{ city.get_absolute_url }}">{{ city.name }} &rarr;</a>
+            {% for area in row.areas %}
+            <a href="{{ area.get_absolute_url }}">{{ area.name }} &rarr;</a>
+            {% empty %}
+            <a href="{{ row.region.get_absolute_url }}">Läs om {{ row.region.name }} &rarr;</a>
             {% endfor %}
         </div>
     </div>
 </section>
+{% endfor %}
 
 <section>
     <div class="wrap">
         <div class="bar panel">
-            <div class="l">Ser du inte din stad?</div>
+            <div class="l">Ser du inte din ort?</div>
             <div class="r">[ Vi jobbar på distans i hela landet ]</div>
             <a class="btn" href="/kontakt/">Skicka förfrågan</a>
         </div>

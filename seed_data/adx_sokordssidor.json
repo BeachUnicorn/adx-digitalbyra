@@ -1,0 +1,1464 @@
+{
+ "sidor": [
+  {
+   "slug": "skapa-hemsida",
+   "titel": "Skapa hemsida",
+   "gradient": "#2456b0",
+   "meta_title": "Skapa hemsida - så gör du, och vad det kostar | ADX",
+   "meta_description": "Vill du skapa en hemsida? Vi går igenom hur du gör, vad det kostar och när det lönar sig att bygga själv eller ta hjälp. Färdig sajt från 495 kr/mån.",
+   "sokord": [
+    "skapa hemsida",
+    "göra hemsida",
+    "skapa en hemsida",
+    "göra en hemsida",
+    "bygga hemsida",
+    "hur gör man en hemsida"
+   ],
+   "faq": {
+    "slug": "faq-skapa-hemsida",
+    "titel": "Skapa hemsida - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Hur lång tid tar det att skapa en hemsida?",
+      "svar": "Med ett färdigt paket är sajten publicerad samma dag; själva uppsättningen tar ungefär fem minuter. Ett skräddarsytt bygge tar några veckor till några månader beroende på omfattning, där det mesta av tiden går åt till innehåll och beslut, inte till kodningen."
+     },
+     {
+      "fraga": "Vad behöver jag ha klart innan jag börjar?",
+      "svar": "Ett företagsnamn, en tanke om vad sidan ska leda till, och kontaktuppgifter. Text och bilder kan komma efter hand - det är bättre att publicera en enkel korrekt sida än att vänta ett halvår på perfekt material."
+     },
+     {
+      "fraga": "Måste jag kunna koda för att göra en hemsida?",
+      "svar": "Nej. Med ett färdigt paket redigerar du innehållet i ett vanligt gränssnitt, ungefär som ett textdokument. Kod behövs bara när något ska byggas som inte finns färdigt."
+     },
+     {
+      "fraga": "Kan jag flytta hemsidan senare?",
+      "svar": "Ja. Domänen är alltid er, och innehållet går att flytta. Börja i ett paket och gå över till skräddarsytt när verksamheten kräver det - det är en helt vanlig väg."
+     },
+     {
+      "fraga": "Vad kostar det att skapa en hemsida?",
+      "svar": "Från 495 kronor i månaden för ett färdigt paket via Atlas Holly, eller från 50 000 kronor för en skräddarsydd webbplats. Se sidan om vad en hemsida kostar för en mer detaljerad genomgång."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Skapa hemsida",
+      "title": "Skapa hemsida\nutan att gissa dig fram.",
+      "lead": "Det finns två vägar: en färdig hemsida på fem minuter, eller något byggt från grunden för just er. Här är skillnaden, och hur du väljer rätt.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Tre sätt att göra en hemsida"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Färdigt paket",
+        "text": "Du fyller i namn, verksamhet och kontaktuppgifter och har en publicerad sajt samma dag. Via vår plattform Atlas Holly från 495 kr i månaden. Passar de allra flesta mindre företag."
+       },
+       {
+        "title": "Skräddarsytt",
+        "text": "Vi ritar och bygger något eget, anpassat efter hur ni arbetar och vad ni säljer. Från 50 000 kronor och några veckor till några månader beroende på omfattning."
+       },
+       {
+        "title": "Bygga själv",
+        "text": "Fullt möjligt, och billigast i pengar räknat. Räkna med att lägga tid på det som inte syns: hastighet, mobilanpassning, sökmotorer, säkerhet och backup."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Hur gör man en hemsida?",
+      "body": "<p>Ordningen spelar roll. Börja inte med utseendet, börja med vad sidan ska få besökaren att göra: ringa, boka, handla eller skicka en förfrågan. Allt annat är medel för att nå dit.</p><p>Därefter behöver du en <strong>domän</strong> (adressen), ett <strong>webbhotell</strong> (där sidan bor), en <strong>struktur</strong> (vilka sidor som finns och hur de hänger ihop) och <strong>innehåll</strong> (text och bilder). Bygger du själv får du hålla ihop alla fyra. Köper du ett paket ingår de tre första.</p><p>Vanligaste misstaget är att göra sidan för sig själv i stället för för kunden. En besökare som inte inom fem sekunder förstår vad ni gör och för vem lämnar sidan, oavsett hur snygg den är.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Bygga hemsida själv eller ta hjälp?",
+      "body": "<p>Att bygga själv går utmärkt om verksamheten är enkel och du har tid. Men tiden är den verkliga kostnaden: det som tar en byrå några dagar tar ofta någon utan vana flera veckor, och resultatet blir sällan snabbare eller mer sökbart.</p><p>Vår rekommendation är enkel. Behöver ni en fungerande, snygg sajt som visar vad ni gör, ta ett färdigt paket och lägg tiden på kunderna i stället. Har ni något som inte liknar andras, en ovanlig affärsmodell, integrationer mot era system eller mycket innehåll, då är skräddarsytt rätt.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Skapa hemsida - vanliga frågor"
+     },
+     "faq_section_slug": "faq-skapa-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Vad kostar en hemsida?",
+        "url": "/vad-kostar-en-hemsida/"
+       },
+       {
+        "label": "Egen hemsida",
+        "url": "/egen-hemsida/"
+       },
+       {
+        "label": "Billig hemsida",
+        "url": "/billig-hemsida/"
+       },
+       {
+        "label": "Hemsida för företag",
+        "url": "/hemsida-foretag/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "egen-hemsida",
+   "titel": "Egen hemsida",
+   "gradient": "#2f6f4f",
+   "meta_title": "Egen hemsida - skapa din egen hemsida | ADX",
+   "meta_description": "En egen hemsida är adressen du äger själv, till skillnad från ett konto på en plattform. Så skapar du din egen hemsida - färdigt paket från 495 kr/mån.",
+   "sokord": [
+    "egen hemsida",
+    "skapa egen hemsida",
+    "göra egen hemsida"
+   ],
+   "faq": {
+    "slug": "faq-egen-hemsida",
+    "titel": "Egen hemsida - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Vad kostar en egen hemsida?",
+      "svar": "Från 495 kronor i månaden med ett färdigt paket, där domän, drift och uppdateringar ingår. En skräddarsydd egen hemsida börjar på 50 000 kronor."
+     },
+     {
+      "fraga": "Måste jag ha en egen domän?",
+      "svar": "Ja, om det ska vara en egen hemsida. En adress som ligger under någon annans domän är i praktiken deras, och byter ni leverantör förlorar ni både adressen och det sidan byggt upp i sökmotorerna."
+     },
+     {
+      "fraga": "Räcker det inte med Facebook och Instagram?",
+      "svar": "De är utmärkta för att synas för dem som redan följer er, men fungerar dåligt för dem som söker efter en tjänst just nu. De flesta företag behöver båda, och hemsidan är den ni faktiskt äger."
+     },
+     {
+      "fraga": "Kan jag göra min egen hemsida själv?",
+      "svar": "Absolut. Med ett färdigt paket sätter ni upp den själva på några minuter och sköter innehållet därefter. Behöver ni hjälp med text och struktur går det att lägga till."
+     },
+     {
+      "fraga": "Vem äger hemsidan om ni bygger den?",
+      "svar": "Ni. Domänen registreras i ert namn och innehållet är ert. Det gäller oavsett om ni valt ett paket eller ett skräddarsytt bygge."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Egen hemsida",
+      "title": "En egen hemsida\när adressen du äger.",
+      "lead": "Ett konto på en plattform lånar du. En egen hemsida på en egen domän är din, och kan aldrig stängas av någon annan.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Varför en egen hemsida, när det finns sociala medier?"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Ni äger den",
+        "text": "Ett socialt konto kan stängas av, ändra regler eller sluta visa era inlägg över en natt. En egen hemsida på en egen domän tar ingen ifrån er."
+       },
+       {
+        "title": "Den syns i sökningar",
+        "text": "Folk som letar efter det ni säljer söker på Google. Ett inlägg försvinner ur flödet på ett dygn; en sida kan ranka i åratal."
+       },
+       {
+        "title": "Den bygger förtroende",
+        "text": "En kund som ska handla för större belopp kollar upp företaget. Saknas hemsidan blir det ett frågetecken, oavsett hur bra ert flöde ser ut."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Skapa egen hemsida - vad som faktiskt behövs",
+      "body": "<p>Tre delar: en <strong>domän</strong> som är adressen, ett <strong>ställe</strong> där sidan ligger, och <strong>innehållet</strong>. Domänen bör alltid stå på ert företag, inte på en leverantör eller en konsult. Det är den enskilt viktigaste detaljen, och den som oftast blir fel.</p><p>Vi registrerar domänen i ert namn och sköter drift, certifikat och e-post. Vill ni byta leverantör senare följer domänen med er utan diskussion.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Göra egen hemsida - hur mycket arbete är det?",
+      "body": "<p>Mindre än de flesta tror. Med ett färdigt paket via Atlas Holly väljer ni utseende och fyller i era uppgifter, och sidan är uppe på några minuter. Sedan uppdaterar ni den själva när något ändras.</p><p>Ska sidan i stället spegla något som är unikt för er verksamhet bygger vi den från grunden, från 50 000 kronor. Skillnaden ligger inte i kvaliteten på det som byggs utan i hur mycket som är anpassat efter just er.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Egen hemsida - vanliga frågor"
+     },
+     "faq_section_slug": "faq-egen-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Skapa hemsida",
+        "url": "/skapa-hemsida/"
+       },
+       {
+        "label": "Vad kostar en hemsida?",
+        "url": "/vad-kostar-en-hemsida/"
+       },
+       {
+        "label": "Enkel hemsida",
+        "url": "/enkel-hemsida/"
+       },
+       {
+        "label": "Domäner och DNS",
+        "url": "/domain/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "vad-kostar-en-hemsida",
+   "titel": "Vad kostar en hemsida",
+   "gradient": "#a8842a",
+   "meta_title": "Vad kostar en hemsida? Priser 2026 | ADX",
+   "meta_description": "Vad kostar en hemsida? Färdigt paket 495-1995 kr/mån, skräddarsydd webbplats från 50 000 kr. Här är vad som styr priset och vad som ingår.",
+   "sokord": [
+    "vad kostar en hemsida",
+    "hemsida pris",
+    "pris hemsida"
+   ],
+   "faq": {
+    "slug": "faq-vad-kostar-en-hemsida",
+    "titel": "Priser - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Vad kostar en enkel hemsida?",
+      "svar": "Från 495 kronor i månaden med ett färdigt paket, där domän, drift, säkerhet och backup ingår. Det är den lägsta rimliga nivån för ett företag som vill ha något som fungerar och underhålls."
+     },
+     {
+      "fraga": "Varför kostar en skräddarsydd hemsida 50 000 kronor?",
+      "svar": "För att någon ska förstå er verksamhet, rita en struktur, skriva och forma innehållet, bygga det och testa att det håller. Det är arbetstid, inte licenser. Enklare projekt landar nära ingången, omfattande betydligt högre."
+     },
+     {
+      "fraga": "Finns det dolda kostnader?",
+      "svar": "Inte hos oss. I paketen ingår domän, drift och uppdateringar i månadsavgiften. Vid skräddarsytt får ni en offert med vad som ingår, och drift prissätts separat och tydligt."
+     },
+     {
+      "fraga": "Kan jag börja billigt och uppgradera sedan?",
+      "svar": "Ja, och det är ofta det klokaste. Börja med ett paket, se vad besökarna faktiskt gör, och bygg skräddarsytt när ni vet vad som behövs i stället för att gissa."
+     },
+     {
+      "fraga": "Vad kostar det att göra om en befintlig hemsida?",
+      "svar": "Ungefär som att bygga en ny, alltså från 50 000 kronor för ett skräddarsytt bygge. Innehåll som redan finns och är användbart kortar tiden en del, men strukturen behöver oftast ritas om."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Priser",
+      "title": "Vad kostar\nen hemsida?",
+      "lead": "Kort svar: från 495 kronor i månaden för ett färdigt paket, eller från 50 000 kronor för något byggt från grunden. Här är vad som ligger bakom siffrorna.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "plans",
+     "falt": {
+      "kicker": "Priser",
+      "title": "Två prisnivåer, två olika saker"
+     },
+     "listor": {
+      "plans": [
+       {
+        "mini": "Paket",
+        "title": "Atlas Holly",
+        "price": "Från 495 kr/mån",
+        "price_note": "495-1995 kr/mån beroende på nivå",
+        "desc": "Färdig hemsida via vår plattform. Uppe på fem minuter.",
+        "features": "Publicerad samma dag\nDomän och drift ingår\nDu uppdaterar själv\nSäkerhet och backup ingår\nUppgradera när ni växer",
+        "cta_label": "Läs mer på atlasholly.se",
+        "cta_url": "https://www.atlasholly.se"
+       },
+       {
+        "mini": "Skräddarsytt",
+        "title": "Egen webbplats",
+        "price": "Från 50 000 kr",
+        "price_note": "Engångskostnad, därefter drift",
+        "desc": "Byggd från grunden efter er verksamhet.",
+        "features": "Egen design och struktur\nIntegrationer mot era system\nAnpassade funktioner\nVeckor till månader i projekttid\nDrift och förvaltning efteråt",
+        "cta_label": "Skicka en förfrågan",
+        "cta_url": "/kontakt/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Vad är det som gör en hemsida dyr eller billig?",
+      "body": "<p>Priset styrs nästan aldrig av antalet sidor. Det styrs av hur mycket som måste vara unikt. En sajt som bygger på färdiga byggstenar kostar lite eftersom besluten redan är fattade. En sajt som ska spegla en egen affärsmodell kräver att någon tänker igenom varje del, och det är den tiden ni betalar för.</p><p>Fyra saker driver kostnaden mest: <strong>integrationer</strong> mot affärssystem, bokning eller lager, <strong>mängden innehåll</strong> som ska skrivas och struktureras, <strong>särskild funktionalitet</strong> som inte finns färdig, och <strong>designarbete</strong> när uttrycket ska vara helt eget.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Vad kostar en hemsida att ha, inte bara att göra?",
+      "body": "<p>Den löpande kostnaden glöms ofta bort. En hemsida behöver domän, webbhotell, certifikat, säkerhetsuppdateringar och backup, och någon som åtgärdar det när något går sönder. I våra paket ingår allt det i månadsavgiften.</p><p>Har ni en skräddarsydd sajt tillkommer drift och förvaltning separat. Det är den kostnaden som avgör om sajten fortfarande fungerar om tre år, och den som är billigast att skära i och dyrast att ha skurit i.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Priser - vanliga frågor"
+     },
+     "faq_section_slug": "faq-vad-kostar-en-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Billig hemsida",
+        "url": "/billig-hemsida/"
+       },
+       {
+        "label": "Skapa hemsida",
+        "url": "/skapa-hemsida/"
+       },
+       {
+        "label": "Köpa hemsida",
+        "url": "/kopa-hemsida/"
+       },
+       {
+        "label": "Paket och priser",
+        "url": "/paket/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "billig-hemsida",
+   "titel": "Billig hemsida",
+   "gradient": "#c05a2e",
+   "meta_title": "Billig hemsida - 495 kr/mån, färdig på 5 minuter | ADX",
+   "meta_description": "Billig hemsida utan att den ser billig ut. Via vår plattform Atlas Holly får du en färdig, snygg hemsida från 495 kr i månaden - drift och domän ingår.",
+   "sokord": [
+    "billig hemsida",
+    "hemsida billigt",
+    "enkel billig hemsida"
+   ],
+   "faq": {
+    "slug": "faq-billig-hemsida",
+    "titel": "Billig hemsida - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Vad är billigast, och vad ingår?",
+      "svar": "495 kronor i månaden via Atlas Holly. I det ingår hemsidan, domänen, driften, SSL-certifikat, säkerhetsuppdateringar och backup. Ingen startavgift."
+     },
+     {
+      "fraga": "Är gratis hemsida ett alternativ?",
+      "svar": "Sällan för ett företag. Gratistjänster brukar innebära reklam, en adress under någon annans domän och begränsad kontroll. Det som sparas i pengar kostar i trovärdighet."
+     },
+     {
+      "fraga": "Ser en billig hemsida billig ut?",
+      "svar": "Inte om mallen är formgiven av någon som kan sitt jobb. Det som avslöjar en billig sajt är oftast dåliga bilder och slarvig text, inte prislappen."
+     },
+     {
+      "fraga": "Kan jag byta till något dyrare senare?",
+      "svar": "Ja. Ni behåller domänen och innehållet och vi bygger skräddarsytt när verksamheten motiverar det, från 50 000 kronor."
+     },
+     {
+      "fraga": "Vad kostar de dyrare paketen?",
+      "svar": "Upp till 1 995 kronor i månaden beroende på vilka funktioner ni behöver. Alla nivåer finns på atlasholly.se."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Billig hemsida",
+      "title": "Billig hemsida,\nutan att det syns.",
+      "lead": "495 kronor i månaden via vår plattform Atlas Holly. Färdig på fem minuter, med domän, drift och säkerhet inräknat.",
+      "primary.label": "Till atlasholly.se",
+      "primary.url": "https://www.atlasholly.se",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Vad du får för 495 kronor i månaden"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "En sajt som ser dyr ut",
+        "text": "Mallarna är formgivna på riktigt. Skillnaden mot en dyr webbplats är hur mycket som är unikt för er, inte hur den ser ut."
+       },
+       {
+        "title": "Allt löpande ingår",
+        "text": "Domän, webbhotell, SSL-certifikat, säkerhetsuppdateringar och backup. Inga separata fakturor och inget som glöms bort."
+       },
+       {
+        "title": "Igång på fem minuter",
+        "text": "Ingen projekttid, inga möten. Ni fyller i era uppgifter och sajten är publicerad."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Billig hemsida behöver inte betyda dålig hemsida",
+      "body": "<p>Det som gör en webbplats dyr är sällan kvaliteten på det som byggs, utan hur mycket som byggs från noll. En färdig plattform har redan löst hastighet, mobilanpassning, säkerhet och sökmotoroptimering en gång för alla, och den kostnaden delas av alla som använder den.</p><p>Det är därför 495 kronor i månaden räcker för en sajt som är snabbare och säkrare än många som kostat femtio gånger mer att bygga.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "När är billigt fel val?",
+      "body": "<p>När verksamheten kräver något som inte finns färdigt. Ska sajten prata med ert affärssystem, hantera ovanliga bokningsflöden eller bära ett varumärke som måste vara helt eget, då blir ett paket en tvångströja.</p><p>Då bygger vi i stället skräddarsytt från 50 000 kronor. Men börja hellre billigt och uppgradera när ni vet vad ni behöver, än att betala för antaganden.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Billig hemsida - vanliga frågor"
+     },
+     "faq_section_slug": "faq-billig-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Vad kostar en hemsida?",
+        "url": "/vad-kostar-en-hemsida/"
+       },
+       {
+        "label": "Enkel hemsida",
+        "url": "/enkel-hemsida/"
+       },
+       {
+        "label": "Egen hemsida",
+        "url": "/egen-hemsida/"
+       },
+       {
+        "label": "Skapa hemsida",
+        "url": "/skapa-hemsida/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "enkel-hemsida",
+   "titel": "Enkel hemsida",
+   "gradient": "#0e3a52",
+   "meta_title": "Enkel hemsida - snabb, tydlig och färdig direkt | ADX",
+   "meta_description": "En enkel hemsida som gör sitt jobb: visar vad ni gör och hur man når er. Färdig på fem minuter från 495 kr/mån, eller skräddarsydd från 50 000 kr.",
+   "sokord": [
+    "enkel hemsida",
+    "simpel hemsida",
+    "liten hemsida"
+   ],
+   "faq": {
+    "slug": "faq-enkel-hemsida",
+    "titel": "Enkel hemsida - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Hur många sidor behöver en enkel hemsida?",
+      "svar": "Oftast fyra till sex: startsida, tjänster, om oss och kontakt. Fler sidor hjälper bara om varje sida har ett eget syfte och en egen sökning den ska svara på."
+     },
+     {
+      "fraga": "Räcker en enkel hemsida för att synas på Google?",
+      "svar": "Ja, om innehållet är tydligt och sidan är snabb. Google bryr sig om att besökaren hittar svaret, inte om hur många sidor ni har."
+     },
+     {
+      "fraga": "Hur snabbt kan en enkel hemsida vara igång?",
+      "svar": "Med ett färdigt paket samma dag - uppsättningen tar ungefär fem minuter. Ett skräddarsytt bygge tar veckor även när sajten är liten, eftersom besluten och innehållet tar tiden."
+     },
+     {
+      "fraga": "Kan en enkel hemsida växa senare?",
+      "svar": "Ja. Både paketen och skräddarsydda sajter går att bygga ut. Börja med det ni behöver nu."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Enkel hemsida",
+      "title": "En enkel hemsida\nslår ofta en avancerad.",
+      "lead": "De flesta företag behöver inte fler funktioner. De behöver en sida som laddar snabbt, säger vad de gör och gör det lätt att höra av sig.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Vad en enkel hemsida ska klara"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Säga vad ni gör",
+        "text": "Inom fem sekunder ska besökaren förstå vad ni erbjuder och för vem. Det är det vanligaste felet på webbplatser, och det billigaste att rätta till."
+       },
+       {
+        "title": "Fungera i mobilen",
+        "text": "De flesta besökare kommer från en telefon, ofta stående utomhus. Sidan ska ladda snabbt och gå att använda med en tumme."
+       },
+       {
+        "title": "Gå att kontakta",
+        "text": "Telefonnummer som går att trycka på, adress, öppettider och ett formulär som fungerar. Fler sidor gör sällan någon skillnad."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Enkel betyder genomtänkt, inte slarvig",
+      "body": "<p>En enkel webbplats är svårare att göra bra än en stor. Med fem sidor måste varje sida bära sin vikt, och det som ska bort måste faktiskt bort. Det är lättare att gömma en otydlig affärsidé bakom trettio sidor än bakom fem.</p><p>Räkna med att en enkel sajt oftast består av startsida, en sida per tjänst, en om företaget och en kontaktsida. Det räcker längre än de flesta tror.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Enkel hemsida med hjälp eller på egen hand",
+      "body": "<p>Behöver ni bara en fungerande enkel sajt är ett färdigt paket rätt väg: 495 kronor i månaden via Atlas Holly, publicerad på fem minuter, med drift och säkerhet inräknat.</p><p>Vill ni ha en enkel sajt som ändå är helt er egen i uttryck och struktur bygger vi det från 50 000 kronor. Enkelt är då ett designbeslut, inte en begränsning.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Enkel hemsida - vanliga frågor"
+     },
+     "faq_section_slug": "faq-enkel-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Billig hemsida",
+        "url": "/billig-hemsida/"
+       },
+       {
+        "label": "Skapa hemsida",
+        "url": "/skapa-hemsida/"
+       },
+       {
+        "label": "Egen hemsida",
+        "url": "/egen-hemsida/"
+       },
+       {
+        "label": "Hemsida för företag",
+        "url": "/hemsida-foretag/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "hemsida-foretag",
+   "titel": "Hemsida företag",
+   "gradient": "#4a2d73",
+   "meta_title": "Hemsida för företag - webbplats som ger affärer | ADX",
+   "meta_description": "Hemsida för företag som ska leda till affärer, inte bara finnas. Skräddarsydd webbplats från 50 000 kr eller färdigt företagspaket från 495 kr/mån.",
+   "sokord": [
+    "hemsida företag",
+    "företagshemsida",
+    "hemsida till företag"
+   ],
+   "faq": {
+    "slug": "faq-hemsida-foretag",
+    "titel": "Hemsida för företag - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Vad kostar en hemsida till ett företag?",
+      "svar": "Från 495 kronor i månaden för ett färdigt paket, eller från 50 000 kronor för en skräddarsydd webbplats. Vilket som passar beror på om verksamheten kräver något eget eller inte."
+     },
+     {
+      "fraga": "Vad ska finnas på en företagshemsida?",
+      "svar": "Minst: vad ni gör, för vem, hur man kontaktar er, och vem ni är. Därtill det som er specifika kund behöver för att våga ta nästa steg - referenser, priser, certifieringar eller tider."
+     },
+     {
+      "fraga": "Hjälper ni till med texterna?",
+      "svar": "Ja. Vi arbetar igenom innehållet tillsammans med er, för det är oftast texten och inte tekniken som avgör om sajten fungerar."
+     },
+     {
+      "fraga": "Kan ni koppla hemsidan till våra system?",
+      "svar": "Ja, integrationer mot affärssystem, CRM, bokning och lager är en av våra tjänster. Det ingår i skräddarsydda projekt."
+     },
+     {
+      "fraga": "Sköter ni driften efteråt?",
+      "svar": "Ja. Vi tar hand om hosting, uppdateringar, säkerhet, backup och övervakning, och även domäner och e-post om ni vill samla det hos en leverantör."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Hemsida företag",
+      "title": "En hemsida för företag\nska leda till affärer.",
+      "lead": "Inte bara finnas. Vi bygger webbplatser som gör det lätt för rätt kund att förstå vad ni gör och ta kontakt.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "steps",
+     "falt": {
+      "kicker": "Så går det till",
+      "title": "Så går ett företagsprojekt till"
+     },
+     "listor": {
+      "steps": [
+       {
+        "title": "Vi förstår affären",
+        "text": "Vad ni säljer, till vem, och vad som får någon att välja er framför en konkurrent. Utan det blir sajten en broschyr."
+       },
+       {
+        "title": "Struktur före design",
+        "text": "Vi ritar upp vilka sidor som ska finnas och vad var och en ska svara på. Det är här sökbarheten avgörs, inte i färgvalet."
+       },
+       {
+        "title": "Bygge och innehåll",
+        "text": "Vi bygger sajten och arbetar igenom texterna. Ni får se den växa fram i stället för att presenteras för ett färdigt resultat."
+       },
+       {
+        "title": "Drift och förvaltning",
+        "text": "Efter lansering sköter vi uppdateringar, säkerhet, backup och övervakning så att sajten fortfarande fungerar om tre år."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Vad en företagshemsida behöver som en privat sida inte behöver",
+      "body": "<p>Ett företag blir granskat. En möjlig kund, en leverantör eller en person som överväger att söka jobb hos er tittar på sajten och drar slutsatser om hur ni sköter allt annat. Därför väger trovärdighet tyngre än effekter.</p><p>Konkret betyder det tydliga kontaktvägar, organisationsnummer och adress, referenser eller case om ni har dem, och information som faktiskt stämmer. En sajt som säger 'copyright 2019' säger mer om företaget än någon text på den.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "B2B och B2C ställer olika krav",
+      "body": "<p>Säljer ni till andra företag är beslutsvägen lång och sajten ska ge underlag: specifikationer, certifieringar, kapacitet och en tydlig väg till rätt person. Säljer ni till konsumenter är beslutet snabbare och sajten ska ta bort friktion: pris, tillgänglighet och ett enkelt sätt att boka eller köpa.</p><p>De flesta företag gör misstaget att bygga en sajt som försöker vara båda. Vi börjar därför alltid med frågan vem den viktigaste besökaren är.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Hemsida för företag - vanliga frågor"
+     },
+     "faq_section_slug": "faq-hemsida-foretag"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Professionell hemsida",
+        "url": "/professionell-hemsida/"
+       },
+       {
+        "label": "Hemsida med bokning",
+        "url": "/hemsida-med-bokning/"
+       },
+       {
+        "label": "Vad kostar en hemsida?",
+        "url": "/vad-kostar-en-hemsida/"
+       },
+       {
+        "label": "Webbutveckling",
+        "url": "/webbutveckling/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "hemsida-med-bokning",
+   "titel": "Hemsida med bokning",
+   "gradient": "#813a63",
+   "meta_title": "Hemsida med bokning - boka direkt på sajten | ADX",
+   "meta_description": "Hemsida med bokning som fungerar: kunden bokar själv, dygnet runt, och tiden hamnar rätt i er kalender. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "sokord": [
+    "hemsida med bokning",
+    "bokningssystem hemsida",
+    "boka online hemsida"
+   ],
+   "faq": {
+    "slug": "faq-hemsida-med-bokning",
+    "titel": "Hemsida med bokning - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Vad kostar en hemsida med bokning?",
+      "svar": "Med ett etablerat bokningssystem inkopplat på en paketsajt landar det ofta strax över grundpriset på 495 kronor i månaden plus bokningstjänstens egen avgift. En egen bokningslösning byggd från grunden börjar på 50 000 kronor tillsammans med webbplatsen."
+     },
+     {
+      "fraga": "Kan kunderna betala när de bokar?",
+      "svar": "Ja. Betalning vid bokning minskar uteblivna besök påtagligt, och kopplas in via en betalleverantör."
+     },
+     {
+      "fraga": "Fungerar det med vår befintliga kalender?",
+      "svar": "Oftast ja. De flesta bokningssystem synkar mot Google Kalender och Microsoft 365, vilket gör att ni fortsätter arbeta som ni gör i dag."
+     },
+     {
+      "fraga": "Kan vi ta emot bokningar för flera personer eller platser?",
+      "svar": "Ja, men det är där skillnaden mellan färdigt och skräddarsytt börjar synas. Flera resurser med olika kompetens och tider brukar kräva en egen lösning."
+     },
+     {
+      "fraga": "Skickas påminnelser automatiskt?",
+      "svar": "Ja, via e-post och i många fall sms. Påminnelser är den enskilt mest lönsamma detaljen i ett bokningsflöde."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Bokning",
+      "title": "Hemsida med bokning\nsom faktiskt bokar.",
+      "lead": "Varje samtal ni slipper ta är tid ni får tillbaka. En bokning som går att göra klockan elva på kvällen blir ofta en bokning ni annars aldrig fått.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Vad en bokningsfunktion ska klara"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Vara öppen dygnet runt",
+        "text": "En stor del av bokningarna görs på kvällen och i helgen, när ingen svarar i telefon. Det är där den största vinsten ligger."
+       },
+       {
+        "title": "Visa rätt tider",
+        "text": "Bokningen måste vara kopplad till er verkliga kalender. Dubbelbokningar kostar mer förtroende än den sparade tiden är värd."
+       },
+       {
+        "title": "Vara klar på mobilen",
+        "text": "Bokningen sker nästan alltid i telefonen. Ett flöde med fler än tre steg tappar folk på vägen."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Bokning på hemsidan - färdig lösning eller egen?",
+      "body": "<p>För de flesta verksamheter räcker ett etablerat bokningssystem som kopplas in på sajten. Det är snabbt, billigt och underhålls av någon annan. Frisörer, kliniker, konsulter och restauranger klarar sig långt med det.</p><p>Egen bokning behövs när reglerna är ovanliga: resurser som beror på varandra, olika lång tid för olika tjänster, personal med olika kompetens, eller priser som varierar med säsong. Då bygger vi bokningen som en del av webbplatsen, från 50 000 kronor beroende på komplexitet.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Bokning som är kopplad till era system",
+      "body": "<p>Det verkliga värdet uppstår när bokningen inte blir en ö. Tiden ska hamna i kalendern, kunden ska få en bekräftelse och en påminnelse, och uppgifterna ska landa i det system ni redan använder utan att någon skriver av dem för hand.</p><p>Vi bygger den sortens integrationer som en del av våra automationstjänster, mot kalendrar, affärssystem och betalningar.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Hemsida med bokning - vanliga frågor"
+     },
+     "faq_section_slug": "faq-hemsida-med-bokning"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Hemsida för företag",
+        "url": "/hemsida-foretag/"
+       },
+       {
+        "label": "Automation och integrationer",
+        "url": "/automation/"
+       },
+       {
+        "label": "Vad kostar en hemsida?",
+        "url": "/vad-kostar-en-hemsida/"
+       },
+       {
+        "label": "Skapa hemsida",
+        "url": "/skapa-hemsida/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "wordpress-hemsida",
+   "titel": "Wordpress hemsida",
+   "gradient": "#7a2b35",
+   "meta_title": "WordPress hemsida - eller något som kräver mindre skötsel",
+   "meta_description": "Har ni en WordPress-hemsida som är långsam eller kräver ständiga uppdateringar? Vi bygger utan WordPress och flyttar över er - utan att tappa i Google.",
+   "sokord": [
+    "wordpress hemsida",
+    "hemsida wordpress",
+    "byta från wordpress"
+   ],
+   "faq": {
+    "slug": "faq-wordpress-hemsida",
+    "titel": "WordPress - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Bygger ni hemsidor i WordPress?",
+      "svar": "Nej. Vi bygger på en egen grund som kräver mindre underhåll och laddar snabbare. Har ni redan WordPress hjälper vi er gärna att flytta därifrån."
+     },
+     {
+      "fraga": "Kan vi behålla vår design om vi flyttar?",
+      "svar": "Ja, om ni vill. Vi kan bygga om utseendet så nära det nuvarande som ni önskar, eller passa på att göra om det."
+     },
+     {
+      "fraga": "Tappar vi våra placeringar i Google?",
+      "svar": "Inte om flytten görs rätt. Nyckeln är att varje gammal adress leder vidare till rätt ny sida med en permanent omdirigering. Vi kontrollerar det efter lansering."
+     },
+     {
+      "fraga": "Vad händer med vårt innehåll?",
+      "svar": "Det följer med. Texter, bilder och sidstruktur flyttas över, och vi passar oftast på att gallra i sådant som ingen läser."
+     },
+     {
+      "fraga": "Vad kostar det att flytta från WordPress?",
+      "svar": "Från 50 000 kronor. Priset styrs framför allt av hur många sidor som ska med och hur mycket av innehållet som behöver skrivas om."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "WordPress",
+      "title": "WordPress-hemsida\nsom blivit en börda?",
+      "lead": "Vi bygger inte i WordPress. Vi flyttar gärna över er från det - med behållna adresser och behållna placeringar i Google.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Varför vi valt bort WordPress"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Underhållet",
+        "text": "WordPress bygger på tillägg som uppdateras i otakt. Missas en uppdatering blir sajten en säkerhetsrisk; görs den slarvigt går något sönder. Den skötseln betalar ni för, varje månad, i all evighet."
+       },
+       {
+        "title": "Hastigheten",
+        "text": "En sajt med tjugo tillägg laddar det som tjugo tillägg kräver. Det syns i mobilen, det syns i Google, och det syns i hur många som orkar vänta."
+       },
+       {
+        "title": "Säkerheten",
+        "text": "WordPress driver en stor del av webben, vilket gör det till det mest attraktiva målet som finns. De flesta angrepp går via ett tillägg någon glömt uppdatera."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Vi säger inte att WordPress är dåligt",
+      "body": "<p>WordPress har byggt en enorm del av webben och gör mycket rätt. Men det är ett system som förutsätter att någon sköter det, och den kostnaden syns sällan i offerten när sajten byggs.</p><p>Vi bygger i stället på en egen grund där det inte finns tjugo tillägg som kan bli inaktuella. Det ger färre rörliga delar, snabbare sidor och en drift som inte är beroende av att någon hinner uppdatera i tid.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Att flytta från WordPress utan att tappa i Google",
+      "body": "<p>Det som avgör en flytt är att adresserna följer med. Varje gammal sida ska antingen finnas kvar på samma adress eller peka vidare till sin nya med en permanent omdirigering. Görs det rätt märker Google knappt att något hänt; görs det fel kan flera års arbete försvinna på en vecka.</p><p>Vi tar med innehållet, sätter upp omdirigeringarna och kontrollerar resultatet efter lanseringen. Priset börjar på 50 000 kronor, som för andra skräddarsydda projekt, och beror mest på hur mycket innehåll som ska med.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "WordPress - vanliga frågor"
+     },
+     "faq_section_slug": "faq-wordpress-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Ny hemsida",
+        "url": "/ny-hemsida/"
+       },
+       {
+        "label": "Hemsida för företag",
+        "url": "/hemsida-foretag/"
+       },
+       {
+        "label": "Webbutveckling",
+        "url": "/webbutveckling/"
+       },
+       {
+        "label": "Managed Hosting",
+        "url": "/hosting/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "kopa-hemsida",
+   "titel": "Köpa hemsida",
+   "gradient": "#2456b0",
+   "meta_title": "Köpa hemsida - vad du bör veta innan du köper | ADX",
+   "meta_description": "Ska du köpa hemsida? Här är vad som ska ingå, vilka fällor som finns och vad det kostar. Färdigt paket från 495 kr/mån eller skräddarsytt från 50 000 kr.",
+   "sokord": [
+    "köpa hemsida",
+    "beställa hemsida",
+    "hemsida köpa"
+   ],
+   "faq": {
+    "slug": "faq-kopa-hemsida",
+    "titel": "Köpa hemsida - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Vad kostar det att köpa en hemsida?",
+      "svar": "Ett färdigt paket kostar från 495 kronor i månaden med allt löpande inräknat. En skräddarsydd webbplats köps som ett projekt från 50 000 kronor, med drift som en separat löpande kostnad."
+     },
+     {
+      "fraga": "Äger jag hemsidan när jag köpt den?",
+      "svar": "Hos oss ja - innehållet och domänen är era oavsett upplägg. Kontrollera alltid det hos vilken leverantör som helst, för det är inte självklart."
+     },
+     {
+      "fraga": "Vad händer om jag vill byta leverantör?",
+      "svar": "Ni tar med er domänen och innehållet. Har ni en skräddarsydd sajt får ni koden. Vi bygger inga inlåsningar."
+     },
+     {
+      "fraga": "Hur lång bindningstid har ni?",
+      "svar": "Paketen löper månadsvis via Atlas Holly. Ett skräddarsytt projekt är ett engångsköp, och driften avtalas separat."
+     },
+     {
+      "fraga": "Kan jag köpa bara hemsidan och sköta driften själv?",
+      "svar": "Ja, vid skräddarsydda projekt. De flesta väljer ändå att lägga driften hos oss, eftersom det är den delen som annars glöms bort tills något går sönder."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Köpa hemsida",
+      "title": "Köpa hemsida\nutan att bli inlåst.",
+      "lead": "Det viktigaste när du köper en hemsida är inte priset, utan vad du äger efteråt. Här är vad du ska kontrollera innan du skriver på.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Tre saker att kontrollera innan du köper"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Vem äger domänen?",
+        "text": "Den ska stå på ert företag, inte på byrån. Står den på leverantören kan ni i praktiken inte byta, och det är den vanligaste inlåsningen som finns."
+       },
+       {
+        "title": "Vad ingår efter lansering?",
+        "text": "En hemsida behöver drift, uppdateringar, säkerhet och backup. Fråga vad det kostar innan ni köper, inte efter."
+       },
+       {
+        "title": "Kan ni ändra själva?",
+        "text": "Ni ska kunna byta text och bilder utan att skicka ett mejl och vänta i tre dagar. Kan ni inte det blir varje liten ändring en kostnad."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Köpa färdigt eller beställa skräddarsytt?",
+      "body": "<p>Att köpa en färdig hemsida betyder att ni tar något som redan är byggt och gör det till ert. Det går på minuter, kostar 495 kronor i månaden via Atlas Holly och är rätt val för de flesta mindre verksamheter.</p><p>Att beställa en skräddarsydd hemsida betyder att någon bygger något som inte finns. Det tar veckor till månader, börjar på 50 000 kronor och är rätt när ni har krav som inte går att möta med färdiga byggstenar.</p><p>Den vanligaste dyra missen är att beställa skräddarsytt för att det känns mer seriöst, när ett paket hade räckt. Den näst vanligaste är att köpa ett paket när verksamheten faktiskt kräver något eget.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Vad ska ingå i priset?",
+      "body": "<p>Be alltid om att få se vad som ingår, svart på vitt: domän, webbhotell, certifikat, antal sidor, vem som skriver texterna, vem som tar bilderna, hur många ändringsvarv som ingår och vad som gäller efter lansering.</p><p>Ett lågt pris med allt utanför blir nästan alltid dyrare än ett högre pris med allt inne. Det gäller i den här branschen som i alla andra.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Köpa hemsida - vanliga frågor"
+     },
+     "faq_section_slug": "faq-kopa-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Vad kostar en hemsida?",
+        "url": "/vad-kostar-en-hemsida/"
+       },
+       {
+        "label": "Skapa hemsida",
+        "url": "/skapa-hemsida/"
+       },
+       {
+        "label": "Ny hemsida",
+        "url": "/ny-hemsida/"
+       },
+       {
+        "label": "Paket och priser",
+        "url": "/paket/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "ny-hemsida",
+   "titel": "Ny hemsida",
+   "gradient": "#c05a2e",
+   "meta_title": "Ny hemsida - när det är dags att göra om | ADX",
+   "meta_description": "Dags för en ny hemsida? Så vet ni om det är läge att göra om, vad som ska följa med och hur ni behåller era placeringar i Google.",
+   "sokord": [
+    "ny hemsida",
+    "göra om hemsida",
+    "ny webbplats",
+    "redesign hemsida"
+   ],
+   "faq": {
+    "slug": "faq-ny-hemsida",
+    "titel": "Ny hemsida - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Hur ofta bör man göra om sin hemsida?",
+      "svar": "Det finns ingen bra tidsgräns. Gör om när sajten inte längre beskriver vad ni gör, när ni inte kan ändra i den, eller när den är för långsam. En välbyggd sajt kan leva länge med löpande innehållsvård."
+     },
+     {
+      "fraga": "Vad kostar en ny hemsida?",
+      "svar": "Från 50 000 kronor för ett skräddarsytt bygge. Ska ni bara byta ut en gammal sajt mot något enkelt och fungerande kan ett paket från 495 kronor i månaden räcka."
+     },
+     {
+      "fraga": "Tappar vi vår Google-placering när vi byter?",
+      "svar": "Inte om adresserna hanteras rätt med permanenta omdirigeringar. Det är den vanligaste orsaken till att trafiken rasar efter en relansering, och den är helt undvikbar."
+     },
+     {
+      "fraga": "Kan vi behålla vårt innehåll?",
+      "svar": "Ja. Vi går igenom det som finns, tar med det som fungerar och skriver om det som inte gör det. Sällan är allt värt att flytta."
+     },
+     {
+      "fraga": "Hur lång tid tar det att göra om en hemsida?",
+      "svar": "Några veckor till några månader. Det som styr är hur mycket innehåll som ska med och hur snabbt beslut kan fattas hos er."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Ny hemsida",
+      "title": "Ny hemsida - eller\nräcker det att fixa den ni har?",
+      "lead": "Ibland är svaret att bygga nytt. Ofta räcker det med att göra om strukturen och texterna. Vi säger vilket vi tror, även när det är det billigare alternativet.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Fem tecken på att det är dags"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Den är långsam i mobilen",
+        "text": "Laddar sidan mer än ett par sekunder på telefon tappar ni besökare innan de sett något. Det går sällan att fixa i efterhand på en gammal sajt."
+       },
+       {
+        "title": "Ni kan inte ändra själva",
+        "text": "Måste ni mejla någon för att byta ett telefonnummer kommer sidan sluta stämma. Det är det säkraste tecknet på att något behöver göras om."
+       },
+       {
+        "title": "Den beskriver fel verksamhet",
+        "text": "Företag utvecklas snabbare än sina webbplatser. Säljer sajten det ni sålde för fem år sedan är den en belastning."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Gör om rätt sak",
+      "body": "<p>De flesta som vill ha en ny hemsida börjar med utseendet. Men om den gamla sajten inte gav några förfrågningar beror det sällan på designen, utan på att strukturen och texterna inte svarade på det besökaren undrade.</p><p>Vi börjar därför med att titta på vad besökarna faktiskt gör i dag: vilka sidor de kommer in på, var de lämnar och vilka sökningar som leder dit. Det är ofta billigare att åtgärda det än att bygga om allt, och vi säger det när det är fallet.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Behåll det den gamla sajten byggt upp",
+      "body": "<p>En gammal webbplats har nästan alltid ett värde ni inte ser: adresser som Google känner till och länkar från andra sajter. Byter ni adresser utan omdirigeringar kastar ni bort det.</p><p>Vid varje ombyggnad kartlägger vi de gamla adresserna och pekar dem vidare till rätt nya sidor med permanenta omdirigeringar. Det är tråkigt arbete och det viktigaste i hela projektet.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Ny hemsida - vanliga frågor"
+     },
+     "faq_section_slug": "faq-ny-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "WordPress-hemsida",
+        "url": "/wordpress-hemsida/"
+       },
+       {
+        "label": "Vad kostar en hemsida?",
+        "url": "/vad-kostar-en-hemsida/"
+       },
+       {
+        "label": "Hemsida för företag",
+        "url": "/hemsida-foretag/"
+       },
+       {
+        "label": "Managed Content",
+        "url": "/content/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  },
+  {
+   "slug": "professionell-hemsida",
+   "titel": "Professionell hemsida",
+   "gradient": "#0e3a52",
+   "meta_title": "Professionell hemsida - som håller för granskning | ADX",
+   "meta_description": "En professionell hemsida ska tåla att granskas av kunder, partners och möjliga medarbetare. Skräddarsytt från 50 000 kr eller proffsigt paket från 495 kr/mån.",
+   "sokord": [
+    "pro hemsida",
+    "professionell hemsida",
+    "proffsig hemsida"
+   ],
+   "faq": {
+    "slug": "faq-professionell-hemsida",
+    "titel": "Professionell hemsida - vanliga frågor",
+    "fragor": [
+     {
+      "fraga": "Vad kostar en professionell hemsida?",
+      "svar": "Från 50 000 kronor skräddarsytt. Men ett välgjort paket från 495 kronor i månaden ger ett professionellt intryck för de flesta verksamheter - det är innehållet och hastigheten som avgör, inte prislappen."
+     },
+     {
+      "fraga": "Behöver vi egna bilder?",
+      "svar": "Ja, om ni kan. Egna bilder på verklig personal och verkliga lokaler gör mer för trovärdigheten än något annat. Generiska bildbanksbilder känns igen direkt."
+     },
+     {
+      "fraga": "Hur viktig är hastigheten egentligen?",
+      "svar": "Mycket. Den påverkar både hur besökaren uppfattar er och hur Google rankar sidan. Det är den enskilt mest lönsamma tekniska detaljen på en webbplats."
+     },
+     {
+      "fraga": "Hjälper ni till med texterna?",
+      "svar": "Ja, det ingår i skräddarsydda projekt och kan köpas till separat. Texten är oftast det som avgör om en sajt fungerar."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Professionell hemsida",
+      "title": "En professionell hemsida\ntål att granskas.",
+      "lead": "Kunder, partners och möjliga medarbetare kollar upp er innan de hör av sig. Sajten är det första de ser, och de drar slutsatser om resten av verksamheten utifrån den.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Se tjänster",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Vad som skiljer proffsigt från amatörmässigt"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Den laddar snabbt",
+        "text": "Hastighet är det första kvalitetsintrycket och det sista någon förlåter. Långsamma sidor läses som slarv, även av dem som inte vet varför."
+       },
+       {
+        "title": "Innehållet stämmer",
+        "text": "Gamla priser, utgångna erbjudanden och en årtalsrad i sidfoten som stannat för tre år sedan gör mer skada än en tråkig design."
+       },
+       {
+        "title": "Detaljerna sitter",
+        "text": "Rätt bildformat, konsekventa rubriker, fungerande formulär och en 404-sida som hjälper. Ingen berömmer det, men alla känner av när det saknas."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Professionell betyder inte påkostad",
+      "body": "<p>En sajt kan kosta en halv miljon och ändå läsas som oseriös om texterna är svävande och kontaktuppgifterna gömda. En sajt för 495 kronor i månaden kan läsas som mycket professionell om innehållet är tydligt och bilderna är bra.</p><p>Det som avgör intrycket är i tur och ordning: hastighet, tydlighet, aktualitet och bildkvalitet. Design kommer först därefter.</p>"
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "När det behövs något helt eget",
+      "body": "<p>För vissa verksamheter är webbplatsen en del av själva erbjudandet. Konsultbolag som säljer omdöme, byråer som säljer form, företag med en position som inte liknar någon annans. Då räcker inte en mall, för mallen säger att ni är som alla andra.</p><p>Där bygger vi skräddarsytt från 50 000 kronor, med design, struktur och innehåll som är ert eget. Projekttiden är några veckor till några månader.</p>"
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Professionell hemsida - vanliga frågor"
+     },
+     "faq_section_slug": "faq-professionell-hemsida"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Hemsida för företag",
+        "url": "/hemsida-foretag/"
+       },
+       {
+        "label": "Vad kostar en hemsida?",
+        "url": "/vad-kostar-en-hemsida/"
+       },
+       {
+        "label": "Ny hemsida",
+        "url": "/ny-hemsida/"
+       },
+       {
+        "label": "Webbutveckling",
+        "url": "/webbutveckling/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Osäker på vilket spår som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ]
+  }
+ ]
+}

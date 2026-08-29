@@ -2402,7 +2402,7 @@ class ReadVisibilityTests(TestCase):
         area = Area.objects.create(name="Bromma", level=AreaLevel.DISTRICT, heading="")
         data = REGISTRY["hamta_omrade"].read(None, slug=area.slug)
         self.assertEqual(data["rubrik"], "")
-        self.assertEqual(data["rubrik_som_visas"], "Digitalbyrå i Bromma")
+        self.assertEqual(data["rubrik_som_visas"], "Webbyrå i Bromma")
         self.assertTrue(data["rubrik_autogenererad"])
 
     def test_set_heading_is_reported_as_not_generated(self):

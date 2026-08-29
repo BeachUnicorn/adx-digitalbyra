@@ -229,6 +229,44 @@ def sanitize_plain_text(value: str | None, *, max_length: int = MAX_PLAIN_TEXT_L
     return text
 
 
+def sanitize_multiline_text(value: str | None, *, max_length: int = MAX_PLAIN_TEXT_LENGTH) -> str:
+    """
+    Som `sanitize_plain_text`, men radbrytningar överlever.
+
+    Blockschemat skiljer på `plain` (enradiga rubriker och etiketter) och
+    `text` (flerradiga fält). Skillnaden var bara max_length: båda gick genom
+    sanitize_plain_text, som kollapsar radbrytningar till mellanslag. Alltså
+    plattades varje flerradigt fält tyst - trots att schemats hjälptext lovar
+    "Radbrytningar behålls" och mallarna renderar dem med linebreaksbr.
+
+    Ingen säkerhetsskillnad: taggarna stryps av samma tvåstegssanering. Det
+    som bevaras är enkla radbrytningar, inte markup.
+    """
+    if not value:
+        return ""
+
+    text = nh3.clean(str(value), tags=set(), attributes={}, strip_comments=True)
+    text = _strip_tags(text)
+
+    import html as _html
+
+    text = _html.unescape(text)
+    text = _normalize_typography(text)
+
+    # Normalisera radslut, städa blanksteg i radändar och tillåt högst en
+    # tom rad i följd - annars kan indraget i en seedfil eller ett klistrat
+    # stycke ge godtyckligt mycket luft i renderingen.
+    text = re.sub(r"\r\n?", "\n", text)
+    text = re.sub(r"[ \t\f\v]+\n", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    text = text.strip()
+
+    if len(text) > max_length:
+        text = text[:max_length].rstrip()
+
+    return text
+
+
 # ---------------------------------------------------------------------------
 # URL validation
 # ---------------------------------------------------------------------------

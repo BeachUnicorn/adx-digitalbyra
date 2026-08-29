@@ -115,8 +115,8 @@ class SeededSiteTests(TestCase):
             "/portfolio/",
             "/paket/",
             "/kontakt/",
-            "/digitalbyra/",
-            "/digitalbyra/goteborg/",
+            "/webbyra/",
+            "/webbyra/goteborg/",
             "/sitemap.xml",
         ]:
             response = client.get(path)
@@ -196,7 +196,7 @@ class LinkIntegrityTests(TestCase):
         from apps.website.models import MenuItem
 
         stringly = MenuItem.objects.filter(page=None).exclude(url="")
-        allowed = {"/digitalbyra/"}  # ruttmål utanför sidsystemet
+        allowed = {"/webbyra/"}  # ruttmål utanför sidsystemet
         rogue = [i.url for i in stringly if i.url not in allowed]
         self.assertEqual(rogue, [], f"Menyposter med rå URL i stället för sid-FK: {rogue}")
 
@@ -244,6 +244,8 @@ class LinkIntegrityTests(TestCase):
         self.assertEqual(links.resolve_link("/finns-inte-alls/").status, links.MISSING)
         self.assertEqual(links.resolve_link("https://example.com/").status, links.EXTERNAL)
         self.assertEqual(links.resolve_link("").status, links.SKIPPED)
+        self.assertEqual(links.resolve_link("/webbyra/goteborg/").status, links.OK)
+        # Den gamla ortsadressen 301:ar och ska räknas som levande, inte död.
         self.assertEqual(links.resolve_link("/digitalbyra/goteborg/").status, links.OK)
         # Strängar till interna mål blir id-beskrivare vid parse
         parsed = links.parse_href("/kontakt/")

@@ -1,0 +1,1211 @@
+{
+ "areas": [
+  {
+   "name": "Blekinge län",
+   "slug": "blekinge-lan",
+   "level": "region",
+   "heading": "Webbyrå i Blekinge län",
+   "intro": "Marin teknik, telekom och Sveriges kortaste väg till kontinenten. Vi bygger webbplatser för företag i hela Blekinge.",
+   "body": "Blekinge är Sveriges näst minsta län till ytan men har en teknisk profil som är påfallande tung för sin storlek. Karlskrona är örlogsstad sedan 1600-talet och har samtidigt blivit en telekom- och mjukvaruort, med en teknisk högskola som matat näringslivet i decennier.\n\nDen kombinationen märks. Här finns företag som utvecklar programvara, inbyggda system och kommunikationslösningar, ofta med kunder långt utanför länet. För dem är webbplatsen en rekryteringskanal minst lika mycket som en säljkanal.\n\nKarlshamn och Sölvesborg vetter mot hamnen och kontinenten, med livsmedel, kemi och logistik. Och längs kusten lever en besöksnäring som konkurrerar med hela Sydsverige om samma sommargäster.\n\nVi arbetar på distans med hela länet. En skräddarsydd webbplats börjar på 50 000 kronor. Behöver ni bara en fungerande sajt snabbt finns Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Blekinge - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Blekinge - Karlskrona, Karlshamn, Ronneby och Sölvesborg. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Karlskrona",
+     "slug": "karlskrona",
+     "level": "municipality",
+     "heading": "Webbyrå i Karlskrona",
+     "intro": "Örlogsstad och telekomort på 33 öar. Vi bygger webbplatser för företag i Karlskrona.",
+     "body": "Karlskrona byggdes som flottbas på 1600-talet och är världsarv för sin örlogsarkitektur. Samtidigt är staden en av Sveriges mer tekniktunga orter för sin storlek, med telekom och mjukvara som viktiga näringar.\n\nDen tekniska högskolan har i decennier matat näringslivet med utvecklare, och flera bolag här arbetar med programvara, inbyggda system och kommunikation för en internationell marknad.\n\nFör dem är webbplatsen ofta en rekryteringskanal minst lika mycket som en säljkanal - de konkurrerar om utvecklare med hela landet. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Karlskrona - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Karlskrona. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Dalarnas län",
+   "slug": "dalarnas-lan",
+   "level": "region",
+   "heading": "Webbyrå i Dalarnas län",
+   "intro": "Stål, skog och en av landets starkaste besöksnäringar. Vi bygger webbplatser för företag i hela Dalarna.",
+   "body": "Dalarna är två län i ett. Söderut ligger industribygden kring Falun och Borlänge med stål, skog och en historia av gruvdrift som format hela landskapet. Norrut ligger fjällvärlden med Sälen, Idre och en besöksnäring som omsätter miljarder.\n\nDen delningen ställer olika krav. Ett industriföretag i Borlänge behöver en webbplats som fungerar som referens och rekryteringsyta. Ett boendeföretag i Sälen behöver en som klarar bokningstoppar och tar betalt utan friktion.\n\nDalarna har också en ovanligt stark varumärkesladdning. Landskapet är känt över hela världen på ett sätt som få svenska regioner är, och för företag inom besöksnäring och hantverk är det en tillgång som ofta används sämre digitalt än den skulle kunna.\n\nVi arbetar på distans med hela länet, från Avesta till Älvdalen. Skräddarsytt från 50 000 kronor, eller Atlas Holly-paket från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Dalarna - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Dalarna - Falun, Borlänge, Mora och Sälenfjällen. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Borlänge",
+     "slug": "borlange",
+     "level": "municipality",
+     "heading": "Webbyrå i Borlänge",
+     "intro": "Stål, logistik och Dalarnas industriella tyngdpunkt. Vi bygger webbplatser för företag i Borlänge.",
+     "body": "Borlänge är Dalarnas industristad. Stålverket är en av landets största arbetsplatser inom sin bransch, och runt det finns underleverantörer, transportföretag och teknisk service.\n\nStaden är också ett kommunikationsnav med järnväg och vägar som binder ihop Dalarna, och har därför en betydande logistiksektor.\n\nFör industriföretag är webbplatsen framför allt ett trovärdighetsbevis mot beställare och en kanal för rekrytering. Vi arbetar på distans med hela Dalarna. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Borlänge - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Borlänge. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Falun",
+     "slug": "falun",
+     "level": "municipality",
+     "heading": "Webbyrå i Falun",
+     "intro": "Världsarv, gruvhistoria och Dalarnas residensstad. Vi bygger webbplatser för företag i Falun.",
+     "body": "Falun är byggd kring en gruva som en gång försörjde halva Europa med koppar, och gruvområdet är i dag världsarv. Staden är residensstad och har en stark koppling till skidsport genom Lugnet.\n\nNäringslivet omfattar handel, offentlig sektor, skog och tillverkning, samt en besöksnäring som lever på både världsarvet och evenemangen.\n\nTillsammans med grannen Borlänge utgör Falun en gemensam arbetsmarknad, och många företag ser båda städerna som sin hemmamarknad. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Falun - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Falun. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Gotlands län",
+   "slug": "gotlands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Gotlands län",
+   "intro": "En ö, en kommun och en marknad som svänger med säsongen. Vi bygger webbplatser för företag på hela Gotland.",
+   "body": "Gotland är Sveriges enda län som består av en enda kommun, och det gör marknaden överblickbar på ett sätt som fastlandet aldrig är. Ungefär sextiotusen bofasta - och långt fler under sommaren.\n\nDen säsongsvängningen formar näringslivet. Besöksnäring, restaurang, boende och handel bygger stora delar av sitt år på några intensiva månader, och konkurrensen om synligheten är hårdast precis när det gäller. En webbplats som inte tål trafiktoppar eller inte fungerar i mobilen kostar riktiga pengar just de veckorna.\n\nVid sidan av besöksnäringen finns livsmedel, kalkindustri, gårdsföretag och en växande grupp kunskapsföretag som drivs härifrån men säljer till hela landet. För dem är avståndet till fastlandet ett icke-problem så länge det digitala fungerar.\n\nVi arbetar på distans, vilket passar Gotland väl. Skräddarsydd webbplats från 50 000 kronor, eller ett färdigt paket via Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå på Gotland - hemsida & webbutveckling i Visby",
+   "meta_description": "ADX bygger hemsidor för företag på Gotland och i Visby. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+   "children": [
+    {
+     "name": "Gotland",
+     "slug": "gotland",
+     "level": "municipality",
+     "heading": "Webbyrå i Gotland",
+     "intro": "Ön, kommunen och Visby. Vi bygger webbplatser för företag på hela Gotland.",
+     "body": "Gotlands kommun omfattar hela ön, med Visby som huvudort och världsarv. Marknaden är överblickbar men extremt säsongsbetonad: invånarantalet mångdubblas under sommaren.\n\nFör besöksnäringen avgörs året av några månader, och konkurrensen om synlighet är hårdast precis då. En sajt som inte tål trafiktoppar eller inte fungerar i mobilen kostar bokningar direkt.\n\nVid sidan av turismen finns livsmedel, gårdsföretag, kalkindustri och en växande grupp kunskapsföretag som drivs härifrån men säljer till fastlandet. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå på Gotland - hemsida & webbutveckling i Visby",
+     "meta_description": "ADX bygger hemsidor för företag på Gotland och i Visby. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Gävleborgs län",
+   "slug": "gavleborgs-lan",
+   "level": "region",
+   "heading": "Webbyrå i Gävleborgs län",
+   "intro": "Skogsindustri, hamn och Norrlands port. Vi bygger webbplatser för företag i Gävle, Sandviken, Hudiksvall och hela länet.",
+   "body": "Gävleborg ligger där Norrland börjar, och länet har byggts av skogen och av det som kunde fraktas ut genom Gävle hamn. Massa, papper, stål och verkstad är fortfarande basen, med Sandvikens materialteknik som ett av landets mer kända industriarv.\n\nGävle har vuxit till en logistikstad och en högskoleort, och har med sina dryga tio mil till Stockholm blivit ett realistiskt alternativ för företag som vill ha lägre kostnader utan att tappa kontakten med huvudstadsregionen.\n\nNorrut, i Hälsingland, är bilden en annan. Hudiksvall har en fiberoptisk industri med internationell räckvidd, medan Söderhamn, Bollnäs och Ljusdal har mindre orter där enskilda företag betyder mycket för hela bygden.\n\nVi arbetar på distans med hela länet. Skräddarsydd webbplats från 50 000 kronor och några veckor till några månader. För enklare behov finns Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Gävleborgs län - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Gävleborg - Gävle, Sandviken, Hudiksvall och Bollnäs. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Gävle",
+     "slug": "gavle",
+     "level": "municipality",
+     "heading": "Webbyrå i Gävle",
+     "intro": "Norrlands port, med hamn, logistik och högskola. Vi bygger webbplatser för företag i Gävle.",
+     "body": "Gävle ligger där Norrland börjar och har byggts av hamnen och av skogen bakom den. I dag är staden ett logistiknav med en av Sveriges större containerhamnar och stora lageretableringar.\n\nHögskolan och en betydande offentlig sektor ger staden en tjänstesida, och avståndet till Stockholm är kort nog att många företag ser huvudstadsregionen som sin marknad.\n\nFöretagen här är ofta större än ortens storlek antyder, och deras webbplatser behöver hålla för granskning av nationella kunder. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Gävle - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Gävle. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Hallands län",
+   "slug": "hallands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Hallands län",
+   "intro": "Kustremsan mellan Göteborg och Malmö, med hög tillväxt och stark besöksnäring. Vi bygger webbplatser för företag i hela Halland.",
+   "body": "Halland är smalt och långt, klämt mellan havet och skogen, och har under lång tid haft en av landets starkaste befolkningstillväxter. Läget mellan Göteborg och Malmö ger länet tillgång till två storstadsmarknader utan att självt vara en storstad.\n\nKungsbacka i norr fungerar i praktiken som en del av Göteborgsregionen, med en stor andel pendlare och ett näringsliv av tjänsteföretag och handel. Halmstad i söder är länets största stad med högskola, industri och en betydande besöksnäring.\n\nJust besöksnäringen är hallandsk specialitet: kusten, golfbanorna och sommarorterna drar folk från hela Norden. För de företagen är webbplatsen bokningsdisken, och en långsam eller otydlig sajt syns direkt i beläggningen.\n\nVi arbetar på distans med hela länet, från Kungsbacka till Laholm. Skräddarsydd webbplats från 50 000 kronor, eller ett färdigt paket via Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Halland - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Halland - Halmstad, Varberg, Kungsbacka och Falkenberg. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Falkenberg",
+     "slug": "falkenberg",
+     "level": "municipality",
+     "heading": "Webbyrå i Falkenberg",
+     "intro": "Ätran, laxfiske och halländsk livsmedelsproduktion. Vi bygger webbplatser för företag i Falkenberg.",
+     "body": "Falkenberg ligger vid Ätrans mynning och är känt för sitt laxfiske och sina stränder. Kommunen har en stark livsmedelssektor med både produktion och förädling, samt en betydande besöksnäring.\n\nJordbruket i inlandet är intensivt och ger underlag för maskinhandel, entreprenad och service.\n\nSommarsäsongen längs kusten är kort och intensiv, vilket ställer krav på bokningsflöden som fungerar. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Falkenberg - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Falkenberg. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Halmstad",
+     "slug": "halmstad",
+     "level": "municipality",
+     "heading": "Webbyrå i Halmstad",
+     "intro": "Hallands största stad, med högskola, industri och sommargäster. Vi bygger webbplatser för företag i Halmstad.",
+     "body": "Halmstad förenar tre saker: en gammal industristad, en högskola och en av Sveriges mest besökta sommarkuster. Tylösand är ett nationellt begrepp, och besöksnäringen präglar stora delar av det lokala näringslivet.\n\nIndustrin finns kvar, med tillverkning och underleverantörer, men tjänstesektorn har vuxit och staden har blivit ett regionalt centrum för hela södra Halland.\n\nFör besöksnäringen avgörs året av hur väl bokningsflödet fungerar under några månader. För industrin handlar det i stället om trovärdighet gentemot företagskunder. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Halmstad - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Halmstad. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Kungsbacka",
+     "slug": "kungsbacka",
+     "level": "municipality",
+     "heading": "Webbyrå i Kungsbacka",
+     "intro": "Göteborgs södra grannkommun, med hög köpkraft och stark tillväxt. Vi bygger webbplatser för företag i Kungsbacka.",
+     "body": "Kungsbacka fungerar i praktiken som en del av Göteborgsregionen. Kommunen har vuxit snabbt, har en av landets högre medelinkomster och en befolkning som till stor del pendlar norrut.\n\nNäringslivet är därför starkt inriktat på tjänster och hantverk som betjänar en välbeställd villabefolkning: bygg, trädgård, vård, mäkleri och personliga tjänster.\n\nKonkurrensen sker på lokala sökningar, och det avgörande är att synas när någon i kommunen letar. En snabb och tydlig sajt vinner över en påkostad som laddar långsamt. Atlas Holly från 495 kronor i månaden, eller skräddarsytt från 50 000 kronor.",
+     "meta_title": "Webbyrå i Kungsbacka - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Kungsbacka. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Varberg",
+     "slug": "varberg",
+     "level": "municipality",
+     "heading": "Webbyrå i Varberg",
+     "intro": "Kurort, hamn och surfstad vid Kattegatt. Vi bygger webbplatser för företag i Varberg.",
+     "body": "Varberg har en ovanlig kombination: gammal kurortstradition, en aktiv hamn och ett rykte som Sveriges surfstad. Staden växer och bygger just nu om sin centrala del kring den nya järnvägstunneln.\n\nBesöksnäringen är stark och sträcker sig över större delen av året tack vare bad, spa och evenemang. Runt den finns restauranger, boende och handel som konkurrerar om samma gäster.\n\nKommunen har också jordbruk, livsmedel och tillverkning i omlandet. Vi arbetar på distans. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Varberg - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Varberg. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Jämtlands län",
+   "slug": "jamtlands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Jämtlands län",
+   "intro": "Fjäll, turism och Sveriges glesaste marknad. Vi bygger webbplatser för företag i Östersund, Åre och hela Jämtland.",
+   "body": "Jämtland är till ytan ett av Sveriges största län och till befolkning ett av de minsta. Den ekvationen formar allt: kunderna finns sällan i närheten, och nästan varje företag som vill växa måste kunna nå någon som bor någon annanstans.\n\nBesöksnäringen är länets tyngsta bransch. Åre är ett internationellt varumärke och drar gäster från hela Europa, och runt fjällen finns hundratals mindre företag inom boende, aktiviteter och mat som lever på samma flöde. För dem är bokning på webben inte en funktion bland andra, utan hela intäktsmodellen.\n\nÖstersund fungerar som länets huvudort med universitetsfilial, försvarsverksamhet och en växande sektor av kunskapsföretag. Staden har dessutom en tydlig profil kring vintersport och friluftsliv som färgar näringslivet.\n\nVi arbetar på distans, och för Jämtland är det snarast en fördel. Skräddarsydd webbplats från 50 000 kronor, eller ett färdigt paket via Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Jämtland - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Jämtlands län - Östersund, Åre, Krokom och Strömsund. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Östersund",
+     "slug": "ostersund",
+     "level": "municipality",
+     "heading": "Webbyrå i Östersund",
+     "intro": "Jämtlands huvudort vid Storsjön, med vintersport och universitet. Vi bygger webbplatser för företag i Östersund.",
+     "body": "Östersund är Jämtlands enda stad och regioncentrum för ett län större än många europeiska länder. Staden ligger vid Storsjön med fjällen inom räckhåll, och har en tydlig profil kring vintersport och friluftsliv.\n\nNäringslivet består av handel, offentlig sektor, försvarsverksamhet och ett växande antal kunskapsföretag. Många drivs härifrån men säljer till hela landet, vilket gör den digitala närvaron avgörande.\n\nBesöksnäringen är betydande och kopplad till både fjällen och evenemang i staden. Vi arbetar på distans, vilket passar Jämtlands geografi. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Östersund - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Östersund. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Jönköpings län",
+   "slug": "jonkopings-lan",
+   "level": "region",
+   "heading": "Webbyrå i Jönköpings län",
+   "intro": "Gnosjöandan, logistik och ett av landets mest företagstäta län. Vi bygger webbplatser för företag i hela Jönköpings län.",
+   "body": "Få län har så många företag per invånare som Jönköpings län. Gnosjöregionen är fortfarande ett begrepp: små och medelstora tillverkande företag, ofta familjeägda i andra eller tredje generationen, med en teknisk skicklighet som sällan syns utåt.\n\nDet är just det som är utmaningen digitalt. Många av de här bolagen har världsledande kompetens inom en smal nisch och en webbplats som inte alls berättar det. En bättre sajt handlar sällan om mer text, utan om att göra tydligt vad företaget faktiskt kan och vem det är till för.\n\nJönköping är dessutom ett logistiknav. Läget vid Vättern mitt emellan Sveriges tre storstäder har gjort staden till en av landets viktigaste noder för lager och distribution, och runt det har det vuxit fram en handelshögskola och en tjänstesektor.\n\nVi arbetar på distans med hela länet, från Värnamo och Gislaved till Nässjö och Vetlanda. Skräddarsytt från 50 000 kronor, eller ett paket via Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Jönköpings län - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Jönköpings län - Jönköping, Värnamo, Gislaved och Nässjö. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Jönköping",
+     "slug": "jonkoping",
+     "level": "municipality",
+     "heading": "Webbyrå i Jönköping",
+     "intro": "Logistiknav vid Vättern, med handelshögskola och företagstät region. Vi bygger webbplatser för företag i Jönköping.",
+     "body": "Jönköping ligger vid Vätterns södra ände, mitt emellan Stockholm, Göteborg och Malmö. Det läget har gjort staden till ett av landets viktigaste logistiknav, och runt lagren har det vuxit fram en tjänstesektor och en handelshögskola.\n\nRegionen är dessutom en av Sveriges mest företagstäta. Många av bolagen är små, tillverkande och familjeägda, med en teknisk skicklighet som ofta är osynlig utåt. Den vanligaste bristen i deras webbplatser är inte design utan att de inte berättar vad företaget faktiskt kan.\n\nVi arbetar på distans med Jönköping och omgivande kommuner. En skräddarsydd webbplats byggs för er situation från 50 000 kronor. För den som vill ha något enkelt och snabbt finns Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Jönköping - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Jönköping. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Kalmar län",
+   "slug": "kalmar-lan",
+   "level": "region",
+   "heading": "Webbyrå i Kalmar län",
+   "intro": "Kust, besöksnäring och tillverkning längs hela Smålandskusten. Vi bygger webbplatser för företag i hela Kalmar län.",
+   "body": "Kalmar län är långsträckt: nästan fyrtio mil från Västervik i norr till Torsås i söder, med Öland som en egen värld tvärs över bron. Det ger ett näringsliv som skiljer sig påtagligt mellan länets delar.\n\nBesöksnäringen är säsongsbetonad och stark, särskilt på Öland och längs kusten. För de företagen avgörs ofta hela året av hur väl de syns under några månaders bokningsfönster, och då är webbplatsen och bokningsflödet inte en detalj utan själva affären.\n\nSamtidigt finns en solid industri: fordonskomponenter, trä, livsmedel och energi, med Oskarshamn och Västervik som tunga orter. De företagen säljer sällan via sin webbplats men bedöms ofta utifrån den, av kunder, leverantörer och inte minst av personal de vill rekrytera.\n\nVi arbetar på distans med hela länet. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly-paket från 495 kronor i månaden när det viktigaste är att komma igång.",
+   "meta_title": "Webbyrå i Kalmar län - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Kalmar län - Kalmar, Västervik, Oskarshamn och Öland. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Kalmar",
+     "slug": "kalmar",
+     "level": "municipality",
+     "heading": "Webbyrå i Kalmar",
+     "intro": "Slottsstad vid Ölandsbron, med universitet och besöksnäring. Vi bygger webbplatser för företag i Kalmar.",
+     "body": "Kalmar är residensstad och den naturliga porten till Öland. Slottet, den gamla stadskärnan och läget vid sundet gör staden till ett besöksmål i sig, samtidigt som den fungerar som regioncentrum.\n\nUniversitetet har gett staden en yngre befolkning och en tjänstesektor, och näringslivet omfattar även livsmedel, förnybar energi och tillverkning.\n\nUnder sommarhalvåret passerar en stor del av Ölandstrafiken staden, vilket gör besöksnäringen säsongsberoende på samma sätt som på ön. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Kalmar - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Kalmar. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Kronobergs län",
+   "slug": "kronobergs-lan",
+   "level": "region",
+   "heading": "Webbyrå i Kronobergs län",
+   "intro": "Skog, glas och möbler - och Växjö som växande universitetsstad. Vi bygger webbplatser för företag i hela Kronobergs län.",
+   "body": "Kronoberg är skogslänet där råvaran fortfarande syns i näringslivet. Trä, möbler och byggkomponenter är basen, och Älmhult är utgångspunkten för ett av världens mest kända varumärken inom heminredning.\n\nVäxjö har på några decennier gått från residensstad till universitetsstad med en tjänstesektor och en profil kring hållbarhet och energi. Det har dragit till sig andra typer av företag än de traditionella, och länet har därmed ett bredare näringsliv än ryktet gör gällande.\n\nGlasriket i öster lever på besöksnäring och hantverk, med en marknad som är internationell men småskalig. För ett företag där är webbplatsen ofta avgörande - besökaren bestämmer sig hemma vid köksbordet, långt innan resan börjar.\n\nVi arbetar på distans med hela länet. En skräddarsydd webbplats börjar på 50 000 kronor och tar några veckor till några månader. Ska det gå snabbt och kosta lite finns Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Kronobergs län - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Kronobergs län - Växjö, Älmhult, Ljungby och Alvesta. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Växjö",
+     "slug": "vaxjo",
+     "level": "municipality",
+     "heading": "Webbyrå i Växjö",
+     "intro": "Universitetsstad med hållbarhetsprofil mitt i Småland. Vi bygger webbplatser för företag i Växjö.",
+     "body": "Växjö har gått från residensstad till universitetsstad och profilerat sig hårt kring hållbarhet, trähusbyggande och förnybar energi. Det har dragit till sig andra företag än de traditionellt småländska.\n\nNäringslivet kombinerar trä, möbler och tillverkning med en växande tjänstesektor och en del teknikbolag. Staden fungerar som regioncentrum för hela Kronoberg.\n\nFör företag som bygger sitt varumärke på hållbarhet är webbplatsen ofta bäraren av hela argumentet, och där räcker det inte med påståenden utan det ska gå att visa. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Växjö - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Växjö. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Norrbottens län",
+   "slug": "norrbottens-lan",
+   "level": "region",
+   "heading": "Webbyrå i Norrbottens län",
+   "intro": "Malm, vattenkraft och tung grön industri. Vi bygger webbplatser för företag i Luleå, Piteå, Kiruna och hela Norrbotten.",
+   "body": "Norrbotten är en fjärdedel av Sveriges yta och en fyrtiondel av befolkningen. Länet har alltid levt av naturresurser: malmen i Kiruna och Malmberget, vattenkraften i älvarna, skogen i inlandet. Det har byggt en industri i en storleksordning som märks i hela landets ekonomi.\n\nNu pågår en omställning där samma tillgångar, fossilfri el i synnerhet, drar till sig investeringar i stål, batterier och datacenter. Det har gjort Norrbotten till en region där kompetensbrist snarare än efterfrågan är den begränsande faktorn, och där rekrytering blivit företagens svåraste uppgift.\n\nDet påverkar vad en webbplats ska göra. För många norrbottniska företag är den viktigaste besökaren inte en kund utan en möjlig medarbetare som bor någon annanstans och behöver övertygas om både jobbet och platsen.\n\nVi arbetar på distans med hela länet. Skräddarsydd webbplats från 50 000 kronor, eller ett Atlas Holly-paket från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Norrbotten - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Norrbottens län - Luleå, Piteå, Kiruna och Boden. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Luleå",
+     "slug": "lulea",
+     "level": "municipality",
+     "heading": "Webbyrå i Luleå",
+     "intro": "Stål, teknik och datacenter vid Bottenviken. Vi bygger webbplatser för företag i Luleå.",
+     "body": "Luleå är Norrbottens största stad och centrum för den omställning som pågår i norra Sverige. Stålindustrin, tekniska universitetet och den billiga fossilfria elen har tillsammans gjort staden till en plats där stora industriinvesteringar hamnar.\n\nDet har också gett en datacenter- och teknikbransch som utnyttjar samma förutsättningar: kall luft och ren el. Runt universitetet finns forskningsnära bolag inom bland annat AI och materialteknik.\n\nDen största utmaningen för många företag här är rekrytering. Webbplatsen måste därför tala lika mycket till möjliga medarbetare som till kunder. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Luleå - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Luleå. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Piteå",
+     "slug": "pitea",
+     "level": "municipality",
+     "heading": "Webbyrå i Piteå",
+     "intro": "Norrbottens sommarstad, med skogsindustri och musikutbildning. Vi bygger webbplatser för företag i Piteå.",
+     "body": "Piteå kallas Norrbottens sommarstad tack vare Pite Havsbad och en kust som drar besökare från hela norra Sverige och Finland.\n\nNäringslivet vilar på skogsindustrin, med massa och papper som tunga inslag, samt energi och tillverkning. Staden har också en musikhögskola som gett orten en kulturell profil.\n\nKombinationen av industri och besöksnäring gör att företagens webbehov skiljer sig kraftigt åt. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Piteå - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Piteå. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Skåne län",
+   "slug": "skane-lan",
+   "level": "region",
+   "heading": "Webbyrå i Skåne län",
+   "intro": "Sveriges tredje storstadsregion, med 33 kommuner och en marknad som sträcker sig över Öresund. Vi bygger webbplatser i hela Skåne.",
+   "body": "Skåne är landets mest kommuntäta län och den enda region där en annan huvudstad ligger närmare än den egna. Köpenhamn är en halvtimme bort, och för många skånska företag är den närheten en självklar del av marknaden.\n\nMalmö och Lund utgör ett par som liknar Linköping och Norrköping men i större skala: Lund med universitetet, forskningsanläggningarna och life science, Malmö med handel, tjänster och en ung befolkning. Runt dem ligger Helsingborg med sin hamn och sin handel, och en rad medelstora städer med egen tyngd.\n\nUtanför städerna är Skåne Sveriges skafferi. Livsmedelsproduktion, förädling och jordbruksteknik är stora näringar där webbplatsen ofta ska tala till både yrkesköpare och konsumenter, vilket sällan är samma sak.\n\nVi arbetar på distans med hela Skåne. Skräddarsydda projekt från 50 000 kronor och några veckor till några månader i tid. För enklare behov finns Atlas Holly-paketen från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Skåne - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Skåne - Malmö, Lund, Helsingborg och Kristianstad. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Helsingborg",
+     "slug": "helsingborg",
+     "level": "municipality",
+     "heading": "Webbyrå i Helsingborg",
+     "intro": "Hamnstad mot Danmark, med handel och logistik. Vi bygger webbplatser för företag i Helsingborg.",
+     "body": "Helsingborg ligger på Sveriges smalaste punkt mot kontinenten, med Helsingör synligt tvärs över sundet. Färjetrafiken och hamnen har gjort staden till en handels- och logistikort, och flera av landets stora detaljhandelsföretag har sina huvudkontor eller centrallager här.\n\nHandelsprofilen ger en webbmarknad där e-handel och varumärke väger tungt. Konkurrensen om kunder sker inte bara lokalt utan mot rikstäckande aktörer, vilket ställer krav på både prestanda och tydlighet.\n\nSamtidigt är Helsingborg en stad med mycket småföretag inom tjänster, bygg och restaurang som konkurrerar om lokala sökningar. För dem räcker ofta en enkel men välbyggd sajt, och där är Atlas Holly från 495 kronor i månaden ett rimligt val. Ska det vara helt eget bygger vi från 50 000 kronor.",
+     "meta_title": "Webbyrå i Helsingborg - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Helsingborg. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Hässleholm",
+     "slug": "hassleholm",
+     "level": "municipality",
+     "heading": "Webbyrå i Hässleholm",
+     "intro": "Järnvägsknut i norra Skåne. Vi bygger webbplatser för företag i Hässleholm.",
+     "body": "Hässleholm är en stad som järnvägen byggde. Knutpunkten mellan södra stambanan och tvärbanorna gjorde en by till en stad på några decennier, och läget är fortfarande kommunens största tillgång.\n\nNäringslivet omfattar logistik, tillverkning, livsmedel och en betydande offentlig sektor. Kommunen är stor till ytan med flera mindre orter utanför centralorten.\n\nSkogen och naturen i Göingebygden ger dessutom en växande besöksnäring. Vi arbetar på distans med hela norra Skåne. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Hässleholm - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Hässleholm. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Kristianstad",
+     "slug": "kristianstad",
+     "level": "municipality",
+     "heading": "Webbyrå i Kristianstad",
+     "intro": "Nordöstra Skånes centrum, med livsmedel och jordbruk. Vi bygger webbplatser för företag i Kristianstad.",
+     "body": "Kristianstad är nordöstra Skånes huvudort och ligger mitt i ett av Sveriges bördigaste jordbruksområden. Livsmedelsproduktion och förädling är den tydligaste näringen, med flera stora anläggningar i kommunen.\n\nRunt jordbruket finns maskinhandel, entreprenad och tjänster, och staden har en högskola samt en offentlig sektor av regional betydelse.\n\nLivsmedelsföretag behöver ofta tala till två helt olika publiker på samma webbplats: yrkesköpare med krav på specifikationer och konsumenter som vill veta var maten kommer ifrån. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Kristianstad - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Kristianstad. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Landskrona",
+     "slug": "landskrona",
+     "level": "municipality",
+     "heading": "Webbyrå i Landskrona",
+     "intro": "Hamnstad vid Öresund, med Ven utanför. Vi bygger webbplatser för företag i Landskrona.",
+     "body": "Landskrona ligger mitt emellan Malmö och Helsingborg med Öresund framför sig och ön Ven strax utanför. Staden har en industriell historia och har arbetat länge med att bredda sitt näringsliv.\n\nHamnen och läget vid E6 ger logistik och tillverkning, medan Ven och kusten ger en besöksnäring med tydlig säsong.\n\nMånga företag här riktar sig mot hela Öresundsregionen snarare än mot den egna staden. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Landskrona - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Landskrona. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Lund",
+     "slug": "lund",
+     "level": "municipality",
+     "heading": "Webbyrå i Lund",
+     "intro": "Forskning, life science och stora anläggningar. Vi bygger webbplatser för företag i Lund.",
+     "body": "Lund är en av Nordens tyngsta forskningsmiljöer. Universitetet är en av Europas äldsta, och de senaste årens satsningar på stora forskningsanläggningar har dragit till sig internationell uppmärksamhet och företag som vill ligga nära.\n\nNäringslivet präglas av det. Life science, materialteknik, mjukvara och avancerad ingenjörskonst dominerar, ofta i bolag som är små men har världen som marknad. Deras webbplatser måste fungera på engelska, tåla granskning av fackfolk och samtidigt vara begripliga för en investerare eller journalist.\n\nStaden har också en tydlig studentekonomi och en gammal stadskärna med handel och restauranger som lever på helt andra villkor. Vi arbetar på distans med Lund. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly-paket från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Lund - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Lund. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Malmö",
+     "slug": "malmo",
+     "level": "municipality",
+     "heading": "Webbyrå i Malmö",
+     "intro": "Ung, internationell och med Köpenhamn en halvtimme bort. Vi bygger webbplatser för företag i Malmö.",
+     "body": "Malmö har genomgått en av Sveriges tydligaste stadsomvandlingar. Där varvet låg finns i dag Västra Hamnen, och staden har gått från industristad till en tjänste- och handelsstad med en av landets yngsta befolkningar.\n\nNärheten till Köpenhamn gör marknaden större än kommungränsen antyder. Många malmöföretag har kunder på båda sidor sundet, och det påverkar allt från språkval till hur man tänker kring betalningar och leveranser på en webbplats.\n\nStaden har också en stark entreprenörskultur med många små bolag inom mat, design, e-handel och tjänster. För dem är kostnaden ofta avgörande. Vill ni ha något helt eget bygger vi det från 50 000 kronor, men är budgeten mindre är Atlas Holly ärligare: en färdig hemsida på fem minuter från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Malmö - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Malmö. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": [
+      {
+       "name": "Hyllie",
+       "slug": "hyllie",
+       "level": "district",
+       "heading": "Webbyrå i Hyllie",
+       "intro": "Malmös nya stadsdel vid Öresundsbron. Vi bygger webbplatser för företag i Hyllie.",
+       "body": "Hyllie har vuxit fram kring stationen där tågen mot Köpenhamn stannar, och är Malmös tydligaste satsning på en helt ny stadsdel med arena, köpcentrum och kontor.\n\nLäget gör området attraktivt för företag som arbetar mot både Sverige och Danmark, och som vill ha gångavstånd till en station med direkttåg till Kastrup.\n\nHandel och evenemang präglar området, med en publik som kommer från hela Öresundsregionen. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå i Hyllie - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Hyllie i Malmö. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Limhamn",
+       "slug": "limhamn",
+       "level": "district",
+       "heading": "Webbyrå i Limhamn",
+       "intro": "Gammal kalkbrytarort som blivit Malmös villaidyll. Vi bygger webbplatser för företag i Limhamn.",
+       "body": "Limhamn var en egen köping innan Malmö växte ihop med den, och har behållit en tydlig egen identitet med hamnen, kalkbrottet och en småstadskänsla.\n\nOmrådet hör till Malmös mest välbeställda och har ett näringsliv av lokal service, vård, mäkleri, restauranger och båtrelaterade verksamheter.\n\nKunderna bor här och söker med ortsnamnet. Det gör lokal sökbarhet viktigare än något annat. Atlas Holly från 495 kronor i månaden, eller skräddarsytt från 50 000 kronor.",
+       "meta_title": "Webbyrå i Limhamn - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Limhamn i Malmö. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Västra Hamnen",
+       "slug": "vastra-hamnen",
+       "level": "district",
+       "heading": "Webbyrå i Västra Hamnen",
+       "intro": "Malmös moderna vattennära stadsdel. Vi bygger webbplatser för företag i Västra Hamnen.",
+       "body": "Västra Hamnen byggdes där Kockums varv låg och är i dag Malmös mest omtalade stadsdel, med Turning Torso som landmärke och en profil kring hållbarhet och innovation.\n\nHär finns kontor, universitetsverksamhet, konsultbolag och tech-företag, samt restauranger och service som lever på både boende och besökare.\n\nMånga av bolagen är unga och internationella, med behov av webbplatser på flera språk. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå i Västra Hamnen - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Västra Hamnen i Malmö. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly."
+      }
+     ]
+    },
+    {
+     "name": "Trelleborg",
+     "slug": "trelleborg",
+     "level": "municipality",
+     "heading": "Webbyrå i Trelleborg",
+     "intro": "Sveriges sydligaste stad och en av landets största färjehamnar. Vi bygger webbplatser för företag i Trelleborg.",
+     "body": "Trelleborg är Sveriges sydligaste stad och har en av landets största hamnar mätt i godsvolym. Färjetrafiken till Tyskland och Polen gör orten till en port mot kontinenten.\n\nDet ger ett näringsliv med tung logistik, transport och spedition, plus tillverkning med lång historia i kommunen.\n\nRunt staden ligger Söderslätt, ett av landets bördigaste jordbruksområden, med livsmedelsproduktion och maskinhandel. Vi arbetar på distans. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Trelleborg - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Trelleborg. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Vellinge",
+     "slug": "vellinge",
+     "level": "municipality",
+     "heading": "Webbyrå i Vellinge",
+     "intro": "Falsterbonäset och Skånes mest välbeställda kommun. Vi bygger webbplatser för företag i Vellinge.",
+     "body": "Vellinge omfattar Falsterbonäset med Skanör, Falsterbo och Höllviken, och är Skånes mest välbeställda kommun. Läget vid havet med Malmö och Köpenhamn inom pendlingsavstånd har gjort kommunen attraktiv.\n\nNäringslivet är inriktat på tjänster, bygg, golf, restaurang och handel, med en tydlig säsongstopp när sommargästerna kommer.\n\nGolfbanorna och stränderna på näset drar besökare från hela Öresundsregionen. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Vellinge - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Vellinge, Skanör och Höllviken. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Ängelholm",
+     "slug": "angelholm",
+     "level": "municipality",
+     "heading": "Webbyrå i Ängelholm",
+     "intro": "Skånsk badort med flygplats och tillverkning. Vi bygger webbplatser för företag i Ängelholm.",
+     "body": "Ängelholm ligger vid Skälderviken i nordvästra Skåne, med långa sandstränder och en flygplats som binder ihop regionen med Stockholm.\n\nKommunen har en tillverkningssektor med bland annat fordonsteknik, samt handel och en besöksnäring som präglas av kusten och sommargästerna.\n\nNärheten till Helsingborg gör att många företag här verkar på en regional marknad. Vi arbetar på distans. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Ängelholm - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Ängelholm. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Stockholms län",
+   "slug": "stockholms-lan",
+   "level": "region",
+   "heading": "Webbyrå i Stockholms län",
+   "intro": "Sveriges tätaste marknad för digitala tjänster - och den hårdaste. Vi bygger webbplatser för företag i hela länet, från city till förorterna längs tunnelbanan.",
+   "body": "Stockholms län rymmer drygt en femtedel av Sveriges befolkning på en dryg hundradel av ytan. Det märks i konkurrensen: nästan varje bransch har flera aktörer som redan investerat i sin webbnärvaro, och en hemsida som bara finns räcker sällan för att synas.\n\nVårt kontor ligger i Stockholm, vilket betyder att vi kan ses fysiskt när ett projekt ska ritas upp eller när något behöver diskuteras runt ett bord. För kunder i resten av länet, från Norrtälje i norr till Nynäshamn i söder, fungerar arbetet lika bra på distans.\n\nLänets näringsliv är brett på ett sätt som få andra läns är: huvudkontor, tech, finans, konsultbolag, handel, besöksnäring och en stor offentlig sektor. Det påverkar hur en webbplats bör byggas. Ett konsultbolag som säljer förtroende behöver något annat än en butikskedja som säljer volym.\n\nVill ni ha något helt eget bygger vi det från grunden, från 50 000 kronor och med några veckor till några månader i projekttid beroende på omfattning. Behöver ni bara komma igång snabbt finns vår plattform Atlas Holly, där en färdig hemsida står klar på fem minuter från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Stockholms län - hemsida & webbutveckling",
+   "meta_description": "ADX är en webbyrå med kontor i Stockholm. Vi bygger skräddarsydda hemsidor från 50 000 kr och färdiga paket från 495 kr/mån för företag i hela Stockholms län.",
+   "children": [
+    {
+     "name": "Botkyrka",
+     "slug": "botkyrka",
+     "level": "municipality",
+     "heading": "Webbyrå i Botkyrka",
+     "intro": "Mångkulturell södertörnskommun med starkt småföretagande. Vi bygger webbplatser för företag i Botkyrka.",
+     "body": "Botkyrka är en av Sveriges mest internationella kommuner, där en stor del av invånarna har rötter i andra länder. Det har gett ett företagande som är brett, småskaligt och ofta byggt på nätverk som sträcker sig utanför Sverige.\n\nHandel, restaurang, transport och byggtjänster dominerar bland de mindre företagen. Många av dem har i dag ingen egen webbplats alls utan förlitar sig på sociala medier, vilket gör dem svåra att hitta för kunder som söker på Google.\n\nAtt komma igång behöver varken vara dyrt eller ta lång tid. Atlas Holly ger en fungerande hemsida på fem minuter från 495 kronor i månaden, och för den som behöver något helt eget bygger vi från 50 000 kronor.",
+     "meta_title": "Webbyrå i Botkyrka - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Botkyrka, Tumba och Alby. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Danderyd",
+     "slug": "danderyd",
+     "level": "municipality",
+     "heading": "Webbyrå i Danderyd",
+     "intro": "Sveriges mest välbeställda kommun, norr om Stockholm. Vi bygger webbplatser för företag i Danderyd.",
+     "body": "Danderyd har landets högsta medelinkomst och en befolkning med mycket hög andel företagare, chefer och specialister. Kommunen omfattar Djursholm, Stocksund, Danderyds kyrkby och Enebyberg.\n\nNäringslivet är småskaligt men köpstarkt: privat vård och tandvård, mäkleri, juridik, bygg och personliga tjänster som riktar sig till boende i närområdet.\n\nFör dem betyder intrycket allt. En sajt som ser billig ut kostar kunder i ett område där kunden förväntar sig kvalitet. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Danderyd - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Danderyd, Djursholm och Stocksund. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly.",
+     "children": [
+      {
+       "name": "Djursholm",
+       "slug": "djursholm",
+       "level": "district",
+       "heading": "Webbyrå i Djursholm",
+       "intro": "Sveriges mest välbeställda villastad. Vi bygger webbplatser för företag i Djursholm.",
+       "body": "Djursholm anlades som Sveriges första villastad och är i dag landets kanske mest exklusiva bostadsområde, med stora villor och en befolkning av företagsledare och specialister.\n\nFöretagandet här är småskaligt och personligt: privat vård, rådgivning, mäkleri, bygg och trädgård med hög kravbild. Rekommendationer betyder mycket, men den som blir rekommenderad blir googlad direkt efteråt.\n\nDå måste sajten bekräfta intrycket. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå i Djursholm - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Djursholm och Danderyd. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      }
+     ]
+    },
+    {
+     "name": "Haninge",
+     "slug": "haninge",
+     "level": "municipality",
+     "heading": "Webbyrå i Haninge",
+     "intro": "Södertörn, skärgård och en kommun i stark tillväxt. Vi bygger webbplatser för företag i Haninge.",
+     "body": "Haninge sträcker sig från tät förortsbebyggelse i Handen ut till skärgården vid Dalarö och Utö. Kommunen växer snabbt och har en av länets yngre befolkningar.\n\nNäringslivet domineras av bygg, installation, transport och lokal service, med en betydande offentlig sektor. Många företag är små och konkurrerar om kunder i den egna kommundelen, vilket gör lokal sökbarhet viktigare än rikstäckande varumärkesbyggande.\n\nI skärgårdsdelen finns besöksnäring med kort och intensiv säsong. Skräddarsydd webbplats från 50 000 kronor; för de flesta mindre företag räcker Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Haninge - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Haninge. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Huddinge",
+     "slug": "huddinge",
+     "level": "municipality",
+     "heading": "Webbyrå i Huddinge",
+     "intro": "Södra Stockholms största kommun, med sjukhus, högskola och företagsområden. Vi bygger webbplatser för företag i Huddinge.",
+     "body": "Huddinge är Stockholms läns näst folkrikaste kommun och rymmer både villaförorter, miljonprogram och stora arbetsplatsområden. Karolinska Huddinge och Flemingsberg gör kommunen till ett centrum för vård och utbildning söder om stan.\n\nNäringslivet är blandat: vård och life science kring sjukhuset, en betydande andel bygg- och installationsföretag, och lokal handel och tjänster i centrumen. Många av de mindre företagen konkurrerar om sökningar från boende i just den här delen av länet, inte om hela Stockholm.\n\nVi arbetar på distans men finns i Stockholm och kan ses vid behov. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly-paket från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Huddinge - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Huddinge. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Järfälla",
+     "slug": "jarfalla",
+     "level": "municipality",
+     "heading": "Webbyrå i Järfälla",
+     "intro": "Nordvästra Stockholm, med Barkarby som ny stadsdel. Vi bygger webbplatser för företag i Järfälla.",
+     "body": "Järfälla förändras snabbt. Barkarbystaden byggs ut i en takt som få platser i landet matchar, med tunnelbana på väg och tiotusentals nya bostäder planerade.\n\nKommunen har sedan länge ett handelsområde av regional betydelse och en näringslivsstruktur med mycket bygg, logistik och partihandel. Den pågående utbyggnaden har dessutom dragit till sig entreprenad- och installationsföretag i mängd.\n\nFör företag som växer med kommunen är webbplatsen ofta det som halkar efter. Vi bygger skräddarsytt från 50 000 kronor när det finns specifika krav, och rekommenderar Atlas Holly från 495 kronor i månaden när det viktigaste är att finnas och synas.",
+     "meta_title": "Webbyrå i Järfälla - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Järfälla och Barkarby. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Lidingö",
+     "slug": "lidingo",
+     "level": "municipality",
+     "heading": "Webbyrå i Lidingö",
+     "intro": "Ö i Stockholms inlopp, med hög köpkraft och stark lokal marknad. Vi bygger webbplatser för företag på Lidingö.",
+     "body": "Lidingö är en av landets mest välbeställda kommuner, en ö strax utanför Stockholms innerstad med villabebyggelse och en tydlig egen identitet.\n\nNäringslivet är övervägande lokalt och tjänsteinriktat: privat vård och tandvård, mäkleri, bygg, trädgård, skönhet och personliga tjänster. Kunderna bor på ön, och sökningar innehåller nästan alltid ortsnamnet.\n\nDet gör att en enkel men välgjord sajt med rätt innehåll ofta ger mer än ett stort projekt. Atlas Holly från 495 kronor i månaden, eller skräddarsytt från 50 000 kronor när verksamheten kräver det.",
+     "meta_title": "Webbyrå på Lidingö - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag på Lidingö. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Nacka",
+     "slug": "nacka",
+     "level": "municipality",
+     "heading": "Webbyrå i Nacka",
+     "intro": "Skärgårdsnära och snabbväxande, strax öster om Stockholm. Vi bygger webbplatser för företag i Nacka.",
+     "body": "Nacka har vuxit kraftigt och bygger just nu om sig kring tunnelbanans förlängning. Kommunen är en av länets mest välbeställda, med en stor andel egenföretagare och konsulter som bor här och arbetar i eller mot Stockholm.\n\nNäringslivet består till stor del av tjänsteföretag, bygg och hantverk, samt en handel som växer med befolkningen. Sicklaområdet har blivit ett av regionens större handelscentrum.\n\nSkärgården börjar här, och för företag inom båt, boende och besöksnäring är säsongen kort och webbplatsen avgörande för bokningarna. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Nacka - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Nacka. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": [
+      {
+       "name": "Saltsjöbaden",
+       "slug": "saltsjobaden",
+       "level": "district",
+       "heading": "Webbyrå i Saltsjöbaden",
+       "intro": "Kustnära villaidyll öster om Stockholm. Vi bygger webbplatser för företag i Saltsjöbaden.",
+       "body": "Saltsjöbaden byggdes som badort i slutet av 1800-talet och har behållit sin karaktär av exklusiv villastad vid vattnet, med segling och båtliv som en självklar del av livet.\n\nNäringslivet består av lokal service, vård, bygg, båtrelaterade verksamheter och konsulter som bor här och arbetar mot Stockholm.\n\nFör båt- och serviceföretagen är säsongen avgörande, och bokningarna görs på nätet i god tid. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå i Saltsjöbaden - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Saltsjöbaden och Nacka. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      }
+     ]
+    },
+    {
+     "name": "Norrtälje",
+     "slug": "norrtalje",
+     "level": "municipality",
+     "heading": "Webbyrå i Norrtälje",
+     "intro": "Roslagen, skärgård och länets största kommun till ytan. Vi bygger webbplatser för företag i Norrtälje.",
+     "body": "Norrtälje är Stockholms läns största kommun till ytan och en av dess glesaste. Roslagen och skärgården ger en befolkning som mångdubblas på sommaren, och ett näringsliv som lever i takt med den svängningen.\n\nBesöksnäring, båtliv, bygg och hantverk dominerar. För boende- och aktivitetsföretag är webbplatsen bokningskanal, och en sajt som inte fungerar i mobilen tappar gäster som sitter i bilen på väg norrut.\n\nBygg- och hantverksföretagen har motsatt problem: de har fullt upp och syns dåligt digitalt trots att kunderna söker just där. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Norrtälje - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Norrtälje och Roslagen. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Sigtuna",
+     "slug": "sigtuna",
+     "level": "municipality",
+     "heading": "Webbyrå i Sigtuna",
+     "intro": "Arlanda, logistik och Sveriges äldsta stad. Vi bygger webbplatser för företag i Sigtuna kommun.",
+     "body": "Sigtuna kommun rymmer två helt olika världar: Sveriges äldsta stad med medeltida gatunät, och Arlanda med allt vad en storflygplats drar med sig av logistik, hotell och transportföretag.\n\nFlygplatsnäringen ger kommunen en ovanligt hög andel arbetsplatser inom transport, lager, konferens och besöksnäring. De företagen har ofta internationella kunder och behöver webbplatser på flera språk.\n\nSigtuna stad och Märsta har samtidigt ett vanligt lokalt näringsliv med handel och tjänster. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Sigtuna - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Sigtuna, Märsta och kring Arlanda. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Sollentuna",
+     "slug": "sollentuna",
+     "level": "municipality",
+     "heading": "Webbyrå i Sollentuna",
+     "intro": "Mellan Stockholm och Arlanda, med starkt lokalt näringsliv. Vi bygger webbplatser för företag i Sollentuna.",
+     "body": "Sollentuna ligger längs pendeltågsstråket norrut och har en befolkning med hög utbildningsnivå och köpkraft. Kommunen har ett stort handelsområde och ett näringsliv som domineras av tjänste- och kunskapsföretag.\n\nMånga företag här är små konsultbolag som drivs av en eller ett par personer med kunder i hela regionen. Deras webbplats fungerar som visitkort och trovärdighetsbevis snarare än som säljkanal.\n\nVi bygger skräddarsydda webbplatser från 50 000 kronor, men för just den typen av verksamhet är Atlas Holly ofta klokare: en färdig sajt på fem minuter från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Sollentuna - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Sollentuna. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Solna",
+     "slug": "solna",
+     "level": "municipality",
+     "heading": "Webbyrå i Solna",
+     "intro": "Huvudkontor, arenor och life science tätt inpå Stockholm. Vi bygger webbplatser för företag i Solna.",
+     "body": "Solna har fler arbetsplatser än invånare. Kommunen är en av Sveriges mest företagstäta ytor, med huvudkontor, Karolinska universitetssjukhuset, ett stort forskningskluster och kontorsområden som Solna Business Park och Arenastaden.\n\nDet gör konkurrensen om synlighet hård och professionell. Företagen här är ofta större, har marknadsavdelningar och ställer krav på integrationer mot CRM, analys och kampanjverktyg snarare än på enkla sajter.\n\nSamtidigt finns lokala tjänsteföretag som betjänar de tusentals som arbetar i kommunen. Vi bygger skräddarsydda webbplatser från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden för mindre verksamheter.",
+     "meta_title": "Webbyrå i Solna - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Solna. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Stockholm",
+     "slug": "stockholm",
+     "level": "municipality",
+     "heading": "Webbyrå i Stockholm",
+     "intro": "Vår hemmaplan. Kontoret ligger här, och det är här vi träffar kunder när ett projekt ska ritas upp runt ett bord.",
+     "body": "Stockholm är Sveriges tätaste marknad och den mest konkurrensutsatta. I nästan varje bransch finns det redan någon som lagt pengar på sin webbnärvaro, och det höjer ribban för vad en hemsida behöver vara. Att bara finnas räcker inte; sidan måste ge besökaren en anledning att välja er.\n\nVi har kontor i Stockholm, vilket betyder att vi kan ses fysiskt. För större projekt är det ofta värt mycket att sitta i samma rum när strukturen ska bestämmas, även om själva arbetet sedan sker digitalt.\n\nStadens näringsliv spänner från huvudkontor och finans till hantverkare och restauranger, och det finns ingen webbplats som passar alla. En skräddarsydd sajt från 50 000 kronor byggs för just er situation. Behöver ni bara komma igång snabbt och billigt är Atlas Holly ett bättre val: färdig hemsida på fem minuter från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Stockholm - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX är en webbyrå med kontor i Stockholm. Skräddarsydda hemsidor från 50 000 kr eller färdiga paket från 495 kr/mån. Vi bygger, driftar och förvaltar.",
+     "children": [
+      {
+       "name": "Bromma",
+       "slug": "bromma",
+       "level": "district",
+       "heading": "Webbyrå i Bromma",
+       "intro": "Villastaden i västerort, med flygplats och lokalt företagande. Vi bygger webbplatser för företag i Bromma.",
+       "body": "Bromma är Stockholms största stadsdelsområde till ytan och präglas av villabebyggelse, med Alvik, Abrahamsberg, Bromma Kyrka och Riksby bland delområdena.\n\nNäringslivet är i hög grad lokalt: bygg, hantverk, trädgård, vård och service som betjänar en välbeställd villabefolkning, plus verksamhet kopplad till Bromma flygplats.\n\nFör hantverkare och lokala tjänsteföretag avgörs jobben av vem som syns först på en sökning med ortsnamnet i. Atlas Holly från 495 kronor i månaden, eller skräddarsytt från 50 000 kronor.",
+       "meta_title": "Webbyrå i Bromma - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Bromma i Stockholm. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Hammarby Sjöstad",
+       "slug": "hammarby-sjostad",
+       "level": "district",
+       "heading": "Webbyrå i Hammarby Sjöstad",
+       "intro": "Modern stadsdel vid vattnet, med unga företag. Vi bygger webbplatser för företag i Hammarby Sjöstad.",
+       "body": "Hammarby Sjöstad byggdes från grunden kring millennieskiftet med hållbarhet som bärande idé, och har blivit en av Stockholms mest omtalade stadsdelar.\n\nNäringslivet är ungt: mindre konsultbolag, tech, hälsa och träning, restauranger och service som betjänar en befolkning med hög andel barnfamiljer och yrkesverksamma.\n\nMånga av företagen är nystartade och behöver komma igång utan stora investeringar. Atlas Holly ger en färdig hemsida på fem minuter från 495 kronor i månaden; växer behoven bygger vi skräddarsytt från 50 000 kronor.",
+       "meta_title": "Webbyrå i Hammarby Sjöstad - hemsida & webbutveckling",
+       "meta_description": "ADX bygger hemsidor för företag i Hammarby Sjöstad i Stockholm. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Kista",
+       "slug": "kista",
+       "level": "district",
+       "heading": "Webbyrå i Kista",
+       "intro": "Sveriges tydligaste teknikkluster. Vi bygger webbplatser för företag i Kista.",
+       "body": "Kista är Sveriges mest koncentrerade IT- och telekomområde, med tiotusentals arbetsplatser inom teknik samlade på en liten yta.\n\nFöretagen här är ofta tekniskt kunniga och har höga krav på det de köper. En webbplats ska prestera mätbart, fungera med deras befintliga system och tåla granskning av personer som själva bygger programvara.\n\nSamtidigt finns lokal handel och service kring Kista Galleria. Vi bygger skräddarsydda webbplatser och integrationer från 50 000 kronor, och erbjuder Atlas Holly från 495 kronor i månaden för mindre verksamheter.",
+       "meta_title": "Webbyrå i Kista - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor och integrationer för företag i Kista. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Kungsholmen",
+       "slug": "kungsholmen",
+       "level": "district",
+       "heading": "Webbyrå i Kungsholmen",
+       "intro": "Innerstadsö med kontor, vård och lokal handel. Vi bygger webbplatser för företag på Kungsholmen.",
+       "body": "Kungsholmen kombinerar bostadskvarter med en stor koncentration av kontor, myndigheter och vårdverksamhet. Stadshuset ligger här, liksom ett av landets största sjukhus.\n\nNäringslivet är därför tudelat: större organisationer å ena sidan, små lokala verksamheter som betjänar boende och kontorsfolk å den andra.\n\nFör de mindre är det lokala sökningar som avgör. En snabb och tydlig sajt gör mer nytta än en påkostad. Atlas Holly från 495 kronor i månaden, eller skräddarsytt från 50 000 kronor.",
+       "meta_title": "Webbyrå på Kungsholmen - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag på Kungsholmen i Stockholm. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Norrmalm",
+       "slug": "norrmalm",
+       "level": "district",
+       "heading": "Webbyrå i Norrmalm",
+       "intro": "Stockholms city, med kontor, handel och huvudkontor. Vi bygger webbplatser för företag på Norrmalm.",
+       "body": "Norrmalm är Stockholms affärscentrum: huvudkontor, banker, konsultbolag och en handel som drar besökare från hela regionen.\n\nFöretagen här är i genomsnitt större och har ofta egna marknadsfunktioner. Behoven handlar mer om integrationer mot CRM och analys, om prestanda och om att kunna publicera själv, än om att få en sajt på plats.\n\nVi bygger skräddarsydda webbplatser och integrationer från 50 000 kronor. För mindre verksamheter i city finns Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå på Norrmalm - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag på Norrmalm och i Stockholms city. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Södermalm",
+       "slug": "sodermalm",
+       "level": "district",
+       "heading": "Webbyrå i Södermalm",
+       "intro": "Kreativa Söder, med byråer, butiker och restauranger. Vi bygger webbplatser för företag på Södermalm.",
+       "body": "Södermalm har Stockholms tätaste koncentration av småföretag inom kreativa näringar: designbyråer, fotografer, restauranger, kaféer, butiker och konsulter.\n\nDet är en publik med god smak och hög tolerans för det egensinniga, men noll tolerans för en sajt som laddar långsamt i mobilen. Nästan all trafik hit kommer från telefoner, ofta från någon som står på gatan och letar.\n\nVi bygger skräddarsytt från 50 000 kronor när uttrycket är själva affären. För restauranger och butiker som mest behöver synas, öppettider och bokning fungerar Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå på Södermalm - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag på Södermalm i Stockholm. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Vasastan",
+       "slug": "vasastan",
+       "level": "district",
+       "heading": "Webbyrå i Vasastan",
+       "intro": "Stenstad med mottagningar, byråer och restauranger. Vi bygger webbplatser för företag i Vasastan.",
+       "body": "Vasastan är en av Stockholms mest välbevarade stenstadsdelar, med en tät blandning av bostäder, mottagningar, mindre byråer och restauranger.\n\nFöretagen här är typiskt små och specialiserade: tandläkare, psykologer, advokater, konsulter. De säljer förtroende, och webbplatsen är ofta det första intryck en möjlig klient får.\n\nDet ställer krav på tydlighet snarare än på effekter: vad ni gör, för vem, och hur man bokar. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå i Vasastan - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Vasastan i Stockholm. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Östermalm",
+       "slug": "ostermalm",
+       "level": "district",
+       "heading": "Webbyrå i Östermalm",
+       "intro": "Stockholms mest exklusiva stadsdel. Vi bygger webbplatser för företag på Östermalm.",
+       "body": "Östermalm är Stockholms dyraste adress och har ett näringsliv som speglar det: privatvård, tandvård, juridik, finans, mäkleri, gallerier och en handel i det övre prissegmentet.\n\nKunderna här förväntar sig kvalitet i varje led, och en webbplats som ser billig ut skadar mer än den hjälper. Samtidigt är många av verksamheterna små, med en eller ett par personer som har ont om tid.\n\nVi bygger skräddarsydda webbplatser från 50 000 kronor när uttrycket måste vara helt eget. För mindre mottagningar och byråer räcker ofta Atlas Holly, som ger en genomarbetad sajt på fem minuter från 495 kronor i månaden.",
+       "meta_title": "Webbyrå på Östermalm - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag på Östermalm i Stockholm. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      }
+     ]
+    },
+    {
+     "name": "Sundbyberg",
+     "slug": "sundbyberg",
+     "level": "municipality",
+     "heading": "Webbyrå i Sundbyberg",
+     "intro": "Sveriges minsta kommun till ytan och en av de tätaste. Vi bygger webbplatser för företag i Sundbyberg.",
+     "body": "Sundbyberg är landets minsta kommun till ytan och samtidigt en av de mest tätbefolkade. Allt ligger nära, och kommunen har blivit en av regionens mest eftertraktade adresser för både boende och kontor.\n\nNäringslivet består av kontorsföretag, konsulter och tjänsteverksamhet, med en stor koncentration kring Sundbybergs centrum och Solna-gränsen. Många är små bolag med hög kompetens och begränsad tid för marknadsföring.\n\nDet är precis den situationen Atlas Holly är byggd för: en färdig, snygg hemsida på fem minuter från 495 kronor i månaden. Behöver ni något helt eget bygger vi det från 50 000 kronor.",
+     "meta_title": "Webbyrå i Sundbyberg - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Sundbyberg. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Södertälje",
+     "slug": "sodertalje",
+     "level": "municipality",
+     "heading": "Webbyrå i Södertälje",
+     "intro": "Industristad med global räckvidd, söder om Stockholm. Vi bygger webbplatser för företag i Södertälje.",
+     "body": "Södertälje är en av Sveriges mest utpräglade industristäder, med tung fordonstillverkning och en av landets största läkemedelsanläggningar inom samma kommungränser. Få orter av den här storleken har så stor andel av sysselsättningen i internationella koncerner.\n\nRunt de stora arbetsgivarna finns hundratals underleverantörer och teknikföretag. För dem är webbplatsen en kvalificeringshandling: den ska visa att företaget klarar krav på leveranssäkerhet, certifiering och dokumentation.\n\nStaden har också ett brett småföretagande inom handel, restaurang och tjänster med en tydligt internationell prägel. Vi bygger skräddarsytt från 50 000 kronor och rekommenderar Atlas Holly från 495 kronor i månaden när behovet är enklare.",
+     "meta_title": "Webbyrå i Södertälje - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Södertälje. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Tyresö",
+     "slug": "tyreso",
+     "level": "municipality",
+     "heading": "Webbyrå i Tyresö",
+     "intro": "Natur, villor och närhet till Stockholm. Vi bygger webbplatser för företag i Tyresö.",
+     "body": "Tyresö ligger inklämt mellan Stockholm och skärgården, med Tyresta nationalpark som granne. Kommunen är starkt villapräglad och har en befolkning med god köpkraft.\n\nNäringslivet är i huvudsak lokalt: bygg, hantverk, service, vård och handel som riktar sig till kommunens egna invånare. Konkurrensen sker på lokala sökningar, och den som syns först på \"snickare Tyresö\" får jobben.\n\nDet gör lokal sökbarhet och en snabb mobilsajt viktigare än stora designprojekt. Atlas Holly från 495 kronor i månaden räcker för många; skräddarsytt bygger vi från 50 000 kronor.",
+     "meta_title": "Webbyrå i Tyresö - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Tyresö. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Täby",
+     "slug": "taby",
+     "level": "municipality",
+     "heading": "Webbyrå i Täby",
+     "intro": "Nordost, villastad och stark köpkraft. Vi bygger webbplatser för företag i Täby.",
+     "body": "Täby är en av Stockholms läns mest välbärgade kommuner, med villabebyggelse, hög andel egenföretagare och ett av landets största köpcentrum.\n\nNäringslivet är i hög grad lokalt och tjänsteinriktat: bygg, hantverk, tandvård, mäkleri, skönhet och privata vårdgivare som konkurrerar om kunder med god betalningsförmåga i närområdet. För dem avgörs mycket av hur sajten ser ut och hur snabbt den går att förstå.\n\nSkräddarsydd webbplats från 50 000 kronor när det ska vara helt eget, eller ett Atlas Holly-paket från 495 kronor i månaden när det som behövs är en professionell sajt utan projekttid.",
+     "meta_title": "Webbyrå i Täby - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Täby. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Upplands Väsby",
+     "slug": "upplands-vasby",
+     "level": "municipality",
+     "heading": "Webbyrå i Upplands Väsby",
+     "intro": "Mellan Stockholm och Arlanda, med industri och logistik. Vi bygger webbplatser för företag i Upplands Väsby.",
+     "body": "Upplands Väsby ligger strategiskt mellan Stockholm och Arlanda, vilket har gett kommunen en näringslivsprofil med tydlig tyngdpunkt i tillverkning, partihandel och logistik.\n\nMånga av företagen är underleverantörer och distributörer som säljer till andra företag. Deras webbplatser fungerar som produktkatalog och kontaktväg, och det som oftast saknas är en tydlig beskrivning av vad de faktiskt levererar och till vem.\n\nVi arbetar på distans men finns i Stockholm. Skräddarsydd webbplats från 50 000 kronor, eller ett Atlas Holly-paket från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Upplands Väsby - hemsida & webbutveckling",
+     "meta_description": "ADX bygger hemsidor för företag i Upplands Väsby. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Värmdö",
+     "slug": "varmdo",
+     "level": "municipality",
+     "heading": "Webbyrå i Värmdö",
+     "intro": "Skärgårdskommunen öster om Stockholm. Vi bygger webbplatser för företag på Värmdö.",
+     "body": "Värmdö är Stockholms skärgårdskommun framför andra, med Gustavsberg som huvudort och tusentals öar däromkring. Befolkningen mångdubblas under sommarhalvåret.\n\nDen säsongsvängningen är hela affären för många företag här: boende, båt, restaurang, bygg och hantverk får merparten av sina intäkter under några månader. Att synas när någon planerar sommaren, alltså långt innan säsongen, är därför avgörande.\n\nGustavsberg har dessutom ett arv av keramik och design som lever vidare i småföretagande. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå på Värmdö - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag på Värmdö och i Gustavsberg. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Österåker",
+     "slug": "osteraker",
+     "level": "municipality",
+     "heading": "Webbyrå i Österåker",
+     "intro": "Åkersberga, Roslagen och en av länets båttätaste kommuner. Vi bygger webbplatser för företag i Österåker.",
+     "body": "Österåker med Åkersberga som huvudort ligger i Roslagen med skärgården inpå knuten. Kommunen har vuxit stadigt och har en befolkning som i hög grad pendlar mot Stockholm.\n\nBåtlivet är en egen näring här, med varv, marinor, service och handel som lever på en säsong. Vid sidan av det finns bygg, hantverk och lokal service som betjänar en växande villabefolkning.\n\nFör de flesta av de här företagen är det viktigaste att synas när någon i närområdet söker. En snabb, tydlig sajt gör mer nytta än en avancerad. Atlas Holly från 495 kronor i månaden, eller skräddarsytt från 50 000 kronor.",
+     "meta_title": "Webbyrå i Österåker - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Österåker och Åkersberga. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Södermanlands län",
+   "slug": "sodermanlands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Södermanlands län",
+   "intro": "Industri, logistik och närhet till Stockholm. Vi bygger webbplatser för företag i Eskilstuna, Nyköping och resten av Sörmland.",
+   "body": "Södermanland ligger nära nog Stockholm för att dela dess arbetsmarknad, men har ett eget näringsliv med tydlig tyngdpunkt i tillverkning, logistik och energi. Eskilstuna och Nyköping drar det tunga lasset, med Katrineholm, Strängnäs och Trosa som egna centra.\n\nLäget är länets största tillgång. E4:an, Södra stambanan och Stockholm Skavsta gör Sörmland till en naturlig plats för lager och distribution, och det syns i vilka företag som växer här. För ett logistik- eller industriföretag är webbplatsen ofta inte en säljkanal i första hand, utan ett sätt att visa kapacitet, certifieringar och kontaktvägar.\n\nBesöksnäringen längs Sörmlandskusten och kring Mälaren fungerar tvärtom: där är webbplatsen ofta det första och enda intrycket innan någon bestämmer sig för att åka. Två helt olika uppdrag för en webbyrå, och båda finns i samma län.\n\nVi arbetar på distans med hela Sörmland. Skräddarsydd webbplats från 50 000 kronor, eller ett färdigt paket via Atlas Holly från 495 kronor i månaden när behovet är enklare.",
+   "meta_title": "Webbyrå i Södermanlands län - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Södermanlands län - Eskilstuna, Nyköping, Katrineholm och Strängnäs. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Eskilstuna",
+     "slug": "eskilstuna",
+     "level": "municipality",
+     "heading": "Webbyrå i Eskilstuna",
+     "intro": "Smedstaden vid Mälaren, med industri och logistik. Vi bygger webbplatser för företag i Eskilstuna.",
+     "body": "Eskilstuna har smide och verkstad i sitt ursprung och har under senare år blivit en logistikort med stora etableringar längs E20. Staden har också ett universitetscampus och en betydande offentlig sektor.\n\nNäringslivet är därmed tudelat: tillverkande företag med lång historia och nyare logistik- och tjänsteverksamhet. De förra behöver webbplatser som visar teknisk förmåga, de senare sådana som visar kapacitet och pålitlighet.\n\nStaden har dessutom en handel och besöksnäring som drar folk från hela Sörmland. Vi arbetar på distans. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Eskilstuna - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Eskilstuna. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Nyköping",
+     "slug": "nykoping",
+     "level": "municipality",
+     "heading": "Webbyrå i Nyköping",
+     "intro": "Residensstad vid kusten, med Skavsta som granne. Vi bygger webbplatser för företag i Nyköping.",
+     "body": "Nyköping är Södermanlands residensstad, med en välbevarad stadskärna vid ån och kusten inpå. Stockholm Skavsta flygplats ligger strax utanför och har gjort orten till en punkt på fler resenärers karta än storleken antyder.\n\nNäringslivet omfattar tillverkning, energi, handel och en besöksnäring längs Sörmlandskusten. Den kommande höghastighetsjärnvägen har dessutom satt orten i ett längre perspektiv.\n\nFör besöksnäringen är webbplatsen bokningskanal, för industrin ett referensverktyg. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Nyköping - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Nyköping. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Uppsala län",
+   "slug": "uppsala-lan",
+   "level": "region",
+   "heading": "Webbyrå i Uppsala län",
+   "intro": "Universitetsstad, life science och en snabbt växande pendlingsregion. Vi bygger webbplatser för företag i hela Uppsala län.",
+   "body": "Uppsala län präglas av två saker som sällan finns tillsammans: en av Nordens äldsta universitetsmiljöer och en av landets snabbast växande bostadsmarknader. Det ger ett näringsliv med ovanligt stor andel kunskapsföretag, forskningsnära bolag och konsulter.\n\nLife science väger tungt här. Bolag inom diagnostik, läkemedel och medicinteknik ställer särskilda krav på en webbplats: fackspråk som måste vara rätt, internationella besökare och ofta ett behov av att kunna förklara komplicerade saker enkelt utan att tumma på sakligheten.\n\nSamtidigt är länet mer än Uppsala stad. Enköping, Knivsta, Håbo och Östhammar har egna näringslivsprofiler, från tillverkning och logistik till besöksnäring längs Upplandskusten. Många företag här riktar sig lika mycket mot Stockholm som mot den egna orten.\n\nVi arbetar på distans med hela länet och tar hand om hela kedjan: webbplats, drift, domäner och e-post. Skräddarsydda projekt börjar på 50 000 kronor. Ska det gå fort finns Atlas Holly-paketen från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Uppsala län - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor och webbplatser för företag i Uppsala län. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+   "children": [
+    {
+     "name": "Enköping",
+     "slug": "enkoping",
+     "level": "municipality",
+     "heading": "Webbyrå i Enköping",
+     "intro": "Sveriges närmaste stad, mitt i Mälardalen. Vi bygger webbplatser för företag i Enköping.",
+     "body": "Enköping kallar sig Sveriges närmaste stad och menar det geografiskt: läget mitt i Mälardalen ger korta avstånd till Stockholm, Uppsala, Västerås och Örebro på en gång.\n\nDet har gjort kommunen attraktiv för logistik och för företag som vill nå hela Mälardalen från en punkt. Staden är också känd för sina parker och har en betydande garnisonsverksamhet.\n\nJordbruket i omlandet är starkt, med livsmedel och maskinhandel omkring sig. Vi arbetar på distans. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Enköping - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Enköping. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Uppsala",
+     "slug": "uppsala",
+     "level": "municipality",
+     "heading": "Webbyrå i Uppsala",
+     "intro": "Universitet, life science och sju mil till Stockholm. Vi bygger webbplatser för företag i Uppsala.",
+     "body": "Uppsala är Sveriges fjärde största stad och en av Europas äldsta universitetsstäder. Det märks i näringslivet: en stor andel av företagen här är kunskapsintensiva, ofta med rötter i forskning och med en internationell marknad från dag ett.\n\nLife science väger tyngst. Bolag inom diagnostik, läkemedel och medicinteknik behöver webbplatser som klarar att vara sakliga och begripliga samtidigt, ofta på engelska, och som håller för granskning av kunder som själva är experter.\n\nVid sidan av det finns en helt vanlig stadsekonomi med handel, bygg, restauranger och tjänsteföretag som konkurrerar lokalt. För dem handlar det om att synas på sökningar från Uppsalabor, och där är en snabb och tydlig sajt viktigare än en avancerad. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Uppsala - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Uppsala. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Värmlands län",
+   "slug": "varmlands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Värmlands län",
+   "intro": "Skog, papper och en gränsregion mot Norge. Vi bygger webbplatser för företag i Karlstad och hela Värmland.",
+   "body": "Värmland är skogslän och gränslän på samma gång. Skogsråvaran har byggt en pappers- och massaindustri som fortfarande är länets ryggrad, och norska gränsen har byggt en handel som svänger med valutakursen.\n\nKarlstad är navet: residensstad, universitetsstad och regionens handelscentrum vid Vänerns norra strand. Runt staden finns en tjänstesektor och ett växande antal företag inom miljöteknik och pappersteknologi, ofta med rötter i den gamla industrin.\n\nI norra och västra Värmland är avstånden långa och orterna små. Där betyder en fungerande webbplats mer, inte mindre: kunderna finns sällan på samma ort som företaget, och det som inte går att hitta på nätet finns i praktiken inte alls.\n\nVi arbetar på distans med hela länet, vilket passar en geografi som Värmlands. Skräddarsytt från 50 000 kronor, eller ett Atlas Holly-paket från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Värmland - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Värmland - Karlstad, Arvika, Kristinehamn och Säffle. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Karlstad",
+     "slug": "karlstad",
+     "level": "municipality",
+     "heading": "Webbyrå i Karlstad",
+     "intro": "Värmlands huvudort vid Vänern, med universitet och handel. Vi bygger webbplatser för företag i Karlstad.",
+     "body": "Karlstad är Värmlands nav: residensstad, universitetsstad och regionens handelscentrum vid Vänerns norra strand. Staden fungerar som servicecentrum för ett stort omland.\n\nNäringslivet har en tydlig koppling till skogen och pappersindustrin, men har breddats mot miljöteknik, IT och tjänster. Universitetet har bidragit med kompetens och nya bolag.\n\nHandeln drar besökare från hela regionen och även från Norge, vilket gör att många företag riktar sig mot en marknad större än staden. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Karlstad - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Karlstad. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Västerbottens län",
+   "slug": "vasterbottens-lan",
+   "level": "region",
+   "heading": "Webbyrå i Västerbottens län",
+   "intro": "Universitet, grön industri och ett län i förändring. Vi bygger webbplatser för företag i Umeå, Skellefteå och hela Västerbotten.",
+   "body": "Västerbotten har de senaste åren gått från att vara ett stabilt skogs- och universitetslän till att bli ett av Sveriges mest omtalade industriområden. Den gröna omställningen har fört med sig investeringar i en skala länet inte sett på generationer, med Skellefteå i centrum.\n\nUmeå är den andra polen: universitetsstad med ett stort sjukhus, en ung befolkning och en kulturell profil som få norrlandsstäder har. Det ger ett näringsliv med mycket kunskapsföretag, konsulter och tjänster, och en arbetsmarknad som konkurrerar om samma folk som Stockholm gör.\n\nInlandet är en annan verklighet, med Lycksele, Vilhelmina och Storuman där avstånden är stora och företagen ofta små men specialiserade. För dem är räckvidden på nätet skillnaden mellan en lokal och en nationell marknad.\n\nVi arbetar på distans med hela länet. Skräddarsydda projekt från 50 000 kronor med veckor till månader i tid, eller Atlas Holly från 495 kronor i månaden när det ska gå fort.",
+   "meta_title": "Webbyrå i Västerbotten - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Västerbottens län - Umeå, Skellefteå, Lycksele och Vilhelmina. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Skellefteå",
+     "slug": "skelleftea",
+     "level": "municipality",
+     "heading": "Webbyrå i Skellefteå",
+     "intro": "Staden mitt i den gröna industriomställningen. Vi bygger webbplatser för företag i Skellefteå.",
+     "body": "Få svenska städer har förändrats så snabbt som Skellefteå de senaste åren. Batteri- och industrisatsningarna har inneburit inflyttning, byggboom och en efterfrågan på tjänster som kommunen inte var dimensionerad för.\n\nDet har skapat möjligheter för lokala företag inom bygg, installation, bemanning, boende och service, men också en hård konkurrens om arbetskraft.\n\nFör ett företag i den situationen är webbplatsen ofta det första en inflyttad eller en ny företagskund möter. Att den är tydlig och snabb betyder mer än att den är påkostad. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Skellefteå - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Skellefteå. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Umeå",
+     "slug": "umea",
+     "level": "municipality",
+     "heading": "Webbyrå i Umeå",
+     "intro": "Norrlands största stad, med universitet och en ung befolkning. Vi bygger webbplatser för företag i Umeå.",
+     "body": "Umeå är norra Sveriges största stad och har vuxit stadigt i decennier, till stor del tack vare universitetet och universitetssjukhuset. Befolkningen är påfallande ung, och staden har en kultur- och tjänstesektor som är ovanligt stor för sin geografi.\n\nDet ger ett näringsliv med många kunskapsföretag, konsulter och startups, som konkurrerar om kompetens med Stockholm och Göteborg trots avståndet. För dem fungerar webbplatsen ofta som rekryteringsargument lika mycket som säljkanal.\n\nUmeå är också regionalt centrum för ett stort omland, vilket gör att många företag här betjänar kunder över hela Västerbotten och norrut. Vi arbetar på distans, vilket passar den geografin. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Umeå - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Umeå. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Västernorrlands län",
+   "slug": "vasternorrlands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Västernorrlands län",
+   "intro": "Skogen, älvarna och en oväntat stark tjänstesektor. Vi bygger webbplatser för företag i Sundsvall, Örnsköldsvik och hela länet.",
+   "body": "Västernorrland är skogslänet där industrin gav upphov till något annat. Sundsvall byggdes av sågverken men har sedan länge ett av Sveriges tydligaste kluster inom bank, försäkring och statlig förvaltning, med tusentals tjänstemannajobb som inte har med skog att göra.\n\nDet gör länet mer digitalt moget än många väntar sig. Här finns IT-drift, kundtjänstverksamhet och myndighetsfunktioner som ställer krav på tillgänglighet, säkerhet och prestanda i det man bygger.\n\nÖrnsköldsvik i norr har en egen profil med kemi, bioteknik och verkstad, byggd kring skogsråvaran men riktad mot nya marknader. Härnösand och Sollefteå är mindre men bär residensstadens och regionens funktioner.\n\nVi arbetar på distans med hela länet, vilket fungerar väl över de avstånd som finns här. Skräddarsytt från 50 000 kronor, eller ett Atlas Holly-paket från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Västernorrland - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Västernorrlands län - Sundsvall, Örnsköldsvik, Härnösand och Timrå. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Sundsvall",
+     "slug": "sundsvall",
+     "level": "municipality",
+     "heading": "Webbyrå i Sundsvall",
+     "intro": "Stenstaden med bank, förvaltning och skogsindustri. Vi bygger webbplatser för företag i Sundsvall.",
+     "body": "Sundsvall byggdes av sågverken och återuppbyggdes i sten efter branden 1888. I dag är staden mest känd för något annat: ett av Sveriges tydligaste kluster inom bank, försäkring och statlig förvaltning.\n\nDet ger en arbetsmarknad med tusentals tjänstemannajobb och en digital mognad som är hög för stadens storlek. Här finns IT-drift, systemförvaltning och kundtjänstverksamhet med krav på tillgänglighet och säkerhet.\n\nSkogsindustrin finns kvar i regionen och är fortfarande betydande. Vi arbetar på distans med Sundsvall. Skräddarsytt från 50 000 kronor, eller Atlas Holly-paket från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Sundsvall - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Sundsvall. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Örnsköldsvik",
+     "slug": "ornskoldsvik",
+     "level": "municipality",
+     "heading": "Webbyrå i Örnsköldsvik",
+     "intro": "Höga kusten, bioteknik och verkstad. Vi bygger webbplatser för företag i Örnsköldsvik.",
+     "body": "Örnsköldsvik ligger vid Höga kusten, ett världsarv med en av landets mest dramatiska kustlinjer. Staden har en industriell bas med kemi, bioteknik och verkstad, byggd kring skogsråvaran men riktad mot nya produkter.\n\nHär utvecklas material och kemikalier ur skogen som ersätter fossila alternativ, och det ger en forskningsnära industri som är ovanlig för en ort av den här storleken.\n\nBesöksnäringen kring Höga kusten växer och lever på en kort men intensiv säsong. Vi arbetar på distans. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Örnsköldsvik - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Örnsköldsvik. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Västmanlands län",
+   "slug": "vastmanlands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Västmanlands län",
+   "intro": "Automation, energi och tung teknik vid Mälaren. Vi bygger webbplatser för företag i Västerås och hela Västmanland.",
+   "body": "Västmanland är ett av Sveriges mest teknikintensiva län, och nästan allt går tillbaka på samma sak: elkraft och automation. Västerås har varit ett industriellt centrum i över hundra år, och den kompetensen finns kvar även när ägarna och bolagsnamnen bytts.\n\nDet ger ett näringsliv med många underleverantörer, ingenjörsföretag och industrinära konsulter. De säljer sällan något på sin webbplats, men blir granskade via den: av upphandlare, av potentiella partners och av ingenjörer som överväger att byta jobb.\n\nVid sidan av Västerås finns Sala, Köping, Arboga och Fagersta med egen tillverkning, och en landsbygd med jordbruk och besöksnäring kring Mälaren och bergslagsbygden.\n\nVi arbetar på distans med hela länet. Skräddarsydd webbplats från 50 000 kronor, eller ett färdigt paket via Atlas Holly från 495 kronor i månaden när behovet är enklare.",
+   "meta_title": "Webbyrå i Västmanland - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Västmanlands län - Västerås, Köping, Sala och Fagersta. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Västerås",
+     "slug": "vasteras",
+     "level": "municipality",
+     "heading": "Webbyrå i Västerås",
+     "intro": "Elkraft, automation och Mälarens största stad. Vi bygger webbplatser för företag i Västerås.",
+     "body": "Västerås har varit en teknikstad i över ett sekel. Elkraft och automation är stadens signum, och även när ägarförhållandena förändrats har kompetensen stannat kvar i form av ingenjörsföretag, underleverantörer och industrinära konsulter.\n\nDe företagen säljer sällan direkt via webben, men blir bedömda via den. En upphandlare som utvärderar en leverantör börjar med att läsa sajten, och en ingenjör som överväger att byta jobb gör samma sak. Webbplatsen är alltså både referens och rekryteringsyta.\n\nStaden har dessutom en betydande handel, en högskola och ett läge vid Mälaren som gett en växande besöks- och båtnäring. Vi arbetar på distans med Västerås. En skräddarsydd webbplats börjar på 50 000 kronor; för enklare behov finns Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Västerås - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Västerås. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Västra Götalands län",
+   "slug": "vastra-gotalands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Västra Götalands län",
+   "intro": "Sveriges näst största län med 49 kommuner, fordonsindustri och Nordens största hamn. Vi bygger webbplatser i hela Västra Götaland.",
+   "body": "Västra Götaland är ett län som egentligen är tre landskap: Västergötland, Bohuslän och Dalsland. Det ger en spännvidd från Göteborgs storstadsnäringsliv till bohuslänsk besöksnäring och västgötsk tillverkningsindustri.\n\nGöteborg dominerar med fordonsindustrin, hamnen och ett växande teknikkluster. Runt staden ligger kommuner som Mölndal, Partille och Härryda där stora delar av näringslivet är underleverantörer och tjänsteföretag i samma ekosystem.\n\nLängre ut ser det annorlunda ut. Borås har textilarvet och har blivit ett centrum för e-handel och logistik. Skövde, Trollhättan och Lidköping har egen industri med djupa rötter. Och längs bohuskusten lever besöksnäringen på samma korta säsong som på Öland och Gotland.\n\nVi arbetar på distans med hela länet. Skräddarsydda webbplatser från 50 000 kronor, med veckor till månader i projekttid. För den som vill ha något enkelt direkt finns Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Västra Götaland - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Västra Götaland - Göteborg, Borås, Trollhättan och Skövde. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Alingsås",
+     "slug": "alingsas",
+     "level": "municipality",
+     "heading": "Webbyrå i Alingsås",
+     "intro": "Potatis, kaféer och trästaden mellan Göteborg och Borås. Vi bygger webbplatser för företag i Alingsås.",
+     "body": "Alingsås är känd för sin trähusbebyggelse, sin kafétradition och ljusfestivalen som varje höst drar tiotusentals besökare till staden.\n\nKommunen ligger mellan Göteborg och Borås och har en arbetsmarknad som är sammanflätad med båda. Näringslivet består av tillverkning, handel och tjänster, med ett växande inslag av pendlare.\n\nBesöksnäringen är koncentrerad till evenemang och till stadskärnan. Vi arbetar på distans. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Alingsås - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Alingsås. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Borås",
+     "slug": "boras",
+     "level": "municipality",
+     "heading": "Webbyrå i Borås",
+     "intro": "Textilarv, e-handel och logistik. Vi bygger webbplatser för företag i Borås.",
+     "body": "Borås har gjort en av svensk industris mest lyckade omställningar. Textilstaden som förlorade sin tillverkning byggde i stället upp postorder och sedan e-handel, och är i dag ett av landets tyngsta centrum för distanshandel och logistik.\n\nDet ger en webbmarknad som är ovanligt mogen. Företagen här förstår konverteringsgrad, lagerintegration och fraktflöden, och kraven på en webbplats handlar mer om teknik och prestanda än om utseende.\n\nSamtidigt finns Textilhögskolan och en designsektor som ger staden en kreativ sida. Vi bygger skräddarsydda webbplatser och integrationer från 50 000 kronor, och erbjuder Atlas Holly från 495 kronor i månaden för mindre verksamheter.",
+     "meta_title": "Webbyrå i Borås - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor och e-handel för företag i Borås. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Göteborg",
+     "slug": "goteborg",
+     "level": "municipality",
+     "heading": "Webbyrå i Göteborg",
+     "intro": "Fordonsindustri, hamn och ett växande teknikkluster. Vi bygger webbplatser för företag i hela Göteborgsregionen.",
+     "body": "Göteborg är Sveriges industriella tyngdpunkt. Fordonsindustrin och hamnen har format en stad full av underleverantörer, teknikkonsulter och logistikföretag, och runt Lindholmen har det vuxit fram ett teknikkluster som drar utvecklare från hela landet.\n\nFör många göteborgsföretag är webbplatsen riktad mot andra företag snarare än mot konsumenter. Det ställer andra krav: en inköpare vill se kapacitet, certifieringar och referenser, inte kampanjbudskap. Samtidigt ska sidan fungera för den ingenjör som funderar på att söka jobb hos er.\n\nVi arbetar på distans med Göteborg och har gjort det länge nog för att veta att det fungerar. En skräddarsydd webbplats börjar på 50 000 kronor och tar veckor till månader. Ska det gå fortare finns Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Göteborg - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor och webbplatser för företag i Göteborg. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": [
+      {
+       "name": "Frölunda",
+       "slug": "frolunda",
+       "level": "district",
+       "heading": "Webbyrå i Frölunda",
+       "intro": "Västra Göteborg, med handel och service. Vi bygger webbplatser för företag i Frölunda.",
+       "body": "Frölunda i västra Göteborg har ett av stadens största handelscentrum och fungerar som servicecentrum för hela stadens västra delar, med kusten och Askim inom räckhåll.\n\nNäringslivet består till stor del av handel, service, vård och hantverk som betjänar de boende, plus verksamheter kopplade till kustlivet längre västerut.\n\nKonkurrensen sker om lokala sökningar. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå i Frölunda - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Frölunda i Göteborg. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Hisingen",
+       "slug": "hisingen",
+       "level": "district",
+       "heading": "Webbyrå i Hisingen",
+       "intro": "Sveriges fjärde största ö, med industri och hamn. Vi bygger webbplatser för företag på Hisingen.",
+       "body": "Hisingen är Sveriges fjärde största ö och rymmer en stor del av Göteborgs industri: fordonstillverkning, hamnverksamhet och ett omfattande nät av underleverantörer.\n\nÖn är samtidigt hem för över hundratusen människor, med stadsdelar som skiljer sig kraftigt åt i karaktär och köpkraft.\n\nNäringslivet spänner därför från stora industriföretag till små lokala verksamheter. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå på Hisingen - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag på Hisingen i Göteborg. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Lindholmen",
+       "slug": "lindholmen",
+       "level": "district",
+       "heading": "Webbyrå i Lindholmen",
+       "intro": "Göteborgs teknikkluster på Hisingen. Vi bygger webbplatser för företag på Lindholmen.",
+       "body": "Lindholmen har gått från varvsområde till ett av Nordens tätaste kluster för fordonsteknik, mobilitet och mjukvara, med forskningsmiljöer och företag sida vid sida.\n\nFöretagen här arbetar ofta med avancerad teknik och har krav som liknar Kistas: prestanda, integrationer och innehåll som håller för fackgranskning.\n\nSamtidigt finns startups som behöver komma ut snabbt och billigt. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå på Lindholmen - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag på Lindholmen i Göteborg. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Majorna",
+       "slug": "majorna",
+       "level": "district",
+       "heading": "Webbyrå i Majorna",
+       "intro": "Landshövdingehus, kaféer och småföretag i västra Göteborg. Vi bygger webbplatser för företag i Majorna.",
+       "body": "Majorna är en av Göteborgs mest karaktärsfulla stadsdelar, med landshövdingehusen, en stark lokal identitet och en tät kultur av småföretagande.\n\nHär finns kaféer, butiker, verkstäder, ateljéer och kooperativ som ofta lever på återkommande kunder i närområdet men som behöver synas för dem som söker sig hit.\n\nDet är sällan stora budgetar men ofta höga krav på uttryck. Atlas Holly från 495 kronor i månaden räcker för många; skräddarsytt bygger vi från 50 000 kronor.",
+       "meta_title": "Webbyrå i Majorna - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Majorna i Göteborg. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      },
+      {
+       "name": "Örgryte",
+       "slug": "orgryte",
+       "level": "district",
+       "heading": "Webbyrå i Örgryte",
+       "intro": "Villakvarter och välbeställda hushåll i östra Göteborg. Vi bygger webbplatser för företag i Örgryte.",
+       "body": "Örgryte är ett av Göteborgs mest välbeställda områden, med stora villor kring Skår, Bö och Lunden och närhet till både centrum och naturen i Delsjöområdet.\n\nNäringslivet är lokalt och tjänsteinriktat: privat vård och tandvård, mäkleri, bygg, trädgård och personliga tjänster med en kravbild som följer områdets köpkraft.\n\nKunderna bor i närheten och söker med områdesnamnet. En snabb, förtroendeingivande sajt är det som avgör. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+       "meta_title": "Webbyrå i Örgryte - hemsida & webbutveckling | ADX",
+       "meta_description": "ADX bygger hemsidor för företag i Örgryte i Göteborg. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly."
+      }
+     ]
+    },
+    {
+     "name": "Härryda",
+     "slug": "harryda",
+     "level": "municipality",
+     "heading": "Webbyrå i Härryda",
+     "intro": "Landvetter, Mölnlycke och skogarna öster om Göteborg. Vi bygger webbplatser för företag i Härryda.",
+     "body": "Härryda kommun rymmer Göteborg Landvetter Airport och har därmed en näringslivsprofil som är ovanlig för sin storlek: flygplatsrelaterad verksamhet, logistik och hotell vid sidan av en vanlig förortsekonomi.\n\nMölnlycke är kommunens största ort och har ett textilarv som numera ersatts av tjänste- och teknikföretag.\n\nKommunen är också skogrik med friluftsliv som en tillgång. Vi arbetar på distans. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Härryda - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Härryda och Mölnlycke. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Kungälv",
+     "slug": "kungalv",
+     "level": "municipality",
+     "heading": "Webbyrå i Kungälv",
+     "intro": "Bohus fästning, älvmöte och Göteborgs norra granne. Vi bygger webbplatser för företag i Kungälv.",
+     "body": "Kungälv ligger där Nordre älv och Göta älv skiljs åt, med Bohus fästning som landmärke. Kommunen är en del av Göteborgsregionens arbetsmarknad och har vuxit stadigt.\n\nMarstrand hör till kommunen och är ett av Västkustens mest kända besöksmål, med segling och en säsong som präglar hela ön.\n\nNäringslivet består av tillverkning, bygg, handel och tjänster, plus en tydlig säsongsdel. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Kungälv - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Kungälv och Marstrand. Skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Lerum",
+     "slug": "lerum",
+     "level": "municipality",
+     "heading": "Webbyrå i Lerum",
+     "intro": "Sjöar, pendling och Göteborgs nordöstra granne. Vi bygger webbplatser för företag i Lerum.",
+     "body": "Lerum ligger längs Säveåns dalgång nordost om Göteborg och är en utpräglad pendlingskommun med bland landets högsta andel utpendlare.\n\nNäringslivet är därför lokalt inriktat: bygg, hantverk, service, vård och handel som betjänar en välbeställd villabefolkning.\n\nFör de företagen avgörs synligheten av lokala sökningar, och det viktigaste är att sajten är snabb, tydlig och går att hitta. Atlas Holly från 495 kronor i månaden räcker för många; skräddarsytt bygger vi från 50 000 kronor.",
+     "meta_title": "Webbyrå i Lerum - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Lerum. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Lidköping",
+     "slug": "lidkoping",
+     "level": "municipality",
+     "heading": "Webbyrå i Lidköping",
+     "intro": "Vänerstad med porslinsarv och livsmedelsindustri. Vi bygger webbplatser för företag i Lidköping.",
+     "body": "Lidköping ligger vid Vänerns södra strand med Kinnekulle och Läckö slott inom räckhåll. Staden har ett porslinsarv som fortfarande präglar identiteten.\n\nNäringslivet domineras av livsmedelsindustri och tillverkning, med flera stora anläggningar i kommunen, samt handel som betjänar hela Västra Skaraborg.\n\nVänern och slottet ger en besöksnäring med tydlig sommarsäsong. Vi arbetar på distans. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Lidköping - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Lidköping. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Mölndal",
+     "slug": "molndal",
+     "level": "municipality",
+     "heading": "Webbyrå i Mölndal",
+     "intro": "Göteborgs södra granne, med forskning och huvudkontor. Vi bygger webbplatser för företag i Mölndal.",
+     "body": "Mölndal ligger tätt inpå Göteborg och delar dess arbetsmarknad, men har ett eget näringsliv med flera stora arbetsgivare inom läkemedel, teknik och handel.\n\nKommunen har en hög andel kunskapsföretag och forskningsnära verksamhet, och samtidigt en stark handelssektor kring Mölndals centrum och de större vägstråken.\n\nFör underleverantörer och konsulter i Göteborgsregionen är webbplatsen ofta det som avgör om de blir kontaktade av en större beställare. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Mölndal - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Mölndal. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Partille",
+     "slug": "partille",
+     "level": "municipality",
+     "heading": "Webbyrå i Partille",
+     "intro": "Tät granne till Göteborg, med stark lokal service. Vi bygger webbplatser för företag i Partille.",
+     "body": "Partille är en av Västsveriges minsta kommuner till ytan och ligger direkt öster om Göteborg. Kommunen är tätbebyggd och har en befolkning som till stor del arbetar i Göteborg.\n\nNäringslivet består av handel, bygg, service och tjänsteföretag, med Allum som ett regionalt handelscentrum.\n\nFör lokala tjänsteföretag är den avgörande frågan om de syns när någon i närområdet söker. Det kräver ingen avancerad sajt, men en välbyggd. Atlas Holly från 495 kronor i månaden, eller skräddarsytt från 50 000 kronor.",
+     "meta_title": "Webbyrå i Partille - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Partille. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Skövde",
+     "slug": "skovde",
+     "level": "municipality",
+     "heading": "Webbyrå i Skövde",
+     "intro": "Skaraborgs centrum, med tillverkning, försvar och högskola. Vi bygger webbplatser för företag i Skövde.",
+     "body": "Skövde är Skaraborgs största stad och fungerar som regioncentrum för västra Sveriges inland. Staden har en tung tillverkningsindustri, en stor garnisonsverksamhet och en högskola med profil inom bland annat spelutveckling.\n\nJust spelklustret har gjort Skövde till en oväntad plats för digital kreativitet, med studios och utbildningar som drar folk från hela landet.\n\nKombinationen av tung industri och digital kreativitet gör näringslivet mer varierat än i jämförbara städer. Vi arbetar på distans. Skräddarsytt från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Skövde - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Skövde. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Trollhättan",
+     "slug": "trollhattan",
+     "level": "municipality",
+     "heading": "Webbyrå i Trollhättan",
+     "intro": "Fallen, film och fordonsindustri vid Göta älv. Vi bygger webbplatser för företag i Trollhättan.",
+     "body": "Trollhättan är känd för tre saker: vattenfallen och slussarna, fordonsindustrin och filmproduktionen. Staden har genomgått stora omställningar när fordonsindustrin förändrats, och har byggt upp nya näringar parallellt.\n\nHögskolan Väst och en tradition av arbetsintegrerat lärande har gett staden en koppling mellan utbildning och näringsliv som är ovanligt tät.\n\nFilmklustret ger dessutom en kreativ sektor som sticker ut i en industristad. Vi arbetar på distans. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly-paket från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Trollhättan - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Trollhättan. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Uddevalla",
+     "slug": "uddevalla",
+     "level": "municipality",
+     "heading": "Webbyrå i Uddevalla",
+     "intro": "Bohuslänsk hamnstad vid Byfjorden. Vi bygger webbplatser för företag i Uddevalla.",
+     "body": "Uddevalla ligger där Bohuslän börjar på allvar, vid fjordens innersta del. Staden var varvsstad och har efter varvskrisen byggt upp ett bredare näringsliv med handel, tillverkning och tjänster.\n\nLäget vid E6 mellan Göteborg och Norge ger handeln en marknad större än kommunen, och Torps köpcentrum drar besökare från hela norra Bohuslän.\n\nKusten utanför är en av landets mest besökta under sommaren, vilket ger säsongsföretag inom boende, båt och restaurang. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Uddevalla - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Uddevalla. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Vänersborg",
+     "slug": "vanersborg",
+     "level": "municipality",
+     "heading": "Webbyrå i Vänersborg",
+     "intro": "Residensstad vid Vänerns sydspets. Vi bygger webbplatser för företag i Vänersborg.",
+     "body": "Vänersborg ligger där Göta älv lämnar Vänern och är residensstad för Västra Götaland tillsammans med Göteborg. Staden har en välbevarad rutnätsplan och en lugn karaktär.\n\nNäringslivet omfattar offentlig sektor, tillverkning och handel, och kommunen ingår i samma arbetsmarknad som Trollhättan.\n\nHalle- och Hunneberg strax utanför är kända besöksmål med älgsafari och natur. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Vänersborg - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Vänersborg. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Örebro län",
+   "slug": "orebro-lan",
+   "level": "region",
+   "heading": "Webbyrå i Örebro län",
+   "intro": "Sveriges logistiknav mitt i landet. Vi bygger webbplatser för företag i Örebro och hela länet.",
+   "body": "Örebro län ligger där Sverige smalnar av och alla vägar korsas. Det har gjort länet till landets tydligaste logistikregion: en stor del av allt som säljs i Sverige passerar ett lager någonstans här.\n\nÖrebro stad har vuxit med det, och har dessutom universitet, en betydande offentlig sektor och en handel som drar folk från hela Bergslagen. Runt staden ligger Kumla, Hallsberg och Lekeberg med tydlig koppling till transport och tillverkning.\n\nI norra länet finns Bergslagens gamla industriorter, Lindesberg, Nora och Hällefors, med en industri som blivit mer specialiserad än den var. Karlskoga har en försvarsindustri som gör orten till en av landets mest tekniktunga för sin storlek.\n\nVi arbetar på distans med hela länet. En skräddarsydd webbplats börjar på 50 000 kronor och tar några veckor till några månader. Behöver ni något enklare och snabbare finns Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Örebro län - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Örebro län - Örebro, Karlskoga, Kumla och Lindesberg. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Örebro",
+     "slug": "orebro",
+     "level": "municipality",
+     "heading": "Webbyrå i Örebro",
+     "intro": "Logistiknavet mitt i Sverige, med universitet och stark handel. Vi bygger webbplatser för företag i Örebro.",
+     "body": "Örebro ligger där landets stora transportstråk möts, och det har gjort staden till Sveriges tydligaste logistikort. En stor del av det som säljs i landet passerar ett lager i regionen, och kring det har det byggts upp en hel bransch av transport-, lager- och e-handelsföretag.\n\nDet ger en särskild sorts webbehov. E-handlare behöver sajter som klarar volym och integrationer mot lager och affärssystem, och logistikföretag behöver visa kapacitet och tillförlitlighet snarare än att sälja på plats.\n\nÖrebro är också universitetsstad med en stor offentlig sektor och en handel som drar besökare från hela Bergslagen. Vi arbetar på distans med hela staden. Skräddarsytt från 50 000 kronor, eller ett Atlas Holly-paket från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Örebro - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Örebro. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  },
+  {
+   "name": "Östergötlands län",
+   "slug": "ostergotlands-lan",
+   "level": "region",
+   "heading": "Webbyrå i Östergötlands län",
+   "intro": "Teknik, flyg och två universitetsstäder. Vi bygger webbplatser för företag i Linköping, Norrköping och hela Östergötland.",
+   "body": "Östergötland har något ovanligt: två jämnstora städer med olika karaktär, drygt fyra mil ifrån varandra. Linköping är tekniktungt med universitetet, flygindustrin och en stor sektor av utvecklingsbolag runt omkring. Norrköping är hamn, logistik, medier och en gammal industristad som byggt om sig själv.\n\nDet tekniska arvet märks i vilka företag som finns här. Många av dem säljer komplicerade produkter till andra företag, ofta internationellt, och behöver en webbplats som klarar att presentera något svårt utan att bli obegripligt. Det är en annan uppgift än att sälja direkt till konsument.\n\nUtanför städerna finns ett näringsliv med jordbruk, livsmedel och tillverkning i Motala, Mjölby, Finspång och Söderköping. Här är webbplatsen ofta företagets enda skyltfönster mot en marknad som är större än den egna kommunen.\n\nVi arbetar på distans med hela länet. Skräddarsydda projekt startar på 50 000 kronor och tar veckor till månader. För den som vill ha något enkelt på plats i dag finns Atlas Holly från 495 kronor i månaden.",
+   "meta_title": "Webbyrå i Östergötlands län - hemsida & webbutveckling",
+   "meta_description": "ADX bygger hemsidor för företag i Östergötland - Linköping, Norrköping, Motala och Mjölby. Skräddarsytt från 50 000 kr eller paket från 495 kr/mån.",
+   "children": [
+    {
+     "name": "Linköping",
+     "slug": "linkoping",
+     "level": "municipality",
+     "heading": "Webbyrå i Linköping",
+     "intro": "Flyg, teknik och universitet. Vi bygger webbplatser för företag i Linköping.",
+     "body": "Linköping är en av Sveriges mest tekniktunga städer för sin storlek. Flygindustrin har funnits här i nästan ett sekel och har fött av sig ett ekosystem av mjukvaru-, simulerings- och systemföretag, förstärkt av ett universitet med tydlig ingenjörsprofil.\n\nFöretag som säljer avancerad teknik har ett återkommande problem digitalt: det de gör är svårt att förklara, och sajten blir antingen för ytlig eller obegriplig. Att hitta rätt nivå är ofta det som ger mest effekt, mer än design och funktioner.\n\nStaden har också en vanlig lokal ekonomi med handel, bygg och tjänster där konkurrensen sker på sökresultat från Linköpingsbor. Vi arbetar på distans. Skräddarsydd webbplats från 50 000 kronor, eller Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Linköping - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Linköping. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Motala",
+     "slug": "motala",
+     "level": "municipality",
+     "heading": "Webbyrå i Motala",
+     "intro": "Göta kanal, Vättern och östgötsk industri. Vi bygger webbplatser för företag i Motala.",
+     "body": "Motala ligger där Göta kanal möter Vättern, och kanalen är fortfarande stadens tydligaste kännetecken och en av Sveriges mest kända turistattraktioner.\n\nNäringslivet har en verkstadstradition och en betydande tillverkningssektor, kompletterad med handel och en besöksnäring som lever på kanalen och sjön.\n\nSommarsäsongen är stark men kort, och de företag som lever på den måste synas när resan planeras, inte när den sker. Vi bygger skräddarsytt från 50 000 kronor och erbjuder Atlas Holly från 495 kronor i månaden.",
+     "meta_title": "Webbyrå i Motala - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Motala. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    },
+    {
+     "name": "Norrköping",
+     "slug": "norrkoping",
+     "level": "municipality",
+     "heading": "Webbyrå i Norrköping",
+     "intro": "Gammal industristad som byggt om sig, med hamn och medier. Vi bygger webbplatser för företag i Norrköping.",
+     "body": "Norrköping var en gång Sveriges textilstad, och industrilandskapet längs Motala ström står kvar som ett av landets tydligaste industriminnen. Staden har byggt om sig kring hamnen, logistiken, medier och utbildning.\n\nHamnen gör Norrköping till en handels- och transportort, medan campus och kulturnäringarna har gett staden en annan sorts företag: byråer, produktionsbolag och tjänsteföretag som konkurrerar nationellt snarare än lokalt.\n\nDen kombinationen betyder att webbehoven varierar kraftigt mellan branscher i samma stad. Vi bygger skräddarsydda webbplatser från 50 000 kronor när kraven är specifika, och rekommenderar Atlas Holly från 495 kronor i månaden när det som behövs är en bra sajt snabbt.",
+     "meta_title": "Webbyrå i Norrköping - hemsida & webbutveckling | ADX",
+     "meta_description": "ADX bygger hemsidor för företag i Norrköping. Skräddarsydd webbplats från 50 000 kr eller färdigt paket från 495 kr/mån via Atlas Holly.",
+     "children": []
+    }
+   ]
+  }
+ ]
+}

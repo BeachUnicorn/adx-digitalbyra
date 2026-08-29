@@ -81,9 +81,9 @@ def parse_href(value):
     from apps.areas.models import Area
     from apps.website.models import BlockPage
 
-    if path == "/digitalbyra/":
+    if path == "/webbyra/":
         return {"kind": "areas_index"}
-    if path.startswith("/digitalbyra/"):
+    if path.startswith("/webbyra/"):
         slug = path.strip("/").split("/")[-1]
         area = Area.objects.filter(slug=slug).first()
         if area:

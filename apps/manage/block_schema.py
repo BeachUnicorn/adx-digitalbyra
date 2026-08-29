@@ -29,6 +29,7 @@ import copy
 from django.core.exceptions import ValidationError
 
 from apps.common.security import (
+    sanitize_multiline_text,
     sanitize_plain_text,
     sanitize_rich_html_basic,
     validate_media_id,
@@ -492,7 +493,9 @@ def _clean_value(spec, raw):
     if kind in ("plain",):
         return sanitize_plain_text(raw or "", max_length=_MAX["plain"])
     if kind == "text":
-        return sanitize_plain_text(raw or "", max_length=_MAX["text"])
+        # Flerradigt fält: radbrytningar ska överleva (mallarna renderar dem
+        # med linebreaksbr och schemats hjälptext lovar det).
+        return sanitize_multiline_text(raw or "", max_length=_MAX["text"])
     if kind == "rich":
         return sanitize_rich_html_basic(raw or "")
     if kind == "url":

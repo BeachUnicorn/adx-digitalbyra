@@ -119,4 +119,53 @@ class NormalizeTypographyCommandTests(TestCase):
         self.assertEqual(block.data["heading"], "A - B")
 
     def test_map_covers_expected_characters(self):
-        self.assertEqual(normalize_typography("— – “ ” ‘ ’ …"), '- - " " \' \' ...')
+        self.assertEqual(normalize_typography("— – “ ” ‘ ’ …"), "- - \" \" ' ' ...")
+
+
+class MultilineFieldTests(TestCase):
+    """
+    `plain` och `text` är två olika fälttyper och ska bete sig olika.
+
+    Båda gick genom sanitize_plain_text, som kollapsar radbrytningar till
+    mellanslag. Alltså plattades varje flerradigt blockfält tyst - trots att
+    schemats hjälptext lovar "Radbrytningar behålls" och hero-mallen renderar
+    dem med linebreaksbr. Designens tvåradiga rubriker gick inte att sätta
+    vare sig via AI-verktygen eller via en seed.
+    """
+
+    def test_a_text_field_keeps_its_line_breaks(self):
+        from apps.manage.block_schema import clean_block_values
+
+        data = clean_block_values("hero", {}, {"title": "Rad ett\nRad två"})
+        self.assertEqual(data["title"], "Rad ett\nRad två")
+
+    def test_a_plain_field_still_collapses_them(self):
+        """Enradiga fält ska förbli enradiga - rubriker och etiketter."""
+        from apps.manage.block_schema import clean_block_values
+
+        data = clean_block_values("hero", {}, {"kicker": "Rad ett\nRad två"})
+        self.assertEqual(data["kicker"], "Rad ett Rad två")
+
+    def test_rows_in_lists_keep_line_breaks_too(self):
+        from apps.manage.block_schema import clean_block_rows
+
+        data = clean_block_rows("steps", {}, {"steps": [{"title": "Steg", "text": "Först\nSedan"}]})
+        self.assertEqual(data["steps"][0]["text"], "Först\nSedan")
+
+    def test_blank_line_runs_are_capped(self):
+        from apps.common.security import sanitize_multiline_text
+
+        self.assertEqual(sanitize_multiline_text("A\n\n\n\n\nB"), "A\n\nB")
+
+    def test_markup_is_still_stripped(self):
+        """Radbrytningar bevaras - taggar gör det inte."""
+        from apps.common.security import sanitize_multiline_text
+
+        cleaned = sanitize_multiline_text("<script>alert(1)</script>Rad\n<b>Två</b>")
+        self.assertNotIn("<", cleaned)
+        self.assertIn("\n", cleaned)
+
+    def test_ai_typography_is_normalised_here_too(self):
+        from apps.common.security import sanitize_multiline_text
+
+        self.assertEqual(sanitize_multiline_text("A — B\nC"), "A - B\nC")

@@ -13,7 +13,10 @@ copyn - aldrig separata sidor per sökord (doorway-regeln, mönsterkatalogen).
 {% block content %}
 <div class="wrap hero">
     <div class="kicker"><a href="/">Hem</a> / <a href="{% url 'areas:area_list' %}">Städer</a> / {{ area.name }}</div>
-    <h1>Digitalbyrå<br>i {{ area.name }}.</h1>
+    {# display_heading, inte hårdkodad text: modellen äger rubriken och faller
+       tillbaka på "Webbyrå i {namn}" när området inte satt en egen. Stod den
+       här gick redaktörens heading-fält aldrig fram till sidan. #}
+    <h1>{{ area.display_heading }}.</h1>
     {% if area.intro %}<p class="lead">{{ area.intro }}</p>{% endif %}
     <div class="hero-actions">
         <a class="btn" href="/kontakt/">Skicka förfrågan</a>
