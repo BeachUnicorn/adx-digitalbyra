@@ -130,7 +130,10 @@ class Command(BaseCommand):
             return section, False
         return (
             FAQSection.objects.create(
-                slug=spec["slug"], title=spec["titel"], is_active=True
+                slug=spec["slug"],
+                title=spec["titel"],
+                meta_description=spec.get("meta_description", ""),
+                is_active=True,
             ),
             True,
         )

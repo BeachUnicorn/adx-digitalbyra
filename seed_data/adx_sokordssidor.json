@@ -16,7 +16,8 @@
    ],
    "faq": {
     "slug": "faq-skapa-hemsida",
-    "titel": "Skapa hemsida - vanliga frågor",
+    "titel": "Skapa hemsida",
+    "meta_description": "Vanliga frågor och svar om skapa hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Hur lång tid tar det att skapa en hemsida?",
@@ -148,7 +149,8 @@
    ],
    "faq": {
     "slug": "faq-egen-hemsida",
-    "titel": "Egen hemsida - vanliga frågor",
+    "titel": "Egen hemsida",
+    "meta_description": "Vanliga frågor och svar om egen hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Vad kostar en egen hemsida?",
@@ -280,7 +282,8 @@
    ],
    "faq": {
     "slug": "faq-vad-kostar-en-hemsida",
-    "titel": "Priser - vanliga frågor",
+    "titel": "Vad kostar en hemsida",
+    "meta_description": "Vanliga frågor och svar om vad kostar en hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Vad kostar en enkel hemsida?",
@@ -420,7 +423,8 @@
    ],
    "faq": {
     "slug": "faq-billig-hemsida",
-    "titel": "Billig hemsida - vanliga frågor",
+    "titel": "Billig hemsida",
+    "meta_description": "Vanliga frågor och svar om billig hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Vad är billigast, och vad ingår?",
@@ -552,7 +556,8 @@
    ],
    "faq": {
     "slug": "faq-enkel-hemsida",
-    "titel": "Enkel hemsida - vanliga frågor",
+    "titel": "Enkel hemsida",
+    "meta_description": "Vanliga frågor och svar om enkel hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Hur många sidor behöver en enkel hemsida?",
@@ -680,7 +685,8 @@
    ],
    "faq": {
     "slug": "faq-hemsida-foretag",
-    "titel": "Hemsida för företag - vanliga frågor",
+    "titel": "Hemsida företag",
+    "meta_description": "Vanliga frågor och svar om hemsida företag. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Vad kostar en hemsida till ett företag?",
@@ -816,7 +822,8 @@
    ],
    "faq": {
     "slug": "faq-hemsida-med-bokning",
-    "titel": "Hemsida med bokning - vanliga frågor",
+    "titel": "Hemsida med bokning",
+    "meta_description": "Vanliga frågor och svar om hemsida med bokning. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Vad kostar en hemsida med bokning?",
@@ -948,7 +955,8 @@
    ],
    "faq": {
     "slug": "faq-wordpress-hemsida",
-    "titel": "WordPress - vanliga frågor",
+    "titel": "Wordpress hemsida",
+    "meta_description": "Vanliga frågor och svar om wordpress hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Bygger ni hemsidor i WordPress?",
@@ -1080,7 +1088,8 @@
    ],
    "faq": {
     "slug": "faq-kopa-hemsida",
-    "titel": "Köpa hemsida - vanliga frågor",
+    "titel": "Köpa hemsida",
+    "meta_description": "Vanliga frågor och svar om köpa hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Vad kostar det att köpa en hemsida?",
@@ -1213,7 +1222,8 @@
    ],
    "faq": {
     "slug": "faq-ny-hemsida",
-    "titel": "Ny hemsida - vanliga frågor",
+    "titel": "Ny hemsida",
+    "meta_description": "Vanliga frågor och svar om ny hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Hur ofta bör man göra om sin hemsida?",
@@ -1345,7 +1355,8 @@
    ],
    "faq": {
     "slug": "faq-professionell-hemsida",
-    "titel": "Professionell hemsida - vanliga frågor",
+    "titel": "Professionell hemsida",
+    "meta_description": "Vanliga frågor och svar om professionell hemsida. ADX bygger hemsidor - skräddarsytt från 50 000 kr eller färdigt paket från 495 kr/mån.",
     "fragor": [
      {
       "fraga": "Vad kostar en professionell hemsida?",

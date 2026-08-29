@@ -54,9 +54,7 @@ class BlockRegistrySyncTests(TestCase):
             for key, schema in BLOCK_EDIT_SCHEMA.items()
             if not schema.get("purpose", "").strip()
         ]
-        self.assertEqual(
-            missing, [], f"Blocktyper utan 'purpose' i BLOCK_EDIT_SCHEMA: {missing}"
-        )
+        self.assertEqual(missing, [], f"Blocktyper utan 'purpose' i BLOCK_EDIT_SCHEMA: {missing}")
 
     def test_list_only_block_types_say_where_their_content_lives(self):
         """
@@ -568,3 +566,31 @@ class VvsLegacyGuardTests(TestCase):
             [],
             "Skandivvs-arv i ADX-koden (se genomlysningen 2026-08-27):\n" + "\n".join(hits),
         )
+
+
+class SitemapTests(TestCase):
+    """Sitemapen får inte motsäga sig själv."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def _locations(self):
+        import re
+
+        xml = Client().get("/sitemap.xml").content.decode()
+        return re.findall(r"<loc>([^<]+)</loc>", xml)
+
+    def test_no_url_appears_twice(self):
+        """
+        Startsidan är en BlockPage vars adress är "/", och låg därför både i
+        StaticSitemap (priority 1.0) och i BlockPageSitemap (0.8) - samma URL
+        med två olika prioriteter.
+        """
+        import collections
+
+        dupes = [u for u, n in collections.Counter(self._locations()).items() if n > 1]
+        self.assertEqual(dupes, [], f"URL:er som ligger flera gånger i sitemapen: {dupes}")
+
+    def test_the_homepage_is_still_listed(self):
+        self.assertTrue(any(u.endswith("/") and u.count("/") == 3 for u in self._locations()))

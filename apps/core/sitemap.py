@@ -37,7 +37,19 @@ class BlockPageSitemap(Sitemap):
     priority = 0.8
 
     def items(self):
-        return BlockPage.objects.filter(is_published=True)
+        """
+        Publicerade sidor UTOM startsidan.
+
+        Startsidan är en BlockPage vars get_absolute_url är "/", och den ligger
+        redan i StaticSitemap med priority 1.0. Utan undantaget hamnade den två
+        gånger i sitemapen, med olika prioritet - vilket är precis den sortens
+        motsägelse en sitemap ska undvika.
+        """
+        from apps.website.models import SiteSettings
+
+        pages = BlockPage.objects.filter(is_published=True)
+        homepage_id = SiteSettings.load().homepage_id
+        return pages.exclude(pk=homepage_id) if homepage_id else pages
 
     def location(self, obj):
         return obj.get_absolute_url()
