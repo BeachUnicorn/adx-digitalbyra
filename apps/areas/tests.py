@@ -257,3 +257,32 @@ class AreaListGroupingTests(TestCase):
         self.malmo.save(update_fields=["is_active"])
         html = self.client.get("/webbyra/").content.decode()
         self.assertNotIn(self.limhamn.get_absolute_url(), html)
+
+
+class AreaTitleTests(TestCase):
+    """
+    En satt meta_title är hela sidtiteln.
+
+    Mallen la på sajtnamnet ovanpå, så en SEO-titel som redan slutade med
+    "| ADX" blev "... | ADX - ADX" i webbläsarfliken och i sökresultatet.
+    website/page.html gjorde redan rätt; den här mallen hade halkat efter.
+    """
+
+    def setUp(self):
+        from apps.areas.models import Area, AreaLevel
+
+        self.area = Area.objects.create(name="Kista", level=AreaLevel.MUNICIPALITY)
+
+    def _title(self):
+        import re
+
+        html = self.client.get(self.area.get_absolute_url()).content.decode()
+        return re.search(r"<title>(.*?)</title>", html, re.S).group(1).strip()
+
+    def test_a_set_meta_title_is_used_verbatim(self):
+        self.area.meta_title = "Webbyrå i Kista - hemsida & webbutveckling | ADX"
+        self.area.save(update_fields=["meta_title"])
+        self.assertEqual(self._title(), "Webbyrå i Kista - hemsida &amp; webbutveckling | ADX")
+
+    def test_without_meta_title_the_site_name_is_appended(self):
+        self.assertEqual(self._title(), "Kista - ADX")
