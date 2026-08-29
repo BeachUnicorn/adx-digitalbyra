@@ -141,7 +141,7 @@ ASSISTANT_BEDROCK_REGION = env("ASSISTANT_BEDROCK_REGION", default="eu-central-1
 # Opus 4.6 är den starkaste modellen konto 200810847648 släpper fram - Opus 5
 # och Sonnet 5 nekas med "not available for this account" (kontobegränsning,
 # inte region). Måste vara Sonnet/Opus 4.6+; llm.assert_model_allowed() spärrar.
-ASSISTANT_BEDROCK_MODEL = env("ASSISTANT_BEDROCK_MODEL", default="eu.anthropic.claude-opus-4-6-v1")
+ASSISTANT_BEDROCK_MODEL = env("ASSISTANT_BEDROCK_MODEL", default="eu.anthropic.claude-sonnet-5")
 # Lokalt: namnet på en profil i ~/.aws. På servern tom - instansrollen gäller.
 ASSISTANT_AWS_PROFILE = env("ASSISTANT_AWS_PROFILE", default="")
 # Reservläget.
