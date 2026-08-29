@@ -46,7 +46,8 @@ if [ ! -f "$ENV_FILE" ]; then
         echo "# --- filled by provision-site.sh ---"
         echo "DJANGO_SETTINGS_MODULE=${DJANGO_SETTINGS_MODULE}"
         echo "SITE_SLUG=${SITE_SLUG}"
-        echo "ALLOWED_HOSTS=${DOMAINS[*]}"
+        # Kommaseparerat: settings läser listan med env.list (komma-split).
+        (IFS=,; echo "ALLOWED_HOSTS=${DOMAINS[*]}")
     } >> "$ENV_FILE"
     chmod 600 "$ENV_FILE"
 
