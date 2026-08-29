@@ -9,7 +9,7 @@ Model hierarchy:
     Visitor  (permanent identity, 2-year cookie)
       └─ Session  (one visit; 30-min inactivity window)
            ├─ PageView  (each page hit)
-           └─ Event     (tel_click, email_click, booking, …)
+           └─ Event     (tel_click, email_click, booking, ...)
 
 Design notes:
 - First referrer / first landing page are stored permanently on Visitor and
@@ -270,7 +270,7 @@ class EventType(models.TextChoices):
 
 
 class Event(models.Model):
-    """A tracked interaction (tel: click, booking, …)."""
+    """A tracked interaction (tel: click, booking, ...)."""
 
     session = models.ForeignKey(
         Session,

@@ -1,5 +1,5 @@
 /* ============================================================
-   ADX gradientbakgrund – extraherad EXAKT ur strict-design-guide.html.
+   ADX gradientbakgrund - extraherad EXAKT ur strict-design-guide.html.
    WebGL "lava lamp"-shader (Shadertoy DdcfzH) + statiskt filmkorn,
    fyra färger härledda ur EN hex via HSL-regler, pekarföljande fokus.
 
@@ -61,7 +61,7 @@ void main(){
   gl_Position = vec4(aPos, 0.0, 1.0);
 }`;
 
-/* Fragmentshadern — ordagrant samma som SKYLRK:s "lava-lamp"
+/* Fragmentshadern - ordagrant samma som SKYLRK:s "lava-lamp"
    (Shadertoy DdcfzH av welches), inkl. filmGrainIntensity 0.1 */
 const FRAG = `
 precision highp float;

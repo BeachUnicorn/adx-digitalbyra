@@ -89,7 +89,7 @@ function enhance(textarea) {
         HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
         validate: (href) => /^(https?:|mailto:|tel:|#|\/)/i.test(href.trim()),
       }),
-      Placeholder.configure({ placeholder: textarea.getAttribute("placeholder") || "Skriv här…" }),
+      Placeholder.configure({ placeholder: textarea.getAttribute("placeholder") || "Skriv här..." }),
       VariablePill,
     ],
     content: htmlToTiptap(textarea.value),

@@ -1,8 +1,8 @@
 """
-/manage/import/ — Bulk JSON import for superusers.
+/manage/import/ - Bulk JSON import for superusers.
 
 Supports importing service categories, services (with steps), and FAQ sections
-(with items) from a single JSON payload. Additive only — never deletes or
+(with items) from a single JSON payload. Additive only - never deletes or
 overwrites existing records.
 """
 # ruff: noqa: E501

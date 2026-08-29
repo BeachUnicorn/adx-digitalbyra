@@ -9,7 +9,7 @@ vyn svarar en fälld bot med tyst fejkad framgång.
     {% csrf_token %}
     {% botcheck_fields %}
     {% if form.errors %}
-    <div class="errors">Något saknas – kontrollera fälten markerade nedan.</div>
+    <div class="errors">Något saknas - kontrollera fälten markerade nedan.</div>
     {% endif %}
     <div class="field full">
         <label for="id_topic">Vad gäller det?</label>
@@ -20,11 +20,11 @@ vyn svarar en fälld bot med tyst fejkad framgång.
         {{ form.company_name }}
     </div>
     <div class="field">
-        <label for="id_name">Namn{% if form.name.errors %} – obligatoriskt{% endif %}</label>
+        <label for="id_name">Namn{% if form.name.errors %} - obligatoriskt{% endif %}</label>
         {{ form.name }}
     </div>
     <div class="field">
-        <label for="id_email">E-post{% if form.email.errors %} – kontrollera{% endif %}</label>
+        <label for="id_email">E-post{% if form.email.errors %} - kontrollera{% endif %}</label>
         {{ form.email }}
     </div>
     <div class="field">
@@ -40,7 +40,7 @@ vyn svarar en fälld bot med tyst fejkad framgång.
         {{ form.timeline }}
     </div>
     <div class="field full">
-        <label for="id_description">Berätta om ert behov{% if form.description.errors %} – obligatoriskt{% endif %}</label>
+        <label for="id_description">Berätta om ert behov{% if form.description.errors %} - obligatoriskt{% endif %}</label>
         {{ form.description }}
     </div>
     <div class="form-actions">

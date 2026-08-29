@@ -152,7 +152,7 @@ class Block(models.Model):
         ordering = ["order"]
 
     def __str__(self):
-        return f"{self.get_block_type_display()} – {self.page.title} (#{self.order})"
+        return f"{self.get_block_type_display()} - {self.page.title} (#{self.order})"
 
 
 class Menu(models.Model):

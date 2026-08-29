@@ -83,4 +83,8 @@ class Command(BaseCommand):
         self.stdout.write("Loading seed_data/site_content.json ...")
         call_command("loaddata", str(fixture_path))
 
+        # 3. loaddata går förbi sanerarna - normalisera så att AI-typografi
+        #    ur fixturen aldrig blir liggande i databasen.
+        call_command("normalize_typography")
+
         self.stdout.write(self.style.SUCCESS("Site content imported."))

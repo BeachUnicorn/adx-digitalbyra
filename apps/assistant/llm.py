@@ -235,7 +235,7 @@ def _friendly(exc):
     if "ValidationException" in text and "model" in text.lower():
         return (
             f"Bedrock känner inte igen modell-id:t ({model_id()}). "
-            f"EU-profilerna heter 'eu.anthropic.…' och måste finnas i regionen."
+            f"EU-profilerna heter 'eu.anthropic.*' och måste finnas i regionen."
         )
     return text
 

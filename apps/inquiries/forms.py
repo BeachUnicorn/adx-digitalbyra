@@ -45,12 +45,12 @@ class InquiryForm(forms.Form):
     )
     budget = forms.ChoiceField(
         label=_("Ungefärlig budget (valfritt)"),
-        choices=[("", "—")] + list(InquiryBudget.choices),
+        choices=[("", "-")] + list(InquiryBudget.choices),
         required=False,
     )
     timeline = forms.ChoiceField(
         label=_("Önskad tidplan (valfritt)"),
-        choices=[("", "—")] + list(InquiryTimeline.choices),
+        choices=[("", "-")] + list(InquiryTimeline.choices),
         required=False,
     )
     description = forms.CharField(

@@ -1,7 +1,7 @@
 """
 Tjänster (services) module.
 
-ADX:s tjänstekatalog (webbutveckling, automation, hosting, …). Priser bor i
+ADX:s tjänstekatalog (webbutveckling, automation, hosting, ...). Priser bor i
 paketblocken på blocksidorna, aldrig på tjänstemodellen - allt utanför
 paketen är offert.
 
@@ -9,7 +9,7 @@ Models:
 - ServiceCategory : Tjänstekategori - a group of related services
 - Service         : Tjänst - an individual service
 - ServiceStep     : Aktivitet/steg som beskriver hur tjänsten utförs
-- Audience        : Målgrupp - landing page per audience (Privatperson, BRF, …)
+- Audience        : Målgrupp - landing page per audience (Privatperson, BRF, ...)
 
 Rich-text fields (`body`, `intro`) are restricted to basic formatting
 (bold/italic/links + variables) - see render_with_context_basic.

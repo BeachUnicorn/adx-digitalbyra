@@ -42,7 +42,7 @@
         <p class="m-form-hint"><strong>Tjänster:</strong></p>
         <ul style="margin: 0 0 12px 18px; font-size: 0.88rem;">
             {% for svc in preview.services %}
-            <li>{{ svc.name }}{% if svc.category %} ({{ svc.category }}){% endif %} — {{ svc.steps }} steg {% if svc.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
+            <li>{{ svc.name }}{% if svc.category %} ({{ svc.category }}){% endif %} - {{ svc.steps }} steg {% if svc.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
             {% endfor %}
         </ul>
         {% endif %}
@@ -51,7 +51,7 @@
         <p class="m-form-hint"><strong>FAQ-sektioner:</strong></p>
         <ul style="margin: 0 0 12px 18px; font-size: 0.88rem;">
             {% for sec in preview.faq_sections %}
-            <li>{{ sec.title }} — {{ sec.items }} frågor {% if sec.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
+            <li>{{ sec.title }} - {{ sec.items }} frågor {% if sec.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
             {% endfor %}
         </ul>
         {% endif %}

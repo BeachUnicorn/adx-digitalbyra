@@ -69,6 +69,32 @@ def _normalize_typography(text: str) -> str:
     return text.translate(_NORMALIZE_MAP) if text else text
 
 
+# Publik yta för normaliseringen. Sanerarna nedan kör den alltid vid spara,
+# men innehåll som INTE går genom redigeringsvägarna (seed_site,
+# import_site_data, direkta ORM-skrivningar) behöver kunna anropa samma
+# regeluppsättning - och vakttesterna behöver teckenmängden. En källa.
+AI_TYPOGRAPHY_CHARS = frozenset(chr(cp) for cp in _NORMALIZE_MAP)
+
+
+def normalize_typography(text: str | None) -> str | None:
+    """Publik variant av typografinormaliseringen (samma karta som sanerarna)."""
+    return _normalize_typography(text) if text else text
+
+
+def normalize_json(value):
+    """Normalisera alla strängar rekursivt i en JSON-struktur (dict/list/str).
+
+    Nycklar lämnas orörda - de är schemafältnamn, inte innehåll.
+    """
+    if isinstance(value, str):
+        return _normalize_typography(value)
+    if isinstance(value, list):
+        return [normalize_json(v) for v in value]
+    if isinstance(value, dict):
+        return {k: normalize_json(v) for k, v in value.items()}
+    return value
+
+
 # Tags allowed in rich-text fields (article body / FAQ answers).
 # Deliberately conservative: no <img>, <iframe>, <video>, <style>, <script>,
 # no class/id/style attributes, no event handlers.

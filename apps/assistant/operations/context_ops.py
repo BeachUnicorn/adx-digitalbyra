@@ -19,8 +19,9 @@ from .base import Operation, OperationError, Prepared, register
 DEFAULT_STYLE_GUIDE = (
     "Skriv enkelt och rakt på svenska. Du-tilltal. Aldrig säljigt språk, inga "
     "utropstecken. Förklara tekniska termer kort när de används. Korta stycken. "
-    "Inga tankstreck (—) eller andra AI-typiska skrivtecken; systemet ersätter "
-    "dem ändå automatiskt."
+    "Inga tankstreck (U+2014/U+2013) eller andra AI-typiska skrivtecken som "
+    "typografiska citattecken och ellipsis; systemet ersätter dem ändå "
+    "automatiskt."
 )
 
 

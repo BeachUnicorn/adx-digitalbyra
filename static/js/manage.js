@@ -194,7 +194,7 @@
         let failed = 0;
 
         for (const id of ids) {
-            report("Optimerar " + (done + failed + 1) + " av " + ids.length + "…");
+            report("Optimerar " + (done + failed + 1) + " av " + ids.length + "...");
             try {
                 const body = new URLSearchParams();
                 if (csrf) body.set("csrfmiddlewaretoken", csrf.value);

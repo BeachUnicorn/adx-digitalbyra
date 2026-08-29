@@ -10,8 +10,8 @@ Beskrivare i blockdata::
     {"kind": "areas_index"}          stadsöversikten
     {"kind": "email"}                sajtens e-post (mailto:)
     {"kind": "phone"}                sajtens telefon (tel:)
-    {"kind": "external", "url": …}   extern adress - kontrolleras inte
-    {"kind": "path", "path": …}      ärlig flyktväg för interna rutter
+    {"kind": "external", "url": ...}   extern adress - kontrolleras inte
+    {"kind": "path", "path": ...}      ärlig flyktväg för interna rutter
                                      utanför sidsystemet (t.ex. /forfragan/)
 
 Adressen beräknas vid rendering av resolve_link(), som också dömer målet:

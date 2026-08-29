@@ -2,7 +2,7 @@ Hej {{ inquiry.name }},
 
 Tack för din förfrågan till {{ site_name }}!
 
-Vi har tagit emot ditt ärende och återkommer inom 1–2 arbetsdagar.
+Vi har tagit emot ditt ärende och återkommer inom 1-2 arbetsdagar.
 
 Referensnummer: {{ inquiry.reference }}
 

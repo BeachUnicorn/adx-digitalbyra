@@ -9,7 +9,7 @@ multi-tenant and passes a `Tenant`).
 Two variants:
 
 * `render_with_context`       - plain-text fields (headlines, labels, menu
-                                 labels, …). Strips ALL HTML, substitutes
+                                 labels, ...). Strips ALL HTML, substitutes
                                  `{{ var }}` with raw values, returns a plain
                                  `str` so Django auto-escape encodes it.
 

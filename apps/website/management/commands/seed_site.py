@@ -18,6 +18,7 @@ import json
 from pathlib import Path
 
 from django.conf import settings as django_settings
+from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
@@ -35,7 +36,7 @@ SERVICES = [
         "webbutveckling",
         "Webbutveckling",
         "#2456b0",
-        "Färdiga paket och skräddarsydda webbplatser och intranät — byggda "
+        "Färdiga paket och skräddarsydda webbplatser och intranät - byggda "
         "för att prestera och förvaltas över tid.",
     ),
     (
@@ -49,7 +50,7 @@ SERVICES = [
         "content",
         "Managed Content",
         "#a8842a",
-        "Copywriting och sökmotoroptimering som gör att rätt kunder hittar er — och stannar.",
+        "Copywriting och sökmotoroptimering som gör att rätt kunder hittar er - och stannar.",
     ),
     (
         "hosting",
@@ -136,6 +137,11 @@ class Command(BaseCommand):
         settings.homepage = pages["hem"]
         settings.save(update_fields=["homepage"])
 
+        # Seeden skriver rått till databasen och passerar aldrig sanerarna -
+        # normalisera i efterhand så att AI-typografi ur seedfilerna aldrig
+        # når lagrat innehåll (vakttestet i apps/common/tests.py grindar).
+        call_command("normalize_typography")
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"Klart: {len(pages)} sidor, {Service.objects.count()} tjänster, "
@@ -152,7 +158,7 @@ class Command(BaseCommand):
         settings.city = "Stockholm"
         settings.default_gradient_color = "#f7fcff"
         settings.footer_about = (
-            "ADX är en digitalbyrå i Stockholm som skapar digitala lösningar — "
+            "ADX är en digitalbyrå i Stockholm som skapar digitala lösningar - "
             "från webb och automation till drift och förvaltning."
         )
         settings.save()
@@ -203,7 +209,9 @@ class Command(BaseCommand):
         page, _ = BlockPage.objects.update_or_create(
             slug=data["sida"] if data["sida"] != "hem" else "hem",
             defaults={
-                "title": data.get("meta_title", data["sida"]).split("—")[0].split("|")[0].strip(),
+                # Delaren är " - " med omgivande mellanslag - ett rent "-"
+                # skulle klippa bindestrecksord som "E-post".
+                "title": data.get("meta_title", data["sida"]).split(" - ")[0].split("|")[0].strip(),
                 "meta_title": data.get("meta_title", ""),
                 "meta_description": data.get("meta_description", ""),
                 "gradient_color": data.get("gradient_color", ""),

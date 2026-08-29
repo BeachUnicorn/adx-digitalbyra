@@ -92,7 +92,7 @@ def start_turn(user, question, job=None):
     if job is None:
         job = AIJob.objects.create(
             user=user,
-            title=question[:60] + ("…" if len(question) > 60 else ""),
+            title=question[:60] + ("..." if len(question) > 60 else ""),
             prompt=question,
             session_key=f"chat-{timezone.now():%Y%m%d%H%M%S%f}",
         )
@@ -274,7 +274,7 @@ def _progress(reply, steps):
     """
     Spara stegen medan turen pågår, inte bara när den är klar.
 
-    Utan det står "Arbetar…" stilla i upp till en minut medan modellen
+    Utan det står "Arbetar..." stilla i upp till en minut medan modellen
     kör verktyg, och kunden kan inte skilja arbete från hängning. Enda
     kostnaden är en liten UPDATE per verktygsanrop.
     """

@@ -51,7 +51,7 @@ _SWEDISH_ORDER = str.maketrans({"å": "{", "ä": "|", "ö": "}"})
 
 
 def swedish_sort_key(value):
-    """Sort key giving Swedish alphabetical order (… x, y, z, å, ä, ö)."""
+    """Sort key giving Swedish alphabetical order (... x, y, z, å, ä, ö)."""
     return (value or "").lower().translate(_SWEDISH_ORDER)
 
 

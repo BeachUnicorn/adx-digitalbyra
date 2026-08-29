@@ -146,7 +146,7 @@ def _media_usage(media_file):
             if isinstance(card, dict) and card.get("image_id") == mid:
                 found = True
         if found:
-            uses.append(f"{block.get_block_type_display()} – {block.page.title}")
+            uses.append(f"{block.get_block_type_display()} - {block.page.title}")
     return uses
 
 

@@ -39,8 +39,8 @@ class InquiryBudget(models.TextChoices):
     """Ungefärligt spann - hjälper byrån prioritera, aldrig ett krav."""
 
     UNDER_25 = "under_25", _("Under 25 000 kr")
-    B25_100 = "25_100", _("25 000 – 100 000 kr")
-    B100_250 = "100_250", _("100 000 – 250 000 kr")
+    B25_100 = "25_100", _("25 000 - 100 000 kr")
+    B100_250 = "100_250", _("100 000 - 250 000 kr")
     OVER_250 = "over_250", _("Över 250 000 kr")
     MONTHLY = "monthly", _("Löpande månadsbudget")
     UNKNOWN = "unknown", _("Vet inte än")
@@ -48,7 +48,7 @@ class InquiryBudget(models.TextChoices):
 
 class InquiryTimeline(models.TextChoices):
     ASAP = "asap", _("Så snart som möjligt")
-    QUARTER = "quarter", _("Inom 1–3 månader")
+    QUARTER = "quarter", _("Inom 1-3 månader")
     LATER = "later", _("Senare i år")
     EXPLORING = "exploring", _("Utforskar bara")
 
@@ -135,7 +135,7 @@ class Inquiry(TimeStampedModel):
         _("Trafikkälla"),
         max_length=20,
         blank=True,
-        help_text=_("Snapshot: var besökaren kom ifrån (Google, Facebook, …)."),
+        help_text=_("Snapshot: var besökaren kom ifrån (Google, Facebook, ...)."),
     )
     traffic_source_detail = models.CharField(
         _("Trafikkälla (detalj)"),

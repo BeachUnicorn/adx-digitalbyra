@@ -55,7 +55,7 @@
                         <div class="m-path">{{ area.get_absolute_url }}</div>
                     </td>
                     <td class="m-muted">{{ area.get_level_display }}</td>
-                    <td class="m-muted">{{ area.parent.name|default:"—" }}</td>
+                    <td class="m-muted">{{ area.parent.name|default:"-" }}</td>
                     <td class="m-num">{{ area.child_count }}</td>
                     <td>
                         {% if area.hidden_by_parent %}

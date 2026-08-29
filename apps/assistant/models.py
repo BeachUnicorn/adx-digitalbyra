@@ -181,7 +181,7 @@ class AssistantToken(models.Model):
     )
     name = models.CharField(_("Namn"), max_length=100, default="AI-koppling")
     key_hash = models.CharField(max_length=64, unique=True, editable=False)
-    key_hint = models.CharField(max_length=12, editable=False)  # "adx_ab12…"
+    key_hint = models.CharField(max_length=12, editable=False)  # "adx_ab12..."
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     last_used_at = models.DateTimeField(null=True, blank=True)
@@ -192,7 +192,7 @@ class AssistantToken(models.Model):
         verbose_name_plural = "AI-nycklar"
 
     def __str__(self):
-        return f"{self.name} ({self.key_hint}…)"
+        return f"{self.name} ({self.key_hint}...)"
 
     @staticmethod
     def _hash(raw):

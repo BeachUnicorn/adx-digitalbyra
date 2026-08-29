@@ -1,5 +1,5 @@
 /* ============================================================
-   SKYLRK-stil gradientbakgrund — exakt samma teknik:
+   SKYLRK-stil gradientbakgrund - exakt samma teknik:
    WebGL-canvas med "lava lamp"-shader (Shadertoy DdcfzH) +
    statiskt filmkorn (hash-brus) subtraherat per pixel.
    Fyra färger härleds ur EN hex per sida via HSL-regler,
@@ -24,17 +24,17 @@ const TRANSITION_MS = 900;
 
 /* SEO per "sida" (mockup: på riktig sajt = egna URL:er + server-renderade meta) */
 const PAGE_META = {
-  hem:            {title:'ADX — Digitalbyrå i Stockholm', desc:'ADX är en digitalbyrå i Stockholm: webbutveckling, automation, managed content, hosting, domäner och e-post. Ett team, ett ansvar.'},
-  tjanster:       {title:'Tjänster — Webb, automation, drift & innehåll | ADX', desc:'Alla ADX tjänster: webbutveckling, automation & integrationer, managed content, managed hosting, domain management och e-post.'},
-  webbutveckling: {title:'Webbutveckling Stockholm — färdiga paket & skräddarsytt | ADX', desc:'Webbutveckling i Stockholm: färdiga paket och skräddarsydda webbplatser och intranät. Snabba, säkra och byggda för att förvaltas över tid.'},
-  automation:     {title:'Automation & API-integrationer — effektivisera era processer | ADX', desc:'Effektivisera interna processer med skript, API-integrationer och automatiserade arbetsflöden. Kartläggning, bygge och övervakning av ADX i Stockholm.'},
-  content:        {title:'Managed Content — copywriting & SEO som löpande tjänst | ADX', desc:'Copywriting och sökmotoroptimering som gör att rätt kunder hittar er och stannar. Sökordsanalys, innehåll och månadsrapportering från ADX.'},
-  hosting:        {title:'Managed Hosting & molntjänster — trygg drift & multi-tenant | ADX', desc:'Managed hosting med övervakning 24/7, dagliga backuper och SSL. Multi-tenant-lösningar för kedjor. 99,9 % drifttid från ADX i Stockholm.'},
-  domain:         {title:'Domain Management — domäner, DNS & bevakning | ADX', desc:'Registrering, överlåtelser, DNS-konfiguration och bevakning av varumärken och HTTPS/SSL-certifikat. Full kontroll på era domäner med ADX.'},
-  epost:          {title:'E-post för företag — Office 365 & Google Workspace | ADX', desc:'Uppsättning, licenshantering, användaradministration och säkerhet för Office 365 och Google Workspace. Migrering utan avbrott med ADX.'},
-  portfolio:      {title:'Portfolio — utvalda projekt | ADX', desc:'Ett urval av webbplatser, plattformar och automationsflöden som ADX byggt och förvaltar.'},
-  paket:          {title:'Paket & priser — Start, Tillväxt, Enterprise | ADX', desc:'Jämför ADX paket: Start, Tillväxt och Enterprise. Webbplats, hosting, SEO, automation och multi-tenant-lösningar för kedjor.'},
-  kontakt:        {title:'Kontakt — skicka en förfrågan | ADX', desc:'Kontakta ADX, digitalbyrå i Stockholm. Berätta var ni står och vart ni vill — första mötet kostar ingenting.'}
+  hem:            {title:'ADX - Digitalbyrå i Stockholm', desc:'ADX är en digitalbyrå i Stockholm: webbutveckling, automation, managed content, hosting, domäner och e-post. Ett team, ett ansvar.'},
+  tjanster:       {title:'Tjänster - Webb, automation, drift & innehåll | ADX', desc:'Alla ADX tjänster: webbutveckling, automation & integrationer, managed content, managed hosting, domain management och e-post.'},
+  webbutveckling: {title:'Webbutveckling Stockholm - färdiga paket & skräddarsytt | ADX', desc:'Webbutveckling i Stockholm: färdiga paket och skräddarsydda webbplatser och intranät. Snabba, säkra och byggda för att förvaltas över tid.'},
+  automation:     {title:'Automation & API-integrationer - effektivisera era processer | ADX', desc:'Effektivisera interna processer med skript, API-integrationer och automatiserade arbetsflöden. Kartläggning, bygge och övervakning av ADX i Stockholm.'},
+  content:        {title:'Managed Content - copywriting & SEO som löpande tjänst | ADX', desc:'Copywriting och sökmotoroptimering som gör att rätt kunder hittar er och stannar. Sökordsanalys, innehåll och månadsrapportering från ADX.'},
+  hosting:        {title:'Managed Hosting & molntjänster - trygg drift & multi-tenant | ADX', desc:'Managed hosting med övervakning 24/7, dagliga backuper och SSL. Multi-tenant-lösningar för kedjor. 99,9 % drifttid från ADX i Stockholm.'},
+  domain:         {title:'Domain Management - domäner, DNS & bevakning | ADX', desc:'Registrering, överlåtelser, DNS-konfiguration och bevakning av varumärken och HTTPS/SSL-certifikat. Full kontroll på era domäner med ADX.'},
+  epost:          {title:'E-post för företag - Office 365 & Google Workspace | ADX', desc:'Uppsättning, licenshantering, användaradministration och säkerhet för Office 365 och Google Workspace. Migrering utan avbrott med ADX.'},
+  portfolio:      {title:'Portfolio - utvalda projekt | ADX', desc:'Ett urval av webbplatser, plattformar och automationsflöden som ADX byggt och förvaltar.'},
+  paket:          {title:'Paket & priser - Start, Tillväxt, Enterprise | ADX', desc:'Jämför ADX paket: Start, Tillväxt och Enterprise. Webbplats, hosting, SEO, automation och multi-tenant-lösningar för kedjor.'},
+  kontakt:        {title:'Kontakt - skicka en förfrågan | ADX', desc:'Kontakta ADX, digitalbyrå i Stockholm. Berätta var ni står och vart ni vill - första mötet kostar ingenting.'}
 };
 
 function hexToRgb(hex){
@@ -84,7 +84,7 @@ void main(){
   gl_Position = vec4(aPos, 0.0, 1.0);
 }`;
 
-/* Fragmentshadern — ordagrant samma som SKYLRK:s "lava-lamp"
+/* Fragmentshadern - ordagrant samma som SKYLRK:s "lava-lamp"
    (Shadertoy DdcfzH av welches), inkl. filmGrainIntensity 0.1 */
 const FRAG = `
 precision highp float;
@@ -278,7 +278,7 @@ function goTo(page, animate){
   mobileMenu.classList.remove('open');
   window.scrollTo(0,0);
 }
-/* Länkarna sätter bara location.hash (vanliga <a href="#...">) —
+/* Länkarna sätter bara location.hash (vanliga <a href="#...">) -
    hashchange-lyssnaren gör själva sidbytet, så att även webbläsarens
    bakåt/framåt-knappar fungerar. Inget element har id som krockar med
    hasharna (sidorna heter id="page-..."), så webbläsaren scrollhoppar inte. */

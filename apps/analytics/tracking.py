@@ -223,7 +223,7 @@ def record_pageview(session, path, title=""):
 
 def record_event(session, event_type, label="", path="", placement=""):
     """
-    Record an interaction event (tel click, booking, form error, …).
+    Record an interaction event (tel click, booking, form error, ...).
 
     `event_type` and `placement` are validated against their choice lists -
     both can originate from the beacon payload, which is untrusted input.

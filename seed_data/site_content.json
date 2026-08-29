@@ -1,2640 +1,2640 @@
 [
-{
-  "model": "website.blockpage",
-  "pk": 1,
-  "fields": {
-    "title": "ADX",
-    "slug": "hem",
-    "meta_title": "ADX — Digitalbyrå i Stockholm",
-    "meta_description": "ADX är en digitalbyrå i Stockholm: webbutveckling, automation, managed content, hosting, domäner och e-post. Ett team, ett ansvar.",
-    "gradient_color": "#f7fcff",
-    "is_published": true,
-    "order": 0,
-    "created_at": "2026-08-27T20:14:30.386Z",
-    "updated_at": "2026-08-27T21:00:09.751Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 2,
-  "fields": {
-    "title": "Tjänster",
-    "slug": "tjanster",
-    "meta_title": "Tjänster — Webb, automation, drift & innehåll | ADX",
-    "meta_description": "Alla ADX tjänster: webbutveckling, automation & integrationer, managed content, managed hosting, domain management och e-post.",
-    "gradient_color": "#5252CC",
-    "is_published": true,
-    "order": 1,
-    "created_at": "2026-08-27T20:14:30.392Z",
-    "updated_at": "2026-08-27T21:00:09.757Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 3,
-  "fields": {
-    "title": "Webbutveckling Stockholm",
-    "slug": "webbutveckling",
-    "meta_title": "Webbutveckling Stockholm — färdiga paket & skräddarsytt | ADX",
-    "meta_description": "Webbutveckling i Stockholm: färdiga paket och skräddarsydda webbplatser och intranät. Snabba, säkra och byggda för att förvaltas över tid.",
-    "gradient_color": "#2456b0",
-    "is_published": true,
-    "order": 2,
-    "created_at": "2026-08-27T20:14:30.395Z",
-    "updated_at": "2026-08-27T21:00:09.759Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 4,
-  "fields": {
-    "title": "Automation & API-integrationer",
-    "slug": "automation",
-    "meta_title": "Automation & API-integrationer — effektivisera era processer | ADX",
-    "meta_description": "Effektivisera interna processer med skript, API-integrationer och automatiserade arbetsflöden. Kartläggning, bygge och övervakning av ADX i Stockholm.",
-    "gradient_color": "#c05a2e",
-    "is_published": true,
-    "order": 3,
-    "created_at": "2026-08-27T20:14:30.403Z",
-    "updated_at": "2026-08-27T21:00:09.768Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 5,
-  "fields": {
-    "title": "Managed Content",
-    "slug": "content",
-    "meta_title": "Managed Content — copywriting & SEO som löpande tjänst | ADX",
-    "meta_description": "Copywriting och sökmotoroptimering som gör att rätt kunder hittar er och stannar. Sökordsanalys, innehåll och månadsrapportering från ADX.",
-    "gradient_color": "#a8842a",
-    "is_published": true,
-    "order": 4,
-    "created_at": "2026-08-27T20:14:30.410Z",
-    "updated_at": "2026-08-27T21:00:09.775Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 6,
-  "fields": {
-    "title": "Managed Hosting & molntjänster",
-    "slug": "hosting",
-    "meta_title": "Managed Hosting & molntjänster — trygg drift & multi-tenant | ADX",
-    "meta_description": "Managed hosting med övervakning 24/7, dagliga backuper och SSL. Multi-tenant-lösningar för kedjor. 99,9 % drifttid från ADX i Stockholm.",
-    "gradient_color": "#0e3a52",
-    "is_published": true,
-    "order": 5,
-    "created_at": "2026-08-27T20:14:30.416Z",
-    "updated_at": "2026-08-27T21:00:09.781Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 7,
-  "fields": {
-    "title": "Domain Management",
-    "slug": "domain",
-    "meta_title": "Domain Management — domäner, DNS & bevakning | ADX",
-    "meta_description": "Registrering, överlåtelser, DNS-konfiguration och bevakning av varumärken och HTTPS/SSL-certifikat. Full kontroll på era domäner med ADX.",
-    "gradient_color": "#4a2d73",
-    "is_published": true,
-    "order": 6,
-    "created_at": "2026-08-27T20:14:30.421Z",
-    "updated_at": "2026-08-27T21:00:09.787Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 8,
-  "fields": {
-    "title": "E-post för företag",
-    "slug": "epost",
-    "meta_title": "E-post för företag — Office 365 & Google Workspace | ADX",
-    "meta_description": "Uppsättning, licenshantering, användaradministration och säkerhet för Office 365 och Google Workspace. Migrering utan avbrott med ADX.",
-    "gradient_color": "#813a63",
-    "is_published": true,
-    "order": 7,
-    "created_at": "2026-08-27T20:14:30.426Z",
-    "updated_at": "2026-08-27T21:00:09.792Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 9,
-  "fields": {
-    "title": "Portfolio",
-    "slug": "portfolio",
-    "meta_title": "Portfolio — utvalda projekt | ADX",
-    "meta_description": "Ett urval av webbplatser, plattformar och automationsflöden som ADX byggt och förvaltar.",
-    "gradient_color": "#2f6f4f",
-    "is_published": true,
-    "order": 8,
-    "created_at": "2026-08-27T20:14:30.433Z",
-    "updated_at": "2026-08-27T21:00:09.797Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 10,
-  "fields": {
-    "title": "Paket & priser",
-    "slug": "paket",
-    "meta_title": "Paket & priser — Start, Tillväxt, Enterprise | ADX",
-    "meta_description": "Jämför ADX paket: Start, Tillväxt och Enterprise. Webbplats, hosting, SEO, automation och multi-tenant-lösningar för kedjor.",
-    "gradient_color": "#121111",
-    "is_published": true,
-    "order": 9,
-    "created_at": "2026-08-27T20:14:30.436Z",
-    "updated_at": "2026-08-27T21:00:09.799Z"
-  }
-},
-{
-  "model": "website.blockpage",
-  "pk": 11,
-  "fields": {
-    "title": "Kontakt",
-    "slug": "kontakt",
-    "meta_title": "Kontakt — skicka en förfrågan | ADX",
-    "meta_description": "Kontakta ADX, digitalbyrå i Stockholm. Berätta var ni står och vart ni vill — första mötet kostar ingenting.",
-    "gradient_color": "#7a2b35",
-    "is_published": true,
-    "order": 10,
-    "created_at": "2026-08-27T20:14:30.440Z",
-    "updated_at": "2026-08-27T21:00:09.802Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 370,
-  "fields": {
-    "page": 1,
-    "block_type": "hero",
-    "data": {
-      "lead": "Webbutveckling, automation, innehåll och drift. Vi bygger, förvaltar och vidareutvecklar er digitala verksamhet.",
-      "title": "Digitala lösningar som lyfter.",
-      "kicker": "Digitalbyrå - Stockholm",
-      "primary": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
-      },
-      "image_id": "",
-      "secondary": {
-        "url": {
-          "id": 2,
-          "kind": "page"
-        },
-        "label": "Se tjänster"
-      }
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.753Z",
-    "updated_at": "2026-08-28T16:51:56.195Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 371,
-  "fields": {
-    "page": 1,
-    "block_type": "chips",
-    "data": {
-      "chips": [
-        {
-          "label": "drifttid — managed hosting",
-          "value": "99,9 %"
-        },
-        {
-          "label": "tjänster under samma tak",
-          "value": "6 områden"
-        },
-        {
-          "label": "plattform för kedjor",
-          "value": "Multi-tenant"
-        },
-        {
-          "label": "kunder i hela landet",
-          "value": "Stockholm"
-        }
-      ]
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.754Z",
-    "updated_at": "2026-08-27T21:00:09.754Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 372,
-  "fields": {
-    "page": 1,
-    "block_type": "marquee",
-    "data": {
-      "items": [
-        "E-handel",
-        "Detaljhandel",
-        "Restaurangkedjor",
-        "Bygg & Fastighet",
-        "Juridik",
-        "Vård & Klinik",
-        "Logistik",
-        "Utbildning"
-      ]
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.754Z",
-    "updated_at": "2026-08-27T21:00:09.754Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 373,
-  "fields": {
-    "page": 1,
-    "block_type": "case",
-    "data": {
-      "body": "En rikstäckande kedja behövde en gemensam webbplattform där varje enhet får sin egen sida — men allt driftas, uppdateras och förvaltas centralt.",
-      "link": {
-        "url": "",
-        "label": "Multi-tenant · Kedja"
-      },
-      "stats": [
-        {
-          "label": "enheter på plattformen",
-          "value": "23 st"
-        },
-        {
-          "label": "organisk trafik",
-          "value": "+124 %"
-        },
-        {
-          "label": "sparade genom automation",
-          "value": "40 h/mån"
-        }
-      ],
-      "title": "En plattform. 23 enheter.",
-      "kicker": "Utvalt case",
-      "case_title": "Kedjeplattform för restauranger"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.754Z",
-    "updated_at": "2026-08-27T21:00:09.754Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 374,
-  "fields": {
-    "page": 1,
-    "block_type": "steps",
-    "data": {
-      "intro": "",
-      "steps": [
-        {
-          "text": "Vi kartlägger er verksamhet, era system och era mål — och föreslår vägen dit.",
-          "title": "Analys"
-        },
-        {
-          "text": "Struktur, innehåll och form som gör att rätt kunder hittar er och stannar.",
-          "title": "Design"
-        },
-        {
-          "text": "Webb, integrationer och automatiserade flöden — byggt för att prestera.",
-          "title": "Bygg"
-        },
-        {
-          "text": "Drift, övervakning, säkerhet och vidareutveckling. Löpande, varje dag.",
-          "title": "Förvalta"
-        }
-      ],
-      "title": "Från skiss till drift.",
-      "kicker": "Så jobbar vi"
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.755Z",
-    "updated_at": "2026-08-27T21:00:09.755Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 375,
-  "fields": {
-    "page": 1,
-    "block_type": "quotes",
-    "data": {
-      "title": "Vad kunder säger",
-      "kicker": "Röster",
-      "quotes": [
-        {
-          "who": "VD — Detaljhandelskedja",
-          "text": "ADX tog över hela vår digitala miljö — webb, e-post och domäner. För första gången har vi en enda kontakt för allt."
-        },
-        {
-          "who": "Driftchef — Logistikbolag",
-          "text": "Automationsflödena sparar oss tiotals timmar i månaden. Saker som föll mellan stolarna sköter sig nu själva."
-        },
-        {
-          "who": "Marknadschef — Advokatbyrå",
-          "text": "Ny webbplats, bättre innehåll och synlighet som faktiskt märks i affären. Rakt igenom professionellt."
-        }
-      ]
-    },
-    "order": 5,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.755Z",
-    "updated_at": "2026-08-27T21:00:09.755Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 376,
-  "fields": {
-    "page": 1,
-    "block_type": "why",
-    "data": {
-      "items": [
-        {
-          "text": "Webb, automation, innehåll, hosting, domäner och e-post — samlat hos ett team i Stockholm. Ett nummer att ringa, ett avtal att hålla koll på.",
-          "title": "Allt under samma tak"
-        },
-        {
-          "text": "Vi lämnar inte över och försvinner. Allt vi bygger driftas, övervakas och vidareutvecklas löpande — med säkerhet och backup som standard.",
-          "title": "Byggt för förvaltning"
-        },
-        {
-          "text": "Från enskild sajt till multi-tenant-plattform för hela kedjan. Börja smått och väx utan att byta leverantör på vägen.",
-          "title": "Skalar med er"
-        }
-      ],
-      "title": "En partner. Hela vägen.",
-      "kicker": "Varför ADX"
-    },
-    "order": 6,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.755Z",
-    "updated_at": "2026-08-27T21:00:09.755Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 377,
-  "fields": {
-    "page": 1,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
-      },
-      "label": "Redo att lyfta?"
-    },
-    "order": 7,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.756Z",
-    "updated_at": "2026-08-27T21:00:09.756Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 378,
-  "fields": {
-    "page": 2,
-    "block_type": "hero",
-    "data": {
-      "lead": "Från första skiss till löpande förvaltning — vi tar helhetsansvar för er digitala närvaro. Klicka på en tjänst för att läsa mer.",
-      "title": "Allt digitalt.\nEtt team.",
-      "kicker": "Tjänster"
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.757Z",
-    "updated_at": "2026-08-27T21:00:09.757Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 379,
-  "fields": {
-    "page": 2,
-    "block_type": "svc_list",
-    "data": {
-      "intro": "",
-      "title": "",
-      "kicker": ""
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.758Z",
-    "updated_at": "2026-08-27T21:00:09.758Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 380,
-  "fields": {
-    "page": 2,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
-      },
-      "note": "Vi svarar samma dag",
-      "label": "Vill ni veta mer?"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.758Z",
-    "updated_at": "2026-08-27T21:00:09.758Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 381,
-  "fields": {
-    "page": 3,
-    "block_type": "hero",
-    "data": {
-      "lead": "Vi bygger webbplatser och intranät som presterar — som färdiga paket när ni vill lansera snabbt, eller helt skräddarsydda när ni vill sticka ut. Alltid snabba, säkra och byggda för att förvaltas över tid.",
-      "title": "Webbutveckling\ni Stockholm.",
-      "crumbs": [
-        {
-          "url": "/",
-          "label": "Hem"
-        },
-        {
-          "url": "/tjanster/",
-          "label": "Tjänster"
-        }
-      ],
-      "kicker": "Webbutveckling",
-      "primary": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
-      },
-      "secondary": {
-        "url": {
-          "id": 10,
-          "kind": "page"
-        },
-        "label": "Se paket & priser"
-      }
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.760Z",
-    "updated_at": "2026-08-27T21:00:09.760Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 382,
-  "fields": {
-    "page": 3,
-    "block_type": "why",
-    "data": {
-      "items": [
-        {
-          "text": "Professionell webbplats på beprövat ramverk, lanserad på veckor i stället för månader. Fast månadskostnad med hosting, domän och support inkluderat.",
-          "title": "Färdiga paket"
-        },
-        {
-          "text": "Unik design och funktionalitet byggd kring er affär — e-handel, bokningssystem, medlemsportaler eller integrationer mot era verksamhetssystem.",
-          "title": "Skräddarsytt"
-        },
-        {
-          "text": "Interna portaler och verktyg som samlar dokument, nyheter och processer på ett ställe — med behörighetsstyrning och koppling till er e-postmiljö.",
-          "title": "Intranät"
-        }
-      ],
-      "title": "Tre vägar till ny webb",
-      "kicker": "Vad vi bygger"
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.760Z",
-    "updated_at": "2026-08-27T21:00:09.760Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 383,
-  "fields": {
-    "page": 3,
-    "block_type": "split",
-    "data": {
-      "body": "Varje webbplats vi bygger levereras med teknisk grund som sökmotorer och besökare älskar.",
-      "title": "Snabbt, säkert och synligt",
-      "kicker": "Byggt för att prestera",
-      "bullets": [
-        "Blixtsnabba laddtider och hög prestanda",
-        "Sökmotoroptimerad struktur från start",
-        "Responsiv design — mobil, surfplatta, desktop",
-        "Tillgänglighetsanpassad (WCAG)",
-        "SSL, säkerhetsuppdateringar och backup"
-      ],
-      "image_side": "left"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.761Z",
-    "updated_at": "2026-08-27T21:00:09.761Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 384,
-  "fields": {
-    "page": 3,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>En webbplats är inte ett projekt som blir klart — det är ett verktyg som ska arbeta för er varje dag. Därför bygger vi webbplatser med förvaltning i åtanke: tydlig struktur, redigerbart innehåll och teknik som går att vidareutveckla i stället för att byggas om från grunden vart tredje år.</p><p>Som digitalbyrå i Stockholm arbetar vi med allt från enmansbolag som behöver en professionell närvaro till kedjor som behöver en multi-tenant-plattform för dussintals enheter. Oavsett storlek får ni samma grund: snabb hosting, säker drift och en webbplats som är byggd för att hittas i sökmotorer.</p>",
-      "title": "Webbplatser som gör jobbet"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.761Z",
-    "updated_at": "2026-08-27T21:00:09.761Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 385,
-  "fields": {
-    "page": 3,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>Vi börjar alltid i er affär: vilka ska hitta er, och vad ska de göra när de gör det? Sedan tar vi hand om hela kedjan — struktur, design, innehåll, utveckling, lansering och löpande förvaltning. Ni behöver aldrig samordna flera leverantörer, och när sajten är live fortsätter vi att övervaka, uppdatera och förbättra den.</p>",
-      "title": "Från idé till lansering — och vidare"
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.762Z",
-    "updated_at": "2026-08-27T21:00:09.762Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 386,
-  "fields": {
-    "page": 3,
-    "block_type": "faq",
-    "data": {
-      "title": "Vanliga frågor",
-      "kicker": "FAQ — Webbutveckling",
-      "faq_section_id": 1
-    },
-    "order": 5,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.767Z",
-    "updated_at": "2026-08-27T21:00:09.767Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 387,
-  "fields": {
-    "page": 3,
-    "block_type": "related",
-    "data": {
-      "links": [
-        {
+  {
+    "model": "website.blockpage",
+    "pk": 1,
+    "fields": {
+      "title": "ADX",
+      "slug": "hem",
+      "meta_title": "ADX - Digitalbyrå i Stockholm",
+      "meta_description": "ADX är en digitalbyrå i Stockholm: webbutveckling, automation, managed content, hosting, domäner och e-post. Ett team, ett ansvar.",
+      "gradient_color": "#f7fcff",
+      "is_published": true,
+      "order": 0,
+      "created_at": "2026-08-27T20:14:30.386Z",
+      "updated_at": "2026-08-27T21:00:09.751Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 2,
+    "fields": {
+      "title": "Tjänster",
+      "slug": "tjanster",
+      "meta_title": "Tjänster - Webb, automation, drift & innehåll | ADX",
+      "meta_description": "Alla ADX tjänster: webbutveckling, automation & integrationer, managed content, managed hosting, domain management och e-post.",
+      "gradient_color": "#5252CC",
+      "is_published": true,
+      "order": 1,
+      "created_at": "2026-08-27T20:14:30.392Z",
+      "updated_at": "2026-08-27T21:00:09.757Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 3,
+    "fields": {
+      "title": "Webbutveckling Stockholm",
+      "slug": "webbutveckling",
+      "meta_title": "Webbutveckling Stockholm - färdiga paket & skräddarsytt | ADX",
+      "meta_description": "Webbutveckling i Stockholm: färdiga paket och skräddarsydda webbplatser och intranät. Snabba, säkra och byggda för att förvaltas över tid.",
+      "gradient_color": "#2456b0",
+      "is_published": true,
+      "order": 2,
+      "created_at": "2026-08-27T20:14:30.395Z",
+      "updated_at": "2026-08-27T21:00:09.759Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 4,
+    "fields": {
+      "title": "Automation & API-integrationer",
+      "slug": "automation",
+      "meta_title": "Automation & API-integrationer - effektivisera era processer | ADX",
+      "meta_description": "Effektivisera interna processer med skript, API-integrationer och automatiserade arbetsflöden. Kartläggning, bygge och övervakning av ADX i Stockholm.",
+      "gradient_color": "#c05a2e",
+      "is_published": true,
+      "order": 3,
+      "created_at": "2026-08-27T20:14:30.403Z",
+      "updated_at": "2026-08-27T21:00:09.768Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 5,
+    "fields": {
+      "title": "Managed Content",
+      "slug": "content",
+      "meta_title": "Managed Content - copywriting & SEO som löpande tjänst | ADX",
+      "meta_description": "Copywriting och sökmotoroptimering som gör att rätt kunder hittar er och stannar. Sökordsanalys, innehåll och månadsrapportering från ADX.",
+      "gradient_color": "#a8842a",
+      "is_published": true,
+      "order": 4,
+      "created_at": "2026-08-27T20:14:30.410Z",
+      "updated_at": "2026-08-27T21:00:09.775Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 6,
+    "fields": {
+      "title": "Managed Hosting & molntjänster",
+      "slug": "hosting",
+      "meta_title": "Managed Hosting & molntjänster - trygg drift & multi-tenant | ADX",
+      "meta_description": "Managed hosting med övervakning 24/7, dagliga backuper och SSL. Multi-tenant-lösningar för kedjor. 99,9 % drifttid från ADX i Stockholm.",
+      "gradient_color": "#0e3a52",
+      "is_published": true,
+      "order": 5,
+      "created_at": "2026-08-27T20:14:30.416Z",
+      "updated_at": "2026-08-27T21:00:09.781Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 7,
+    "fields": {
+      "title": "Domain Management",
+      "slug": "domain",
+      "meta_title": "Domain Management - domäner, DNS & bevakning | ADX",
+      "meta_description": "Registrering, överlåtelser, DNS-konfiguration och bevakning av varumärken och HTTPS/SSL-certifikat. Full kontroll på era domäner med ADX.",
+      "gradient_color": "#4a2d73",
+      "is_published": true,
+      "order": 6,
+      "created_at": "2026-08-27T20:14:30.421Z",
+      "updated_at": "2026-08-27T21:00:09.787Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 8,
+    "fields": {
+      "title": "E-post för företag",
+      "slug": "epost",
+      "meta_title": "E-post för företag - Office 365 & Google Workspace | ADX",
+      "meta_description": "Uppsättning, licenshantering, användaradministration och säkerhet för Office 365 och Google Workspace. Migrering utan avbrott med ADX.",
+      "gradient_color": "#813a63",
+      "is_published": true,
+      "order": 7,
+      "created_at": "2026-08-27T20:14:30.426Z",
+      "updated_at": "2026-08-27T21:00:09.792Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 9,
+    "fields": {
+      "title": "Portfolio",
+      "slug": "portfolio",
+      "meta_title": "Portfolio - utvalda projekt | ADX",
+      "meta_description": "Ett urval av webbplatser, plattformar och automationsflöden som ADX byggt och förvaltar.",
+      "gradient_color": "#2f6f4f",
+      "is_published": true,
+      "order": 8,
+      "created_at": "2026-08-27T20:14:30.433Z",
+      "updated_at": "2026-08-27T21:00:09.797Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 10,
+    "fields": {
+      "title": "Paket & priser",
+      "slug": "paket",
+      "meta_title": "Paket & priser - Start, Tillväxt, Enterprise | ADX",
+      "meta_description": "Jämför ADX paket: Start, Tillväxt och Enterprise. Webbplats, hosting, SEO, automation och multi-tenant-lösningar för kedjor.",
+      "gradient_color": "#121111",
+      "is_published": true,
+      "order": 9,
+      "created_at": "2026-08-27T20:14:30.436Z",
+      "updated_at": "2026-08-27T21:00:09.799Z"
+    }
+  },
+  {
+    "model": "website.blockpage",
+    "pk": 11,
+    "fields": {
+      "title": "Kontakt",
+      "slug": "kontakt",
+      "meta_title": "Kontakt - skicka en förfrågan | ADX",
+      "meta_description": "Kontakta ADX, digitalbyrå i Stockholm. Berätta var ni står och vart ni vill - första mötet kostar ingenting.",
+      "gradient_color": "#7a2b35",
+      "is_published": true,
+      "order": 10,
+      "created_at": "2026-08-27T20:14:30.440Z",
+      "updated_at": "2026-08-27T21:00:09.802Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 370,
+    "fields": {
+      "page": 1,
+      "block_type": "hero",
+      "data": {
+        "lead": "Webbutveckling, automation, innehåll och drift. Vi bygger, förvaltar och vidareutvecklar er digitala verksamhet.",
+        "title": "Digitala lösningar som lyfter.",
+        "kicker": "Digitalbyrå - Stockholm",
+        "primary": {
           "url": {
-            "id": 5,
+            "id": 11,
             "kind": "page"
           },
-          "label": "Managed Content"
+          "label": "Skicka förfrågan"
         },
-        {
+        "image_id": "",
+        "secondary": {
+          "url": {
+            "id": 2,
+            "kind": "page"
+          },
+          "label": "Se tjänster"
+        }
+      },
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.753Z",
+      "updated_at": "2026-08-28T16:51:56.195Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 371,
+    "fields": {
+      "page": 1,
+      "block_type": "chips",
+      "data": {
+        "chips": [
+          {
+            "label": "drifttid - managed hosting",
+            "value": "99,9 %"
+          },
+          {
+            "label": "tjänster under samma tak",
+            "value": "6 områden"
+          },
+          {
+            "label": "plattform för kedjor",
+            "value": "Multi-tenant"
+          },
+          {
+            "label": "kunder i hela landet",
+            "value": "Stockholm"
+          }
+        ]
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.754Z",
+      "updated_at": "2026-08-27T21:00:09.754Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 372,
+    "fields": {
+      "page": 1,
+      "block_type": "marquee",
+      "data": {
+        "items": [
+          "E-handel",
+          "Detaljhandel",
+          "Restaurangkedjor",
+          "Bygg & Fastighet",
+          "Juridik",
+          "Vård & Klinik",
+          "Logistik",
+          "Utbildning"
+        ]
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.754Z",
+      "updated_at": "2026-08-27T21:00:09.754Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 373,
+    "fields": {
+      "page": 1,
+      "block_type": "case",
+      "data": {
+        "body": "En rikstäckande kedja behövde en gemensam webbplattform där varje enhet får sin egen sida - men allt driftas, uppdateras och förvaltas centralt.",
+        "link": {
+          "url": "",
+          "label": "Multi-tenant · Kedja"
+        },
+        "stats": [
+          {
+            "label": "enheter på plattformen",
+            "value": "23 st"
+          },
+          {
+            "label": "organisk trafik",
+            "value": "+124 %"
+          },
+          {
+            "label": "sparade genom automation",
+            "value": "40 h/mån"
+          }
+        ],
+        "title": "En plattform. 23 enheter.",
+        "kicker": "Utvalt case",
+        "case_title": "Kedjeplattform för restauranger"
+      },
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.754Z",
+      "updated_at": "2026-08-27T21:00:09.754Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 374,
+    "fields": {
+      "page": 1,
+      "block_type": "steps",
+      "data": {
+        "intro": "",
+        "steps": [
+          {
+            "text": "Vi kartlägger er verksamhet, era system och era mål - och föreslår vägen dit.",
+            "title": "Analys"
+          },
+          {
+            "text": "Struktur, innehåll och form som gör att rätt kunder hittar er och stannar.",
+            "title": "Design"
+          },
+          {
+            "text": "Webb, integrationer och automatiserade flöden - byggt för att prestera.",
+            "title": "Bygg"
+          },
+          {
+            "text": "Drift, övervakning, säkerhet och vidareutveckling. Löpande, varje dag.",
+            "title": "Förvalta"
+          }
+        ],
+        "title": "Från skiss till drift.",
+        "kicker": "Så jobbar vi"
+      },
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.755Z",
+      "updated_at": "2026-08-27T21:00:09.755Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 375,
+    "fields": {
+      "page": 1,
+      "block_type": "quotes",
+      "data": {
+        "title": "Vad kunder säger",
+        "kicker": "Röster",
+        "quotes": [
+          {
+            "who": "VD - Detaljhandelskedja",
+            "text": "ADX tog över hela vår digitala miljö - webb, e-post och domäner. För första gången har vi en enda kontakt för allt."
+          },
+          {
+            "who": "Driftchef - Logistikbolag",
+            "text": "Automationsflödena sparar oss tiotals timmar i månaden. Saker som föll mellan stolarna sköter sig nu själva."
+          },
+          {
+            "who": "Marknadschef - Advokatbyrå",
+            "text": "Ny webbplats, bättre innehåll och synlighet som faktiskt märks i affären. Rakt igenom professionellt."
+          }
+        ]
+      },
+      "order": 5,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.755Z",
+      "updated_at": "2026-08-27T21:00:09.755Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 376,
+    "fields": {
+      "page": 1,
+      "block_type": "why",
+      "data": {
+        "items": [
+          {
+            "text": "Webb, automation, innehåll, hosting, domäner och e-post - samlat hos ett team i Stockholm. Ett nummer att ringa, ett avtal att hålla koll på.",
+            "title": "Allt under samma tak"
+          },
+          {
+            "text": "Vi lämnar inte över och försvinner. Allt vi bygger driftas, övervakas och vidareutvecklas löpande - med säkerhet och backup som standard.",
+            "title": "Byggt för förvaltning"
+          },
+          {
+            "text": "Från enskild sajt till multi-tenant-plattform för hela kedjan. Börja smått och väx utan att byta leverantör på vägen.",
+            "title": "Skalar med er"
+          }
+        ],
+        "title": "En partner. Hela vägen.",
+        "kicker": "Varför ADX"
+      },
+      "order": 6,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.755Z",
+      "updated_at": "2026-08-27T21:00:09.755Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 377,
+    "fields": {
+      "page": 1,
+      "block_type": "bar",
+      "data": {
+        "link": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "label": "Redo att lyfta?"
+      },
+      "order": 7,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.756Z",
+      "updated_at": "2026-08-27T21:00:09.756Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 378,
+    "fields": {
+      "page": 2,
+      "block_type": "hero",
+      "data": {
+        "lead": "Från första skiss till löpande förvaltning - vi tar helhetsansvar för er digitala närvaro. Klicka på en tjänst för att läsa mer.",
+        "title": "Allt digitalt.\nEtt team.",
+        "kicker": "Tjänster"
+      },
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.757Z",
+      "updated_at": "2026-08-27T21:00:09.757Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 379,
+    "fields": {
+      "page": 2,
+      "block_type": "svc_list",
+      "data": {
+        "intro": "",
+        "title": "",
+        "kicker": ""
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.758Z",
+      "updated_at": "2026-08-27T21:00:09.758Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 380,
+    "fields": {
+      "page": 2,
+      "block_type": "bar",
+      "data": {
+        "link": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "note": "Vi svarar samma dag",
+        "label": "Vill ni veta mer?"
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.758Z",
+      "updated_at": "2026-08-27T21:00:09.758Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 381,
+    "fields": {
+      "page": 3,
+      "block_type": "hero",
+      "data": {
+        "lead": "Vi bygger webbplatser och intranät som presterar - som färdiga paket när ni vill lansera snabbt, eller helt skräddarsydda när ni vill sticka ut. Alltid snabba, säkra och byggda för att förvaltas över tid.",
+        "title": "Webbutveckling\ni Stockholm.",
+        "crumbs": [
+          {
+            "url": "/",
+            "label": "Hem"
+          },
+          {
+            "url": "/tjanster/",
+            "label": "Tjänster"
+          }
+        ],
+        "kicker": "Webbutveckling",
+        "primary": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "secondary": {
+          "url": {
+            "id": 10,
+            "kind": "page"
+          },
+          "label": "Se paket & priser"
+        }
+      },
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.760Z",
+      "updated_at": "2026-08-27T21:00:09.760Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 382,
+    "fields": {
+      "page": 3,
+      "block_type": "why",
+      "data": {
+        "items": [
+          {
+            "text": "Professionell webbplats på beprövat ramverk, lanserad på veckor i stället för månader. Fast månadskostnad med hosting, domän och support inkluderat.",
+            "title": "Färdiga paket"
+          },
+          {
+            "text": "Unik design och funktionalitet byggd kring er affär - e-handel, bokningssystem, medlemsportaler eller integrationer mot era verksamhetssystem.",
+            "title": "Skräddarsytt"
+          },
+          {
+            "text": "Interna portaler och verktyg som samlar dokument, nyheter och processer på ett ställe - med behörighetsstyrning och koppling till er e-postmiljö.",
+            "title": "Intranät"
+          }
+        ],
+        "title": "Tre vägar till ny webb",
+        "kicker": "Vad vi bygger"
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.760Z",
+      "updated_at": "2026-08-27T21:00:09.760Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 383,
+    "fields": {
+      "page": 3,
+      "block_type": "split",
+      "data": {
+        "body": "Varje webbplats vi bygger levereras med teknisk grund som sökmotorer och besökare älskar.",
+        "title": "Snabbt, säkert och synligt",
+        "kicker": "Byggt för att prestera",
+        "bullets": [
+          "Blixtsnabba laddtider och hög prestanda",
+          "Sökmotoroptimerad struktur från start",
+          "Responsiv design - mobil, surfplatta, desktop",
+          "Tillgänglighetsanpassad (WCAG)",
+          "SSL, säkerhetsuppdateringar och backup"
+        ],
+        "image_side": "left"
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.761Z",
+      "updated_at": "2026-08-27T21:00:09.761Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 384,
+    "fields": {
+      "page": 3,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>En webbplats är inte ett projekt som blir klart - det är ett verktyg som ska arbeta för er varje dag. Därför bygger vi webbplatser med förvaltning i åtanke: tydlig struktur, redigerbart innehåll och teknik som går att vidareutveckla i stället för att byggas om från grunden vart tredje år.</p><p>Som digitalbyrå i Stockholm arbetar vi med allt från enmansbolag som behöver en professionell närvaro till kedjor som behöver en multi-tenant-plattform för dussintals enheter. Oavsett storlek får ni samma grund: snabb hosting, säker drift och en webbplats som är byggd för att hittas i sökmotorer.</p>",
+        "title": "Webbplatser som gör jobbet"
+      },
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.761Z",
+      "updated_at": "2026-08-27T21:00:09.761Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 385,
+    "fields": {
+      "page": 3,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>Vi börjar alltid i er affär: vilka ska hitta er, och vad ska de göra när de gör det? Sedan tar vi hand om hela kedjan - struktur, design, innehåll, utveckling, lansering och löpande förvaltning. Ni behöver aldrig samordna flera leverantörer, och när sajten är live fortsätter vi att övervaka, uppdatera och förbättra den.</p>",
+        "title": "Från idé till lansering - och vidare"
+      },
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.762Z",
+      "updated_at": "2026-08-27T21:00:09.762Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 386,
+    "fields": {
+      "page": 3,
+      "block_type": "faq",
+      "data": {
+        "title": "Vanliga frågor",
+        "kicker": "FAQ - Webbutveckling",
+        "faq_section_id": 1
+      },
+      "order": 5,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.767Z",
+      "updated_at": "2026-08-27T21:00:09.767Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 387,
+    "fields": {
+      "page": 3,
+      "block_type": "related",
+      "data": {
+        "links": [
+          {
+            "url": {
+              "id": 5,
+              "kind": "page"
+            },
+            "label": "Managed Content"
+          },
+          {
+            "url": {
+              "id": 6,
+              "kind": "page"
+            },
+            "label": "Managed Hosting"
+          },
+          {
+            "url": {
+              "id": 4,
+              "kind": "page"
+            },
+            "label": "Automation"
+          }
+        ],
+        "title": "Kombinera med",
+        "kicker": "Relaterat"
+      },
+      "order": 6,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.767Z",
+      "updated_at": "2026-08-27T21:00:09.767Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 388,
+    "fields": {
+      "page": 3,
+      "block_type": "bar",
+      "data": {
+        "link": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "label": "Dags för ny webb?"
+      },
+      "order": 7,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.767Z",
+      "updated_at": "2026-08-27T21:00:09.767Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 389,
+    "fields": {
+      "page": 4,
+      "block_type": "hero",
+      "data": {
+        "lead": "Sluta klippa och klistra mellan system. Vi effektiviserar era interna processer med skript, API-integrationer och automatiserade arbetsflöden - så att er tid läggs på rätt saker.",
+        "title": "Automation &\nintegrationer.",
+        "crumbs": [
+          {
+            "url": "/",
+            "label": "Hem"
+          },
+          {
+            "url": "/tjanster/",
+            "label": "Tjänster"
+          }
+        ],
+        "kicker": "Automation & Integrationer",
+        "primary": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "secondary": {
+          "url": {
+            "id": 9,
+            "kind": "page"
+          },
+          "label": "Se case"
+        }
+      },
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.769Z",
+      "updated_at": "2026-08-27T21:00:09.769Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 390,
+    "fields": {
+      "page": 4,
+      "block_type": "steps",
+      "data": {
+        "steps": [
+          {
+            "text": "Vi går igenom era processer och hittar momenten som stjäl mest tid - och som är enklast att automatisera.",
+            "title": "Kartläggning"
+          },
+          {
+            "text": "Vi ritar upp det nya flödet: vad som triggar vad, vilka system som pratar med varandra och vad som händer vid fel.",
+            "title": "Flödesdesign"
+          },
+          {
+            "text": "Vi bygger skript och API-kopplingar som flyttar data automatiskt - korrekt, spårbart och utan dubbelarbete.",
+            "title": "Integration"
+          },
+          {
+            "text": "Flödena övervakas i drift. Går något fel larmas vi - och åtgärdar det innan det påverkar er verksamhet.",
+            "title": "Övervakning"
+          }
+        ],
+        "title": "Från manuellt\ntill automatiskt",
+        "kicker": "Så går det till"
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.770Z",
+      "updated_at": "2026-08-27T21:00:09.770Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 391,
+    "fields": {
+      "page": 4,
+      "block_type": "split",
+      "data": {
+        "body": "Nästan allt som görs manuellt mellan två system kan automatiseras.",
+        "title": "Låt systemen göra jobbet",
+        "kicker": "Exempel på vad vi automatiserar",
+        "bullets": [
+          "Ordrar och kunddata som synkas mellan system",
+          "Automatiska rapporter och sammanställningar",
+          "Fakturaunderlag och bokföringsexport",
+          "Notiser och påminnelser i rätt kanal",
+          "On- och offboarding av användare"
+        ],
+        "image_side": "left"
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.770Z",
+      "updated_at": "2026-08-27T21:00:09.770Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 392,
+    "fields": {
+      "page": 4,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>De flesta verksamheter har data i flera system - affärssystem, e-handel, CRM, ekonomi - och någon som manuellt flyttar information mellan dem. Det är långsamt, dyrt och felbenäget. Med API-integrationer kopplar vi ihop systemen så att datan flödar automatiskt, i realtid, utan inmatningsfel.</p>",
+        "title": "Låt systemen prata med varandra"
+      },
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.770Z",
+      "updated_at": "2026-08-27T21:00:09.770Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 393,
+    "fields": {
+      "page": 4,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>Automation behöver inte vara ett stort IT-projekt. Ofta är det ett välplacerat skript som sparar mest: en rapport som skapar sig själv varje måndag, ett dokument som fylls i automatiskt, en påminnelse som aldrig glöms bort. Vi börjar där effekten är störst och bygger vidare därifrån - varje automatiserat moment betalar sig månad efter månad.</p>",
+        "title": "Små skript, stor effekt"
+      },
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.771Z",
+      "updated_at": "2026-08-27T21:00:09.771Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 394,
+    "fields": {
+      "page": 4,
+      "block_type": "faq",
+      "data": {
+        "title": "Vanliga frågor",
+        "kicker": "FAQ - Automation",
+        "faq_section_id": 2
+      },
+      "order": 5,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.773Z",
+      "updated_at": "2026-08-27T21:00:09.773Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 395,
+    "fields": {
+      "page": 4,
+      "block_type": "related",
+      "data": {
+        "links": [
+          {
+            "url": {
+              "id": 3,
+              "kind": "page"
+            },
+            "label": "Webbutveckling"
+          },
+          {
+            "url": {
+              "id": 6,
+              "kind": "page"
+            },
+            "label": "Managed Hosting"
+          },
+          {
+            "url": {
+              "id": 8,
+              "kind": "page"
+            },
+            "label": "E-post"
+          }
+        ],
+        "title": "Kombinera med",
+        "kicker": "Relaterat"
+      },
+      "order": 6,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.774Z",
+      "updated_at": "2026-08-27T21:00:09.774Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 396,
+    "fields": {
+      "page": 4,
+      "block_type": "bar",
+      "data": {
+        "link": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "note": "Vi kartlägger gratis",
+        "label": "Vad kan ni automatisera?"
+      },
+      "order": 7,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.774Z",
+      "updated_at": "2026-08-27T21:00:09.774Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 397,
+    "fields": {
+      "page": 5,
+      "block_type": "hero",
+      "data": {
+        "lead": "Managed Content är copywriting och sökmotoroptimering som löpande tjänst - innehåll som gör att rätt kunder hittar er i sökresultaten, och som får dem att stanna när de kommit fram.",
+        "title": "Copy & SEO\nsom syns.",
+        "crumbs": [
+          {
+            "url": "/",
+            "label": "Hem"
+          },
+          {
+            "url": "/tjanster/",
+            "label": "Tjänster"
+          }
+        ],
+        "kicker": "Managed Content",
+        "primary": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "secondary": {
+          "url": {
+            "id": 10,
+            "kind": "page"
+          },
+          "label": "Ingår i Tillväxt-paketet"
+        }
+      },
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.776Z",
+      "updated_at": "2026-08-27T21:00:09.776Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 398,
+    "fields": {
+      "page": 5,
+      "block_type": "why",
+      "data": {
+        "items": [
+          {
+            "text": "Texter som låter som ni och säljer som proffs - webbtexter, tjänstesidor, artiklar och nyhetsbrev, skrivna för både människor och sökmotorer.",
+            "title": "Copywriting"
+          },
+          {
+            "text": "Sökordsanalys, teknisk SEO och on-page-optimering. Vi ser till att era sidor rankar på sökningarna som faktiskt leder till affärer.",
+            "title": "Sökmotoroptimering"
+          },
+          {
+            "text": "Innehåll är färskvara. Vi uppdaterar, utökar och optimerar löpande - och rapporterar varje månad hur synligheten utvecklas.",
+            "title": "Löpande förvaltning"
+          }
+        ],
+        "title": "Innehåll som löpande tjänst",
+        "kicker": "Vad som ingår"
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.776Z",
+      "updated_at": "2026-08-27T21:00:09.776Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 399,
+    "fields": {
+      "page": 5,
+      "block_type": "split",
+      "data": {
+        "body": "Allt innehåll vi producerar bygger på analys av vad era kunder faktiskt söker efter.",
+        "title": "Data först, magkänsla sen",
+        "kicker": "Arbetssätt",
+        "bullets": [
+          "Sökordsanalys och konkurrentkartläggning",
+          "Innehållsplan med prioriterade ämnen",
+          "On-page-optimering av befintliga sidor",
+          "Nytt innehåll varje månad",
+          "Månadsrapport med ranking och trafik"
+        ],
+        "image_side": "left"
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.776Z",
+      "updated_at": "2026-08-27T21:00:09.776Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 400,
+    "fields": {
+      "page": 5,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>De flesta köpresor börjar med en sökning. Företaget som dyker upp med rätt svar på rätt fråga vinner kunden - ofta innan konkurrenterna ens vet att affären fanns. Sökmotoroptimering handlar därför inte om tekniska trick, utan om att systematiskt besvara de frågor era kunder faktiskt ställer, bättre än någon annan.</p>",
+        "title": "Syns ni inte, finns ni inte"
+      },
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.777Z",
+      "updated_at": "2026-08-27T21:00:09.777Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 401,
+    "fields": {
+      "page": 5,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>En text som skrevs för tre år sedan rankar sällan i dag. Sökmotorer premierar webbplatser som hålls levande: uppdaterade tjänstesidor, nya artiklar, korrekt information. Med Managed Content sköter vi det åt er - ni godkänner, vi producerar, publicerar och följer upp. Månad efter månad.</p>",
+        "title": "Innehåll är en färskvara"
+      },
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.777Z",
+      "updated_at": "2026-08-27T21:00:09.777Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 402,
+    "fields": {
+      "page": 5,
+      "block_type": "faq",
+      "data": {
+        "title": "Vanliga frågor",
+        "kicker": "FAQ - Managed Content",
+        "faq_section_id": 3
+      },
+      "order": 5,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.780Z",
+      "updated_at": "2026-08-27T21:00:09.780Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 403,
+    "fields": {
+      "page": 5,
+      "block_type": "related",
+      "data": {
+        "links": [
+          {
+            "url": {
+              "id": 3,
+              "kind": "page"
+            },
+            "label": "Webbutveckling"
+          },
+          {
+            "url": {
+              "id": 7,
+              "kind": "page"
+            },
+            "label": "Domain Management"
+          },
+          {
+            "url": {
+              "id": 4,
+              "kind": "page"
+            },
+            "label": "Automation"
+          }
+        ],
+        "title": "Kombinera med",
+        "kicker": "Relaterat"
+      },
+      "order": 6,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.780Z",
+      "updated_at": "2026-08-27T21:00:09.780Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 404,
+    "fields": {
+      "page": 5,
+      "block_type": "bar",
+      "data": {
+        "link": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "label": "Vill ni synas mer?"
+      },
+      "order": 7,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.780Z",
+      "updated_at": "2026-08-27T21:00:09.780Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 405,
+    "fields": {
+      "page": 6,
+      "block_type": "hero",
+      "data": {
+        "lead": "Trygg drift ni slipper tänka på: övervakning dygnet runt, dagliga backuper, säkerhetsuppdateringar och SSL som standard. Och för kedjor - multi-tenant-lösningar som driftar många enheter på en gemensam plattform.",
+        "title": "Managed hosting\n& molntjänster.",
+        "crumbs": [
+          {
+            "url": "/",
+            "label": "Hem"
+          },
+          {
+            "url": "/tjanster/",
+            "label": "Tjänster"
+          }
+        ],
+        "kicker": "Managed Hosting & Moln",
+        "primary": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "secondary": {
+          "url": {
+            "id": 10,
+            "kind": "page"
+          },
+          "label": "Se paket"
+        }
+      },
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.782Z",
+      "updated_at": "2026-08-27T21:00:09.782Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 406,
+    "fields": {
+      "page": 6,
+      "block_type": "chips",
+      "data": {
+        "chips": [
+          {
+            "label": "drifttid",
+            "value": "99,9 %"
+          },
+          {
+            "label": "övervakning",
+            "value": "24/7"
+          },
+          {
+            "label": "backup",
+            "value": "Dagligen"
+          },
+          {
+            "label": "standard på allt",
+            "value": "SSL"
+          }
+        ]
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.782Z",
+      "updated_at": "2026-08-27T21:00:09.782Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 407,
+    "fields": {
+      "page": 6,
+      "block_type": "split",
+      "data": {
+        "body": "Multi-tenant betyder att varje enhet i kedjan får sin egen webbplats - men att allt driftas, uppdateras och förvaltas centralt.",
+        "title": "En plattform, många enheter",
+        "kicker": "För kedjor",
+        "bullets": [
+          "Central drift och gemensamma uppdateringar",
+          "Enhetlig design med lokal anpassning",
+          "Ny enhet live på dagar, inte månader",
+          "Lägre kostnad per enhet än separata sajter"
+        ],
+        "image_side": "left"
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.782Z",
+      "updated_at": "2026-08-27T21:00:09.782Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 408,
+    "fields": {
+      "page": 6,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>Managed hosting betyder att vi tar hela ansvaret för att er webbplats är snabb, säker och tillgänglig - inte bara att den ligger på en server. Vi övervakar dygnet runt, installerar säkerhetsuppdateringar, tar dagliga backuper och agerar direkt om något avviker. Oftast har vi löst problemet innan någon hunnit märka det.</p>",
+        "title": "Drift ni slipper tänka på"
+      },
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.783Z",
+      "updated_at": "2026-08-27T21:00:09.783Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 409,
+    "fields": {
+      "page": 6,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>Behoven förändras - kampanjer ger trafiktoppar, verksamheten växer, nya marknader tillkommer. Vår molnbaserade driftmiljö skalar med er utan flyttprojekt: mer kapacitet när ni behöver det, och aldrig betalt för mer än ni använder.</p>",
+        "title": "Molntjänster som växer med er"
+      },
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.783Z",
+      "updated_at": "2026-08-27T21:00:09.783Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 410,
+    "fields": {
+      "page": 6,
+      "block_type": "faq",
+      "data": {
+        "title": "Vanliga frågor",
+        "kicker": "FAQ - Hosting",
+        "faq_section_id": 4
+      },
+      "order": 5,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.786Z",
+      "updated_at": "2026-08-27T21:00:09.786Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 411,
+    "fields": {
+      "page": 6,
+      "block_type": "related",
+      "data": {
+        "links": [
+          {
+            "url": {
+              "id": 3,
+              "kind": "page"
+            },
+            "label": "Webbutveckling"
+          },
+          {
+            "url": {
+              "id": 7,
+              "kind": "page"
+            },
+            "label": "Domain Management"
+          },
+          {
+            "url": {
+              "id": 8,
+              "kind": "page"
+            },
+            "label": "E-post"
+          }
+        ],
+        "title": "Kombinera med",
+        "kicker": "Relaterat"
+      },
+      "order": 6,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.786Z",
+      "updated_at": "2026-08-27T21:00:09.786Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 412,
+    "fields": {
+      "page": 6,
+      "block_type": "bar",
+      "data": {
+        "link": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "label": "Trött på driftstrul?"
+      },
+      "order": 7,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.786Z",
+      "updated_at": "2026-08-27T21:00:09.786Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 413,
+    "fields": {
+      "page": 7,
+      "block_type": "hero",
+      "data": {
+        "lead": "Domänen är er digitala adress - och förvånansvärt lätt att tappa kontrollen över. Vi sköter registrering, överlåtelser, DNS-konfiguration och bevakning av varumärken och SSL-certifikat, så att inget löper ut eller kapas.",
+        "title": "Domäner & DNS\nunder kontroll.",
+        "crumbs": [
+          {
+            "url": "/",
+            "label": "Hem"
+          },
+          {
+            "url": "/tjanster/",
+            "label": "Tjänster"
+          }
+        ],
+        "kicker": "Domain Management",
+        "primary": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "secondary": {
           "url": {
             "id": 6,
             "kind": "page"
           },
-          "label": "Managed Hosting"
-        },
-        {
-          "url": {
-            "id": 4,
-            "kind": "page"
-          },
-          "label": "Automation"
+          "label": "Se även hosting"
         }
-      ],
-      "title": "Kombinera med",
-      "kicker": "Relaterat"
-    },
-    "order": 6,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.767Z",
-    "updated_at": "2026-08-27T21:00:09.767Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 388,
-  "fields": {
-    "page": 3,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
       },
-      "label": "Dags för ny webb?"
-    },
-    "order": 7,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.767Z",
-    "updated_at": "2026-08-27T21:00:09.767Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 389,
-  "fields": {
-    "page": 4,
-    "block_type": "hero",
-    "data": {
-      "lead": "Sluta klippa och klistra mellan system. Vi effektiviserar era interna processer med skript, API-integrationer och automatiserade arbetsflöden — så att er tid läggs på rätt saker.",
-      "title": "Automation &\nintegrationer.",
-      "crumbs": [
-        {
-          "url": "/",
-          "label": "Hem"
-        },
-        {
-          "url": "/tjanster/",
-          "label": "Tjänster"
-        }
-      ],
-      "kicker": "Automation & Integrationer",
-      "primary": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.787Z",
+      "updated_at": "2026-08-27T21:00:09.787Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 414,
+    "fields": {
+      "page": 7,
+      "block_type": "why",
+      "data": {
+        "items": [
+          {
+            "text": "Vi registrerar nya domäner, samlar era befintliga hos en registrar och sköter överlåtelser vid företagsköp eller namnbyten - med korrekt ägarinformation.",
+            "title": "Registrering & överlåtelser"
+          },
+          {
+            "text": "Vi bevakar era varumärken mot liknande domänregistreringar och håller koll på att förnyelser och HTTPS/SSL-certifikat aldrig löper ut.",
+            "title": "Bevakning"
+          },
+          {
+            "text": "Korrekt uppsatt DNS för webb, e-post och tjänster - med SPF, DKIM och DMARC som skyddar er domän mot spoofing och förbättrar leveransbarheten.",
+            "title": "DNS-konfiguration"
+          }
+        ],
+        "title": "Full koll,\nhela vägen",
+        "kicker": "Vad som ingår"
       },
-      "secondary": {
-        "url": {
-          "id": 9,
-          "kind": "page"
-        },
-        "label": "Se case"
-      }
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.769Z",
-    "updated_at": "2026-08-27T21:00:09.769Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 390,
-  "fields": {
-    "page": 4,
-    "block_type": "steps",
-    "data": {
-      "steps": [
-        {
-          "text": "Vi går igenom era processer och hittar momenten som stjäl mest tid — och som är enklast att automatisera.",
-          "title": "Kartläggning"
-        },
-        {
-          "text": "Vi ritar upp det nya flödet: vad som triggar vad, vilka system som pratar med varandra och vad som händer vid fel.",
-          "title": "Flödesdesign"
-        },
-        {
-          "text": "Vi bygger skript och API-kopplingar som flyttar data automatiskt — korrekt, spårbart och utan dubbelarbete.",
-          "title": "Integration"
-        },
-        {
-          "text": "Flödena övervakas i drift. Går något fel larmas vi — och åtgärdar det innan det påverkar er verksamhet.",
-          "title": "Övervakning"
-        }
-      ],
-      "title": "Från manuellt\ntill automatiskt",
-      "kicker": "Så går det till"
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.770Z",
-    "updated_at": "2026-08-27T21:00:09.770Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 391,
-  "fields": {
-    "page": 4,
-    "block_type": "split",
-    "data": {
-      "body": "Nästan allt som görs manuellt mellan två system kan automatiseras.",
-      "title": "Låt systemen göra jobbet",
-      "kicker": "Exempel på vad vi automatiserar",
-      "bullets": [
-        "Ordrar och kunddata som synkas mellan system",
-        "Automatiska rapporter och sammanställningar",
-        "Fakturaunderlag och bokföringsexport",
-        "Notiser och påminnelser i rätt kanal",
-        "On- och offboarding av användare"
-      ],
-      "image_side": "left"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.770Z",
-    "updated_at": "2026-08-27T21:00:09.770Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 392,
-  "fields": {
-    "page": 4,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>De flesta verksamheter har data i flera system — affärssystem, e-handel, CRM, ekonomi — och någon som manuellt flyttar information mellan dem. Det är långsamt, dyrt och felbenäget. Med API-integrationer kopplar vi ihop systemen så att datan flödar automatiskt, i realtid, utan inmatningsfel.</p>",
-      "title": "Låt systemen prata med varandra"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.770Z",
-    "updated_at": "2026-08-27T21:00:09.770Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 393,
-  "fields": {
-    "page": 4,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>Automation behöver inte vara ett stort IT-projekt. Ofta är det ett välplacerat skript som sparar mest: en rapport som skapar sig själv varje måndag, ett dokument som fylls i automatiskt, en påminnelse som aldrig glöms bort. Vi börjar där effekten är störst och bygger vidare därifrån — varje automatiserat moment betalar sig månad efter månad.</p>",
-      "title": "Små skript, stor effekt"
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.771Z",
-    "updated_at": "2026-08-27T21:00:09.771Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 394,
-  "fields": {
-    "page": 4,
-    "block_type": "faq",
-    "data": {
-      "title": "Vanliga frågor",
-      "kicker": "FAQ — Automation",
-      "faq_section_id": 2
-    },
-    "order": 5,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.773Z",
-    "updated_at": "2026-08-27T21:00:09.773Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 395,
-  "fields": {
-    "page": 4,
-    "block_type": "related",
-    "data": {
-      "links": [
-        {
-          "url": {
-            "id": 3,
-            "kind": "page"
-          },
-          "label": "Webbutveckling"
-        },
-        {
-          "url": {
-            "id": 6,
-            "kind": "page"
-          },
-          "label": "Managed Hosting"
-        },
-        {
-          "url": {
-            "id": 8,
-            "kind": "page"
-          },
-          "label": "E-post"
-        }
-      ],
-      "title": "Kombinera med",
-      "kicker": "Relaterat"
-    },
-    "order": 6,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.774Z",
-    "updated_at": "2026-08-27T21:00:09.774Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 396,
-  "fields": {
-    "page": 4,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.788Z",
+      "updated_at": "2026-08-27T21:00:09.788Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 415,
+    "fields": {
+      "page": 7,
+      "block_type": "split",
+      "data": {
+        "body": "En utgången domän eller ett utgånget certifikat kan stoppa både webbplats och e-post på minuter.",
+        "title": "Sov gott om era domäner",
+        "kicker": "Därför spelar det roll",
+        "bullets": [
+          "Förnyelser hanteras i tid, varje gång",
+          "SSL-certifikat utfärdas och förnyas automatiskt",
+          "Varumärkesbevakning mot domänkapning",
+          "Samlad portfölj i stället för spridda konton"
+        ],
+        "image_side": "left"
       },
-      "note": "Vi kartlägger gratis",
-      "label": "Vad kan ni automatisera?"
-    },
-    "order": 7,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.774Z",
-    "updated_at": "2026-08-27T21:00:09.774Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 397,
-  "fields": {
-    "page": 5,
-    "block_type": "hero",
-    "data": {
-      "lead": "Managed Content är copywriting och sökmotoroptimering som löpande tjänst — innehåll som gör att rätt kunder hittar er i sökresultaten, och som får dem att stanna när de kommit fram.",
-      "title": "Copy & SEO\nsom syns.",
-      "crumbs": [
-        {
-          "url": "/",
-          "label": "Hem"
-        },
-        {
-          "url": "/tjanster/",
-          "label": "Tjänster"
-        }
-      ],
-      "kicker": "Managed Content",
-      "primary": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.788Z",
+      "updated_at": "2026-08-27T21:00:09.788Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 416,
+    "fields": {
+      "page": 7,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>Allt pekar mot domänen: webbplatsen, e-posten, inloggningar och integrationer. Ändå ligger många företags domäner registrerade på en tidigare anställds privata konto, hos en leverantör ingen minns lösenordet till. Vi samlar er domänportfölj, dokumenterar ägarskapet och ser till att rätt personer har kontroll - i dag och den dag något förändras.</p>",
+        "title": "Domänen är er digitala adress"
       },
-      "secondary": {
-        "url": {
-          "id": 10,
-          "kind": "page"
-        },
-        "label": "Ingår i Tillväxt-paketet"
-      }
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.776Z",
-    "updated_at": "2026-08-27T21:00:09.776Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 398,
-  "fields": {
-    "page": 5,
-    "block_type": "why",
-    "data": {
-      "items": [
-        {
-          "text": "Texter som låter som ni och säljer som proffs — webbtexter, tjänstesidor, artiklar och nyhetsbrev, skrivna för både människor och sökmotorer.",
-          "title": "Copywriting"
-        },
-        {
-          "text": "Sökordsanalys, teknisk SEO och on-page-optimering. Vi ser till att era sidor rankar på sökningarna som faktiskt leder till affärer.",
-          "title": "Sökmotoroptimering"
-        },
-        {
-          "text": "Innehåll är färskvara. Vi uppdaterar, utökar och optimerar löpande — och rapporterar varje månad hur synligheten utvecklas.",
-          "title": "Löpande förvaltning"
-        }
-      ],
-      "title": "Innehåll som löpande tjänst",
-      "kicker": "Vad som ingår"
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.776Z",
-    "updated_at": "2026-08-27T21:00:09.776Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 399,
-  "fields": {
-    "page": 5,
-    "block_type": "split",
-    "data": {
-      "body": "Allt innehåll vi producerar bygger på analys av vad era kunder faktiskt söker efter.",
-      "title": "Data först, magkänsla sen",
-      "kicker": "Arbetssätt",
-      "bullets": [
-        "Sökordsanalys och konkurrentkartläggning",
-        "Innehållsplan med prioriterade ämnen",
-        "On-page-optimering av befintliga sidor",
-        "Nytt innehåll varje månad",
-        "Månadsrapport med ranking och trafik"
-      ],
-      "image_side": "left"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.776Z",
-    "updated_at": "2026-08-27T21:00:09.776Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 400,
-  "fields": {
-    "page": 5,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>De flesta köpresor börjar med en sökning. Företaget som dyker upp med rätt svar på rätt fråga vinner kunden — ofta innan konkurrenterna ens vet att affären fanns. Sökmotoroptimering handlar därför inte om tekniska trick, utan om att systematiskt besvara de frågor era kunder faktiskt ställer, bättre än någon annan.</p>",
-      "title": "Syns ni inte, finns ni inte"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.777Z",
-    "updated_at": "2026-08-27T21:00:09.777Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 401,
-  "fields": {
-    "page": 5,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>En text som skrevs för tre år sedan rankar sällan i dag. Sökmotorer premierar webbplatser som hålls levande: uppdaterade tjänstesidor, nya artiklar, korrekt information. Med Managed Content sköter vi det åt er — ni godkänner, vi producerar, publicerar och följer upp. Månad efter månad.</p>",
-      "title": "Innehåll är en färskvara"
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.777Z",
-    "updated_at": "2026-08-27T21:00:09.777Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 402,
-  "fields": {
-    "page": 5,
-    "block_type": "faq",
-    "data": {
-      "title": "Vanliga frågor",
-      "kicker": "FAQ — Managed Content",
-      "faq_section_id": 3
-    },
-    "order": 5,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.780Z",
-    "updated_at": "2026-08-27T21:00:09.780Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 403,
-  "fields": {
-    "page": 5,
-    "block_type": "related",
-    "data": {
-      "links": [
-        {
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.788Z",
+      "updated_at": "2026-08-27T21:00:09.788Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 417,
+    "fields": {
+      "page": 7,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>Domänkapning och varumärkesintrång upptäcks bäst innan de blir problem. Vi bevakar registreringar som liknar era varumärken och flaggar misstänkta domäner tidigt. Samtidigt håller vi era certifikat och förnyelser under uppsikt - det tråkiga arbetet som ingen märker av, förrän den dag det inte blivit gjort.</p>",
+        "title": "Bevakning som förebygger problem"
+      },
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.789Z",
+      "updated_at": "2026-08-27T21:00:09.789Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 418,
+    "fields": {
+      "page": 7,
+      "block_type": "faq",
+      "data": {
+        "title": "Vanliga frågor",
+        "kicker": "FAQ - Domain Management",
+        "faq_section_id": 5
+      },
+      "order": 5,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.791Z",
+      "updated_at": "2026-08-27T21:00:09.791Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 419,
+    "fields": {
+      "page": 7,
+      "block_type": "related",
+      "data": {
+        "links": [
+          {
+            "url": {
+              "id": 6,
+              "kind": "page"
+            },
+            "label": "Managed Hosting"
+          },
+          {
+            "url": {
+              "id": 8,
+              "kind": "page"
+            },
+            "label": "E-post"
+          },
+          {
+            "url": {
+              "id": 3,
+              "kind": "page"
+            },
+            "label": "Webbutveckling"
+          }
+        ],
+        "title": "Kombinera med",
+        "kicker": "Relaterat"
+      },
+      "order": 6,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.791Z",
+      "updated_at": "2026-08-27T21:00:09.791Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 420,
+    "fields": {
+      "page": 7,
+      "block_type": "bar",
+      "data": {
+        "link": {
           "url": {
-            "id": 3,
+            "id": 11,
             "kind": "page"
           },
-          "label": "Webbutveckling"
+          "label": "Skicka förfrågan"
         },
-        {
+        "note": "Vi gör en gratis genomgång",
+        "label": "Var är era domäner i dag?"
+      },
+      "order": 7,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.791Z",
+      "updated_at": "2026-08-27T21:00:09.791Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 421,
+    "fields": {
+      "page": 8,
+      "block_type": "hero",
+      "data": {
+        "lead": "Office 365 och Google Workspace - uppsatt, förvaltat och säkrat av oss. Licenshantering, användaradministration och säkerhet, så att er e-post alltid fungerar och aldrig blir en risk.",
+        "title": "E-post som bara fungerar.",
+        "kicker": "E-post",
+        "primary": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "image_id": "",
+        "secondary": {
           "url": {
             "id": 7,
             "kind": "page"
           },
-          "label": "Domain Management"
-        },
-        {
-          "url": {
-            "id": 4,
-            "kind": "page"
-          },
-          "label": "Automation"
+          "label": "Se även domäner"
         }
-      ],
-      "title": "Kombinera med",
-      "kicker": "Relaterat"
-    },
-    "order": 6,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.780Z",
-    "updated_at": "2026-08-27T21:00:09.780Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 404,
-  "fields": {
-    "page": 5,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
       },
-      "label": "Vill ni synas mer?"
-    },
-    "order": 7,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.780Z",
-    "updated_at": "2026-08-27T21:00:09.780Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 405,
-  "fields": {
-    "page": 6,
-    "block_type": "hero",
-    "data": {
-      "lead": "Trygg drift ni slipper tänka på: övervakning dygnet runt, dagliga backuper, säkerhetsuppdateringar och SSL som standard. Och för kedjor — multi-tenant-lösningar som driftar många enheter på en gemensam plattform.",
-      "title": "Managed hosting\n& molntjänster.",
-      "crumbs": [
-        {
-          "url": "/",
-          "label": "Hem"
-        },
-        {
-          "url": "/tjanster/",
-          "label": "Tjänster"
-        }
-      ],
-      "kicker": "Managed Hosting & Moln",
-      "primary": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.793Z",
+      "updated_at": "2026-08-27T21:26:27.078Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 422,
+    "fields": {
+      "page": 8,
+      "block_type": "why",
+      "data": {
+        "items": [
+          {
+            "text": "Exchange, Teams, OneDrive och Office-paketet - uppsatt med rätt licenser, säkerhetspolicys och delningsinställningar för er organisation.",
+            "title": "Office 365"
+          },
+          {
+            "text": "Gmail, Drive, Meet och Kalender på er egen domän - konfigurerat, administrerat och säkrat, med rätt nivå för varje användare.",
+            "title": "Google Workspace"
+          },
+          {
+            "text": "Tvåfaktorsautentisering, behörighetsstyrning, skydd mot nätfiske och ordnad on- och offboarding när medarbetare börjar och slutar.",
+            "title": "Säkerhet & administration"
+          }
+        ],
+        "title": "Hela e-postmiljön, förvaltad",
+        "kicker": "Vad som ingår"
       },
-      "secondary": {
-        "url": {
-          "id": 10,
-          "kind": "page"
-        },
-        "label": "Se paket"
-      }
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.782Z",
-    "updated_at": "2026-08-27T21:00:09.782Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 406,
-  "fields": {
-    "page": 6,
-    "block_type": "chips",
-    "data": {
-      "chips": [
-        {
-          "label": "drifttid",
-          "value": "99,9 %"
-        },
-        {
-          "label": "övervakning",
-          "value": "24/7"
-        },
-        {
-          "label": "backup",
-          "value": "Dagligen"
-        },
-        {
-          "label": "standard på allt",
-          "value": "SSL"
-        }
-      ]
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.782Z",
-    "updated_at": "2026-08-27T21:00:09.782Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 407,
-  "fields": {
-    "page": 6,
-    "block_type": "split",
-    "data": {
-      "body": "Multi-tenant betyder att varje enhet i kedjan får sin egen webbplats — men att allt driftas, uppdateras och förvaltas centralt.",
-      "title": "En plattform, många enheter",
-      "kicker": "För kedjor",
-      "bullets": [
-        "Central drift och gemensamma uppdateringar",
-        "Enhetlig design med lokal anpassning",
-        "Ny enhet live på dagar, inte månader",
-        "Lägre kostnad per enhet än separata sajter"
-      ],
-      "image_side": "left"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.782Z",
-    "updated_at": "2026-08-27T21:00:09.782Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 408,
-  "fields": {
-    "page": 6,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>Managed hosting betyder att vi tar hela ansvaret för att er webbplats är snabb, säker och tillgänglig — inte bara att den ligger på en server. Vi övervakar dygnet runt, installerar säkerhetsuppdateringar, tar dagliga backuper och agerar direkt om något avviker. Oftast har vi löst problemet innan någon hunnit märka det.</p>",
-      "title": "Drift ni slipper tänka på"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.783Z",
-    "updated_at": "2026-08-27T21:00:09.783Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 409,
-  "fields": {
-    "page": 6,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>Behoven förändras — kampanjer ger trafiktoppar, verksamheten växer, nya marknader tillkommer. Vår molnbaserade driftmiljö skalar med er utan flyttprojekt: mer kapacitet när ni behöver det, och aldrig betalt för mer än ni använder.</p>",
-      "title": "Molntjänster som växer med er"
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.783Z",
-    "updated_at": "2026-08-27T21:00:09.783Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 410,
-  "fields": {
-    "page": 6,
-    "block_type": "faq",
-    "data": {
-      "title": "Vanliga frågor",
-      "kicker": "FAQ — Hosting",
-      "faq_section_id": 4
-    },
-    "order": 5,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.786Z",
-    "updated_at": "2026-08-27T21:00:09.786Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 411,
-  "fields": {
-    "page": 6,
-    "block_type": "related",
-    "data": {
-      "links": [
-        {
-          "url": {
-            "id": 3,
-            "kind": "page"
-          },
-          "label": "Webbutveckling"
-        },
-        {
-          "url": {
-            "id": 7,
-            "kind": "page"
-          },
-          "label": "Domain Management"
-        },
-        {
-          "url": {
-            "id": 8,
-            "kind": "page"
-          },
-          "label": "E-post"
-        }
-      ],
-      "title": "Kombinera med",
-      "kicker": "Relaterat"
-    },
-    "order": 6,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.786Z",
-    "updated_at": "2026-08-27T21:00:09.786Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 412,
-  "fields": {
-    "page": 6,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.793Z",
+      "updated_at": "2026-08-27T21:00:09.793Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 423,
+    "fields": {
+      "page": 8,
+      "block_type": "split",
+      "data": {
+        "body": "Att byta e-postplattform känns riskabelt - men med rätt förberedelser märker användarna knappt att det hänt.",
+        "title": "Migrering utan magont",
+        "kicker": "Byte utan avbrott",
+        "bullets": [
+          "All historik, alla mappar och kontakter följer med",
+          "Ingen nertid - gammal och ny miljö går parallellt",
+          "DNS, SPF, DKIM och DMARC konfigureras rätt",
+          "Utbildning och support efter flytten"
+        ],
+        "image_side": "left"
       },
-      "label": "Trött på driftstrul?"
-    },
-    "order": 7,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.786Z",
-    "updated_at": "2026-08-27T21:00:09.786Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 413,
-  "fields": {
-    "page": 7,
-    "block_type": "hero",
-    "data": {
-      "lead": "Domänen är er digitala adress — och förvånansvärt lätt att tappa kontrollen över. Vi sköter registrering, överlåtelser, DNS-konfiguration och bevakning av varumärken och SSL-certifikat, så att inget löper ut eller kapas.",
-      "title": "Domäner & DNS\nunder kontroll.",
-      "crumbs": [
-        {
-          "url": "/",
-          "label": "Hem"
-        },
-        {
-          "url": "/tjanster/",
-          "label": "Tjänster"
-        }
-      ],
-      "kicker": "Domain Management",
-      "primary": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.793Z",
+      "updated_at": "2026-08-27T21:00:09.793Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 424,
+    "fields": {
+      "page": 8,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>E-post är fortfarande företagets viktigaste kommunikationskanal - och den kanal som oftast angrips. En korrekt uppsatt miljö på er egen domän ger både trovärdighet i varje utskick och skydd mot nätfiske och spoofing. Vi ser till att tekniken bakom kulisserna - DNS, SPF, DKIM, DMARC - är rätt konfigurerad, så att era mejl kommer fram och ingen annan kan skicka i ert namn.</p>",
+        "title": "Professionell e-post på egen domän"
       },
-      "secondary": {
-        "url": {
-          "id": 6,
-          "kind": "page"
-        },
-        "label": "Se även hosting"
-      }
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.787Z",
-    "updated_at": "2026-08-27T21:00:09.787Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 414,
-  "fields": {
-    "page": 7,
-    "block_type": "why",
-    "data": {
-      "items": [
-        {
-          "text": "Vi registrerar nya domäner, samlar era befintliga hos en registrar och sköter överlåtelser vid företagsköp eller namnbyten — med korrekt ägarinformation.",
-          "title": "Registrering & överlåtelser"
-        },
-        {
-          "text": "Vi bevakar era varumärken mot liknande domänregistreringar och håller koll på att förnyelser och HTTPS/SSL-certifikat aldrig löper ut.",
-          "title": "Bevakning"
-        },
-        {
-          "text": "Korrekt uppsatt DNS för webb, e-post och tjänster — med SPF, DKIM och DMARC som skyddar er domän mot spoofing och förbättrar leveransbarheten.",
-          "title": "DNS-konfiguration"
-        }
-      ],
-      "title": "Full koll,\nhela vägen",
-      "kicker": "Vad som ingår"
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.788Z",
-    "updated_at": "2026-08-27T21:00:09.788Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 415,
-  "fields": {
-    "page": 7,
-    "block_type": "split",
-    "data": {
-      "body": "En utgången domän eller ett utgånget certifikat kan stoppa både webbplats och e-post på minuter.",
-      "title": "Sov gott om era domäner",
-      "kicker": "Därför spelar det roll",
-      "bullets": [
-        "Förnyelser hanteras i tid, varje gång",
-        "SSL-certifikat utfärdas och förnyas automatiskt",
-        "Varumärkesbevakning mot domänkapning",
-        "Samlad portfölj i stället för spridda konton"
-      ],
-      "image_side": "left"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.788Z",
-    "updated_at": "2026-08-27T21:00:09.788Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 416,
-  "fields": {
-    "page": 7,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>Allt pekar mot domänen: webbplatsen, e-posten, inloggningar och integrationer. Ändå ligger många företags domäner registrerade på en tidigare anställds privata konto, hos en leverantör ingen minns lösenordet till. Vi samlar er domänportfölj, dokumenterar ägarskapet och ser till att rätt personer har kontroll — i dag och den dag något förändras.</p>",
-      "title": "Domänen är er digitala adress"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.788Z",
-    "updated_at": "2026-08-27T21:00:09.788Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 417,
-  "fields": {
-    "page": 7,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>Domänkapning och varumärkesintrång upptäcks bäst innan de blir problem. Vi bevakar registreringar som liknar era varumärken och flaggar misstänkta domäner tidigt. Samtidigt håller vi era certifikat och förnyelser under uppsikt — det tråkiga arbetet som ingen märker av, förrän den dag det inte blivit gjort.</p>",
-      "title": "Bevakning som förebygger problem"
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.789Z",
-    "updated_at": "2026-08-27T21:00:09.789Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 418,
-  "fields": {
-    "page": 7,
-    "block_type": "faq",
-    "data": {
-      "title": "Vanliga frågor",
-      "kicker": "FAQ — Domain Management",
-      "faq_section_id": 5
-    },
-    "order": 5,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.791Z",
-    "updated_at": "2026-08-27T21:00:09.791Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 419,
-  "fields": {
-    "page": 7,
-    "block_type": "related",
-    "data": {
-      "links": [
-        {
-          "url": {
-            "id": 6,
-            "kind": "page"
-          },
-          "label": "Managed Hosting"
-        },
-        {
-          "url": {
-            "id": 8,
-            "kind": "page"
-          },
-          "label": "E-post"
-        },
-        {
-          "url": {
-            "id": 3,
-            "kind": "page"
-          },
-          "label": "Webbutveckling"
-        }
-      ],
-      "title": "Kombinera med",
-      "kicker": "Relaterat"
-    },
-    "order": 6,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.791Z",
-    "updated_at": "2026-08-27T21:00:09.791Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 420,
-  "fields": {
-    "page": 7,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.793Z",
+      "updated_at": "2026-08-27T21:00:09.793Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 425,
+    "fields": {
+      "page": 8,
+      "block_type": "prose",
+      "data": {
+        "body": "<p>Nya medarbetare ska ha rätt konto och rätt behörigheter från dag ett - och den som slutar ska förlora åtkomsten samma dag. Med oss som förvaltare sköts licenser, användare och säkerhetspolicys löpande, och ni betalar aldrig för licenser ingen använder. En förfrågan till oss, resten sker automatiskt.</p>",
+        "title": "Administration utan huvudvärk"
       },
-      "note": "Vi gör en gratis genomgång",
-      "label": "Var är era domäner i dag?"
-    },
-    "order": 7,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.791Z",
-    "updated_at": "2026-08-27T21:00:09.791Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 421,
-  "fields": {
-    "page": 8,
-    "block_type": "hero",
-    "data": {
-      "lead": "Office 365 och Google Workspace - uppsatt, förvaltat och säkrat av oss. Licenshantering, användaradministration och säkerhet, så att er e-post alltid fungerar och aldrig blir en risk.",
-      "title": "E-post som bara fungerar.",
-      "kicker": "E-post",
-      "primary": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.794Z",
+      "updated_at": "2026-08-27T21:00:09.794Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 426,
+    "fields": {
+      "page": 8,
+      "block_type": "faq",
+      "data": {
+        "title": "Vanliga frågor",
+        "kicker": "FAQ - E-post",
+        "faq_section_id": 6
       },
-      "image_id": "",
-      "secondary": {
-        "url": {
-          "id": 7,
-          "kind": "page"
-        },
-        "label": "Se även domäner"
-      }
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.793Z",
-    "updated_at": "2026-08-27T21:26:27.078Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 422,
-  "fields": {
-    "page": 8,
-    "block_type": "why",
-    "data": {
-      "items": [
-        {
-          "text": "Exchange, Teams, OneDrive och Office-paketet — uppsatt med rätt licenser, säkerhetspolicys och delningsinställningar för er organisation.",
-          "title": "Office 365"
-        },
-        {
-          "text": "Gmail, Drive, Meet och Kalender på er egen domän — konfigurerat, administrerat och säkrat, med rätt nivå för varje användare.",
-          "title": "Google Workspace"
-        },
-        {
-          "text": "Tvåfaktorsautentisering, behörighetsstyrning, skydd mot nätfiske och ordnad on- och offboarding när medarbetare börjar och slutar.",
-          "title": "Säkerhet & administration"
-        }
-      ],
-      "title": "Hela e-postmiljön, förvaltad",
-      "kicker": "Vad som ingår"
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.793Z",
-    "updated_at": "2026-08-27T21:00:09.793Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 423,
-  "fields": {
-    "page": 8,
-    "block_type": "split",
-    "data": {
-      "body": "Att byta e-postplattform känns riskabelt — men med rätt förberedelser märker användarna knappt att det hänt.",
-      "title": "Migrering utan magont",
-      "kicker": "Byte utan avbrott",
-      "bullets": [
-        "All historik, alla mappar och kontakter följer med",
-        "Ingen nertid — gammal och ny miljö går parallellt",
-        "DNS, SPF, DKIM och DMARC konfigureras rätt",
-        "Utbildning och support efter flytten"
-      ],
-      "image_side": "left"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.793Z",
-    "updated_at": "2026-08-27T21:00:09.793Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 424,
-  "fields": {
-    "page": 8,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>E-post är fortfarande företagets viktigaste kommunikationskanal — och den kanal som oftast angrips. En korrekt uppsatt miljö på er egen domän ger både trovärdighet i varje utskick och skydd mot nätfiske och spoofing. Vi ser till att tekniken bakom kulisserna — DNS, SPF, DKIM, DMARC — är rätt konfigurerad, så att era mejl kommer fram och ingen annan kan skicka i ert namn.</p>",
-      "title": "Professionell e-post på egen domän"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.793Z",
-    "updated_at": "2026-08-27T21:00:09.793Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 425,
-  "fields": {
-    "page": 8,
-    "block_type": "prose",
-    "data": {
-      "body": "<p>Nya medarbetare ska ha rätt konto och rätt behörigheter från dag ett — och den som slutar ska förlora åtkomsten samma dag. Med oss som förvaltare sköts licenser, användare och säkerhetspolicys löpande, och ni betalar aldrig för licenser ingen använder. En förfrågan till oss, resten sker automatiskt.</p>",
-      "title": "Administration utan huvudvärk"
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.794Z",
-    "updated_at": "2026-08-27T21:00:09.794Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 426,
-  "fields": {
-    "page": 8,
-    "block_type": "faq",
-    "data": {
-      "title": "Vanliga frågor",
-      "kicker": "FAQ — E-post",
-      "faq_section_id": 6
-    },
-    "order": 5,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.796Z",
-    "updated_at": "2026-08-27T21:00:09.796Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 427,
-  "fields": {
-    "page": 8,
-    "block_type": "related",
-    "data": {
-      "links": [
-        {
-          "url": {
-            "id": 7,
-            "kind": "page"
+      "order": 5,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.796Z",
+      "updated_at": "2026-08-27T21:00:09.796Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 427,
+    "fields": {
+      "page": 8,
+      "block_type": "related",
+      "data": {
+        "links": [
+          {
+            "url": {
+              "id": 7,
+              "kind": "page"
+            },
+            "label": "Domain Management"
           },
-          "label": "Domain Management"
-        },
-        {
-          "url": {
-            "id": 6,
-            "kind": "page"
+          {
+            "url": {
+              "id": 6,
+              "kind": "page"
+            },
+            "label": "Managed Hosting"
           },
-          "label": "Managed Hosting"
-        },
-        {
+          {
+            "url": {
+              "id": 4,
+              "kind": "page"
+            },
+            "label": "Automation"
+          }
+        ],
+        "title": "Kombinera med",
+        "kicker": "Relaterat"
+      },
+      "order": 6,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.796Z",
+      "updated_at": "2026-08-27T21:00:09.796Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 428,
+    "fields": {
+      "page": 8,
+      "block_type": "bar",
+      "data": {
+        "link": {
           "url": {
-            "id": 4,
-            "kind": "page"
-          },
-          "label": "Automation"
-        }
-      ],
-      "title": "Kombinera med",
-      "kicker": "Relaterat"
-    },
-    "order": 6,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.796Z",
-    "updated_at": "2026-08-27T21:00:09.796Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 428,
-  "fields": {
-    "page": 8,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
-      },
-      "label": "Strulande e-post?"
-    },
-    "order": 7,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.796Z",
-    "updated_at": "2026-08-27T21:00:09.796Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 429,
-  "fields": {
-    "page": 9,
-    "block_type": "hero",
-    "data": {
-      "lead": "Ett urval av webbplatser, plattformar och automationsflöden vi byggt — och fortfarande förvaltar.",
-      "title": "Utvalda\nprojekt.",
-      "kicker": "Portfolio"
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.798Z",
-    "updated_at": "2026-08-27T21:00:09.798Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 430,
-  "fields": {
-    "page": 9,
-    "block_type": "folio",
-    "data": {
-      "cards": [
-        {
-          "url": "",
-          "meta": "Webb · SEO · AI-innehåll · Hosting",
-          "title": "Skandi VVS — webbplats & AI-redaktör",
-          "image_id": ""
-        },
-        {
-          "url": "",
-          "meta": "Multi-tenant · 30 teman · Drift",
-          "title": "ADX-plattformen — kedjelösning",
-          "image_id": ""
-        },
-        {
-          "url": "",
-          "meta": "Plattform · BankID · Under utveckling",
-          "title": "Kronan — omdömesplattform",
-          "image_id": ""
-        },
-        {
-          "url": "",
-          "meta": "Skript · API",
-          "title": "Automationsflöde — Logistik",
-          "image_id": ""
-        },
-        {
-          "url": "",
-          "meta": "Webb · Copy · SEO",
-          "title": "Webbplats — Advokatbyrå",
-          "image_id": ""
-        },
-        {
-          "url": "",
-          "meta": "E-post · Säkerhet",
-          "title": "Workspace-flytt — Klinik",
-          "image_id": ""
-        }
-      ],
-      "intro": "",
-      "title": "",
-      "kicker": ""
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.798Z",
-    "updated_at": "2026-08-27T21:00:09.798Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 431,
-  "fields": {
-    "page": 9,
-    "block_type": "case",
-    "data": {
-      "body": "Skandi VVS behövde synas i varje kommun och stadsdel utan att bygga hundratals sidor för hand. Vi byggde sajten, ortssidorna och en AI-redaktör som låter firman uppdatera innehållet direkt från Claude.",
-      "link": {
-        "url": "",
-        "label": "Webb · SEO · AI"
-      },
-      "stats": [
-        {
-          "label": "ortssidor i Stockholms län",
-          "value": "252 st"
-        },
-        {
-          "label": "innehållsredigering via Claude",
-          "value": "AI"
-        },
-        {
-          "label": "webb, drift och innehåll",
-          "value": "1 team"
-        }
-      ],
-      "title": "En rörfirma.\nHela länet.",
-      "kicker": "Djupdykning",
-      "case_title": "Skandi VVS — synlig i hela Stockholms län"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.798Z",
-    "updated_at": "2026-08-27T21:00:09.798Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 432,
-  "fields": {
-    "page": 9,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
-      },
-      "label": "Vill ni bli nästa case?"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.799Z",
-    "updated_at": "2026-08-27T21:00:09.799Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 433,
-  "fields": {
-    "page": 10,
-    "block_type": "hero",
-    "data": {
-      "lead": "Börja smått eller skala upp — utan att byta leverantör på vägen.",
-      "title": "Upplägg som\npassar er.",
-      "kicker": "Paket"
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.800Z",
-    "updated_at": "2026-08-27T21:00:09.800Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 434,
-  "fields": {
-    "page": 10,
-    "block_type": "plans",
-    "data": {
-      "intro": "",
-      "plans": [
-        {
-          "desc": "För er som behöver en professionell webbplats — snabbt",
-          "mini": "Färdigt paket",
-          "price": "från X XXX kr /mån",
-          "title": "Start",
-          "cta_url": {
             "id": 11,
             "kind": "page"
           },
-          "features": "Webbplats på färdigt ramverk\nManaged hosting & SSL\nDomän & DNS-konfiguration\nE-postuppsättning\nSupport & löpande uppdateringar",
-          "cta_label": "Skicka förfrågan",
-          "price_note": "Fast månadskostnad"
+          "label": "Skicka förfrågan"
         },
-        {
-          "desc": "För er som vill synas, växa och automatisera",
-          "mini": "Vanligaste valet",
-          "price": "från X XXX kr /mån",
-          "title": "Tillväxt",
-          "cta_url": {
-            "id": 11,
-            "kind": "page"
-          },
-          "features": "Allt i Start\nSkräddarsydd design\nCopywriting & SEO\nAutomatiserade arbetsflöden\nDomänbevakning (varumärken & SSL)\nMånadsrapportering",
-          "cta_label": "Skicka förfrågan",
-          "price_note": "Paket + managed content"
-        },
-        {
-          "desc": "För kedjor och verksamheter med särskilda behov",
-          "mini": "Skräddarsytt",
-          "price": "Offert",
-          "title": "Enterprise",
-          "cta_url": {
-            "id": 11,
-            "kind": "page"
-          },
-          "features": "Skräddarsydd webbplats eller intranät\nMulti-tenant-lösning för kedjor\nAPI-integrationer mot era system\nOffice 365 / Google Workspace\nDedikerad kontaktperson",
-          "cta_label": "Boka möte",
-          "price_note": "Prissätts efter omfattning"
-        }
-      ],
-      "title": "",
-      "kicker": ""
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.800Z",
-    "updated_at": "2026-08-27T21:00:09.800Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 435,
-  "fields": {
-    "page": 10,
-    "block_type": "compare",
-    "data": {
-      "col1": "Start",
-      "col2": "Tillväxt",
-      "col3": "Enterprise",
-      "rows": [
-        {
-          "v1": "Färdigt ramverk",
-          "v2": "Skräddarsydd",
-          "v3": "Skräddarsydd / Intranät",
-          "label": "Webbplats"
-        },
-        {
-          "v1": "+",
-          "v2": "+",
-          "v3": "+",
-          "label": "Managed hosting & SSL"
-        },
-        {
-          "v1": "+",
-          "v2": "+",
-          "v3": "+",
-          "label": "Domän & DNS"
-        },
-        {
-          "v1": "Uppsättning",
-          "v2": "Uppsättning",
-          "v3": "Full förvaltning",
-          "label": "E-post (O365 / Workspace)"
-        },
-        {
-          "v1": "-",
-          "v2": "+",
-          "v3": "+",
-          "label": "Copywriting & SEO"
-        },
-        {
-          "v1": "-",
-          "v2": "+",
-          "v3": "+",
-          "label": "Automatiserade arbetsflöden"
-        },
-        {
-          "v1": "-",
-          "v2": "Enklare",
-          "v3": "Mot era system",
-          "label": "API-integrationer"
-        },
-        {
-          "v1": "-",
-          "v2": "+",
-          "v3": "+",
-          "label": "Domänbevakning (varumärke & SSL)"
-        },
-        {
-          "v1": "-",
-          "v2": "-",
-          "v3": "+",
-          "label": "Multi-tenant för kedjor"
-        },
-        {
-          "v1": "-",
-          "v2": "Månadsvis",
-          "v3": "Skräddarsydd",
-          "label": "Rapportering"
-        },
-        {
-          "v1": "Vardagar",
-          "v2": "Prioriterad",
-          "v3": "Dedikerad kontaktperson",
-          "label": "Support"
-        }
-      ],
-      "title": "Paketen i detalj",
-      "kicker": "Jämför"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.800Z",
-    "updated_at": "2026-08-27T21:00:09.800Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 436,
-  "fields": {
-    "page": 10,
-    "block_type": "newsletter",
-    "data": {
-      "note": "Max ett utskick i månaden. Avsluta när ni vill.",
-      "title": "Få våra bästa tips om digital drift",
-      "kicker": "Nyhetsbrev"
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.801Z",
-    "updated_at": "2026-08-27T21:00:09.801Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 437,
-  "fields": {
-    "page": 10,
-    "block_type": "bar",
-    "data": {
-      "link": {
-        "url": {
-          "id": 11,
-          "kind": "page"
-        },
-        "label": "Skicka förfrågan"
+        "label": "Strulande e-post?"
       },
-      "note": "Första mötet kostar ingenting",
-      "label": "Osäker på vilket paket?"
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.801Z",
-    "updated_at": "2026-08-27T21:00:09.801Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 438,
-  "fields": {
-    "page": 11,
-    "block_type": "hero",
-    "data": {
-      "lead": "Berätta var ni står och vart ni vill — så föreslår vi vägen dit. Första mötet kostar ingenting.",
-      "title": "Redo att ta\nnästa steg?",
-      "kicker": "Kontakt",
-      "primary": {
-        "url": "",
-        "label": ""
+      "order": 7,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.796Z",
+      "updated_at": "2026-08-27T21:00:09.796Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 429,
+    "fields": {
+      "page": 9,
+      "block_type": "hero",
+      "data": {
+        "lead": "Ett urval av webbplatser, plattformar och automationsflöden vi byggt - och fortfarande förvaltar.",
+        "title": "Utvalda\nprojekt.",
+        "kicker": "Portfolio"
       },
-      "image_id": "",
-      "secondary": {
-        "url": "",
-        "label": ""
-      }
-    },
-    "order": 0,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.803Z",
-    "updated_at": "2026-08-27T21:00:09.803Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 439,
-  "fields": {
-    "page": 11,
-    "block_type": "contact_cards",
-    "data": {
-      "cards": [
-        {
-          "url": {
-            "kind": "email",
-            "address": "hej@adx.se"
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.798Z",
+      "updated_at": "2026-08-27T21:00:09.798Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 430,
+    "fields": {
+      "page": 9,
+      "block_type": "folio",
+      "data": {
+        "cards": [
+          {
+            "url": "",
+            "meta": "Webb · SEO · AI-innehåll · Hosting",
+            "title": "Skandi VVS - webbplats & AI-redaktör",
+            "image_id": ""
           },
-          "value": "hej@adx.se",
-          "kicker": "E-post"
-        },
-        {
+          {
+            "url": "",
+            "meta": "Multi-tenant · 30 teman · Drift",
+            "title": "ADX-plattformen - kedjelösning",
+            "image_id": ""
+          },
+          {
+            "url": "",
+            "meta": "Plattform · BankID · Under utveckling",
+            "title": "Kronan - omdömesplattform",
+            "image_id": ""
+          },
+          {
+            "url": "",
+            "meta": "Skript · API",
+            "title": "Automationsflöde - Logistik",
+            "image_id": ""
+          },
+          {
+            "url": "",
+            "meta": "Webb · Copy · SEO",
+            "title": "Webbplats - Advokatbyrå",
+            "image_id": ""
+          },
+          {
+            "url": "",
+            "meta": "E-post · Säkerhet",
+            "title": "Workspace-flytt - Klinik",
+            "image_id": ""
+          }
+        ],
+        "intro": "",
+        "title": "",
+        "kicker": ""
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.798Z",
+      "updated_at": "2026-08-27T21:00:09.798Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 431,
+    "fields": {
+      "page": 9,
+      "block_type": "case",
+      "data": {
+        "body": "Skandi VVS behövde synas i varje kommun och stadsdel utan att bygga hundratals sidor för hand. Vi byggde sajten, ortssidorna och en AI-redaktör som låter firman uppdatera innehållet direkt från Claude.",
+        "link": {
           "url": "",
-          "value": "Gatan 1, Stockholm",
-          "kicker": "Besök"
+          "label": "Webb · SEO · AI"
+        },
+        "stats": [
+          {
+            "label": "ortssidor i Stockholms län",
+            "value": "252 st"
+          },
+          {
+            "label": "innehållsredigering via Claude",
+            "value": "AI"
+          },
+          {
+            "label": "webb, drift och innehåll",
+            "value": "1 team"
+          }
+        ],
+        "title": "En rörfirma.\nHela länet.",
+        "kicker": "Djupdykning",
+        "case_title": "Skandi VVS - synlig i hela Stockholms län"
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.798Z",
+      "updated_at": "2026-08-27T21:00:09.798Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 432,
+    "fields": {
+      "page": 9,
+      "block_type": "bar",
+      "data": {
+        "link": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "label": "Vill ni bli nästa case?"
+      },
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.799Z",
+      "updated_at": "2026-08-27T21:00:09.799Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 433,
+    "fields": {
+      "page": 10,
+      "block_type": "hero",
+      "data": {
+        "lead": "Börja smått eller skala upp - utan att byta leverantör på vägen.",
+        "title": "Upplägg som\npassar er.",
+        "kicker": "Paket"
+      },
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.800Z",
+      "updated_at": "2026-08-27T21:00:09.800Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 434,
+    "fields": {
+      "page": 10,
+      "block_type": "plans",
+      "data": {
+        "intro": "",
+        "plans": [
+          {
+            "desc": "För er som behöver en professionell webbplats - snabbt",
+            "mini": "Färdigt paket",
+            "price": "från X XXX kr /mån",
+            "title": "Start",
+            "cta_url": {
+              "id": 11,
+              "kind": "page"
+            },
+            "features": "Webbplats på färdigt ramverk\nManaged hosting & SSL\nDomän & DNS-konfiguration\nE-postuppsättning\nSupport & löpande uppdateringar",
+            "cta_label": "Skicka förfrågan",
+            "price_note": "Fast månadskostnad"
+          },
+          {
+            "desc": "För er som vill synas, växa och automatisera",
+            "mini": "Vanligaste valet",
+            "price": "från X XXX kr /mån",
+            "title": "Tillväxt",
+            "cta_url": {
+              "id": 11,
+              "kind": "page"
+            },
+            "features": "Allt i Start\nSkräddarsydd design\nCopywriting & SEO\nAutomatiserade arbetsflöden\nDomänbevakning (varumärken & SSL)\nMånadsrapportering",
+            "cta_label": "Skicka förfrågan",
+            "price_note": "Paket + managed content"
+          },
+          {
+            "desc": "För kedjor och verksamheter med särskilda behov",
+            "mini": "Skräddarsytt",
+            "price": "Offert",
+            "title": "Enterprise",
+            "cta_url": {
+              "id": 11,
+              "kind": "page"
+            },
+            "features": "Skräddarsydd webbplats eller intranät\nMulti-tenant-lösning för kedjor\nAPI-integrationer mot era system\nOffice 365 / Google Workspace\nDedikerad kontaktperson",
+            "cta_label": "Boka möte",
+            "price_note": "Prissätts efter omfattning"
+          }
+        ],
+        "title": "",
+        "kicker": ""
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.800Z",
+      "updated_at": "2026-08-27T21:00:09.800Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 435,
+    "fields": {
+      "page": 10,
+      "block_type": "compare",
+      "data": {
+        "col1": "Start",
+        "col2": "Tillväxt",
+        "col3": "Enterprise",
+        "rows": [
+          {
+            "v1": "Färdigt ramverk",
+            "v2": "Skräddarsydd",
+            "v3": "Skräddarsydd / Intranät",
+            "label": "Webbplats"
+          },
+          {
+            "v1": "+",
+            "v2": "+",
+            "v3": "+",
+            "label": "Managed hosting & SSL"
+          },
+          {
+            "v1": "+",
+            "v2": "+",
+            "v3": "+",
+            "label": "Domän & DNS"
+          },
+          {
+            "v1": "Uppsättning",
+            "v2": "Uppsättning",
+            "v3": "Full förvaltning",
+            "label": "E-post (O365 / Workspace)"
+          },
+          {
+            "v1": "-",
+            "v2": "+",
+            "v3": "+",
+            "label": "Copywriting & SEO"
+          },
+          {
+            "v1": "-",
+            "v2": "+",
+            "v3": "+",
+            "label": "Automatiserade arbetsflöden"
+          },
+          {
+            "v1": "-",
+            "v2": "Enklare",
+            "v3": "Mot era system",
+            "label": "API-integrationer"
+          },
+          {
+            "v1": "-",
+            "v2": "+",
+            "v3": "+",
+            "label": "Domänbevakning (varumärke & SSL)"
+          },
+          {
+            "v1": "-",
+            "v2": "-",
+            "v3": "+",
+            "label": "Multi-tenant för kedjor"
+          },
+          {
+            "v1": "-",
+            "v2": "Månadsvis",
+            "v3": "Skräddarsydd",
+            "label": "Rapportering"
+          },
+          {
+            "v1": "Vardagar",
+            "v2": "Prioriterad",
+            "v3": "Dedikerad kontaktperson",
+            "label": "Support"
+          }
+        ],
+        "title": "Paketen i detalj",
+        "kicker": "Jämför"
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.800Z",
+      "updated_at": "2026-08-27T21:00:09.800Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 436,
+    "fields": {
+      "page": 10,
+      "block_type": "newsletter",
+      "data": {
+        "note": "Max ett utskick i månaden. Avsluta när ni vill.",
+        "title": "Få våra bästa tips om digital drift",
+        "kicker": "Nyhetsbrev"
+      },
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.801Z",
+      "updated_at": "2026-08-27T21:00:09.801Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 437,
+    "fields": {
+      "page": 10,
+      "block_type": "bar",
+      "data": {
+        "link": {
+          "url": {
+            "id": 11,
+            "kind": "page"
+          },
+          "label": "Skicka förfrågan"
+        },
+        "note": "Första mötet kostar ingenting",
+        "label": "Osäker på vilket paket?"
+      },
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.801Z",
+      "updated_at": "2026-08-27T21:00:09.801Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 438,
+    "fields": {
+      "page": 11,
+      "block_type": "hero",
+      "data": {
+        "lead": "Berätta var ni står och vart ni vill - så föreslår vi vägen dit. Första mötet kostar ingenting.",
+        "title": "Redo att ta\nnästa steg?",
+        "kicker": "Kontakt",
+        "primary": {
+          "url": "",
+          "label": ""
+        },
+        "image_id": "",
+        "secondary": {
+          "url": "",
+          "label": ""
         }
-      ]
-    },
-    "order": 1,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.803Z",
-    "updated_at": "2026-08-27T21:00:09.803Z"
+      },
+      "order": 0,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.803Z",
+      "updated_at": "2026-08-27T21:00:09.803Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 439,
+    "fields": {
+      "page": 11,
+      "block_type": "contact_cards",
+      "data": {
+        "cards": [
+          {
+            "url": {
+              "kind": "email",
+              "address": "hej@adx.se"
+            },
+            "value": "hej@adx.se",
+            "kicker": "E-post"
+          },
+          {
+            "url": "",
+            "value": "Gatan 1, Stockholm",
+            "kicker": "Besök"
+          }
+        ]
+      },
+      "order": 1,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.803Z",
+      "updated_at": "2026-08-27T21:00:09.803Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 440,
+    "fields": {
+      "page": 11,
+      "block_type": "inquiry_form",
+      "data": {
+        "intro": "Fyll i formuläret så återkommer vi senast nästa vardag. Ju mer ni berättar, desto bättre förslag kan vi ge direkt.",
+        "title": "Berätta vad ni behöver",
+        "kicker": "Förfrågan"
+      },
+      "order": 2,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.803Z",
+      "updated_at": "2026-08-27T21:00:09.803Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 441,
+    "fields": {
+      "page": 11,
+      "block_type": "team",
+      "data": {
+        "title": "Vilka ni möter",
+        "kicker": "Teamet",
+        "members": [
+          {
+            "name": "Namn Namnsson",
+            "role": "Grundare · Teknik",
+            "image_id": ""
+          },
+          {
+            "name": "Namn Namnsson",
+            "role": "Projektledning",
+            "image_id": ""
+          },
+          {
+            "name": "Namn Namnsson",
+            "role": "Design · Innehåll",
+            "image_id": ""
+          },
+          {
+            "name": "Namn Namnsson",
+            "role": "Drift · Säkerhet",
+            "image_id": ""
+          }
+        ]
+      },
+      "order": 3,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.803Z",
+      "updated_at": "2026-08-27T21:00:09.803Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 442,
+    "fields": {
+      "page": 11,
+      "block_type": "faq",
+      "data": {
+        "title": "Vanliga frågor",
+        "kicker": "FAQ",
+        "faq_section_id": 7
+      },
+      "order": 4,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.806Z",
+      "updated_at": "2026-08-27T21:00:09.806Z"
+    }
+  },
+  {
+    "model": "website.block",
+    "pk": 443,
+    "fields": {
+      "page": 11,
+      "block_type": "newsletter",
+      "data": {
+        "note": "Max ett utskick i månaden. Avsluta när ni vill.",
+        "title": "Håll er uppdaterade",
+        "kicker": "Nyhetsbrev"
+      },
+      "order": 5,
+      "is_visible": true,
+      "created_at": "2026-08-27T21:00:09.806Z",
+      "updated_at": "2026-08-27T21:00:09.806Z"
+    }
+  },
+  {
+    "model": "website.menu",
+    "pk": 1,
+    "fields": {
+      "name": "Huvudmeny",
+      "location": "header",
+      "heading": "",
+      "order": 0
+    }
+  },
+  {
+    "model": "website.menu",
+    "pk": 17,
+    "fields": {
+      "name": "Sidfot: Tjänster",
+      "location": "footer",
+      "heading": "Tjänster",
+      "order": 0
+    }
+  },
+  {
+    "model": "website.menu",
+    "pk": 18,
+    "fields": {
+      "name": "Sidfot: Drift",
+      "location": "footer",
+      "heading": "Drift",
+      "order": 1
+    }
+  },
+  {
+    "model": "website.menu",
+    "pk": 19,
+    "fields": {
+      "name": "Sidfot: Företag",
+      "location": "footer",
+      "heading": "Företag",
+      "order": 2
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 91,
+    "fields": {
+      "menu": 1,
+      "parent": null,
+      "label": "Hem",
+      "page": 1,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 0,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 92,
+    "fields": {
+      "menu": 1,
+      "parent": null,
+      "label": "Tjänster",
+      "page": 2,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 1,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 93,
+    "fields": {
+      "menu": 1,
+      "parent": null,
+      "label": "Portfolio",
+      "page": 9,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 2,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 94,
+    "fields": {
+      "menu": 1,
+      "parent": null,
+      "label": "Paket",
+      "page": 10,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 3,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 95,
+    "fields": {
+      "menu": 1,
+      "parent": null,
+      "label": "Kontakt",
+      "page": 11,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 4,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 96,
+    "fields": {
+      "menu": 1,
+      "parent": null,
+      "label": "Förfrågan",
+      "page": 11,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": true,
+      "order": 5,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 97,
+    "fields": {
+      "menu": 17,
+      "parent": null,
+      "label": "Webbutveckling",
+      "page": 3,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 0,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 98,
+    "fields": {
+      "menu": 17,
+      "parent": null,
+      "label": "Automation",
+      "page": 4,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 1,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 99,
+    "fields": {
+      "menu": 17,
+      "parent": null,
+      "label": "Managed Content",
+      "page": 5,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 2,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 100,
+    "fields": {
+      "menu": 17,
+      "parent": null,
+      "label": "Managed Hosting",
+      "page": 6,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 3,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 101,
+    "fields": {
+      "menu": 18,
+      "parent": null,
+      "label": "Domäner & DNS",
+      "page": 7,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 0,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 102,
+    "fields": {
+      "menu": 18,
+      "parent": null,
+      "label": "E-post",
+      "page": 8,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 1,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 103,
+    "fields": {
+      "menu": 18,
+      "parent": null,
+      "label": "Molntjänster",
+      "page": 6,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 2,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 104,
+    "fields": {
+      "menu": 18,
+      "parent": null,
+      "label": "Kedjelösningar",
+      "page": 6,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 3,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 105,
+    "fields": {
+      "menu": 19,
+      "parent": null,
+      "label": "Portfolio",
+      "page": 9,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 0,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 106,
+    "fields": {
+      "menu": 19,
+      "parent": null,
+      "label": "Paket",
+      "page": 10,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 1,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 107,
+    "fields": {
+      "menu": 19,
+      "parent": null,
+      "label": "Städer",
+      "page": null,
+      "url": "/digitalbyra/",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 2,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.menuitem",
+    "pk": 108,
+    "fields": {
+      "menu": 19,
+      "parent": null,
+      "label": "Kontakt",
+      "page": 11,
+      "url": "",
+      "open_in_new_tab": false,
+      "is_button": false,
+      "order": 3,
+      "is_visible": true
+    }
+  },
+  {
+    "model": "website.sitesettings",
+    "pk": 1,
+    "fields": {
+      "name": "ADX",
+      "default_gradient_color": "#f7fcff",
+      "phone": "",
+      "email": "hej@adx.se",
+      "street_address": "",
+      "postal_code": "",
+      "city": "Stockholm",
+      "org_number": "",
+      "palette": [],
+      "font_pairing": "inter-inter",
+      "type_scale": "default",
+      "border_radius": 8,
+      "space_unit": 8,
+      "navbar_bg_color": "",
+      "navbar_text_color": "",
+      "footer_bg_color": "",
+      "footer_text_color": "",
+      "page_bg_color": "",
+      "footer_about": "ADX är en digitalbyrå i Stockholm som skapar digitala lösningar - från webb och automation till drift och förvaltning.",
+      "logo": null,
+      "favicon": null,
+      "show_logo_in_header": true,
+      "show_logo_in_footer": true,
+      "homepage": 1,
+      "footer_component_page": null,
+      "ga_enabled": false,
+      "ga_tracking_id": "",
+      "custom_css": "",
+      "ai_style_guide": "",
+      "created_at": "2026-08-27T20:14:30.360Z",
+      "updated_at": "2026-08-27T21:00:09.738Z"
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 1,
+    "fields": {
+      "created_at": "2026-08-27T20:14:30.365Z",
+      "updated_at": "2026-08-27T21:00:09.742Z",
+      "category": null,
+      "name": "Webbutveckling",
+      "gradient_color": "#2456b0",
+      "slug": "webbutveckling",
+      "description": "Färdiga paket och skräddarsydda webbplatser och intranät - byggda för att prestera och förvaltas över tid.",
+      "body": "",
+      "image": null,
+      "is_active": true,
+      "is_featured": false,
+      "faq_section": null,
+      "order": 0,
+      "audiences": []
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 2,
+    "fields": {
+      "created_at": "2026-08-27T20:14:30.368Z",
+      "updated_at": "2026-08-27T21:00:09.744Z",
+      "category": null,
+      "name": "Automation & Integrationer",
+      "gradient_color": "#c05a2e",
+      "slug": "automation",
+      "description": "Effektivisera era interna processer med skript, API-integrationer och automatiserade arbetsflöden.",
+      "body": "",
+      "image": null,
+      "is_active": true,
+      "is_featured": false,
+      "faq_section": null,
+      "order": 1,
+      "audiences": []
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 3,
+    "fields": {
+      "created_at": "2026-08-27T20:14:30.369Z",
+      "updated_at": "2026-08-27T21:00:09.745Z",
+      "category": null,
+      "name": "Managed Content",
+      "gradient_color": "#a8842a",
+      "slug": "content",
+      "description": "Copywriting och sökmotoroptimering som gör att rätt kunder hittar er - och stannar.",
+      "body": "",
+      "image": null,
+      "is_active": true,
+      "is_featured": false,
+      "faq_section": null,
+      "order": 2,
+      "audiences": []
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 4,
+    "fields": {
+      "created_at": "2026-08-27T20:14:30.371Z",
+      "updated_at": "2026-08-27T21:00:09.746Z",
+      "category": null,
+      "name": "Managed Hosting & Moln",
+      "gradient_color": "#0e3a52",
+      "slug": "hosting",
+      "description": "Trygg drift med övervakning, backup och säkerhet. Multi-tenant-lösningar för kedjor.",
+      "body": "",
+      "image": null,
+      "is_active": true,
+      "is_featured": false,
+      "faq_section": null,
+      "order": 3,
+      "audiences": []
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 5,
+    "fields": {
+      "created_at": "2026-08-27T20:14:30.373Z",
+      "updated_at": "2026-08-27T21:00:09.748Z",
+      "category": null,
+      "name": "Domain Management",
+      "gradient_color": "#4a2d73",
+      "slug": "domain",
+      "description": "Domäner och DNS. Registrering, överlåtelser, bevakning av varumärken och HTTPS/SSL-certifikat samt konfiguration.",
+      "body": "",
+      "image": null,
+      "is_active": true,
+      "is_featured": false,
+      "faq_section": null,
+      "order": 4,
+      "audiences": []
+    }
+  },
+  {
+    "model": "services.service",
+    "pk": 6,
+    "fields": {
+      "created_at": "2026-08-27T20:14:30.374Z",
+      "updated_at": "2026-08-27T21:00:09.749Z",
+      "category": null,
+      "name": "E-post",
+      "gradient_color": "#813a63",
+      "slug": "epost",
+      "description": "Office 365 och Google Workspace. Management, uppsättning, licenshantering, användaradministration och säkerhet.",
+      "body": "",
+      "image": null,
+      "is_active": true,
+      "is_featured": false,
+      "faq_section": null,
+      "order": 5,
+      "audiences": []
+    }
   }
-},
-{
-  "model": "website.block",
-  "pk": 440,
-  "fields": {
-    "page": 11,
-    "block_type": "inquiry_form",
-    "data": {
-      "intro": "Fyll i formuläret så återkommer vi senast nästa vardag. Ju mer ni berättar, desto bättre förslag kan vi ge direkt.",
-      "title": "Berätta vad ni behöver",
-      "kicker": "Förfrågan"
-    },
-    "order": 2,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.803Z",
-    "updated_at": "2026-08-27T21:00:09.803Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 441,
-  "fields": {
-    "page": 11,
-    "block_type": "team",
-    "data": {
-      "title": "Vilka ni möter",
-      "kicker": "Teamet",
-      "members": [
-        {
-          "name": "Namn Namnsson",
-          "role": "Grundare · Teknik",
-          "image_id": ""
-        },
-        {
-          "name": "Namn Namnsson",
-          "role": "Projektledning",
-          "image_id": ""
-        },
-        {
-          "name": "Namn Namnsson",
-          "role": "Design · Innehåll",
-          "image_id": ""
-        },
-        {
-          "name": "Namn Namnsson",
-          "role": "Drift · Säkerhet",
-          "image_id": ""
-        }
-      ]
-    },
-    "order": 3,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.803Z",
-    "updated_at": "2026-08-27T21:00:09.803Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 442,
-  "fields": {
-    "page": 11,
-    "block_type": "faq",
-    "data": {
-      "title": "Vanliga frågor",
-      "kicker": "FAQ",
-      "faq_section_id": 7
-    },
-    "order": 4,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.806Z",
-    "updated_at": "2026-08-27T21:00:09.806Z"
-  }
-},
-{
-  "model": "website.block",
-  "pk": 443,
-  "fields": {
-    "page": 11,
-    "block_type": "newsletter",
-    "data": {
-      "note": "Max ett utskick i månaden. Avsluta när ni vill.",
-      "title": "Håll er uppdaterade",
-      "kicker": "Nyhetsbrev"
-    },
-    "order": 5,
-    "is_visible": true,
-    "created_at": "2026-08-27T21:00:09.806Z",
-    "updated_at": "2026-08-27T21:00:09.806Z"
-  }
-},
-{
-  "model": "website.menu",
-  "pk": 1,
-  "fields": {
-    "name": "Huvudmeny",
-    "location": "header",
-    "heading": "",
-    "order": 0
-  }
-},
-{
-  "model": "website.menu",
-  "pk": 17,
-  "fields": {
-    "name": "Sidfot: Tjänster",
-    "location": "footer",
-    "heading": "Tjänster",
-    "order": 0
-  }
-},
-{
-  "model": "website.menu",
-  "pk": 18,
-  "fields": {
-    "name": "Sidfot: Drift",
-    "location": "footer",
-    "heading": "Drift",
-    "order": 1
-  }
-},
-{
-  "model": "website.menu",
-  "pk": 19,
-  "fields": {
-    "name": "Sidfot: Företag",
-    "location": "footer",
-    "heading": "Företag",
-    "order": 2
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 91,
-  "fields": {
-    "menu": 1,
-    "parent": null,
-    "label": "Hem",
-    "page": 1,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 0,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 92,
-  "fields": {
-    "menu": 1,
-    "parent": null,
-    "label": "Tjänster",
-    "page": 2,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 1,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 93,
-  "fields": {
-    "menu": 1,
-    "parent": null,
-    "label": "Portfolio",
-    "page": 9,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 2,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 94,
-  "fields": {
-    "menu": 1,
-    "parent": null,
-    "label": "Paket",
-    "page": 10,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 3,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 95,
-  "fields": {
-    "menu": 1,
-    "parent": null,
-    "label": "Kontakt",
-    "page": 11,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 4,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 96,
-  "fields": {
-    "menu": 1,
-    "parent": null,
-    "label": "Förfrågan",
-    "page": 11,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": true,
-    "order": 5,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 97,
-  "fields": {
-    "menu": 17,
-    "parent": null,
-    "label": "Webbutveckling",
-    "page": 3,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 0,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 98,
-  "fields": {
-    "menu": 17,
-    "parent": null,
-    "label": "Automation",
-    "page": 4,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 1,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 99,
-  "fields": {
-    "menu": 17,
-    "parent": null,
-    "label": "Managed Content",
-    "page": 5,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 2,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 100,
-  "fields": {
-    "menu": 17,
-    "parent": null,
-    "label": "Managed Hosting",
-    "page": 6,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 3,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 101,
-  "fields": {
-    "menu": 18,
-    "parent": null,
-    "label": "Domäner & DNS",
-    "page": 7,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 0,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 102,
-  "fields": {
-    "menu": 18,
-    "parent": null,
-    "label": "E-post",
-    "page": 8,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 1,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 103,
-  "fields": {
-    "menu": 18,
-    "parent": null,
-    "label": "Molntjänster",
-    "page": 6,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 2,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 104,
-  "fields": {
-    "menu": 18,
-    "parent": null,
-    "label": "Kedjelösningar",
-    "page": 6,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 3,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 105,
-  "fields": {
-    "menu": 19,
-    "parent": null,
-    "label": "Portfolio",
-    "page": 9,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 0,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 106,
-  "fields": {
-    "menu": 19,
-    "parent": null,
-    "label": "Paket",
-    "page": 10,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 1,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 107,
-  "fields": {
-    "menu": 19,
-    "parent": null,
-    "label": "Städer",
-    "page": null,
-    "url": "/digitalbyra/",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 2,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.menuitem",
-  "pk": 108,
-  "fields": {
-    "menu": 19,
-    "parent": null,
-    "label": "Kontakt",
-    "page": 11,
-    "url": "",
-    "open_in_new_tab": false,
-    "is_button": false,
-    "order": 3,
-    "is_visible": true
-  }
-},
-{
-  "model": "website.sitesettings",
-  "pk": 1,
-  "fields": {
-    "name": "ADX",
-    "default_gradient_color": "#f7fcff",
-    "phone": "",
-    "email": "hej@adx.se",
-    "street_address": "",
-    "postal_code": "",
-    "city": "Stockholm",
-    "org_number": "",
-    "palette": [],
-    "font_pairing": "inter-inter",
-    "type_scale": "default",
-    "border_radius": 8,
-    "space_unit": 8,
-    "navbar_bg_color": "",
-    "navbar_text_color": "",
-    "footer_bg_color": "",
-    "footer_text_color": "",
-    "page_bg_color": "",
-    "footer_about": "ADX är en digitalbyrå i Stockholm som skapar digitala lösningar — från webb och automation till drift och förvaltning.",
-    "logo": null,
-    "favicon": null,
-    "show_logo_in_header": true,
-    "show_logo_in_footer": true,
-    "homepage": 1,
-    "footer_component_page": null,
-    "ga_enabled": false,
-    "ga_tracking_id": "",
-    "custom_css": "",
-    "ai_style_guide": "",
-    "created_at": "2026-08-27T20:14:30.360Z",
-    "updated_at": "2026-08-27T21:00:09.738Z"
-  }
-},
-{
-  "model": "services.service",
-  "pk": 1,
-  "fields": {
-    "created_at": "2026-08-27T20:14:30.365Z",
-    "updated_at": "2026-08-27T21:00:09.742Z",
-    "category": null,
-    "name": "Webbutveckling",
-    "gradient_color": "#2456b0",
-    "slug": "webbutveckling",
-    "description": "Färdiga paket och skräddarsydda webbplatser och intranät — byggda för att prestera och förvaltas över tid.",
-    "body": "",
-    "image": null,
-    "is_active": true,
-    "is_featured": false,
-    "faq_section": null,
-    "order": 0,
-    "audiences": []
-  }
-},
-{
-  "model": "services.service",
-  "pk": 2,
-  "fields": {
-    "created_at": "2026-08-27T20:14:30.368Z",
-    "updated_at": "2026-08-27T21:00:09.744Z",
-    "category": null,
-    "name": "Automation & Integrationer",
-    "gradient_color": "#c05a2e",
-    "slug": "automation",
-    "description": "Effektivisera era interna processer med skript, API-integrationer och automatiserade arbetsflöden.",
-    "body": "",
-    "image": null,
-    "is_active": true,
-    "is_featured": false,
-    "faq_section": null,
-    "order": 1,
-    "audiences": []
-  }
-},
-{
-  "model": "services.service",
-  "pk": 3,
-  "fields": {
-    "created_at": "2026-08-27T20:14:30.369Z",
-    "updated_at": "2026-08-27T21:00:09.745Z",
-    "category": null,
-    "name": "Managed Content",
-    "gradient_color": "#a8842a",
-    "slug": "content",
-    "description": "Copywriting och sökmotoroptimering som gör att rätt kunder hittar er — och stannar.",
-    "body": "",
-    "image": null,
-    "is_active": true,
-    "is_featured": false,
-    "faq_section": null,
-    "order": 2,
-    "audiences": []
-  }
-},
-{
-  "model": "services.service",
-  "pk": 4,
-  "fields": {
-    "created_at": "2026-08-27T20:14:30.371Z",
-    "updated_at": "2026-08-27T21:00:09.746Z",
-    "category": null,
-    "name": "Managed Hosting & Moln",
-    "gradient_color": "#0e3a52",
-    "slug": "hosting",
-    "description": "Trygg drift med övervakning, backup och säkerhet. Multi-tenant-lösningar för kedjor.",
-    "body": "",
-    "image": null,
-    "is_active": true,
-    "is_featured": false,
-    "faq_section": null,
-    "order": 3,
-    "audiences": []
-  }
-},
-{
-  "model": "services.service",
-  "pk": 5,
-  "fields": {
-    "created_at": "2026-08-27T20:14:30.373Z",
-    "updated_at": "2026-08-27T21:00:09.748Z",
-    "category": null,
-    "name": "Domain Management",
-    "gradient_color": "#4a2d73",
-    "slug": "domain",
-    "description": "Domäner och DNS. Registrering, överlåtelser, bevakning av varumärken och HTTPS/SSL-certifikat samt konfiguration.",
-    "body": "",
-    "image": null,
-    "is_active": true,
-    "is_featured": false,
-    "faq_section": null,
-    "order": 4,
-    "audiences": []
-  }
-},
-{
-  "model": "services.service",
-  "pk": 6,
-  "fields": {
-    "created_at": "2026-08-27T20:14:30.374Z",
-    "updated_at": "2026-08-27T21:00:09.749Z",
-    "category": null,
-    "name": "E-post",
-    "gradient_color": "#813a63",
-    "slug": "epost",
-    "description": "Office 365 och Google Workspace. Management, uppsättning, licenshantering, användaradministration och säkerhet.",
-    "body": "",
-    "image": null,
-    "is_active": true,
-    "is_featured": false,
-    "faq_section": null,
-    "order": 5,
-    "audiences": []
-  }
-}
 ]

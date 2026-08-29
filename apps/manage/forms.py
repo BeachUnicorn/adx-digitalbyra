@@ -59,7 +59,7 @@ class BlockPageForm(forms.ModelForm):
         return sanitize_plain_text(self.cleaned_data.get("meta_title", ""), max_length=255)
 
     def clean_meta_description(self):
-        # Metafält är alltid ren text - de hamnar i <meta content="…">, där
+        # Metafält är alltid ren text - de hamnar i <meta content="...">, där
         # taggar bara blir bokstavliga tecken i sökresultatet.
         return sanitize_plain_text(self.cleaned_data.get("meta_description", ""), max_length=300)
 
@@ -127,7 +127,7 @@ class SiteSettingsForm(forms.ModelForm):
                 attrs={
                     "data-tiptap": "1",
                     "rows": 4,
-                    "placeholder": _("Kort presentation i sidfoten…"),
+                    "placeholder": _("Kort presentation i sidfoten..."),
                 }
             ),
         }
@@ -294,7 +294,7 @@ class MenuItemForm(forms.ModelForm):
         fields = ["label", "page", "url", "open_in_new_tab", "is_button", "is_visible"]
         widgets = {
             "label": forms.TextInput(),
-            "url": forms.TextInput(attrs={"placeholder": "/tjanster/, #faq, tel:…, https://…"}),
+            "url": forms.TextInput(attrs={"placeholder": "/tjanster/, #faq, tel:..., https://..."}),
         }
         labels = {
             "label": _("Text"),
@@ -329,7 +329,7 @@ class MenuItemForm(forms.ModelForm):
             return validate_url(self.cleaned_data.get("url", ""))
         except ValidationError:
             raise ValidationError(
-                _("Ogiltig länk. Använd /sida/, #id, tel:, mailto: eller https://…")
+                _("Ogiltig länk. Använd /sida/, #id, tel:, mailto: eller https://...")
             ) from None
 
     def clean(self):
@@ -378,7 +378,7 @@ class AreaForm(forms.ModelForm):
         widgets = {
             "name": forms.TextInput(),
             "slug": forms.TextInput(attrs={"placeholder": _("genereras från namnet")}),
-            "heading": forms.TextInput(attrs={"placeholder": _("Digitalbyrå i …")}),
+            "heading": forms.TextInput(attrs={"placeholder": _("Digitalbyrå i ...")}),
             "intro": forms.Textarea(attrs={"rows": 2}),
             "body": forms.Textarea(attrs=_BASIC_TIPTAP),
             "image": forms.HiddenInput(),
