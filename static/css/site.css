@@ -470,25 +470,51 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* Knappen är orbens låda: ingen egen bakgrund, ingen skugga - allt
+   utseende kommer från orben inuti. Var en gul cirkel med ett kugghjul
+   fram till 2026-08-30. */
 .c-admin-dock__toggle {
     position: relative;
     width: 52px;
     height: 52px;
     border: none;
     border-radius: 50%;
-    background: oklch(0.96 0.18 115.3);
-    color: #000;
+    background: none;
+    padding: 0;
+    color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-    transition: transform 0.15s, box-shadow 0.15s;
+    transition: transform 0.18s ease;
 }
-.c-admin-dock__toggle:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+.c-admin-dock__toggle:hover { transform: translateY(-2px) scale(1.04); }
+
+/* CSS-orben under canvasen. Den syns när WebGL saknas eller innan
+   shadern hunnit rita - knappen ska aldrig vara en tom ruta. */
+.c-admin-dock__orb {
+    position: absolute; inset: 0; border-radius: 50%;
+    background:
+        radial-gradient(circle at 34% 28%, rgba(255,255,255,0.55), transparent 42%),
+        radial-gradient(circle at 62% 68%, rgba(153,89,255,0.85), transparent 58%),
+        radial-gradient(circle at 40% 55%, rgba(77,166,255,0.95), rgba(20,18,44,0.95) 72%);
+    box-shadow: 0 0 18px rgba(90, 130, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.3);
 }
+.c-admin-dock__canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    display: none;
+    /* Klicket hör till knappen. Utan detta äter canvasen upp det. */
+    pointer-events: none;
+    filter: drop-shadow(0 0 10px rgba(120, 150, 255, 0.75)) drop-shadow(0 0 22px rgba(90, 110, 255, 0.4));
+}
+
+/* Shadern ritar samma yta, fast levande. Klassen sätts på DOCKEN och inte
+   på canvasen: fallbacken ligger före canvasen i markupen, och en
+   syskonselektor kan bara peka framåt. */
+.c-admin-dock.orb-live .c-admin-dock__canvas { display: block; }
+.c-admin-dock.orb-live .c-admin-dock__orb { opacity: 0; }
 .c-admin-dock__toggle:focus-visible {
     outline: 2px solid #000;
     outline-offset: 2px;

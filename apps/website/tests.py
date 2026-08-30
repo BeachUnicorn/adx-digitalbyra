@@ -863,6 +863,43 @@ class AdminDockTests(TestCase):
         for dock_id in self.DOCK_IDS:
             self.assertIn(f'id="{dock_id}"', html)
 
+    def test_the_toggle_is_an_orb_not_an_icon(self):
+        """Knappen ritas av en shader med en CSS-orb som fallback."""
+        self.client.force_login(self.staff)
+        html = self.client.get("/").content.decode()
+        self.assertIn('id="admin-orb-canvas"', html)
+        self.assertIn("c-admin-dock__orb", html)
+        self.assertIn("js/admin-orb.js", html)
+
+    def test_the_shader_is_only_loaded_for_staff(self):
+        """Besökare ska aldrig hämta en shader de inte kan se."""
+        self.assertNotContains(Client().get("/"), "admin-orb.js")
+
+    def test_the_orb_has_a_fallback_that_is_styled(self):
+        """
+        Utan WebGL sätts aldrig .orb-live, och då måste CSS-orben stå kvar -
+        annars blir knappen en tom ruta. Samma vakt som för redigeringsorben:
+        markup utan CSS är det som gick fel med pennan.
+        """
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        for cls in (".c-admin-dock__orb", ".c-admin-dock__canvas", ".c-admin-dock.orb-live"):
+            with self.subTest(cls=cls):
+                self.assertIn(cls, css)
+
+    def test_the_canvas_never_swallows_the_click(self):
+        """Canvasen ligger ovanpå knappen - utan detta går den inte att klicka."""
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        block = css.split(".c-admin-dock__canvas {")[1].split("}")[0]
+        self.assertIn("pointer-events: none", block)
+
+    def test_the_shader_pauses_when_it_should(self):
+        """En raymarchad shader ska inte köra i en dold flik eller mot någon
+        som bett om mindre rörelse."""
+        js = (Path(django_settings.BASE_DIR) / "static" / "js" / "admin-orb.js").read_text()
+        self.assertIn("visibilitychange", js)
+        self.assertIn("prefers-reduced-motion", js)
+        self.assertIn("cancelAnimationFrame", js)
+
     def test_site_js_actually_handles_the_dock(self):
         """Utan det här är knappen ett dekorativt element."""
         js = (Path(django_settings.BASE_DIR) / "static" / "js" / "site.js").read_text()

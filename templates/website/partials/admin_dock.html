@@ -1,3 +1,4 @@
+{% load static %}
 {# Floating admin dock - only for logged-in staff on the public site. #}
 {% if show_admin_dock %}
 <div class="c-admin-dock" id="admin-dock">
@@ -15,11 +16,18 @@
     <button type="button" class="c-admin-dock__toggle" id="admin-dock-toggle"
             aria-haspopup="true" aria-expanded="false" aria-controls="admin-dock-menu"
             title="Hantera webbplats" aria-label="Hantera webbplats">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-        </svg>
+        {% comment %}
+        Orben: en raymarchad sfär i drivande rök, ritad av admin-orb.js.
+        Canvasen ligger ovanpå .c-admin-dock__orb, som är en ren CSS-gradient.
+        Utan WebGL laddas aldrig .is-live och gradienten står kvar - knappen
+        ser fortfarande ut som en orb och fungerar precis likadant.
+        pointer-events ligger på knappen, aldrig på canvasen.
+        {% endcomment %}
+        <span class="c-admin-dock__orb" aria-hidden="true"></span>
+        <canvas class="c-admin-dock__canvas" id="admin-orb-canvas" width="52" height="52" aria-hidden="true"></canvas>
         {% if unread_inquiries %}<span class="c-admin-dock__dot" aria-hidden="true">{{ unread_inquiries }}</span>{% endif %}
     </button>
 </div>
+{# Bara personal laddar shadern - besökare hämtar aldrig filen. #}
+<script src="{% static 'js/admin-orb.js' %}?v={{ site_css_version }}" defer></script>
 {% endif %}
