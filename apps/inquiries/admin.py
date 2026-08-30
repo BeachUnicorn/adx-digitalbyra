@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Inquiry, InquiryImage
+from .models import Inquiry, InquiryImage, NewsletterSignup
 
 
 class InquiryImageInline(admin.TabularInline):
@@ -32,3 +32,12 @@ class InquiryAdmin(admin.ModelAdmin):
         "traffic_referrer",
     )
     inlines = [InquiryImageInline]
+
+
+@admin.register(NewsletterSignup)
+class NewsletterSignupAdmin(admin.ModelAdmin):
+    """Fanns inte alls - adresser samlades in utan att synas någonstans."""
+
+    list_display = ("email", "source_path", "created_at")
+    search_fields = ("email",)
+    readonly_fields = ("email", "source_path", "created_at")

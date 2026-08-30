@@ -207,3 +207,79 @@ class EmailTemplateParityTests(TestCase):
             txt, html = self._render_pair(stem)
             self.assertNotIn("Adress", txt, f"{stem}.txt")
             self.assertNotIn("Adress", html, f"{stem}.html")
+
+
+class InquiryAttributionTests(TestCase):
+    """
+    Kedjan förfrågan -> trafikkälla, lagad 2026-08-30.
+
+    En lokal kopia av cookienamnet ("adx_session") skiljde sig från det
+    analytics faktiskt sätter ("as_id") - så inte en enda förfrågan fick
+    sin källa kopplad, och statistikens alla konverteringskolumner stod
+    på noll. BOOKING- och FORM_ERROR-eventen skrevs dessutom aldrig.
+    """
+
+    def _session(self):
+        import uuid as _uuid
+
+        from apps.analytics.models import Session, Visitor
+
+        visitor = Visitor.objects.create(uuid=_uuid.uuid4())
+        return Session.objects.create(visitor=visitor, uuid=_uuid.uuid4())
+
+    def test_cookie_name_comes_from_analytics(self):
+        """Grundorsaken: namnet får aldrig dupliceras igen."""
+        from apps.analytics import tracking
+        from apps.inquiries import views
+
+        self.assertIs(views.SESSION_COOKIE, tracking.SESSION_COOKIE)
+
+    def test_submit_attaches_session_and_records_booking(self):
+        from apps.analytics.models import Event
+        from apps.analytics.tracking import SESSION_COOKIE
+
+        session = self._session()
+        self.client.cookies[SESSION_COOKIE] = str(session.uuid)
+        response = self.client.post(
+            reverse("inquiries:submit"), _valid_post(source_page="/hemsida-vvs/")
+        )
+
+        self.assertEqual(response.status_code, 302)
+        inquiry = Inquiry.objects.get()
+        self.assertEqual(inquiry.analytics_session_id, session.pk)
+        booking = Event.objects.filter(event_type="booking")
+        self.assertEqual(booking.count(), 1)
+        self.assertEqual(booking.get().label, "/hemsida-vvs/")
+
+    def test_invalid_submit_records_form_error_with_source_page(self):
+        from apps.analytics.models import Event
+        from apps.analytics.tracking import SESSION_COOKIE
+
+        session = self._session()
+        self.client.cookies[SESSION_COOKIE] = str(session.uuid)
+        self.client.post(
+            reverse("inquiries:submit"),
+            _valid_post(email="inte-en-adress", source_page="/hemsida-vvs/"),
+        )
+
+        error = Event.objects.filter(event_type="form_error")
+        self.assertEqual(error.count(), 1)
+        self.assertEqual(error.get().label, "/hemsida-vvs/")
+        self.assertEqual(Inquiry.objects.count(), 0)
+
+    def test_measurement_never_blocks_an_inquiry(self):
+        """Utan cookie: förfrågan sparas ändå, bara utan attribution."""
+        response = self.client.post(reverse("inquiries:submit"), _valid_post())
+        self.assertEqual(response.status_code, 302)
+        self.assertIsNone(Inquiry.objects.get().analytics_session_id)
+
+    def test_the_form_carries_the_abandon_attribute(self):
+        """analytics.js kräver data-analytics-form - utan attributet skickas
+        aldrig form_abandon, vilket var läget fram till 2026-08-30."""
+        from apps.website.models import Block, BlockPage
+
+        page = BlockPage.objects.create(title="Kontakt", slug="kontakt", is_published=True)
+        Block.objects.create(page=page, block_type="inquiry_form", data={}, order=1)
+        html = self.client.get("/kontakt/").content.decode()
+        self.assertIn("data-analytics-form", html)
+        self.assertIn('name="source_page"', html)

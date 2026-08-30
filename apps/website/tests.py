@@ -1026,3 +1026,63 @@ class BorderPolicyTests(TestCase):
     def test_the_ghost_button_keeps_its_outline(self):
         """Den har ingen fyllnad - utan kanten ser den inte ut som en knapp."""
         self.assertTrue(self._has_border(self._rule("  .btn.ghost")))
+
+
+class RobotsAndSchemaTests(TestCase):
+    """
+    Sökmotorgrunden (2026-08-30): robots.txt fanns inte alls, och den enda
+    strukturerade datan var FAQPage på /faq/ - trots att SiteSettings bar
+    alla fält för Organization/LocalBusiness.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def _schemas(self, path):
+        import json as _json
+
+        html = Client().get(path).content.decode()
+        blocks = re.findall(r'<script type="application/ld\+json">(.*?)</script>', html, re.S)
+        return [_json.loads(b) for b in blocks]
+
+    def test_robots_txt_exists_and_points_at_the_sitemap(self):
+        response = Client().get("/robots.txt")
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn("Sitemap:", body)
+        self.assertIn("/sitemap.xml", body)
+        self.assertIn("Disallow: /manage/", body)
+
+    def test_every_page_carries_organization_and_website_schema(self):
+        types = [s.get("@type") for s in self._schemas("/")]
+        self.assertIn(["Organization", "ProfessionalService"], types)
+        self.assertIn("WebSite", types)
+
+    def test_area_pages_carry_breadcrumbs_with_the_parent_chain(self):
+        from apps.areas.models import Area, AreaLevel
+
+        lan = Area.objects.create(name="Skåne län", level=AreaLevel.REGION)
+        kommun = Area.objects.create(name="Malmö", level=AreaLevel.MUNICIPALITY, parent=lan)
+        crumbs = next(
+            s for s in self._schemas(kommun.get_absolute_url()) if s["@type"] == "BreadcrumbList"
+        )
+        names = [i["name"] for i in crumbs["itemListElement"]]
+        self.assertEqual(names, ["Hem", "Orter", "Skåne län", "Malmö"])
+
+    def test_service_pages_carry_service_schema(self):
+        schemas = self._schemas("/webbutveckling/")
+        service = next(s for s in schemas if s.get("@type") == "Service")
+        self.assertEqual(service["provider"]["@id"].split("#")[1], "organization")
+        self.assertTrue(service["name"])
+
+    def test_faq_blocks_carry_faqpage_schema(self):
+        """Schemat fanns bara på /faq/ - inte där sektionerna faktiskt möts."""
+        schemas = self._schemas("/webbutveckling/")
+        self.assertTrue(any(s.get("@type") == "FAQPage" for s in schemas))
+
+    def test_schema_json_is_valid_on_every_public_page_type(self):
+        """Trasig JSON-LD är värre än ingen - Google ignorerar hela blocket."""
+        for path in ("/", "/webbutveckling/", "/kontakt/"):
+            with self.subTest(path=path):
+                self.assertTrue(self._schemas(path))  # json.loads höjer vid fel

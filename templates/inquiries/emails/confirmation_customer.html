@@ -18,8 +18,28 @@
 <tr><td style="padding:32px;">
     <h2 style="margin:0 0 8px;font-size:18px;color:#1a2b4a;">Tack för din förfrågan!</h2>
     <p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.5;">
-        Hej {{ inquiry.name }}, vi har tagit emot ditt ärende och återkommer inom 1-2 arbetsdagar.
+        Hej {{ inquiry.name }}, vi har tagit emot ditt ärende.
     </p>
+
+    <!-- Nästa steg: mejlet öppnas av i princip alla leads - det är den
+         billigaste säljytan som finns, och "vi återkommer" är slöseri. -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+    <tr><td style="padding:16px 20px;background:#f0f4f8;border-radius:6px;">
+        <p style="margin:0 0 8px;font-size:13px;color:#777;font-weight:600;text-transform:uppercase;">Så här går det till</p>
+        <p style="margin:0 0 4px;font-size:14px;color:#333;">1. Vi läser din förfrågan och återkommer inom en arbetsdag.</p>
+        <p style="margin:0 0 4px;font-size:14px;color:#333;">2. Vi bokar ett kort samtal - det kostar ingenting.</p>
+        <p style="margin:0 0 12px;font-size:14px;color:#333;">3. Du får ett konkret förslag med pris och tidplan.</p>
+        <p style="margin:0;font-size:14px;color:#333;">Har du en fråga redan nu? Svara direkt på det här mejlet.</p>
+    </td></tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+    <tr><td style="padding:0;">
+        <p style="margin:0 0 6px;font-size:14px;color:#333;">Medan du väntar:</p>
+        <p style="margin:0 0 4px;font-size:14px;"><a href="{{ base_url }}/case-skandi-vvs/" style="color:#2563eb;">Se ett exempel på vad vi bygger →</a></p>
+        <p style="margin:0;font-size:14px;"><a href="{{ base_url }}/paket/" style="color:#2563eb;">Behöver du något enklare? Färdig hemsida från 495 kr/mån →</a></p>
+    </td></tr>
+    </table>
 
     <!-- Reference -->
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;border-radius:6px;margin-bottom:24px;">

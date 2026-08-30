@@ -2,9 +2,18 @@ Hej {{ inquiry.name }},
 
 Tack för din förfrågan till {{ site_name }}!
 
-Vi har tagit emot ditt ärende och återkommer inom 1-2 arbetsdagar.
-
 Referensnummer: {{ inquiry.reference }}
+
+SÅ HÄR GÅR DET TILL:
+1. Vi läser din förfrågan och återkommer inom en arbetsdag.
+2. Vi bokar ett kort samtal - det kostar ingenting.
+3. Du får ett konkret förslag med pris och tidplan.
+
+Har du en fråga redan nu? Svara direkt på det här mejlet.
+
+MEDAN DU VÄNTAR:
+- Se ett exempel på vad vi bygger: {{ base_url }}/case-skandi-vvs/
+- Behöver du något enklare? Färdig hemsida från 495 kr/mån: {{ base_url }}/paket/
 
 Sammanfattning:
 - Kundtyp: {{ inquiry.get_customer_type_display }}

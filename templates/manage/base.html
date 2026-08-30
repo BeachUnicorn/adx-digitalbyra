@@ -22,6 +22,9 @@
             {% if user.is_superuser %}{# Dold för kunden tills sidan är godkänd. #}
             <li><a href="{% url 'manage:stats' %}" class="m-nav__link {% if active == 'stats' %}is-active{% endif %}">Statistik</a></li>
             {% endif %}
+            {% if user.is_staff %}{# Testfas: verktyget är inte publikt än. #}
+            <li><a href="{% url 'manage:hemsidekollen' %}" class="m-nav__link {% if active == 'tools' %}is-active{% endif %}">Hemsidekollen</a></li>
+            {% endif %}
 
             <li class="m-nav__dropdown">
                 <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'pages' or active == 'services' or active == 'faq' or active == 'areas' %}is-active{% endif %}">Innehåll ▾</button>

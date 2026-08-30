@@ -1,5 +1,5 @@
 {% extends "website/base.html" %}
-{% load render_context %}
+{% load render_context schema_tags %}
 {% comment %}
 Stadssida i ADX-designen: hero + unik brödtext (.prose) + relaterade städer
 + CTA-rad. EN sida per stad som bär både "digitalbyrå" och "webbyrå" i
@@ -14,6 +14,7 @@ website/page.html följer.
 {% block meta %}
 <meta name="description" content="{{ area.meta_description }}">
 {% endblock %}
+{% block extra_head %}{% area_breadcrumb_schema area %}{% endblock %}
 
 {% block content %}
 <div class="wrap hero">

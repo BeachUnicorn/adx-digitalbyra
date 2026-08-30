@@ -63,6 +63,18 @@
         <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.get_timeline_display }}</td>
     </tr>
     {% endif %}
+    {% if inquiry.traffic_source %}
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Källa</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.traffic_source }}{% if inquiry.traffic_source_detail %} ({{ inquiry.traffic_source_detail }}){% endif %}</td>
+    </tr>
+    {% endif %}
+    {% if inquiry.analytics_session.visitor.first_landing_page %}
+    <tr>
+        <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Landningssida</td>
+        <td style="padding:4px 0;font-size:14px;color:#333;">{{ inquiry.analytics_session.visitor.first_landing_page }}</td>
+    </tr>
+    {% endif %}
     {% if image_count %}
     <tr>
         <td style="padding:4px 0;font-size:14px;color:#777;vertical-align:top;">Bilder</td>

@@ -49,9 +49,52 @@ def dashboard(request):
         "site_settings": settings,
         "stats": stats,
         "recent_pages": recent_pages,
+        "overview": _traffic_overview(),
         "active": "dashboard",
     }
     return render(request, "manage/dashboard.html", context)
+
+
+def _traffic_overview(days=30):
+    """Senaste 30 dagarna i siffror, direkt på översikten.
+
+    Ersätter den föreslagna veckorapporten per mejl (Giovannis beslut:
+    "ingen rapport till mailen, gör en översikt i dashboarden ist").
+    Data ingen ser styr inga beslut - det här är första skärmen han möter.
+    """
+    from datetime import timedelta
+
+    from django.db.models import Count, Sum
+    from django.utils import timezone
+
+    from apps.analytics.models import PageView, Session
+    from apps.inquiries.models import NewsletterSignup
+
+    since = timezone.now() - timedelta(days=days)
+    sessions = Session.objects.filter(started_at__gte=since)
+    inquiries = Inquiry.objects.filter(created_at__gte=since)
+
+    top_pages = (
+        PageView.objects.filter(viewed_at__gte=since)
+        .values("path", "title")
+        .annotate(views=Count("id"), engaged=Sum("engaged_seconds"))
+        .order_by("-views")[:5]
+    )
+    top_sources = (
+        inquiries.exclude(traffic_source="")
+        .values("traffic_source")
+        .annotate(antal=Count("id"))
+        .order_by("-antal")[:3]
+    )
+    return {
+        "days": days,
+        "sessions": sessions.count(),
+        "inquiries": inquiries.count(),
+        "top_pages": list(top_pages),
+        "top_sources": list(top_sources),
+        "newsletter_total": NewsletterSignup.objects.count(),
+        "newsletter_new": NewsletterSignup.objects.filter(created_at__gte=since).count(),
+    }
 
 
 @login_required

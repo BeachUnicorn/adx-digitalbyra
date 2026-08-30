@@ -1,5 +1,6 @@
+from django.conf import settings as django_settings
 from django.db import connection
-from django.http import FileResponse, Http404, JsonResponse
+from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 
 
 def favicon(request):
@@ -35,3 +36,25 @@ def healthz(request):
     return JsonResponse(
         {"status": "ok" if status == 200 else "unhealthy", "checks": checks}, status=status
     )
+
+
+def robots_txt(request):
+    """robots.txt med Sitemap-rad.
+
+    Fanns inte alls - 250 sidor var live utan att sajten någonsin talat om
+    för sökmotorerna var sitemapen finns. Disallow-raderna håller crawlers
+    borta från admin- och POST-ytorna; allt publikt är öppet.
+    """
+    base = (django_settings.SITE_BASE_URL or "https://adx.se").rstrip("/")
+    lines = [
+        "User-agent: *",
+        "Disallow: /manage/",
+        "Disallow: /admin/",
+        "Disallow: /analytics/",
+        "Disallow: /forfragan/",
+        "Disallow: /nyhetsbrev/",
+        "",
+        f"Sitemap: {base}/sitemap.xml",
+        "",
+    ]
+    return HttpResponse("\n".join(lines), content_type="text/plain; charset=utf-8")

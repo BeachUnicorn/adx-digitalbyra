@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "apps.inquiries",
     "apps.analytics",
     "apps.manage",
+    "apps.tools",
     "reversion",
     "apps.assistant",
 ]

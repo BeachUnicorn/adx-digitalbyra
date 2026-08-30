@@ -23,7 +23,10 @@ from .models import Inquiry, NewsletterSignup, _generate_reference
 
 logger = logging.getLogger(__name__)
 
-SESSION_COOKIE = "adx_session"
+# Cookienamnet ÄGS av analytics - en lokal kopia var exakt så här fel: den
+# hette "adx_session" medan analytics sätter "as_id", så inte en enda
+# förfrågan fick sin trafikkälla kopplad. Importera, duplicera aldrig.
+from apps.analytics.tracking import SESSION_COOKIE  # noqa: E402
 
 
 def _analytics_session(request):
@@ -57,6 +60,21 @@ def _attach_attribution(inquiry, request):
         logger.exception("Kunde inte snapshotta attribution")
 
 
+def _record_form_event(request, event_type):
+    """Best effort, precis som attributionen - mätning får aldrig stoppa
+    en förfrågan."""
+    try:
+        from apps.analytics.tracking import record_event
+
+        session = _analytics_session(request)
+        if session is None:
+            return
+        source_page = request.POST.get("source_page", "")[:200]
+        record_event(session, event_type, label=source_page or "/kontakt/", path=source_page)
+    except Exception:  # noqa: BLE001
+        logger.exception("Kunde inte logga formulärevent")
+
+
 def inquiry_submit(request):
     """POST-mål för förfrågningsformuläret (blocket på kontaktsidan).
 
@@ -72,6 +90,9 @@ def inquiry_submit(request):
 
     form = InquiryForm(request.POST)
     if not form.is_valid():
+        # Felet loggas som event med sidan besökaren kom ifrån som etikett -
+        # det är så statistiken kan visa VAR formuläret fäller folk.
+        _record_form_event(request, "form_error")
         return render(
             request,
             "inquiries/form_page.html",
@@ -91,6 +112,10 @@ def inquiry_submit(request):
     )
     _attach_attribution(inquiry, request)
     inquiry.save()
+
+    # BOOKING-eventet är det som tänder bokningar och kontaktgrad i
+    # statistiken - utan det räknar alla konverteringskolumner noll.
+    _record_form_event(request, "booking")
 
     send_inquiry_confirmation(inquiry, request)
     send_inquiry_notification(inquiry, request)

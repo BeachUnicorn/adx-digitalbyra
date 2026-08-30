@@ -1,4 +1,4 @@
-{% load static theme_tags %}<!DOCTYPE html>
+{% load static theme_tags schema_tags %}<!DOCTYPE html>
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
@@ -23,6 +23,8 @@
         gtag('config', '{{ site_settings.ga_tracking_id }}');
     </script>
     {% endif %}
+    {% organization_schema site_settings %}
+    {% website_schema site_settings %}
     {% block extra_head %}{% endblock %}
 </head>
 <body {% body_theme page_color %}>

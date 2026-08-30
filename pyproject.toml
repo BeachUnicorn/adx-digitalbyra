@@ -23,6 +23,7 @@ dependencies = [
     "mcp>=2.0.0",
     "anthropic[bedrock]>=1.0.0",
     "markdown>=3.5",
+    "dnspython>=2.8.0",
 ]
 
 [dependency-groups]

@@ -1,7 +1,11 @@
-{% load website_tags render_context %}
+{% load website_tags render_context faq_tags %}
 {% comment %}FAQ ur FAQ-appen (sektion väljs i editorn) i guidens details/summary-form.{% endcomment %}
 {% faq_section faq_section_id as section %}
 {% if section %}
+{% comment %}FAQPage-schemat fanns bara på /faq/-sidorna - men det är HÄR,
+på sökords- och branschsidorna, som de 68 sektionerna möter besökare och
+sökmotorer. Google läser frågorna strukturerat i stället för att gissa.{% endcomment %}
+{% faq_schema_json section.items.all section.title %}
 <section>
     <div class="wrap">
         {% if kicker or title or intro %}

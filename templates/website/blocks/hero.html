@@ -3,7 +3,7 @@
 ingress, två knappar, valfri bild. data: kicker, title, lead, primary/secondary,
 image_id, crumbs[].{% endcomment %}
 {% media image_id as hero_img %}
-<div class="wrap hero">
+<div class="wrap hero" data-analytics-position="hero">
     {% if crumbs or kicker %}<div class="kicker">{% if crumbs %}{% for c in crumbs %}<a href="{{ c.url }}">{{ c.label }}</a> / {% endfor %}{{ kicker }}{% else %}[ {{ kicker }} ]{% endif %}</div>{% endif %}
     <h1>{{ title|linebreaksbr }}</h1>
     {% if lead %}<p class="lead">{{ lead }}</p>{% endif %}

@@ -44,12 +44,11 @@ PERIODS = [
 ]
 DEFAULT_PERIOD = "30"
 
-# The inquiry wizard, in order. Each step is its own URL reached via redirect,
-# so every step already shows up as a pageview.
+# ADX har ETT formulär (kontaktsidan plus block på sökordssidorna), inte
+# VVS-arvets trestegs-wizard - de gamla stegen /forfragan/* existerar inte
+# som sidor här, så varje rad utom tack-raden stod alltid på noll.
 FUNNEL_STEPS = [
-    ("/forfragan/", "Steg 1 - Kundtyp"),
-    ("/forfragan/kontaktuppgifter/", "Steg 2 - Kontaktuppgifter"),
-    ("/forfragan/beskriv/", "Steg 3 - Beskriv ärendet"),
+    ("/kontakt/", "Kontaktsidan"),
 ]
 FUNNEL_DONE_PREFIX = "/forfragan/tack/"
 
@@ -531,11 +530,15 @@ def _funnel(pageviews, events):
             step["dropped"] = max(previous - step["sessions"], 0)
             step["drop_share"] = _pct(step["dropped"], previous)
 
-        # Reasons are logged against the step the visitor was on, i.e. the
-        # previous step in the funnel.
-        reason_key = counts[index - 1]["label"] if index else step["label"]
-        step["errors"] = errors.get(reason_key, 0)
-        step["abandons"] = abandons.get(reason_key, 0)
+        # Formuläret finns på många sidor och eventen etiketteras med sin
+        # sida - i funneln summeras de, per-sida-nedbrytningen finns i
+        # eventadminen. (Per-steg-mappningen var wizard-arv.)
+        if index == len(counts) - 1:
+            step["errors"] = sum(errors.values())
+            step["abandons"] = sum(abandons.values())
+        else:
+            step["errors"] = 0
+            step["abandons"] = 0
 
     return counts
 

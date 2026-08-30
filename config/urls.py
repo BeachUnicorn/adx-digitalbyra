@@ -14,6 +14,7 @@ urlpatterns = [
     path("healthz/", core_views.healthz, name="healthz"),
     path("favicon.ico", core_views.favicon, name="favicon"),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),
+    path("robots.txt", core_views.robots_txt, name="robots"),
     # Customer control panel. Auth routes are scoped under /manage/ so the
     # public site keeps the root namespace. login_required redirects here.
     path(

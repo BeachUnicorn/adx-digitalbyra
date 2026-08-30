@@ -1,0 +1,68 @@
+{% extends "manage/base.html" %}
+{% comment %}
+Hemsidekollen under testfasen: bara i /manage/, ingen publik yta.
+Rapporten är tre kontrollgrupper med ok/varning/fel per rad - varje rad
+är en observation, aldrig ett gissat betyg.
+{% endcomment %}
+{% block title %}Hemsidekollen{% endblock %}
+{% block content %}
+<div class="m-panel" style="padding:20px 24px;margin-bottom:16px;">
+    <h1 style="margin:0 0 4px;font-size:18px;">Hemsidekollen</h1>
+    <p style="margin:0 0 14px;color:#777;font-size:13px;">
+        Teknisk granskning av valfri sajt: sökbarhet, tillgänglighet, e-post och domän.
+        Intern testversion - inte publicerad.
+    </p>
+    <form method="post" style="display:flex;gap:10px;max-width:560px;">
+        {% csrf_token %}
+        <input type="url" name="url" placeholder="https://exempel.se" required
+               style="flex:1;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;"
+               value="{{ report.url|default:'' }}">
+        <button type="submit" class="m-btn m-btn--primary">Granska</button>
+    </form>
+    {% if error %}<p style="color:#b91c1c;margin:10px 0 0;font-size:14px;">{{ error }}</p>{% endif %}
+</div>
+
+{% if report %}
+<div class="m-panel" style="padding:20px 24px;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
+        <h2 style="margin:0;font-size:16px;">{{ report.url }}</h2>
+        <span style="font-size:13px;color:#777;">
+            {{ report.results.summering.ok }} ok ·
+            {{ report.results.summering.varningar }} varningar ·
+            {{ report.results.summering.fel }} fel
+        </span>
+    </div>
+    {% for grupp in report.results.grupper %}
+    <h3 style="margin:18px 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#777;">{{ grupp.namn }}</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        {% for rad in grupp.rader %}
+        <tr style="border-top:1px solid #eee;">
+            <td style="padding:7px 8px 7px 0;width:26px;">
+                {% if rad.status == "ok" %}<span style="color:#15803d;">●</span>
+                {% elif rad.status == "varning" %}<span style="color:#b45309;">●</span>
+                {% else %}<span style="color:#b91c1c;">●</span>{% endif %}
+            </td>
+            <td style="padding:7px 12px 7px 0;font-weight:600;white-space:nowrap;">{{ rad.titel }}</td>
+            <td style="padding:7px 0;color:#555;">{{ rad.detalj }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if history %}
+<div class="m-panel" style="padding:20px 24px;">
+    <h2 style="margin:0 0 10px;font-size:14px;">Tidigare granskningar</h2>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        {% for r in history %}
+        <tr style="border-top:1px solid #eee;">
+            <td style="padding:6px 0;"><a href="{% url 'manage:hemsidekollen_report' r.pk %}">{{ r.url }}</a></td>
+            <td style="padding:6px 0;color:#777;text-align:right;">{{ r.created_at|date:"j M H:i" }}
+                · {{ r.results.summering.fel }} fel</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+{% endif %}
+{% endblock %}

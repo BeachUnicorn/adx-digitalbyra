@@ -5,7 +5,12 @@ mono-etiketter). Inkluderas av inquiry_form-blocket och av form_page.html
 (felläget). Botskyddet: honeypot + signerad tidsstämpel + JS-bevis, och
 vyn svarar en fälld bot med tyst fejkad framgång.
 {% endcomment %}
-<form class="adx-form panel" method="post" action="{% url 'inquiries:submit' %}" {% botcheck_attr %}>
+{% comment %}data-analytics-form krävs av analytics.js för abandon-mätning -
+utan attributet skickas aldrig form_abandon. source_page följer med i POST
+så FORM_ERROR/BOOKING kan etiketteras med sidan formuläret stod på (det
+finns på fler sidor än /kontakt/).{% endcomment %}
+<form class="adx-form panel" method="post" action="{% url 'inquiries:submit' %}" data-analytics-form="{{ request.path }}" {% botcheck_attr %}>
+    <input type="hidden" name="source_page" value="{{ request.path }}">
     {% csrf_token %}
     {% botcheck_fields %}
     {% if form.errors %}

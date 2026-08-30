@@ -23,6 +23,8 @@ def faq_schema_json(faq_items, section_title=None):
 
     entities = []
     for item in faq_items:
+        if not getattr(item, "is_active", True):
+            continue
         q = strip_tags(getattr(item, "question", str(item))).strip()
         a = strip_tags(getattr(item, "answer", "")).strip()
         if q and a:

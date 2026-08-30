@@ -60,6 +60,8 @@ def send_inquiry_confirmation(inquiry, request=None):
         "inquiry": inquiry,
         "image_count": inquiry.image_count,
         "site_name": _get_site_name(),
+        # Absoluta länkar i mejlet - relativa adresser är döda i en inkorg.
+        "base_url": (getattr(settings, "SITE_BASE_URL", "") or "https://adx.se").rstrip("/"),
     }
 
     subject = _("Tack för din förfrågan - %(ref)s") % {"ref": inquiry.reference}
@@ -107,10 +109,13 @@ def send_inquiry_notification(inquiry, request=None):
         recipients,
         inquiry.reference,
         bcc,
+        # Reply-To = kunden: ett tryck på Svara går direkt till leadet i
+        # stället för till info-adressen. Svarstid vinner affärer.
+        [inquiry.email],
     )
 
 
-def _do_send(subject, body_text, body_html, recipients, reference, bcc=None):
+def _do_send(subject, body_text, body_html, recipients, reference, bcc=None, reply_to=None):
     """Actually send the email (runs in background thread)."""
     if not recipients and not bcc:
         logger.warning("No recipients for %s - skipping send", reference)
@@ -122,6 +127,7 @@ def _do_send(subject, body_text, body_html, recipients, reference, bcc=None):
             from_email=settings.DEFAULT_FROM_EMAIL,
             to=recipients or None,
             bcc=bcc or None,
+            reply_to=reply_to or None,
         )
         msg.attach_alternative(body_html, "text/html")
         msg.send(fail_silently=False)

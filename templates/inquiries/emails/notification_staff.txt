@@ -8,6 +8,8 @@ Kundtyp: {{ inquiry.get_customer_type_display }}
 {% endif %}{% if inquiry.topic %}Gäller: {{ inquiry.topic }}
 {% endif %}{% if inquiry.budget %}Budget: {{ inquiry.get_budget_display }}
 {% endif %}{% if inquiry.timeline %}Tidplan: {{ inquiry.get_timeline_display }}
+{% endif %}{% if inquiry.traffic_source %}Källa: {{ inquiry.traffic_source }}{% if inquiry.traffic_source_detail %} ({{ inquiry.traffic_source_detail }}){% endif %}
+{% endif %}{% if inquiry.analytics_session.visitor.first_landing_page %}Landningssida: {{ inquiry.analytics_session.visitor.first_landing_page }}
 {% endif %}{% if image_count %}
 Bifogade bilder: {{ image_count }} st (visas i kontrollpanelen)
 {% endif %}

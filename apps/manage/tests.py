@@ -272,29 +272,44 @@ class StatsQueryTests(TestCase):
         self.assertNotIn("/tjanster/", rows)
 
     def test_funnel_counts_sessions_not_pageviews(self):
+        """ADX-funneln (2026-08-30): kontaktsidan -> tack. VVS-arvets tre
+        wizard-steg /forfragan/* finns inte som sidor här och stod alltid
+        på noll."""
         from apps.manage.stats_views import _funnel
 
         session = make_session()
-        # A reload of step 1 must not look like two people.
-        record_pageview(session, "/forfragan/")
-        record_pageview(session, "/forfragan/")
-        record_pageview(session, "/forfragan/kontaktuppgifter/")
+        # En omladdning av kontaktsidan får inte se ut som två personer.
+        record_pageview(session, "/kontakt/")
+        record_pageview(session, "/kontakt/")
 
         funnel = _funnel(PageView.objects.all(), Event.objects.all())
-        self.assertEqual(len(funnel), 4)
+        self.assertEqual(len(funnel), 2)
         self.assertEqual(funnel[0]["sessions"], 1)
-        self.assertEqual(funnel[1]["sessions"], 1)
-        self.assertEqual(funnel[2]["sessions"], 0)
+        self.assertEqual(funnel[1]["sessions"], 0)
 
     def test_funnel_counts_normalized_thank_you_page(self):
         from apps.manage.stats_views import _funnel
 
         session = make_session()
-        record_pageview(session, "/forfragan/")
+        record_pageview(session, "/kontakt/")
         record_pageview(session, "/forfragan/tack/SKV-2026-0412/")
 
         funnel = _funnel(PageView.objects.all(), Event.objects.all())
-        self.assertEqual(funnel[3]["sessions"], 1)
+        self.assertEqual(funnel[-1]["sessions"], 1)
+
+    def test_funnel_sums_form_errors_from_every_page(self):
+        """Formuläret finns på många sidor - felen etiketteras per sida men
+        summeras i funneln."""
+        from apps.analytics.tracking import record_event
+        from apps.manage.stats_views import _funnel
+
+        session = make_session()
+        record_pageview(session, "/kontakt/")
+        record_event(session, "form_error", label="/hemsida-vvs/")
+        record_event(session, "form_error", label="/kontakt/")
+
+        funnel = _funnel(PageView.objects.all(), Event.objects.all())
+        self.assertEqual(funnel[-1]["errors"], 2)
 
     def test_loyalty_buckets_sum_to_the_visitor_count(self):
         from apps.manage.stats_views import _loyalty

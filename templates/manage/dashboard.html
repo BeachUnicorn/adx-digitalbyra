@@ -61,6 +61,34 @@
     &mdash; något på sajten pekar på ett mål som inte fungerar. Klicka för rapporten.
 </a>
 {% endif %}
+{% if overview %}
+<div class="m-panel" style="margin-bottom:16px;padding:18px 22px;">
+    <div class="m-panel-head" style="display:flex;justify-content:space-between;align-items:baseline;">
+        <h2 style="margin:0;font-size:15px;">Senaste {{ overview.days }} dagarna</h2>
+        {% if user.is_superuser %}<a href="{% url 'manage:stats' %}" style="font-size:13px;">Full statistik →</a>{% endif %}
+    </div>
+    <div class="m-stats" style="margin-top:12px;">
+        <div class="m-stat"><div class="m-stat__value">{{ overview.sessions }}</div><div class="m-stat__label">Besök</div></div>
+        <div class="m-stat"><div class="m-stat__value">{{ overview.inquiries }}</div><div class="m-stat__label">Förfrågningar</div></div>
+        <div class="m-stat"><div class="m-stat__value">{{ overview.newsletter_new }}</div><div class="m-stat__label">Nya prenumeranter ({{ overview.newsletter_total }} totalt)</div></div>
+    </div>
+    {% if overview.top_pages %}
+    <p style="margin:14px 0 4px;font-size:12px;color:#777;text-transform:uppercase;letter-spacing:.04em;">Mest besökta sidor</p>
+    <table style="width:100%;font-size:13px;border-collapse:collapse;">
+        {% for p in overview.top_pages %}
+        <tr>
+            <td style="padding:3px 0;"><a href="{{ p.path }}" target="_blank" rel="noopener">{{ p.path }}</a></td>
+            <td style="padding:3px 0;text-align:right;color:#777;">{{ p.views }} visningar</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+    {% if overview.top_sources %}
+    <p style="margin:14px 0 4px;font-size:12px;color:#777;text-transform:uppercase;letter-spacing:.04em;">Förfrågningar per källa</p>
+    <p style="margin:0;font-size:13px;">{% for k in overview.top_sources %}{{ k.traffic_source }} ({{ k.antal }}){% if not forloop.last %} · {% endif %}{% endfor %}</p>
+    {% endif %}
+</div>
+{% endif %}
 <div class="m-stats">
     <div class="m-stat">
         <div class="m-stat__value">{{ stats.pages_published }}</div>

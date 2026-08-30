@@ -6,9 +6,16 @@ samma botskydd som förfrågan.{% endcomment %}
         <div class="newsletter panel">
             {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
             {% if title %}<h3>{{ title|upper }}</h3>{% endif %}
+            {% if request.GET.nyhetsbrev == "tack" %}
+            {% comment %}Vyn har alltid redirectat hit med ?nyhetsbrev=tack,
+            men ingen mall läste parametern - prenumeranten fick aldrig se
+            att anmälan gick igenom.{% endcomment %}
+            <p class="nl-note">[ Tack! Din anmälan är registrerad. ]</p>
+            {% endif %}
             <form class="nl-form" method="post" action="/nyhetsbrev/" {% botcheck_attr %}>
                 {% csrf_token %}
                 {% botcheck_fields %}
+                <input type="hidden" name="next" value="{{ request.path }}">
                 <input type="email" name="email" placeholder="er@epost.se" aria-label="E-postadress" required>
                 <button class="btn" type="submit">Prenumerera</button>
             </form>
