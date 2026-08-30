@@ -17,7 +17,7 @@ from apps.website.models import BlockPage
 
 
 class StaticSitemap(Sitemap):
-    """Homepage, pricing index, FAQ list."""
+    """Startsidan och de tre indexsidor som inte är BlockPages."""
 
     priority = 1.0
     changefreq = "weekly"
@@ -26,6 +26,11 @@ class StaticSitemap(Sitemap):
         return [
             "website:homepage",
             "faq:section_list",
+            # Ortsöversikten saknades. Den är ingen BlockPage och kommer
+            # därför inte med via BlockPageSitemap, och AreaSitemap listar
+            # bara områdena - inte sidan som samlar dem. Alltså låg den enda
+            # sidan som länkar till alla 109 ortssidor utanför sitemapen.
+            "areas:area_list",
         ]
 
     def location(self, item):

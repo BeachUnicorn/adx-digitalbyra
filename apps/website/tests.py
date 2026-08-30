@@ -595,6 +595,21 @@ class SitemapTests(TestCase):
     def test_the_homepage_is_still_listed(self):
         self.assertTrue(any(u.endswith("/") and u.count("/") == 3 for u in self._locations()))
 
+    def test_the_index_pages_are_listed(self):
+        """
+        Ortsöversikten saknades i sitemapen. Den är ingen BlockPage och kommer
+        därför inte med via BlockPageSitemap, och AreaSitemap listar bara
+        områdena - inte sidan som samlar dem. Alltså låg den enda sida som
+        länkar till alla ortssidor helt utanför sitemapen.
+        """
+        locations = self._locations()
+        for path in ("/webbyra/", "/faq/"):
+            with self.subTest(path=path):
+                self.assertTrue(
+                    any(u.endswith(path) for u in locations),
+                    f"{path} saknas i sitemapen",
+                )
+
 
 class KeywordPageSeedTests(TestCase):
     """
