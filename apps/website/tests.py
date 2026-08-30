@@ -740,3 +740,93 @@ class CaseBlockLinkTests(TestCase):
         html = self._html()
         self.assertIn("Multi-tenant", html)
         self.assertNotIn('class="btn" href=""', html)
+
+
+class TemplateSyntaxLeakTests(TestCase):
+    """
+    Ingen mallsyntax får läcka ut i det renderade svaret.
+
+    Bakgrund: en {# #}-kommentar skrevs över tre rader i area_detail.html.
+    Django-kommentarer med den syntaxen får bara vara EN rad - en flerradig
+    blir inte en kommentar utan vanlig text, och kommentaren syntes på alla
+    109 ortssidor. Vakten mäter symptomet oavsett orsak: en oavslutad tagg,
+    ett felstavat filter eller en kommentar som inte parsas fångas likadant.
+
+    {{ }} förekommer legitimt i JSON-LD (FAQPage-strukturen), så de blocken
+    klipps bort innan sökningen - inte hela markörlistan.
+    """
+
+    #: Sekvenser som aldrig ska finnas i ett renderat svar.
+    MARKERS = ("{#", "#}", "{%", "%}", "{{", "}}")
+    _JSON_LD = re.compile(r"<script[^>]+application/ld\+json[^>]*>.*?</script>", re.S | re.I)
+
+    @classmethod
+    def setUpTestData(cls):
+        from apps.areas.models import Area, AreaLevel
+
+        call_command("seed_site", verbosity=0)
+        call_command("seed_sokordssidor", verbosity=0)
+        region = Area.objects.create(name="Skåne län", level=AreaLevel.REGION)
+        Area.objects.create(name="Malmö", level=AreaLevel.MUNICIPALITY, parent=region)
+
+    def _leaks(self, html):
+        body = self._JSON_LD.sub("", html)
+        return [m for m in self.MARKERS if m in body]
+
+    def _paths(self):
+        """Varje sida i sitemapen plus de index som inte ligger där."""
+        import re as _re
+
+        xml = Client().get("/sitemap.xml").content.decode()
+        paths = {
+            _re.sub(r"^https?://[^/]+", "", u) for u in _re.findall(r"<loc>([^<]+)</loc>", xml)
+        }
+        paths.update({"/", "/webbyra/", "/faq/", "/kontakt/"})
+        return sorted(paths)
+
+    def test_no_template_syntax_reaches_the_visitor(self):
+        client = Client()
+        offenders = []
+        for path in self._paths():
+            html = client.get(path).content.decode()
+            leaks = self._leaks(html)
+            if leaks:
+                offenders.append(f"{path}: {', '.join(leaks)}")
+        self.assertEqual(
+            offenders,
+            [],
+            "Orenderad mallsyntax i svaret:\n" + "\n".join(offenders),
+        )
+
+    def test_the_guard_would_catch_a_multiline_comment(self):
+        """Vakten ska faktiskt fånga felet den skrevs för."""
+        from django.template import Context, Template
+
+        rendered = Template("{# rad ett\n   rad två #}\n<p>Hej</p>").render(Context({}))
+        self.assertTrue(self._leaks(rendered), "en flerradig {# #} ska fångas")
+
+
+class TemplateCommentSyntaxTests(TestCase):
+    """
+    Statisk vakt mot orsaken: {# #} får inte spänna över flera rader.
+
+    Django stänger den kommentarsformen vid radslutet. Skriver man flera rader
+    blir resten vanlig text i sidan. Felet är osynligt i koden - det ser ut som
+    en kommentar - så det ska fångas vid bygget och inte av en kund.
+    Flerradiga kommentarer skrivs med {% comment %}...{% endcomment %}.
+    """
+
+    def test_no_multiline_hash_comments_in_templates(self):
+        base = Path(django_settings.BASE_DIR)
+        offenders = []
+        for path in sorted((base / "templates").rglob("*.html")):
+            for lineno, line in enumerate(path.read_text().splitlines(), start=1):
+                for match in re.finditer(r"\{#", line):
+                    if "#}" not in line[match.end() :]:
+                        rel = path.relative_to(base)
+                        offenders.append(f"{rel}:{lineno}: {line.strip()[:70]}")
+        self.assertEqual(
+            offenders,
+            [],
+            "Flerradig {# #} - använd {% comment %}...{% endcomment %}:\n" + "\n".join(offenders),
+        )

@@ -5,9 +5,11 @@ Stadssida i ADX-designen: hero + unik brödtext (.prose) + relaterade städer
 + CTA-rad. EN sida per stad som bär både "digitalbyrå" och "webbyrå" i
 copyn - aldrig separata sidor per sökord (doorway-regeln, mönsterkatalogen).
 {% endcomment %}
-{# En satt meta_title ÄR hela sidtiteln - lägg inte på sajtnamnet igen. Utan
-   if-satsen blev det "Webbyrå i Kista ... | ADX - ADX". Samma regel som
-   website/page.html följer. #}
+{% comment %}
+En satt meta_title ÄR hela sidtiteln - lägg inte på sajtnamnet igen. Utan
+if-satsen blev det "Webbyrå i Kista ... | ADX - ADX". Samma regel som
+website/page.html följer.
+{% endcomment %}
 {% block title %}{% if area.meta_title %}{{ area.meta_title }}{% else %}{{ area.name }} - {{ site_settings.name|default:"ADX" }}{% endif %}{% endblock %}
 {% block meta %}
 <meta name="description" content="{{ area.meta_description }}">
@@ -16,9 +18,11 @@ copyn - aldrig separata sidor per sökord (doorway-regeln, mönsterkatalogen).
 {% block content %}
 <div class="wrap hero">
     <div class="kicker"><a href="/">Hem</a> / <a href="{% url 'areas:area_list' %}">Städer</a> / {{ area.name }}</div>
-    {# display_heading, inte hårdkodad text: modellen äger rubriken och faller
-       tillbaka på "Webbyrå i {namn}" när området inte satt en egen. Stod den
-       här gick redaktörens heading-fält aldrig fram till sidan. #}
+    {% comment %}
+    display_heading, inte hårdkodad text: modellen äger rubriken och faller
+    tillbaka på "Webbyrå i {namn}" när området inte satt en egen. Stod den
+    här gick redaktörens heading-fält aldrig fram till sidan.
+    {% endcomment %}
     <h1>{{ area.display_heading }}.</h1>
     {% if area.intro %}<p class="lead">{{ area.intro }}</p>{% endif %}
     <div class="hero-actions">
