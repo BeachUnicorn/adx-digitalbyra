@@ -21,6 +21,7 @@ sida, så den kan inte bli föräldralös på något meningsfullt sätt.
 import re
 from collections import Counter
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from django.test import Client
 
@@ -39,8 +40,14 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        client = Client()
-        response = client.get("/sitemap.xml")
+        # Testklientens standardhost "testserver" avvisas av produktionens
+        # ALLOWED_HOSTS, och secure=True undviker SSL-redirecten där.
+        host = next(
+            (h.lstrip(".") for h in settings.ALLOWED_HOSTS if h and "*" not in h),
+            "testserver",
+        )
+        client = Client(HTTP_HOST=host)
+        response = client.get("/sitemap.xml", secure=True)
         if response.status_code != 200:
             raise CommandError(f"sitemap.xml svarade {response.status_code}")
 
@@ -51,7 +58,7 @@ class Command(BaseCommand):
         inbound = Counter()
         broken = []
         for path in paths:
-            page = client.get(path)
+            page = client.get(path, secure=True)
             if page.status_code != 200:
                 broken.append((path, page.status_code))
                 continue
