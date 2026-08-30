@@ -3,7 +3,13 @@
     <h1 style="font-size: 22px; margin: 0 0 10px; color: #1d6f43;">Offerten är accepterad</h1>
     <p><strong>{{ quote.customer_name }}</strong> accepterade{% if quote.project_title %} offerten för <strong>{{ quote.project_title }}</strong>{% endif %} just nu.</p>
     <table style="border-collapse: collapse; font-size: 15px; margin: 16px 0;">
-        <tr><td style="padding: 4px 16px 4px 0; color: #877f72;">Vid leverans</td><td style="text-align: right;"><strong>{{ totals.one_time }} kr</strong></td></tr>
+        {% for line in quote.lines.all %}{% if not line.is_optional or line.is_selected %}
+        <tr><td style="padding: 4px 16px 4px 0;">{{ line.label }}{% if line.is_optional %} <span style="color: #877f72;">(tillval)</span>{% endif %}</td><td style="text-align: right;">{{ line.price_display }}</td></tr>
+        {% endif %}{% endfor %}
+        {% for line in quote.lines.all %}{% if line.is_optional and not line.is_selected %}
+        <tr><td style="padding: 4px 16px 4px 0; color: #877f72; text-decoration: line-through;">{{ line.label }}</td><td style="text-align: right; color: #877f72;">valdes bort</td></tr>
+        {% endif %}{% endfor %}
+        <tr><td style="padding: 8px 16px 4px 0; color: #877f72; border-top: 1px solid #e8e2d6;">Vid leverans</td><td style="text-align: right; border-top: 1px solid #e8e2d6;"><strong>{{ totals.one_time }} kr</strong></td></tr>
         <tr><td style="padding: 4px 16px 4px 0; color: #877f72;">Per månad</td><td style="text-align: right;">{{ totals.monthly }} kr</td></tr>
         <tr><td style="padding: 4px 16px 4px 0; color: #877f72;">Per år</td><td style="text-align: right;">{{ totals.yearly }} kr</td></tr>
     </table>

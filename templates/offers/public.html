@@ -66,6 +66,38 @@ godkända mockupen: ljust, luftigt, stor text, guldaccent.
                      background: none; border: 1px solid var(--line); border-radius: 10px;
                      padding: 12px; cursor: pointer; }
     .legal { font-size: 13px; color: var(--muted); text-align: center; margin: 4px 0 0; }
+    /* Tillval: hela raden är en klickbar toggle, precis som i mockupen. */
+    .opts { margin-top: 26px; border-top: 1px solid var(--line); }
+    .opts-kicker { font-size: 13px; font-weight: 700; letter-spacing: .14em;
+                   text-transform: uppercase; color: var(--accent-deep); margin: 22px 0 2px; }
+    .opts-lead { font-size: 15px; color: var(--muted); margin: 0 0 8px; }
+    .opt { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 16px;
+           align-items: center; padding: 16px 0; border-top: 1px solid var(--line);
+           cursor: pointer; }
+    .opt:first-of-type { border-top: 0; }
+    .opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .opt .switch { grid-row: span 2; width: 58px; height: 34px; border-radius: 999px;
+                   position: relative; background: var(--line); transition: background .18s ease; }
+    .opt .switch::after { content: ""; position: absolute; top: 4px; left: 4px;
+                          width: 26px; height: 26px; border-radius: 50%; background: var(--card);
+                          box-shadow: 0 1px 3px rgba(29,26,22,.25); transition: transform .18s ease; }
+    .opt:has(input:checked) .switch { background: var(--accent); }
+    .opt:has(input:checked) .switch::after { transform: translateX(24px); }
+    .opt:has(input:focus-visible) .switch { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
+    .opt-name { font-size: 18px; font-weight: 700; display: block; }
+    .opt-desc { font-size: 14px; color: var(--muted); display: block; }
+    .opt-price { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap;
+                 opacity: .5; transition: opacity .18s ease; }
+    .opt:has(input:checked) .opt-price { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) { .opt .switch, .opt .switch::after, .opt-price { transition: none; } }
+
+    .totals { border-top: 2px solid var(--ink); margin-top: 22px; padding-top: 12px; }
+    .trow { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0;
+            font-size: 16px; color: var(--muted); }
+    .trow b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .trow--main { font-size: 19px; color: var(--ink); font-weight: 700; }
+    .trow--main b { font-size: 22px; }
+
     .trail { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 26px; }
     .trail span { font-size: 13px; font-weight: 700; color: var(--muted);
                   border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
@@ -93,45 +125,64 @@ godkända mockupen: ljust, luftigt, stor text, guldaccent.
 
         <table>
             <tbody>
-                {% for line in one_time_lines %}
+                {% for line in table_lines %}
                 <tr>
                     <td>{{ line.label }}{% if line.description %}<span class="d">{{ line.description }}</span>{% endif %}</td>
-                    <td>{{ line.price_display }}</td>
-                </tr>
-                {% endfor %}
-                {% if one_time_lines %}
-                <tr class="total"><td>Att betala vid leverans</td><td>{{ quote.totals_display.one_time }} kr</td></tr>
-                {% endif %}
-                {% for line in recurring_lines %}
-                <tr>
-                    <td>{{ line.label }}, löpande{% if line.description %}<span class="d">{{ line.description }}</span>{% endif %}</td>
                     <td>{{ line.price_display }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
+        {% if quote.is_answerable %}
+        <form method="post" action="{% url 'offers:accept' quote.token %}">
+            {% csrf_token %}
+            {% if optional_lines %}
+            <div class="opts">
+                <p class="opts-kicker">[ Tillval ]</p>
+                <p class="opts-lead">Välj till det ni vill ha - summan räknas om direkt.</p>
+                {% for line in optional_lines %}
+                <label class="opt">
+                    <input type="checkbox" name="tillval" value="{{ line.pk }}"
+                           data-price="{{ line.price }}" data-period="{{ line.period }}"
+                           {% if line.is_selected %}checked{% endif %}>
+                    <span class="switch" aria-hidden="true"></span>
+                    <span class="opt-body">
+                        <span class="opt-name">{{ line.label }}</span>
+                        {% if line.description %}<span class="opt-desc">{{ line.description }}</span>{% endif %}
+                    </span>
+                    <span class="opt-price">{{ line.price_display }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% include "offers/_totals.html" %}
+
+            <p class="valid">
+                Alla priser exklusive moms.
+                {% if quote.valid_until %}Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}
+            </p>
+
+            <div class="actions">
+                <button type="submit" class="btn-accept">Acceptera offerten</button>
+                <p class="legal">Ett tryck på Acceptera är en beställning enligt raderna ovan{% if optional_lines %}, med de tillval ni valt{% endif %}.</p>
+            </div>
+        </form>
+        <details>
+            <summary>Ställ en fråga</summary>
+            <form method="post" action="{% url 'offers:question' quote.token %}" class="q">
+                {% csrf_token %}
+                <textarea name="message" required placeholder="Skriv din fråga här..."></textarea>
+                <button type="submit">Skicka frågan</button>
+            </form>
+        </details>
+        {% else %}
+        {% include "offers/_totals.html" %}
         <p class="valid">
             Alla priser exklusive moms.
             {% if quote.valid_until %}Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}
         </p>
-
-        {% if quote.is_answerable %}
-        <div class="actions">
-            <form method="post" action="{% url 'offers:accept' quote.token %}">
-                {% csrf_token %}
-                <button type="submit" class="btn-accept">Acceptera offerten</button>
-            </form>
-            <details>
-                <summary>Ställ en fråga</summary>
-                <form method="post" action="{% url 'offers:question' quote.token %}" class="q">
-                    {% csrf_token %}
-                    <textarea name="message" required placeholder="Skriv din fråga här..."></textarea>
-                    <button type="submit">Skicka frågan</button>
-                </form>
-            </details>
-            <p class="legal">Ett tryck på Acceptera är en beställning enligt raderna ovan.</p>
-        </div>
         {% endif %}
 
         {% if quote.sent_at %}
@@ -147,5 +198,31 @@ godkända mockupen: ljust, luftigt, stor text, guldaccent.
         &middot; <a href="/">adx.se</a>
     </p>
 </div>
+<script>
+(function () {
+    "use strict";
+    var totals = document.querySelector(".totals[data-base-one]");
+    var boxes = document.querySelectorAll('input[name="tillval"]');
+    if (!totals || !boxes.length) { return; }
+    function kr(n) { return n.toLocaleString("sv-SE"); }
+    function recalc() {
+        var sums = {
+            one_time: parseInt(totals.dataset.baseOne, 10) || 0,
+            monthly: parseInt(totals.dataset.baseMonthly, 10) || 0,
+            yearly: parseInt(totals.dataset.baseYearly, 10) || 0,
+        };
+        boxes.forEach(function (box) {
+            if (box.checked) { sums[box.dataset.period] += parseInt(box.dataset.price, 10) || 0; }
+        });
+        document.getElementById("sum-one").textContent = kr(sums.one_time) + " kr";
+        document.getElementById("sum-monthly").textContent = kr(sums.monthly) + " kr/mån";
+        document.getElementById("sum-yearly").textContent = kr(sums.yearly) + " kr/år";
+        document.getElementById("row-monthly").hidden = sums.monthly === 0;
+        document.getElementById("row-yearly").hidden = sums.yearly === 0;
+    }
+    boxes.forEach(function (box) { box.addEventListener("change", recalc); });
+    recalc();
+})();
+</script>
 </body>
 </html>

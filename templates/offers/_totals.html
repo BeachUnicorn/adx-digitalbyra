@@ -1,0 +1,13 @@
+{% comment %}
+Summorna på kundens offertsida. data-base-* är de FASTA radernas summor -
+skriptet räknar om totalen när kunden togglar tillval. Utan JS står de
+serverrenderade beloppen (förvalen) kvar och checkboxarna gäller ändå.
+{% endcomment %}
+<div class="totals"
+     data-base-one="{{ base.one_time }}"
+     data-base-monthly="{{ base.monthly }}"
+     data-base-yearly="{{ base.yearly }}">
+    <div class="trow trow--main"><span>Att betala vid leverans</span><b id="sum-one">{{ quote.totals_display.one_time }} kr</b></div>
+    <div class="trow" id="row-monthly" {% if not totals.monthly %}hidden{% endif %}><span>Löpande per månad</span><b id="sum-monthly">{{ quote.totals_display.monthly }} kr/mån</b></div>
+    <div class="trow" id="row-yearly" {% if not totals.yearly %}hidden{% endif %}><span>Löpande per år</span><b id="sum-yearly">{{ quote.totals_display.yearly }} kr/år</b></div>
+</div>

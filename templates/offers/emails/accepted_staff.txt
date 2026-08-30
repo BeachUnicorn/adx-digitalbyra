@@ -1,5 +1,9 @@
 {{ quote.customer_name }} har ACCEPTERAT offerten{% if quote.project_title %} för {{ quote.project_title }}{% endif %}.
 
+Beställda rader:
+{% for line in quote.lines.all %}{% if not line.is_optional or line.is_selected %}- {{ line.label }}{% if line.is_optional %} (tillval){% endif %}: {{ line.price_display }}
+{% endif %}{% endfor %}{% for line in quote.lines.all %}{% if line.is_optional and not line.is_selected %}- VALDE BORT: {{ line.label }}
+{% endif %}{% endfor %}
 Vid leverans: {{ totals.one_time }} kr
 Per månad:   {{ totals.monthly }} kr
 Per år:      {{ totals.yearly }} kr

@@ -37,6 +37,16 @@ ta bort, skicka) är vanliga POST + redirect.
              font-size: 15px; line-height: 34px; }
     .o-del:hover { color: #ff502e; }
 
+    .o-flags { grid-column: 2 / 5; display: flex; gap: 8px; align-items: center; }
+    .o-flag { font-size: 12px; border: 1px solid var(--m-border); border-radius: 999px;
+              padding: 3px 12px; background: none; cursor: pointer; color: var(--m-text-muted);
+              font-family: inherit; }
+    .o-flag[aria-pressed="true"] { background: #fdf3e2; border-color: #f0dcb4;
+                                   color: #8a5b00; font-weight: 600; }
+    .o-flag:focus-visible { outline: 2px solid var(--m-accent); }
+    .o-flag-hint { font-size: 12px; color: var(--m-text-muted); }
+    @media (max-width: 560px) { .o-flags { grid-column: 2 / 3; flex-wrap: wrap; } }
+
     .o-add { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--m-border);
              flex-wrap: wrap; }
     .o-add select { flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid var(--m-border);
@@ -102,6 +112,14 @@ ta bort, skicka) är vanliga POST + redirect.
                 </form>
                 <textarea class="o-desc" rows="1" placeholder="Beskrivning (visas under raden)"
                           aria-label="Beskrivning">{{ line.description }}</textarea>
+                <div class="o-flags">
+                    <button type="button" class="o-flag o-flag-optional"
+                            aria-pressed="{% if line.is_optional %}true{% else %}false{% endif %}">Tillval</button>
+                    <button type="button" class="o-flag o-flag-selected"
+                            aria-pressed="{% if line.is_selected %}true{% else %}false{% endif %}"
+                            {% if not line.is_optional %}hidden{% endif %}>Förvald</button>
+                    <span class="o-flag-hint" {% if not line.is_optional %}hidden{% endif %}>Kunden väljer med en toggle på offertsidan.</span>
+                </div>
             </div>
             {% empty %}
             <p style="padding:18px 14px;margin:0;color:var(--m-text-muted);font-size:14px;">
@@ -267,7 +285,7 @@ ta bort, skicka) är vanliga POST + redirect.
         // Serversidan vägrar ändå; det här gör låsningen synlig direkt.
         document.querySelectorAll(".o-line input, .o-line textarea, .o-line select, .o-meta")
             .forEach(function (el) { el.disabled = true; });
-        document.querySelectorAll(".o-add, .o-del, .o-handle")
+        document.querySelectorAll(".o-add, .o-del, .o-handle, .o-flag")
             .forEach(function (el) { el.style.display = "none"; });
         return;
     }
@@ -275,6 +293,10 @@ ta bort, skicka) är vanliga POST + redirect.
     // --- Autospar: rader ---------------------------------------------------
     document.querySelectorAll(".o-line").forEach(function (row) {
         var id = row.dataset.id;
+        var optional = row.querySelector(".o-flag-optional");
+        var selected = row.querySelector(".o-flag-selected");
+        var hint = row.querySelector(".o-flag-hint");
+        function pressed(btn) { return btn.getAttribute("aria-pressed") === "true"; }
         function save() {
             return enqueue("line-" + id, function () {
                 return post("{% url 'manage:offer_line_update' 0 %}".replace("/0/", "/" + id + "/"), {
@@ -282,6 +304,8 @@ ta bort, skicka) är vanliga POST + redirect.
                     description: row.querySelector(".o-desc").value,
                     price: row.querySelector(".o-price").value,
                     period: row.querySelector(".o-period").value,
+                    is_optional: pressed(optional),
+                    is_selected: pressed(selected),
                 }).then(function (data) {
                     if (data && data.totals) { renderTotals(data.totals); }
                 });
@@ -293,6 +317,13 @@ ta bort, skicka) är vanliga POST + redirect.
                 timers[id] = setTimeout(save, 500);
             });
             input.addEventListener("change", save);
+        });
+        [optional, selected].forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                btn.setAttribute("aria-pressed", pressed(btn) ? "false" : "true");
+                selected.hidden = hint.hidden = !pressed(optional);
+                save();
+            });
         });
     });
 

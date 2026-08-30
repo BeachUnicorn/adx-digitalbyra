@@ -262,6 +262,12 @@ def line_update(request, pk):
     if "period" in data:
         line.period = _clean_period(data["period"])
         fields.append("period")
+    if "is_optional" in data:
+        line.is_optional = bool(data["is_optional"])
+        fields.append("is_optional")
+    if "is_selected" in data:
+        line.is_selected = bool(data["is_selected"])
+        fields.append("is_selected")
     if fields:
         # Bara de mottagna fälten: ett autospar som korsar en samtidig
         # dra-och-släpp-omordning får inte skriva tillbaka gammal order.

@@ -225,6 +225,77 @@ class PublicPageTests(TestCase):
 
 
 @override_settings(**EMAIL_SETTINGS)
+class OptionalLineTests(TestCase):
+    """Tillvalen: kunden väljer med togglar, valet blir en del av accepten."""
+
+    def setUp(self):
+        self.quote = make_quote(status=QuoteStatus.SENT)
+        self.base = QuoteLine.objects.create(
+            quote=self.quote, label="Hemsida", price=50000, order=1
+        )
+        self.seo = QuoteLine.objects.create(
+            quote=self.quote, label="SEO", price=6500, order=2,
+            is_optional=True, is_selected=True,
+        )
+        self.booking = QuoteLine.objects.create(
+            quote=self.quote, label="Bokning", price=12000, order=3,
+            is_optional=True, is_selected=False,
+        )
+
+    def test_totals_count_only_selected_options(self):
+        self.assertEqual(self.quote.totals()["one_time"], 56500)
+
+    def test_the_public_page_renders_options_as_toggles(self):
+        import re
+
+        html = Client().get(self.quote.get_public_url()).content.decode()
+        self.assertIn('name="tillval"', html)
+        self.assertIn("[ Tillval ]", html)
+        # Förvalet styr checked-attributet: SEO förvald, Bokning inte.
+        toggles = dict(
+            re.findall(r'value="(\d+)"[^>]*?(checked)?>\s*<span class="switch"', html)
+        )
+        self.assertEqual(toggles.get(str(self.seo.pk)), "checked")
+        self.assertEqual(toggles.get(str(self.booking.pk)), "")
+
+    def test_accepting_with_choices_persists_the_customers_selection(self):
+        Client().post(
+            f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(self.booking.pk)]}
+        )
+        self.seo.refresh_from_db()
+        self.booking.refresh_from_db()
+        self.quote.refresh_from_db()
+        self.assertFalse(self.seo.is_selected)
+        self.assertTrue(self.booking.is_selected)
+        self.assertEqual(self.quote.totals()["one_time"], 62000)
+        self.assertIn("Bokning", mail.outbox[0].body)
+        self.assertIn("VALDE BORT: SEO", mail.outbox[0].body)
+
+    def test_foreign_line_ids_cannot_be_smuggled_into_the_selection(self):
+        other = make_quote(customer_name="Annan", status=QuoteStatus.SENT)
+        foreign = QuoteLine.objects.create(
+            quote=other, label="Främmande", price=1, order=1,
+            is_optional=True, is_selected=False,
+        )
+        Client().post(
+            f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(foreign.pk)]}
+        )
+        foreign.refresh_from_db()
+        self.base.refresh_from_db()
+        self.assertFalse(foreign.is_selected, "annan offerts rad får inte påverkas")
+        self.assertTrue(self.base.is_selected, "fasta rader rörs aldrig av valet")
+
+    def test_after_accept_the_page_shows_chosen_options_without_toggles(self):
+        Client().post(
+            f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(self.seo.pk)]}
+        )
+        html = Client().get(self.quote.get_public_url()).content.decode()
+        self.assertNotIn('type="checkbox" name="tillval"', html)
+        self.assertIn("SEO", html)
+        self.assertNotIn("Bokning", html)
+
+
+@override_settings(**EMAIL_SETTINGS)
 class AcceptFlowTests(TestCase):
     def test_accepting_sets_status_evidence_and_emails_staff(self):
         quote = make_quote(status=QuoteStatus.OPENED)
@@ -410,6 +481,18 @@ class ReviewRegressionTests(StaffClientMixin, TestCase):
         Client().post(f"/offert/{quote.token}/acceptera/")
         self.assertEqual(len(mail.outbox), 0)
         self.assertIsNotNone(public_views)  # håll importen ärlig
+
+    def test_optional_flags_are_saved_via_autosave(self):
+        quote = make_quote()
+        line = QuoteLine.objects.create(quote=quote, label="SEO", price=6500, order=1)
+        self.staff().post(
+            f"/manage/offerter/rad/{line.pk}/uppdatera/",
+            json.dumps({"is_optional": True, "is_selected": False}),
+            content_type="application/json",
+        )
+        line.refresh_from_db()
+        self.assertTrue(line.is_optional)
+        self.assertFalse(line.is_selected)
 
     def test_a_failed_question_email_is_reported_not_swallowed(self):
         # Ingen EMAIL-konfiguration alls -> sändningen returnerar False.

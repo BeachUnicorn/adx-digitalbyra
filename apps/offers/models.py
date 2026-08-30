@@ -120,9 +120,16 @@ class Quote(models.Model):
         return f"/offert/{self.token}/"
 
     def totals(self):
-        """Summor per pristyp, hela kronor exkl. moms."""
+        """
+        Summor per pristyp, hela kronor exkl. moms.
+
+        Ett tillval räknas bara när det är valt - före accept är det
+        förvalet, efter accept är det kundens faktiska val.
+        """
         sums = {p.value: 0 for p in PricePeriod}
         for line in self.lines.all():
+            if line.is_optional and not line.is_selected:
+                continue
             sums[line.period] += line.price
         return sums
 
@@ -161,6 +168,10 @@ class QuoteLine(models.Model):
     period = models.CharField(
         max_length=10, choices=PricePeriod.choices, default=PricePeriod.ONE_TIME
     )
+    # Tillval: raden visas som en toggle på kundsidan och kunden väljer
+    # själv. is_selected är förvalet innan accept - och KUNDENS val efter.
+    is_optional = models.BooleanField("Tillval", default=False)
+    is_selected = models.BooleanField("Vald", default=True)
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
