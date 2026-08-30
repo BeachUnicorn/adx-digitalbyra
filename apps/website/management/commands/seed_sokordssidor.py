@@ -16,6 +16,7 @@ råa strängar.
 """
 
 import json
+import shutil
 from pathlib import Path
 
 from django.conf import settings as django_settings
@@ -25,9 +26,10 @@ from django.db import transaction
 
 from apps.faq.models import FAQItem, FAQSection
 from apps.manage.block_schema import BLOCK_EDIT_SCHEMA, clean_block_rows, clean_block_values
-from apps.website.models import Block, BlockPage, Menu, MenuItem
+from apps.website.models import Block, BlockPage, MediaFile, Menu, MenuItem
 
 SEED_FILE = Path(django_settings.BASE_DIR) / "seed_data" / "adx_sokordssidor.json"
+MEDIA_SEED_DIR = Path(django_settings.BASE_DIR) / "seed_data" / "media"
 
 #: Sidfotskolumnen som ger sidorna en väg in. Utan den är de föräldralösa:
 #: de finns i sitemapen och länkar till varandra, men ingenting på sajten
@@ -59,6 +61,11 @@ class Command(BaseCommand):
 
         created_pages = created_blocks = created_sections = created_items = 0
         skipped_pages = 0
+        self._media_cache = {}
+        # Alt-texter och portfoliokopplingar är INNEHÅLL och bor i seedfilen.
+        # Koden ska inte bära kundnamn - identitetsvakten i
+        # apps/website/tests.py grep-ar efter just det.
+        self._images = payload.get("bilder") or {}
 
         with transaction.atomic():
             for entry in payload["sidor"]:
@@ -85,6 +92,7 @@ class Command(BaseCommand):
                 created_blocks += self._blocks(page, entry["block"], section)
 
             created_menu = self._footer_menu()
+            self._portfolio_image()
 
             if options["dry_run"]:
                 transaction.set_rollback(True)
@@ -124,6 +132,39 @@ class Command(BaseCommand):
             MenuItem.objects.create(menu=menu, label=label, page=page, order=order)
         return True
 
+    def _portfolio_image(self):
+        """
+        Fyll i bild och länk på ett portfoliokort som fortfarande är tomt.
+
+        Portfoliokorten seedades utan bild och utan länk, vilket gör dem till
+        svag bevisning - ett case utan bild och utan väg vidare övertygar
+        ingen. Vilket kort som ska fyllas står i seedfilen, inte här.
+        Ett kort kunden själv fyllt i skrivs aldrig över.
+        """
+        for name, spec in self._images.items():
+            card_spec = spec.get("portfoliokort")
+            if not card_spec:
+                continue
+            needle = card_spec["titel_innehaller"].lower()
+            target = BlockPage.objects.filter(slug=card_spec["lanka_till"]).first()
+            for block in Block.objects.filter(
+                block_type="folio", page__slug=card_spec["sida"]
+            ):
+                cards = block.data.get("cards") or []
+                changed = False
+                for card in cards:
+                    if needle not in str(card.get("title", "")).lower():
+                        continue
+                    if not card.get("image_id"):
+                        card["image_id"] = self.media_file(name).pk
+                        changed = True
+                    if not card.get("url") and target is not None:
+                        card["url"] = {"kind": "page", "id": target.pk}
+                        changed = True
+                if changed:
+                    block.data["cards"] = cards
+                    block.save(update_fields=["data", "updated_at"])
+
     def _faq_section(self, spec):
         section = FAQSection.objects.filter(slug=spec["slug"]).first()
         if section is not None:
@@ -155,6 +196,46 @@ class Command(BaseCommand):
             added += 1
         return added
 
+    def media_file(self, name):
+        """
+        MediaFile för en bild som ligger i seed_data/media/. Idempotent.
+
+        Bilden kopieras till MEDIA_ROOT precis som import_site_data gör, så att
+        seeden fungerar likadant på en server som lokalt.
+        """
+        if name in self._media_cache:
+            return self._media_cache[name]
+
+        src = next(MEDIA_SEED_DIR.glob(f"{name}.*"), None)
+        if src is None:
+            raise CommandError(f"Hittar inte bilden seed_data/media/{name}.*")
+
+        rel = f"media/{src.name}"
+        existing = MediaFile.objects.filter(file=rel).first()
+        if existing is None:
+            dst = Path(django_settings.MEDIA_ROOT) / rel
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src, dst)
+            width = height = None
+            try:
+                from PIL import Image
+
+                with Image.open(src) as im:
+                    width, height = im.size
+            except Exception:  # noqa: BLE001 - måtten är trevliga, inte kritiska
+                pass
+            existing = MediaFile.objects.create(
+                file=rel,
+                original_filename=src.name,
+                alt_text=(self._images.get(name) or {}).get("alt", ""),
+                mime_type="image/jpeg" if src.suffix in (".jpg", ".jpeg") else "image/png",
+                file_size=src.stat().st_size,
+                width=width,
+                height=height,
+            )
+        self._media_cache[name] = existing
+        return existing
+
     def _blocks(self, page, specs, section):
         for order, spec in enumerate(specs, start=1):
             block_type = spec["typ"]
@@ -165,6 +246,10 @@ class Command(BaseCommand):
             # FAQ-blocket bär sektionens slug i filen; id:t finns först nu.
             if "faq_section_slug" in spec:
                 falt["faq_section_id"] = str(section.pk)
+            # Bilder bärs som filnamn i seedfilen - MediaFile-id:t finns
+            # först när bilden importerats.
+            for key, image_name in (spec.get("bild") or {}).items():
+                falt[key] = str(self.media_file(image_name).pk)
 
             data = clean_block_values(block_type, {}, falt)
             if spec.get("listor"):

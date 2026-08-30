@@ -594,3 +594,134 @@ class SitemapTests(TestCase):
 
     def test_the_homepage_is_still_listed(self):
         self.assertTrue(any(u.endswith("/") and u.count("/") == 3 for u in self._locations()))
+
+
+class KeywordPageSeedTests(TestCase):
+    """
+    Sökordssidornas seed är ADDITIV och bär med sig sina bilder.
+
+    Till skillnad från seed_site får den köras på en produktion där kunden
+    hunnit redigera: en sida som finns lämnas orörd, och ingenting tas bort.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+        call_command("seed_sokordssidor", verbosity=0)
+
+    def test_the_pages_are_created_and_respond(self):
+        from apps.website.models import BlockPage
+
+        for slug in ("skapa-hemsida", "hemsida-vvs", "hemsida-tandlakare", "om-oss"):
+            with self.subTest(slug=slug):
+                self.assertTrue(BlockPage.objects.filter(slug=slug, is_published=True).exists())
+                self.assertEqual(Client().get(f"/{slug}/").status_code, 200)
+
+    def test_rerunning_creates_nothing_new(self):
+        from apps.website.models import Block, BlockPage
+
+        before = (BlockPage.objects.count(), Block.objects.count())
+        call_command("seed_sokordssidor", verbosity=0)
+        self.assertEqual((BlockPage.objects.count(), Block.objects.count()), before)
+
+    def test_an_edited_page_is_never_overwritten(self):
+        """Efter första seeden är produktionen sanningskällan."""
+        from apps.website.models import BlockPage
+
+        page = BlockPage.objects.get(slug="skapa-hemsida")
+        page.title = "Kundens egen rubrik"
+        page.save(update_fields=["title"])
+
+        call_command("seed_sokordssidor", verbosity=0)
+
+        page.refresh_from_db()
+        self.assertEqual(page.title, "Kundens egen rubrik")
+
+    def test_the_case_image_is_imported_with_its_alt_text(self):
+        from apps.website.models import MediaFile
+
+        media = MediaFile.objects.get(file="media/case-skandi-vvs.jpg")
+        self.assertTrue(media.alt_text.strip(), "bilden måste ha alt-text")
+        html = Client().get("/case-skandi-vvs/").content.decode()
+        self.assertIn(media.file.url, html)
+        self.assertIn(media.alt_text, html)
+
+    def test_the_portfolio_card_gets_the_image_and_a_link(self):
+        """Ett case utan bild och utan väg vidare övertygar ingen."""
+        from apps.website.models import Block
+
+        block = Block.objects.filter(block_type="folio", page__slug="portfolio").first()
+        card = next(c for c in block.data["cards"] if "skandi" in c["title"].lower())
+        self.assertTrue(card["image_id"])
+        self.assertEqual(card["url"]["kind"], "page")
+
+    def test_every_keyword_page_has_a_unique_title_and_a_description(self):
+        import json
+        import re
+        from pathlib import Path
+
+        seed = json.loads(
+            (Path(django_settings.BASE_DIR) / "seed_data" / "adx_sokordssidor.json").read_text()
+        )
+        titles, missing = [], []
+        for entry in seed["sidor"]:
+            html = Client().get(f"/{entry['slug']}/").content.decode()
+            title = re.search(r"<title>(.*?)</title>", html, re.S)
+            desc = re.search(r'<meta name="description" content="(.*?)"', html, re.S)
+            titles.append(title.group(1).strip() if title else "")
+            if not desc or not desc.group(1).strip():
+                missing.append(entry["slug"])
+        self.assertEqual(missing, [], f"sidor utan metabeskrivning: {missing}")
+        dupes = {t for t in titles if titles.count(t) > 1}
+        self.assertEqual(dupes, set(), f"dubblerade sidtitlar: {dupes}")
+
+    def test_no_dead_internal_links_on_the_new_pages(self):
+        from apps.website.links import dead_links
+
+        problems = dead_links()
+        self.assertEqual(
+            problems,
+            [],
+            "Seedade döda länkar är byggfel: "
+            + "; ".join(f"{p.location}: {p.target} ({p.status})" for p in problems),
+        )
+
+
+class CaseBlockLinkTests(TestCase):
+    """
+    Case-blockets link.url renderades aldrig.
+
+    Schemat har alltid haft fältet, men mallen läste bara link.label och ritade
+    den som kicker - alltså ett fält redaktören (och AI:n) kunde fylla i utan
+    att något hände. Etiketten ska fortsatt fungera ensam som kicker.
+    """
+
+    def setUp(self):
+        from apps.website.models import Block, BlockPage
+
+        self.page = BlockPage.objects.create(title="Case", slug="ett-case", is_published=True)
+        self.block = Block.objects.create(
+            page=self.page,
+            block_type="case",
+            order=1,
+            data={"case_title": "Kund", "body": "Text"},
+        )
+
+    def _html(self):
+        return Client().get("/ett-case/").content.decode()
+
+    def test_a_link_with_url_becomes_a_link(self):
+        self.block.data["link"] = {
+            "label": "Besök sajten",
+            "url": {"kind": "external", "url": "https://example.com/"},
+        }
+        self.block.save(update_fields=["data"])
+        self.assertIn('href="https://example.com/"', self._html())
+
+    def test_a_label_without_url_stays_a_kicker(self):
+        """Startsidans case använder etiketten dekorativt - det får inte brytas."""
+        self.block.data["link"] = {"label": "Multi-tenant"}
+        self.block.save(update_fields=["data"])
+        html = self._html()
+        self.assertIn("Multi-tenant", html)
+        self.assertNotIn('class="btn" href=""', html)

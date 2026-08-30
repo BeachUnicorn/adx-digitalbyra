@@ -16,6 +16,13 @@ image_id, case_title, body, stats[], link.{% endcomment %}
                 {% if link.label %}<div class="kicker">[ {{ link.label }} ]</div>{% endif %}
                 {% if case_title %}<h3>{{ case_title|upper }}</h3>{% endif %}
                 {% if body %}<p>{{ body }}</p>{% endif %}
+                {% comment %}Schemat har alltid haft link.url, men mallen läste
+                bara link.label och ritade den som kicker - fältet gick att fylla
+                i och gjorde ingenting. Etiketten står kvar som kicker när det
+                inte finns någon adress, så startsidans case (som använder den
+                dekorativt) ser likadant ut som förut.{% endcomment %}
+                {% resolve_link link.url as case_link %}
+                {% if case_link %}<p><a class="btn" href="{{ case_link.href }}">{{ link.label|default:"Läs mer" }}</a></p>{% endif %}
                 {% if stats %}
                 <div class="case-stats">
                     {% for s in stats %}
