@@ -53,6 +53,7 @@ def robots_txt(request):
         "Disallow: /analytics/",
         "Disallow: /forfragan/",
         "Disallow: /nyhetsbrev/",
+        "Disallow: /offert/",
         "",
         f"Sitemap: {base}/sitemap.xml",
         "",

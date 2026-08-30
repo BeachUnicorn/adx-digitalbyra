@@ -19,6 +19,8 @@
             
             <li><a href="{% url 'manage:inquiry_list' %}" class="m-nav__link {% if active == 'inquiries' %}is-active{% endif %}">Förfrågningar{% if unread_inquiries %} <span class="m-badge m-badge--alert">{{ unread_inquiries }}</span>{% endif %}</a></li>
 
+            <li><a href="{% url 'manage:offer_list' %}" class="m-nav__link {% if active == 'offers' %}is-active{% endif %}">Offerter</a></li>
+
             {% if user.is_superuser %}{# Dold för kunden tills sidan är godkänd. #}
             <li><a href="{% url 'manage:stats' %}" class="m-nav__link {% if active == 'stats' %}is-active{% endif %}">Statistik</a></li>
             {% endif %}

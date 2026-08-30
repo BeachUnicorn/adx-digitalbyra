@@ -1,0 +1,14 @@
+Hej {{ quote.customer_name }},
+
+här kommer vår offert{% if quote.project_title %} för {{ quote.project_title }}{% endif %}.
+
+Öppna och läs den här:
+{{ base_url }}{{ quote.get_public_url }}
+
+På sidan ser du alla rader och priser, och kan acceptera direkt eller
+ställa en fråga. {% if quote.valid_until %}Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}
+
+Undrar du något är det bara att svara på det här mejlet.
+
+Vänliga hälsningar
+{{ site_name|default:"ADX" }}

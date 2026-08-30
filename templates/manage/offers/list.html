@@ -1,0 +1,69 @@
+{% extends "manage/base.html" %}
+{% block title %}Offerter{% endblock %}
+
+{% block content %}
+<div class="m-panel" style="padding:20px 24px;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
+        <h1 style="margin:0 0 4px;font-size:18px;">Offerter</h1>
+        <a href="{% url 'manage:product_list' %}" style="font-size:13px;color:var(--m-text-muted);">Produktkatalogen</a>
+    </div>
+    <p style="margin:0 0 14px;color:var(--m-text-muted);font-size:13px;">
+        Bygg offerten, mejla länken, se när den öppnas och accepteras.
+    </p>
+    <form method="post" action="{% url 'manage:offer_create' %}" style="display:flex;gap:10px;flex-wrap:wrap;max-width:640px;">
+        {% csrf_token %}
+        <input name="customer_name" placeholder="Kundens namn" required
+               style="flex:1;min-width:180px;padding:10px 14px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;">
+        <input name="project_title" placeholder="Projekt (valfritt)"
+               style="flex:1;min-width:180px;padding:10px 14px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;">
+        <button type="submit" class="m-btn m-btn--inline">Ny offert</button>
+    </form>
+</div>
+
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;font-size:13px;">
+    <a href="{% url 'manage:offer_list' %}" class="m-btn m-btn--small"
+       style="{% if status_filter %}background:var(--m-bg);color:var(--m-text);border:1px solid var(--m-border);{% endif %}">Alla</a>
+    {% for value, name, count in status_chips %}
+    <a href="?status={{ value }}" class="m-btn m-btn--small"
+       style="{% if status_filter != value %}background:var(--m-bg);color:var(--m-text);border:1px solid var(--m-border);{% endif %}">
+        {{ name }} ({{ count }})</a>
+    {% endfor %}
+</div>
+
+<div class="m-panel" style="padding:0;">
+    <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+            <tr style="text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--m-text-muted);">
+                <th style="padding:12px 14px;">Kund</th>
+                <th style="padding:12px 14px;">Projekt</th>
+                <th style="padding:12px 14px;text-align:right;">Vid leverans</th>
+                <th style="padding:12px 14px;text-align:right;">Löpande</th>
+                <th style="padding:12px 14px;">Status</th>
+                <th style="padding:12px 14px;">Uppdaterad</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for quote in quotes %}
+            <tr style="border-top:1px solid var(--m-border);">
+                <td style="padding:12px 14px;">
+                    <a href="{% url 'manage:offer_edit' quote.pk %}" style="font-weight:600;color:var(--m-text);text-decoration:none;">{{ quote.customer_name }}</a>
+                </td>
+                <td style="padding:12px 14px;color:var(--m-text-muted);">{{ quote.project_title|default:"-" }}</td>
+                {% with totals=quote.totals %}
+                <td style="padding:12px 14px;text-align:right;font-variant-numeric:tabular-nums;">{{ totals.one_time }} kr</td>
+                <td style="padding:12px 14px;text-align:right;font-variant-numeric:tabular-nums;color:var(--m-text-muted);">
+                    {% if totals.monthly %}{{ totals.monthly }} kr/mån{% endif %}
+                    {% if totals.yearly %} {{ totals.yearly }} kr/år{% endif %}
+                    {% if not totals.monthly and not totals.yearly %}-{% endif %}
+                </td>
+                {% endwith %}
+                <td style="padding:12px 14px;"><span class="o-status o-status--{{ quote.status }}" style="display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--m-bg);border:1px solid var(--m-border);{% if quote.status == 'accepted' %}background:#e5f4ec;color:#1d6f43;{% elif quote.status == 'declined' %}background:#fdeae5;color:#b3341a;{% elif quote.status == 'sent' or quote.status == 'opened' %}background:#fdf3e2;color:#8a5b00;{% endif %}">{{ quote.get_status_display }}</span></td>
+                <td style="padding:12px 14px;color:var(--m-text-muted);">{{ quote.updated_at|date:"j M H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="padding:20px 14px;color:var(--m-text-muted);">Inga offerter än. Skapa den första ovan.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

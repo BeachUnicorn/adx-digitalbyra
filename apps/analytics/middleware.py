@@ -37,6 +37,11 @@ _SKIP_PREFIXES = (
     "/healthz",
     "/analytics/",
     "/favicon",
+    # Offertlänkar: token i adressen ÄR behörigheten (inkl. rätten att
+    # acceptera). Den får aldrig skrivas till PageView.path eller
+    # sessionens/besökarens landing_page - ett analyslager har en helt
+    # annan åtkomst- och backupprofil än en hemlig kapabilitetslänk.
+    "/offert/",
 )
 
 _TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)

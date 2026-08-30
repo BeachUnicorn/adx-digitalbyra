@@ -1,0 +1,67 @@
+{% extends "manage/base.html" %}
+{% comment %}
+Produktkatalogen. Riktpriset är ett förslag: när produkten läggs på en
+offert kopieras värdena till raden, som därefter prissätts fritt.
+{% endcomment %}
+{% block title %}Produkter{% endblock %}
+
+{% block content %}
+<div class="m-panel" style="padding:20px 24px;margin-bottom:16px;">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
+        <h1 style="margin:0 0 4px;font-size:18px;">Produkter</h1>
+        <a href="{% url 'manage:offer_list' %}" style="font-size:13px;color:var(--m-text-muted);">Till offerterna</a>
+    </div>
+    <p style="margin:0 0 14px;color:var(--m-text-muted);font-size:13px;">
+        Återanvändbara rader för offerterna. Riktpriset är ett förslag - varje offert kan sätta sitt eget pris.
+    </p>
+    <form method="post" action="{% url 'manage:product_create' %}" style="display:grid;grid-template-columns:1.4fr 1fr 130px 140px auto;gap:10px;align-items:start;">
+        {% csrf_token %}
+        <input name="name" placeholder="Namn, t.ex. Skräddarsydd hemsida" required
+               style="padding:10px 14px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;">
+        <input name="description" placeholder="Beskrivning (valfri)"
+               style="padding:10px 14px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;">
+        <input name="default_price" inputmode="numeric" placeholder="Riktpris kr"
+               style="padding:10px 14px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;text-align:right;">
+        <select name="default_period" style="padding:10px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;">
+            {% for value, name in periods.choices %}<option value="{{ value }}">{{ name }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="m-btn m-btn--inline">Skapa</button>
+    </form>
+</div>
+
+<div class="m-panel" style="padding:0;">
+    {% for product in products %}
+    <form method="post" action="{% url 'manage:product_update' product.pk %}"
+          style="display:grid;grid-template-columns:1.4fr 1fr 130px 140px auto auto;gap:10px;align-items:center;padding:12px 14px;{% if not forloop.first %}border-top:1px solid var(--m-border);{% endif %}{% if not product.is_active %}opacity:.55;{% endif %}">
+        {% csrf_token %}
+        <input name="name" value="{{ product.name }}"
+               style="padding:8px 10px;border:1px solid transparent;border-radius:8px;font-size:14px;font-weight:600;background:transparent;">
+        <input name="description" value="{{ product.description }}" placeholder="Beskrivning"
+               style="padding:8px 10px;border:1px solid transparent;border-radius:8px;font-size:14px;background:transparent;color:var(--m-text-muted);">
+        <input name="default_price" inputmode="numeric" value="{{ product.default_price }}"
+               style="padding:8px 10px;border:1px solid transparent;border-radius:8px;font-size:14px;text-align:right;font-variant-numeric:tabular-nums;background:transparent;">
+        <select name="default_period" style="padding:8px;border:1px solid var(--m-border);border-radius:8px;font-size:13px;">
+            {% for value, name in periods.choices %}
+            <option value="{{ value }}" {% if product.default_period == value %}selected{% endif %}>{{ name }}</option>
+            {% endfor %}
+        </select>
+        <label style="font-size:13px;display:flex;gap:6px;align-items:center;color:var(--m-text-muted);">
+            <input type="checkbox" name="is_active" {% if product.is_active %}checked{% endif %}> Aktiv
+        </label>
+        <button type="submit" class="m-btn m-btn--small">Spara</button>
+    </form>
+    {% empty %}
+    <p style="padding:20px 14px;margin:0;color:var(--m-text-muted);font-size:14px;">
+        Inga produkter än. Skapa t.ex. "Skräddarsydd hemsida", "Förvaltning och drift" eller "Sökmotoroptimering" ovan.
+    </p>
+    {% endfor %}
+</div>
+
+<style>
+    .m-panel form input:hover { border-color: var(--m-border); }
+    .m-panel form input:focus { outline: 2px solid var(--m-accent); background: var(--m-surface); }
+    @media (max-width: 900px) {
+        .m-panel form { grid-template-columns: 1fr 1fr !important; }
+    }
+</style>
+{% endblock %}

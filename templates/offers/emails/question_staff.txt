@@ -1,0 +1,8 @@
+{{ quote.customer_name }} har en fråga om offerten{% if quote.project_title %} för {{ quote.project_title }}{% endif %}:
+
+{{ message }}
+
+Svara på det här mejlet så når du kunden direkt.
+
+Offerten i /manage/:
+{{ base_url }}/manage/offerter/{{ quote.pk }}/

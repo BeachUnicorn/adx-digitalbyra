@@ -29,6 +29,8 @@ urlpatterns = [
     ),
     path("manage/", include("apps.manage.urls")),
     path("forfragan/", include("apps.inquiries.urls")),
+    # Offertlänkarna till kund. Före sajtens slug-catchall.
+    path("", include("apps.offers.urls")),
     path("nyhetsbrev/", inquiry_views.newsletter_signup, name="newsletter"),
     path("analytics/", include("apps.analytics.urls")),
     path("faq/", include("apps.faq.urls")),

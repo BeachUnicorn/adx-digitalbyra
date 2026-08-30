@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.assistant import history_views, oauth_views
 from apps.assistant import views as assistant_views
+from apps.offers import manage_views as offer_views
 from apps.tools import views as tools_views
 
 from . import (
@@ -27,6 +28,21 @@ urlpatterns = [
         name="hemsidekollen_report",
     ),
     path("", views.dashboard, name="dashboard"),
+    # Offertbyggaren (apps/offers)
+    path("offerter/", offer_views.offer_list, name="offer_list"),
+    path("offerter/ny/", offer_views.offer_create, name="offer_create"),
+    path("offerter/<int:pk>/", offer_views.offer_edit, name="offer_edit"),
+    path("offerter/<int:pk>/uppdatera/", offer_views.offer_update, name="offer_update"),
+    path("offerter/<int:pk>/status/", offer_views.offer_status, name="offer_status"),
+    path("offerter/<int:pk>/skicka/", offer_views.offer_send, name="offer_send"),
+    path("offerter/<int:pk>/ta-bort/", offer_views.offer_delete, name="offer_delete"),
+    path("offerter/<int:pk>/rader/ny/", offer_views.line_add, name="offer_line_add"),
+    path("offerter/<int:pk>/rader/ordna/", offer_views.lines_reorder, name="offer_lines_reorder"),
+    path("offerter/rad/<int:pk>/uppdatera/", offer_views.line_update, name="offer_line_update"),
+    path("offerter/rad/<int:pk>/ta-bort/", offer_views.line_delete, name="offer_line_delete"),
+    path("produkter/", offer_views.product_list, name="product_list"),
+    path("produkter/ny/", offer_views.product_create, name="product_create"),
+    path("produkter/<int:pk>/uppdatera/", offer_views.product_update, name="product_update"),
     # Versionshistorik (apps/assistant)
     path(
         "historik/<slug:app_label>/<slug:model_name>/<int:pk>/",

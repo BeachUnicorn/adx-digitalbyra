@@ -1,0 +1,394 @@
+{% extends "manage/base.html" %}
+{% comment %}
+Offertbyggaren. Rader och kunduppgifter autosparas via fetch; ordningen
+sätts med dra-och-släpp i handtaget. Strukturella ändringar (lägg till,
+ta bort, skicka) är vanliga POST + redirect.
+{% endcomment %}
+{% block title %}Offert: {{ quote.customer_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .o-wrap { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; align-items: start; }
+    @media (max-width: 900px) { .o-wrap { grid-template-columns: 1fr; } }
+
+    .o-line { display: grid; grid-template-columns: 28px 1fr 130px 120px 28px; gap: 8px 10px;
+              padding: 12px 14px; border-top: 1px solid var(--m-border); align-items: start; }
+    .o-line:first-child { border-top: 0; }
+    .o-line.is-dragging { opacity: .4; }
+    .o-handle { cursor: grab; color: var(--m-text-muted); font-size: 16px; line-height: 34px;
+                text-align: center; user-select: none; border: 0; background: none; padding: 0; }
+    .o-handle:active { cursor: grabbing; }
+    .o-line input, .o-line textarea, .o-line select {
+        width: 100%; min-width: 0; border: 1px solid transparent; border-radius: 8px; padding: 7px 9px;
+        font: inherit; font-size: 14px; background: transparent; color: var(--m-text);
+    }
+    @media (max-width: 560px) {
+        .o-line { grid-template-columns: 28px 1fr 28px; }
+        .o-line .o-price, .o-line .o-period, .o-line .o-desc { grid-column: 2 / 3; }
+        .o-head-row { display: none !important; }
+    }
+    .o-line input:hover, .o-line textarea:hover, .o-line select:hover { border-color: var(--m-border); }
+    .o-line input:focus, .o-line textarea:focus, .o-line select:focus {
+        outline: 2px solid var(--m-accent); background: var(--m-surface); border-color: transparent; }
+    .o-line .o-label { font-weight: 600; }
+    .o-line .o-desc { grid-column: 2 / 5; resize: vertical; min-height: 34px; color: var(--m-text-muted); }
+    .o-line .o-price { text-align: right; font-variant-numeric: tabular-nums; }
+    .o-del { border: 0; background: none; color: var(--m-text-muted); cursor: pointer;
+             font-size: 15px; line-height: 34px; }
+    .o-del:hover { color: #ff502e; }
+
+    .o-add { display: flex; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--m-border);
+             flex-wrap: wrap; }
+    .o-add select { flex: 1; min-width: 180px; padding: 8px 10px; border: 1px solid var(--m-border);
+                    border-radius: 8px; font: inherit; font-size: 14px; }
+
+    .o-sumrow { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0;
+                font-variant-numeric: tabular-nums; }
+    .o-sumrow b { font-size: 16px; }
+    .o-status { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px;
+                border-radius: 999px; background: var(--m-bg); border: 1px solid var(--m-border); }
+    .o-status--accepted { background: #e5f4ec; color: #1d6f43; border-color: #bfe3cf; }
+    .o-status--declined { background: #fdeae5; color: #b3341a; border-color: #f5cabe; }
+    .o-status--sent, .o-status--opened { background: #fdf3e2; color: #8a5b00; border-color: #f0dcb4; }
+    #save-state { font-size: 12px; color: var(--m-text-muted); opacity: 0; transition: opacity .3s; }
+    #save-state.is-on { opacity: 1; }
+    #save-state.is-error { opacity: 1; color: #b3341a; font-weight: 600; }
+    .o-locked-note { background: #e5f4ec; color: #1d6f43; border: 1px solid #bfe3cf;
+                     border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 12px; }
+    .o-side .m-field input, .o-side .m-field textarea { width: 100%; box-sizing: border-box; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form id="csrf" style="display:none;">{% csrf_token %}</form>
+
+<div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px;">
+    <h1 style="margin:0;font-size:18px;">
+        <a href="{% url 'manage:offer_list' %}" style="color:var(--m-text-muted);text-decoration:none;">Offerter /</a>
+        {{ quote.customer_name }}
+    </h1>
+    <span>
+        <span class="o-status o-status--{{ quote.status }}">{{ quote.get_status_display }}</span>
+        <span id="save-state" role="status" aria-live="polite">Sparat</span>
+    </span>
+</div>
+
+{% if quote.status == 'accepted' %}
+<p class="o-locked-note">Offerten är accepterad och låst för ändringar. Behöver något ändras: gör en ny offert.</p>
+{% endif %}
+
+<div class="o-wrap" {% if quote.status == 'accepted' %}data-locked="1"{% endif %}>
+    <div class="m-panel" style="padding:0;">
+        <div class="o-head-row" style="display:grid;grid-template-columns:28px 1fr 130px 120px 28px;gap:10px;padding:10px 14px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--m-text-muted);">
+            <span></span><span>Rad</span><span style="text-align:right;">Pris exkl. moms</span><span>Pristyp</span><span></span>
+        </div>
+
+        <div id="lines">
+            {% for line in quote.lines.all %}
+            <div class="o-line" data-id="{{ line.pk }}">
+                <button type="button" class="o-handle" draggable="true" title="Dra, eller flytta med piltangenterna"
+                        aria-label="Flytta raden {{ line.label }}. Piltangent upp eller ned flyttar raden.">&#10495;</button>
+                <input class="o-label" value="{{ line.label }}" maxlength="200" aria-label="Radens namn">
+                <input class="o-price" inputmode="numeric" value="{{ line.price }}" aria-label="Pris i kronor">
+                <select class="o-period" aria-label="Pristyp">
+                    {% for value, name in periods.choices %}
+                    <option value="{{ value }}" {% if line.period == value %}selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+                <form method="post" action="{% url 'manage:offer_line_delete' line.pk %}"
+                      onsubmit="return confirm('Ta bort raden?');">
+                    {% csrf_token %}
+                    <button type="submit" class="o-del" title="Ta bort raden" aria-label="Ta bort raden">&times;</button>
+                </form>
+                <textarea class="o-desc" rows="1" placeholder="Beskrivning (visas under raden)"
+                          aria-label="Beskrivning">{{ line.description }}</textarea>
+            </div>
+            {% empty %}
+            <p style="padding:18px 14px;margin:0;color:var(--m-text-muted);font-size:14px;">
+                Inga rader än. Lägg till en produkt eller en tom rad nedan.
+            </p>
+            {% endfor %}
+        </div>
+
+        <div class="o-add">
+            <form method="post" action="{% url 'manage:offer_line_add' quote.pk %}" style="display:flex;gap:8px;flex:1;min-width:260px;">
+                {% csrf_token %}
+                <select name="product_id" aria-label="Välj produkt">
+                    <option value="">Välj produkt ur katalogen...</option>
+                    {% for product in products %}
+                    <option value="{{ product.pk }}">{{ product.name }} ({{ product.default_price }} {{ product.get_default_period_display|lower }})</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="m-btn m-btn--small">Lägg till</button>
+            </form>
+            <form method="post" action="{% url 'manage:offer_line_add' quote.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="m-btn m-btn--small" style="background:var(--m-bg);color:var(--m-text);border:1px solid var(--m-border);">Tom rad</button>
+            </form>
+            <a href="{% url 'manage:product_list' %}" style="font-size:13px;align-self:center;color:var(--m-text-muted);">Hantera produkter</a>
+        </div>
+    </div>
+
+    <div class="o-side">
+        <div class="m-panel" style="padding:16px 18px;margin-bottom:14px;">
+            <h2 style="margin:0 0 8px;font-size:14px;">Summering</h2>
+            <div class="o-sumrow"><span>Vid leverans</span><b id="t-one_time">{{ totals.one_time }}</b></div>
+            <div class="o-sumrow"><span>Per månad</span><b id="t-monthly">{{ totals.monthly }}</b></div>
+            <div class="o-sumrow"><span>Per år</span><b id="t-yearly">{{ totals.yearly }}</b></div>
+            <p style="margin:8px 0 0;font-size:12px;color:var(--m-text-muted);">Alla belopp i kronor exklusive moms.</p>
+        </div>
+
+        <div class="m-panel" style="padding:16px 18px;margin-bottom:14px;">
+            <h2 style="margin:0 0 10px;font-size:14px;">Kund</h2>
+            <div class="m-field"><label>Kund</label>
+                <input class="o-meta" data-field="customer_name" maxlength="200" value="{{ quote.customer_name }}"></div>
+            <div class="m-field"><label>Kundens e-post</label>
+                <input class="o-meta" data-field="customer_email" type="email" maxlength="254" value="{{ quote.customer_email }}"></div>
+            <div class="m-field"><label>Projekt</label>
+                <input class="o-meta" data-field="project_title" maxlength="200" value="{{ quote.project_title }}"></div>
+            <div class="m-field"><label>Hälsning på offertsidan</label>
+                <textarea class="o-meta" data-field="intro" rows="3" placeholder="Hej! Här är vårt förslag...">{{ quote.intro }}</textarea></div>
+            <div class="m-field"><label>Giltig till</label>
+                <input class="o-meta" data-field="valid_until" type="date" value="{{ quote.valid_until|date:'Y-m-d' }}"></div>
+        </div>
+
+        <div class="m-panel" style="padding:16px 18px;">
+            <form method="post" action="{% url 'manage:offer_send' quote.pk %}"
+                  onsubmit="return confirm('Mejla offertlänken till {{ quote.customer_email|default:'kunden' }}?');" style="margin-bottom:8px;">
+                {% csrf_token %}
+                <button type="submit" class="m-btn" style="width:100%;">
+                    {% if quote.sent_at %}Skicka igen{% else %}Skicka till kund{% endif %}
+                </button>
+            </form>
+            <a href="{{ quote.get_public_url }}" target="_blank" rel="noopener" class="m-btn m-btn--small"
+               style="display:block;text-align:center;background:var(--m-bg);color:var(--m-text);border:1px solid var(--m-border);margin-bottom:12px;">
+                Visa kundsidan &#8599;
+            </a>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                {% if quote.status != 'accepted' %}
+                <form method="post" action="{% url 'manage:offer_status' quote.pk %}">
+                    {% csrf_token %}<input type="hidden" name="status" value="accepted">
+                    <button type="submit" class="m-btn m-btn--small">Markera accepterad</button>
+                </form>
+                {% endif %}
+                {% if quote.status != 'declined' and quote.status != 'accepted' %}
+                <form method="post" action="{% url 'manage:offer_status' quote.pk %}">
+                    {% csrf_token %}<input type="hidden" name="status" value="declined">
+                    <button type="submit" class="m-btn m-btn--small" style="background:var(--m-bg);color:var(--m-text);border:1px solid var(--m-border);">Markera förlorad</button>
+                </form>
+                {% endif %}
+                <form method="post" action="{% url 'manage:offer_delete' quote.pk %}"
+                      onsubmit="return confirm('Ta bort hela offerten?');">
+                    {% csrf_token %}
+                    <button type="submit" class="m-btn m-btn--small m-btn--danger">Ta bort</button>
+                </form>
+            </div>
+            {% if quote.sent_at %}
+            <p style="margin:12px 0 0;font-size:12px;color:var(--m-text-muted);">
+                Skickad {{ quote.sent_at|date:"j M H:i" }}{% if quote.opened_at %} &middot; Öppnad {{ quote.opened_at|date:"j M H:i" }}{% endif %}{% if quote.accepted_at %} &middot; Accepterad {{ quote.accepted_at|date:"j M H:i" }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    "use strict";
+    var csrf = document.querySelector("#csrf [name=csrfmiddlewaretoken]").value;
+    var saveState = document.getElementById("save-state");
+    var timers = {};
+    var queues = {};   // en promise-kedja per nyckel: sparningar för samma
+                       // rad/fält körs i tur och ordning, aldrig i kapp.
+    var pending = 0;
+    var hasError = false;
+    var locked = !!document.querySelector(".o-wrap[data-locked]");
+
+    function flashSaved() {
+        if (hasError) { return; }
+        saveState.textContent = "Sparat";
+        saveState.classList.remove("is-error");
+        saveState.classList.add("is-on");
+        clearTimeout(timers._flash);
+        timers._flash = setTimeout(function () { saveState.classList.remove("is-on"); }, 1600);
+    }
+
+    function showError(text) {
+        hasError = true;
+        clearTimeout(timers._flash);
+        saveState.textContent = text;
+        saveState.classList.add("is-on", "is-error");
+    }
+
+    function post(url, payload) {
+        pending += 1;
+        return fetch(url, {
+            method: "POST",
+            headers: {"Content-Type": "application/json", "X-CSRFToken": csrf},
+            body: JSON.stringify(payload),
+        }).then(function (res) {
+            if (res.redirected || (res.headers.get("content-type") || "").indexOf("json") === -1) {
+                throw new Error("utloggad");
+            }
+            if (!res.ok) { throw new Error("save failed"); }
+            hasError = false;
+            flashSaved();
+            return res.json();
+        }).catch(function (err) {
+            showError(err.message === "utloggad"
+                ? "Utloggad - logga in igen, ändringen är inte sparad"
+                : "Kunde inte spara - försök igen");
+        }).finally(function () { pending -= 1; });
+    }
+
+    function enqueue(key, task) {
+        queues[key] = (queues[key] || Promise.resolve()).then(task, task);
+        return queues[key];
+    }
+
+    window.addEventListener("beforeunload", function (e) {
+        if (pending > 0 || hasError) { e.preventDefault(); }
+    });
+
+    function kr(n) { return n.toLocaleString("sv-SE") + " kr"; }
+
+    function renderTotals(totals) {
+        ["one_time", "monthly", "yearly"].forEach(function (key) {
+            document.getElementById("t-" + key).textContent = kr(totals[key]);
+        });
+    }
+    renderTotals({
+        one_time: {{ totals.one_time }},
+        monthly: {{ totals.monthly }},
+        yearly: {{ totals.yearly }}
+    });
+
+    if (locked) {
+        // Serversidan vägrar ändå; det här gör låsningen synlig direkt.
+        document.querySelectorAll(".o-line input, .o-line textarea, .o-line select, .o-meta")
+            .forEach(function (el) { el.disabled = true; });
+        document.querySelectorAll(".o-add, .o-del, .o-handle")
+            .forEach(function (el) { el.style.display = "none"; });
+        return;
+    }
+
+    // --- Autospar: rader ---------------------------------------------------
+    document.querySelectorAll(".o-line").forEach(function (row) {
+        var id = row.dataset.id;
+        function save() {
+            return enqueue("line-" + id, function () {
+                return post("{% url 'manage:offer_line_update' 0 %}".replace("/0/", "/" + id + "/"), {
+                    label: row.querySelector(".o-label").value,
+                    description: row.querySelector(".o-desc").value,
+                    price: row.querySelector(".o-price").value,
+                    period: row.querySelector(".o-period").value,
+                }).then(function (data) {
+                    if (data && data.totals) { renderTotals(data.totals); }
+                });
+            });
+        }
+        row.querySelectorAll(".o-label, .o-desc, .o-price, .o-period").forEach(function (input) {
+            input.addEventListener("input", function () {
+                clearTimeout(timers[id]);
+                timers[id] = setTimeout(save, 500);
+            });
+            input.addEventListener("change", save);
+        });
+    });
+
+    // --- Autospar: kunduppgifter ------------------------------------------
+    document.querySelectorAll(".o-meta").forEach(function (input) {
+        function save() {
+            return enqueue("meta-" + input.dataset.field, function () {
+                var payload = {};
+                payload[input.dataset.field] = input.value;
+                return post("{% url 'manage:offer_update' quote.pk %}", payload);
+            });
+        }
+        input.addEventListener("input", function () {
+            clearTimeout(timers[input.dataset.field]);
+            timers[input.dataset.field] = setTimeout(save, 600);
+        });
+        input.addEventListener("change", save);
+    });
+
+    // --- Omordning ---------------------------------------------------------
+    var container = document.getElementById("lines");
+    var dragged = null;
+    var orderBefore = null;
+
+    function currentOrder() {
+        return Array.prototype.map.call(
+            container.querySelectorAll(".o-line"),
+            function (row) { return parseInt(row.dataset.id, 10); }
+        );
+    }
+
+    function sendOrder() {
+        var order = currentOrder();
+        return enqueue("reorder", function () {
+            return post("{% url 'manage:offer_lines_reorder' quote.pk %}", {order: order});
+        });
+    }
+
+    container.addEventListener("dragstart", function (e) {
+        var handle = e.target.closest(".o-handle");
+        if (!handle) { e.preventDefault(); return; }
+        dragged = handle.closest(".o-line");
+        orderBefore = Array.prototype.slice.call(container.querySelectorAll(".o-line"));
+        dragged.classList.add("is-dragging");
+        e.dataTransfer.effectAllowed = "move";
+        // Inget rad-id i dataTransfer: ett släpp över ett textfält skulle
+        // annars klistra in id:t som text och autospara det.
+        e.dataTransfer.setData("text/plain", "");
+        e.dataTransfer.setDragImage(dragged, 20, 20);
+    });
+
+    container.addEventListener("dragover", function (e) {
+        if (!dragged) { return; }
+        e.preventDefault();
+        var rows = Array.prototype.filter.call(
+            container.querySelectorAll(".o-line"),
+            function (row) { return row !== dragged; }
+        );
+        var next = rows.find(function (row) {
+            var box = row.getBoundingClientRect();
+            return e.clientY < box.top + box.height / 2;
+        });
+        container.insertBefore(dragged, next || null);
+    });
+
+    container.addEventListener("drop", function (e) { e.preventDefault(); });
+
+    container.addEventListener("dragend", function (e) {
+        if (!dragged) { return; }
+        dragged.classList.remove("is-dragging");
+        dragged = null;
+        if (e.dataTransfer && e.dataTransfer.dropEffect === "none" && orderBefore) {
+            // Avbruten drag (Esc eller släpp utanför): återställ, POSTa inte.
+            orderBefore.forEach(function (row) { container.appendChild(row); });
+            orderBefore = null;
+            return;
+        }
+        var before = orderBefore ? orderBefore.map(function (r) { return parseInt(r.dataset.id, 10); }) : [];
+        orderBefore = null;
+        if (before.join(",") === currentOrder().join(",")) { return; }
+        sendOrder();
+    });
+
+    // Tangentbord och pekskärm: piltangenterna på handtaget flyttar raden.
+    container.addEventListener("keydown", function (e) {
+        var handle = e.target.closest(".o-handle");
+        if (!handle || (e.key !== "ArrowUp" && e.key !== "ArrowDown")) { return; }
+        e.preventDefault();
+        var row = handle.closest(".o-line");
+        var sibling = e.key === "ArrowUp" ? row.previousElementSibling : row.nextElementSibling;
+        if (!sibling || !sibling.classList.contains("o-line")) { return; }
+        container.insertBefore(row, e.key === "ArrowUp" ? sibling : sibling.nextElementSibling);
+        handle.focus();
+        clearTimeout(timers._kbreorder);
+        timers._kbreorder = setTimeout(sendOrder, 400);
+    });
+})();
+</script>
+{% endblock %}

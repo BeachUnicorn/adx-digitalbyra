@@ -1,0 +1,16 @@
+{% autoescape on %}
+<div style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.55; color: #1d1a16; max-width: 560px; margin: 0 auto; padding: 24px;">
+    <h1 style="font-size: 20px; margin: 0 0 10px;">Fråga om offerten</h1>
+    <p><strong>{{ quote.customer_name }}</strong>{% if quote.project_title %} ({{ quote.project_title }}){% endif %} skriver:</p>
+    <blockquote style="margin: 16px 0; padding: 14px 18px; background: #faf8f3; border-left: 3px solid #e8930c; border-radius: 0 10px 10px 0;">
+        {{ message|linebreaksbr }}
+    </blockquote>
+    <p style="color: #877f72; font-size: 14px;">Svara på det här mejlet så når du kunden direkt.</p>
+    <p style="margin: 22px 0;">
+        <a href="{{ base_url }}/manage/offerter/{{ quote.pk }}/"
+           style="background: #1a1a1a; color: #ffffff; font-weight: bold; text-decoration: none; padding: 12px 22px; border-radius: 10px; display: inline-block;">
+            Öppna offerten
+        </a>
+    </p>
+</div>
+{% endautoescape %}

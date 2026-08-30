@@ -1,0 +1,152 @@
+{% comment %}
+Kundens offertsida. Fristående mall (ingen sajtnav) - en offert ska läsas
+och besvaras, inte bläddras bort ifrån. Formspråket kommer från den
+godkända mockupen: ljust, luftigt, stor text, guldaccent.
+{% endcomment %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Offert från {{ site_settings.name|default:"ADX" }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Schibsted+Grotesk:wght@400;500;700&display=swap">
+<style>
+    :root {
+        --paper: #faf8f3; --card: #ffffff; --ink: #1d1a16; --muted: #6e6659;
+        --line: #e8e2d6; --accent: #e8930c; --accent-deep: #965d00;
+        --ok: #3d8b5f; --shadow: 0 1px 2px rgba(29,26,22,.04), 0 8px 28px rgba(29,26,22,.06);
+    }
+    @media (prefers-color-scheme: dark) {
+        :root {
+            --paper: #16130f; --card: #201c17; --ink: #f1ece3; --muted: #9d9485;
+            --line: #322c25; --accent: #f0a63a; --accent-deep: #f7c274;
+            --ok: #6fbc92; --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35);
+        }
+    }
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; background: var(--paper); color: var(--ink);
+        font-family: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+        font-size: 18px; line-height: 1.55; -webkit-font-smoothing: antialiased;
+    }
+    .shell { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 20px;
+             box-shadow: var(--shadow); padding: 44px 48px; }
+    @media (max-width: 560px) { .panel { padding: 28px 22px; } }
+    .wordmark { font-family: "Bricolage Grotesque", Georgia, serif; font-weight: 700; font-size: 20px; }
+    h1 { font-family: "Bricolage Grotesque", Georgia, serif; font-weight: 700;
+         font-size: clamp(26px, 5vw, 34px); line-height: 1.1; letter-spacing: -.01em;
+         margin: 22px 0 0; text-wrap: balance; }
+    .intro { color: var(--muted); margin: 12px 0 30px; }
+    table { width: 100%; border-collapse: collapse; font-size: 17px; }
+    td { padding: 13px 0; border-top: 1px solid var(--line); vertical-align: top; }
+    td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    td .d { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
+    tr.total td { border-top: 2px solid var(--ink); font-weight: 700; font-size: 19px; }
+    .valid { font-size: 15px; color: var(--muted); margin: 22px 0 30px; }
+    .banner { border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px;
+              font-weight: 700; margin: 0 0 26px; }
+    .banner--ok { color: var(--ok); }
+    .actions { display: grid; gap: 12px; }
+    .btn-accept {
+        font: inherit; font-size: 20px; font-weight: 700; color: #241a08;
+        background: linear-gradient(180deg, #f7b13a, var(--accent));
+        border: 0; border-radius: 16px; padding: 20px; cursor: pointer;
+        box-shadow: 0 8px 24px rgba(232,147,12,.35); width: 100%;
+    }
+    .btn-accept:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    details { border: 1px solid var(--line); border-radius: 16px; }
+    details summary { font-size: 16px; font-weight: 700; padding: 14px; cursor: pointer;
+                      text-align: center; list-style: none; }
+    details .q { padding: 0 14px 14px; display: grid; gap: 10px; }
+    details textarea { font: inherit; font-size: 16px; padding: 12px; border: 1px solid var(--line);
+                       border-radius: 10px; background: var(--paper); color: var(--ink);
+                       min-height: 90px; resize: vertical; }
+    details button { font: inherit; font-size: 16px; font-weight: 700; color: var(--ink);
+                     background: none; border: 1px solid var(--line); border-radius: 10px;
+                     padding: 12px; cursor: pointer; }
+    .legal { font-size: 13px; color: var(--muted); text-align: center; margin: 4px 0 0; }
+    .trail { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 26px; }
+    .trail span { font-size: 13px; font-weight: 700; color: var(--muted);
+                  border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
+    .trail span.done { color: var(--ok); }
+    .foot { text-align: center; font-size: 13px; color: var(--muted); margin-top: 26px; }
+    .foot a { color: var(--accent-deep); }
+</style>
+</head>
+<body>
+<div class="shell">
+    <div class="panel">
+        <div class="wordmark">{{ site_settings.name|default:"ADX" }}</div>
+        <h1>Offert{% if quote.project_title %}: {{ quote.project_title }}{% endif %}</h1>
+        <p class="intro">
+            {% if quote.intro %}{{ quote.intro|linebreaksbr }}{% else %}Hej {{ quote.customer_name }}. Här är vårt förslag, rad för rad. Tryck på Acceptera när ni är redo, eller ställ en fråga direkt härifrån.{% endif %}
+        </p>
+
+        {% if quote.status == 'accepted' %}
+        <p class="banner banner--ok">Offerten är accepterad{% if quote.accepted_at %} {{ quote.accepted_at|date:"j F Y" }}{% endif %}. Tack! Vi hör av oss om nästa steg.</p>
+        {% elif question_sent %}
+        <p class="banner">Frågan är skickad. Vi svarar så fort vi kan, oftast samma dag.</p>
+        {% elif question_failed %}
+        <p class="banner" style="color:#b3341a;">Frågan kunde inte skickas just nu. Mejla oss direkt{% if site_settings.email %} på <a href="mailto:{{ site_settings.email }}" style="color:inherit;">{{ site_settings.email }}</a>{% endif %} så svarar vi där.</p>
+        {% endif %}
+
+        <table>
+            <tbody>
+                {% for line in one_time_lines %}
+                <tr>
+                    <td>{{ line.label }}{% if line.description %}<span class="d">{{ line.description }}</span>{% endif %}</td>
+                    <td>{{ line.price_display }}</td>
+                </tr>
+                {% endfor %}
+                {% if one_time_lines %}
+                <tr class="total"><td>Att betala vid leverans</td><td>{{ quote.totals_display.one_time }} kr</td></tr>
+                {% endif %}
+                {% for line in recurring_lines %}
+                <tr>
+                    <td>{{ line.label }}, löpande{% if line.description %}<span class="d">{{ line.description }}</span>{% endif %}</td>
+                    <td>{{ line.price_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <p class="valid">
+            Alla priser exklusive moms.
+            {% if quote.valid_until %}Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}
+        </p>
+
+        {% if quote.is_answerable %}
+        <div class="actions">
+            <form method="post" action="{% url 'offers:accept' quote.token %}">
+                {% csrf_token %}
+                <button type="submit" class="btn-accept">Acceptera offerten</button>
+            </form>
+            <details>
+                <summary>Ställ en fråga</summary>
+                <form method="post" action="{% url 'offers:question' quote.token %}" class="q">
+                    {% csrf_token %}
+                    <textarea name="message" required placeholder="Skriv din fråga här..."></textarea>
+                    <button type="submit">Skicka frågan</button>
+                </form>
+            </details>
+            <p class="legal">Ett tryck på Acceptera är en beställning enligt raderna ovan.</p>
+        </div>
+        {% endif %}
+
+        {% if quote.sent_at %}
+        <div class="trail" aria-label="Offertens status">
+            <span class="done">Skickad {{ quote.sent_at|date:"j M" }}</span>
+            {% if quote.opened_at %}<span class="done">Öppnad {{ quote.opened_at|date:"j M" }}</span>{% else %}<span>Öppnad</span>{% endif %}
+            {% if quote.accepted_at %}<span class="done">Accepterad {{ quote.accepted_at|date:"j M" }}</span>{% else %}<span>Accepterad</span>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    <p class="foot">
+        {{ site_settings.name|default:"ADX" }}{% if site_settings.email %} &middot; <a href="mailto:{{ site_settings.email }}">{{ site_settings.email }}</a>{% endif %}
+        &middot; <a href="/">adx.se</a>
+    </p>
+</div>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{{ quote.customer_name }} har ACCEPTERAT offerten{% if quote.project_title %} för {{ quote.project_title }}{% endif %}.
+
+Vid leverans: {{ totals.one_time }} kr
+Per månad:   {{ totals.monthly }} kr
+Per år:      {{ totals.yearly }} kr
+(exklusive moms)
+
+Offerten i /manage/:
+{{ base_url }}/manage/offerter/{{ quote.pk }}/
+
+Kundens sida:
+{{ base_url }}{{ quote.get_public_url }}
+
+Nästa steg: bekräfta för kunden och boka uppstart.

@@ -1,0 +1,15 @@
+{% autoescape on %}
+<div style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; line-height: 1.55; color: #1d1a16; max-width: 560px; margin: 0 auto; padding: 24px;">
+    <p style="font-size: 20px; font-weight: bold; margin: 0 0 4px;">ADX</p>
+    <h1 style="font-size: 22px; margin: 18px 0 8px;">Offert{% if quote.project_title %}: {{ quote.project_title }}{% endif %}</h1>
+    <p>Hej {{ quote.customer_name }}, här kommer vår offert. Öppna den, läs raderna och acceptera direkt på sidan, eller ställ en fråga därifrån.</p>
+    <p style="margin: 26px 0;">
+        <a href="{{ base_url }}{{ quote.get_public_url }}"
+           style="background: #e8930c; color: #241a08; font-weight: bold; text-decoration: none; padding: 14px 26px; border-radius: 12px; display: inline-block;">
+            Öppna offerten
+        </a>
+    </p>
+    {% if quote.valid_until %}<p style="color: #877f72; font-size: 14px;">Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.</p>{% endif %}
+    <p style="color: #877f72; font-size: 14px;">Undrar du något? Svara på det här mejlet så hör vi av oss.</p>
+</div>
+{% endautoescape %}
