@@ -68,10 +68,13 @@
   /* ---------- Header ---------- */
   header{position:sticky;top:0;z-index:20;padding:16px 0}
   .nav{display:flex;align-items:center;justify-content:space-between;gap:12px}
+  /* Ingen kantlinje (Giovanni 2026-08-30): menyn, loggan och korten bars
+     upp av sin frostade bakgrund, och kanten gjorde dem hardare an de
+     behovde vara. Tabeller och formularfalt behaller sin - dar ar linjen
+     funktion, inte dekor. */
   .pill{
     display:flex;align-items:center;gap:8px;
     background:var(--panel-solid);
-    border:1px solid var(--border);
     border-radius:999px;
     padding:12px 22px;
     backdrop-filter:blur(10px);
@@ -89,7 +92,6 @@
   .nav-links a.active{background:var(--btn-bg);color:var(--btn-fg)}
   .nav-cta{
     background:var(--btn-bg);color:var(--btn-fg);
-    border:1px solid var(--btn-bg);
     font-family:var(--mono);font-size:16px;letter-spacing:.08em;text-transform:uppercase;
     white-space:nowrap;cursor:pointer;
   }
@@ -105,7 +107,6 @@
     position:fixed;inset:10px;z-index:60;display:none;
     flex-direction:column;
     background:var(--menu-bg);
-    border:1px solid var(--border);
     border-radius:24px;
     backdrop-filter:blur(24px);
     padding:26px 28px;
@@ -171,10 +172,9 @@
   /* ---------- Panels & placeholders ---------- */
   .panel{
     background:var(--panel);
-    border:1px solid var(--border-soft);
     border-radius:var(--radius);
     backdrop-filter:blur(8px);
-    transition:background .5s ease,border-color .5s ease;
+    transition:background .5s ease;
   }
   .ph{
     border:1px dashed var(--border);

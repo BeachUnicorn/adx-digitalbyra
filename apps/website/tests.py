@@ -972,3 +972,57 @@ class EditOrbTests(TestCase):
         css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
         reduced = css.split("prefers-reduced-motion")[-1]
         self.assertIn("animation: none", reduced)
+
+
+class BorderPolicyTests(TestCase):
+    """
+    Kantlinjer: bort från meny, logotyp och kort - kvar på tabeller och fält.
+
+    Giovannis beslut 2026-08-30. Menyn, loggan och korten bärs upp av sin
+    frostade bakgrund och blev hårdare av kanten. I en tabell och ett
+    formulärfält är linjen däremot funktion: den skiljer rader åt och visar
+    var man får skriva. Regeln låses här för att den annars är osynlig - en
+    border som smyger tillbaka syns bara för den som råkar titta.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+
+    def _rule(self, selector):
+        """CSS-blocket för en selektor, utan efterföljande regler."""
+        head = self.css.split(selector + "{", 1)
+        if len(head) == 1:
+            head = self.css.split(selector + " {", 1)
+        self.assertEqual(len(head), 2, f"hittar inte regeln {selector}")
+        return head[1].split("}", 1)[0]
+
+    def _has_border(self, block):
+        import re
+
+        return bool(re.search(r"(^|;|\s)border\s*:", block))
+
+    def test_the_nav_and_logo_pill_have_no_border(self):
+        self.assertFalse(self._has_border(self._rule("  .pill")))
+
+    def test_cards_and_containers_have_no_border(self):
+        self.assertFalse(self._has_border(self._rule("  .panel")))
+
+    def test_the_mobile_menu_has_no_border(self):
+        self.assertFalse(self._has_border(self._rule("  .mobile-menu")))
+
+    def test_tables_keep_their_rules(self):
+        """Radlinjerna är det som gör en jämförelsetabell läsbar."""
+        self.assertIn("border-bottom", self._rule("  .compare th"))
+        self.assertIn("border-bottom", self._rule("  .compare td"))
+
+    def test_form_fields_keep_their_border(self):
+        """Ett fält utan kant syns inte som ett fält."""
+        self.assertTrue(self._has_border(self._rule("  .nl-form input")))
+        self.assertTrue(
+            self._has_border(self._rule(".adx-form input,.adx-form select,.adx-form textarea"))
+        )
+
+    def test_the_ghost_button_keeps_its_outline(self):
+        """Den har ingen fyllnad - utan kanten ser den inte ut som en knapp."""
+        self.assertTrue(self._has_border(self._rule("  .btn.ghost")))
