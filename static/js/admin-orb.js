@@ -89,9 +89,9 @@
     '    smoke += shell * max(flow(sp * 1.5) - 0.36, 0.0) * 0.42;',
     '  }',
     '',
-    '  vec3 key  = vec3(0.30, 0.65, 1.00);',   // kall nyckel
-    '  vec3 fill = vec3(0.60, 0.35, 1.00);',   // violett fyllnad
-    '  vec3 rimC = vec3(0.65, 0.80, 1.00);',
+    '  vec3 key  = vec3(1.00, 0.78, 0.28);',   // varm nyckel (#ffd23f)
+    '  vec3 fill = vec3(1.00, 0.44, 0.09);',   // orange fyllnad (#ff7a18)
+    '  vec3 rimC = vec3(1.00, 0.66, 0.16);',   // barnsten (#ff9f1c)
     '',
     '  vec3 col = vec3(0.0);',
     '  float alpha = 0.0;',
@@ -106,20 +106,25 @@
     '    float rim = pow(1.0 - max(dot(n, -rd), 0.0), 2.6);',
     '    vec3 h = normalize(lKey - rd);',
     '    float spec = pow(max(dot(n, h), 0.0), 42.0);',
-    '    col = key * dKey * 0.80 + fill * dFill * 0.40 + key * wrap * 0.07;',
-    '    col += rimC * rim * (1.85 + uHover * 0.7);',
-    '    col += vec3(0.75, 0.85, 1.0) * spec * 0.55;',
+    '    col = key * dKey * 0.95 + fill * dFill * 0.55 + key * wrap * 0.05;',
+    '    col += rimC * rim * (1.15 + uHover * 0.45);',
+    '    col += vec3(1.0, 0.94, 0.78) * spec * 0.45;',
     '    alpha = 1.0;',
     '  }',
     '',
-    '  col += key * glow * 0.55;',
-    '  col += fill * smoke * 1.05;',
+    '  col += key * glow * 0.40;',
+    '  col += fill * smoke * 0.85;',
     '  alpha = max(alpha, min(glow * 0.45 + smoke * 1.0, 1.0));',
     '',
     // Vinjettering mot cirkelns kant så knappen inte får en fyrkantig ruta.
     '  float edge = smoothstep(1.02, 0.72, length(uv));',
     '  alpha *= edge;',
-    '  col *= 1.12;',                                                 // svag gain - hittbarheten\n    '  col = pow(max(col, 0.0), vec3(0.88));',                        // kommer fran gloden, inte harifran
+    // Reinhard: varden over 1 komprimeras i stallet for att klippas.
+    // Utan detta blev orben en vit klump - rim, glod och rok summerar
+    // langt over 1 och en ren gamma-kurva raddar inte det.
+    '  col *= 1.6;',                                                  // exponering fore
+    '  col = col / (1.0 + col);',
+    '  col = pow(max(col, 0.0), vec3(0.4545));',                     // linjart -> sRGB
     '  gl_FragColor = vec4(col * alpha, alpha);',                     // premultiplicerad
     '}'
   ].join('\n');

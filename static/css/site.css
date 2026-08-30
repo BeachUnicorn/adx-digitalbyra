@@ -475,8 +475,8 @@
    fram till 2026-08-30. */
 .c-admin-dock__toggle {
     position: relative;
-    width: 52px;
-    height: 52px;
+    width: 72px;
+    height: 72px;
     border: none;
     border-radius: 50%;
     background: none;
@@ -495,10 +495,10 @@
 .c-admin-dock__orb {
     position: absolute; inset: 0; border-radius: 50%;
     background:
-        radial-gradient(circle at 34% 28%, rgba(255,255,255,0.55), transparent 42%),
-        radial-gradient(circle at 62% 68%, rgba(153,89,255,0.85), transparent 58%),
-        radial-gradient(circle at 40% 55%, rgba(77,166,255,0.95), rgba(20,18,44,0.95) 72%);
-    box-shadow: 0 0 18px rgba(90, 130, 255, 0.45), 0 4px 14px rgba(0, 0, 0, 0.3);
+        radial-gradient(circle at 34% 28%, rgba(255,245,210,0.55), transparent 42%),
+        radial-gradient(circle at 62% 68%, rgba(255,122,24,0.9), transparent 58%),
+        radial-gradient(circle at 40% 55%, rgba(255,190,60,0.95), rgba(70,32,6,0.95) 74%);
+    box-shadow: 0 0 20px rgba(255, 150, 40, 0.45), 0 4px 14px rgba(0, 0, 0, 0.3);
 }
 .c-admin-dock__canvas {
     position: absolute; inset: 0;
@@ -507,7 +507,7 @@
     display: none;
     /* Klicket hör till knappen. Utan detta äter canvasen upp det. */
     pointer-events: none;
-    filter: drop-shadow(0 0 10px rgba(120, 150, 255, 0.75)) drop-shadow(0 0 22px rgba(90, 110, 255, 0.4));
+    filter: drop-shadow(0 0 10px rgba(255, 176, 60, 0.7)) drop-shadow(0 0 24px rgba(255, 128, 20, 0.35));
 }
 
 /* Shadern ritar samma yta, fast levande. Klassen sätts på DOCKEN och inte
