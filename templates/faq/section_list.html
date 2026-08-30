@@ -7,9 +7,9 @@
 {% endblock %}
 
 {% block content %}
-<section class="c-hero c-hero--compact has-edit-pencil">
+<section class="c-hero c-hero--compact has-edit-orb">
     {% url 'manage:faq_overview' as edit_url %}
-    {% edit_pencil url=edit_url label="Hantera FAQ" %}
+    {% edit_orb url=edit_url label="Hantera FAQ" %}
     <div class="container">
         <p class="c-hero__label">FAQ</p>
         <h1 class="c-hero__title">Vanliga frågor</h1>
@@ -22,9 +22,9 @@
         {% if sections %}
         <div class="c-services__grid">
             {% for section in sections %}
-            <div class="c-service-card-wrap has-edit-pencil">
+            <div class="c-service-card-wrap has-edit-orb">
                 {% url 'manage:faq_detail' section.slug as sec_edit_url %}
-                {% edit_pencil url=sec_edit_url label="Redigera" %}
+                {% edit_orb url=sec_edit_url label="Redigera" %}
                 <a href="{{ section.get_absolute_url }}" class="c-service-card">
                     <div class="c-service-card__body">
                         <h2 class="c-service-card__title">{{ section.title }}</h2>

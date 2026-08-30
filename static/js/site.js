@@ -19,6 +19,34 @@
     });
   }
 
+  // Admindocken (inloggad personal på den publika sajten). Markupen och
+  // CSS:en fanns, men ingenting satte .is-open - knappen var alltså helt
+  // död sedan den byggdes. aria-expanded och aria-hidden hålls i synk med
+  // klassen; utan det säger knappen fel sak till en skärmläsare.
+  var dock = document.getElementById('admin-dock');
+  var dockToggle = document.getElementById('admin-dock-toggle');
+  var dockMenu = document.getElementById('admin-dock-menu');
+  if (dock && dockToggle && dockMenu) {
+    var setDock = function (isOpen) {
+      dock.classList.toggle('is-open', isOpen);
+      dockToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      dockMenu.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
+    };
+    dockToggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      setDock(!dock.classList.contains('is-open'));
+    });
+    document.addEventListener('click', function (e) {
+      if (!dock.contains(e.target)) setDock(false);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && dock.classList.contains('is-open')) {
+        setDock(false);
+        dockToggle.focus();
+      }
+    });
+  }
+
   // Botskyddets JS-bevis: fylls vid första verkliga interaktionen med
   // formuläret. En bot som bara POST:ar HTML:en lämnar fältet tomt.
   document.querySelectorAll('form[data-botcheck]').forEach(function (form) {

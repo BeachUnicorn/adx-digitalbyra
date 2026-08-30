@@ -830,3 +830,108 @@ class TemplateCommentSyntaxTests(TestCase):
             [],
             "Flerradig {# #} - använd {% comment %}...{% endcomment %}:\n" + "\n".join(offenders),
         )
+
+
+class AdminDockTests(TestCase):
+    """
+    Admindocken var helt död.
+
+    Markupen fanns och CSS:en fanns - .c-admin-dock.is-open öppnar menyn -
+    men INGENTING satte klassen. site.js innehöll bara mobilmenyn och
+    botskyddet, så knappen gick inte att klicka på sedan den byggdes.
+
+    Vakten nedan är den intressanta: den kontrollerar att varje id som
+    markupen hänger sitt beteende på också nämns i site.js. Markup som
+    skeppas utan beteende är exakt det som hände här.
+    """
+
+    #: id:n i admin_dock.html som JS:en måste känna till.
+    DOCK_IDS = ("admin-dock", "admin-dock-toggle", "admin-dock-menu")
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.staff = get_user_model().objects.create_user("dockuser", password="x", is_staff=True)
+        call_command("seed_site", verbosity=0)
+
+    def test_the_dock_is_hidden_from_visitors(self):
+        self.assertNotContains(Client().get("/"), "c-admin-dock")
+
+    def test_the_dock_is_shown_to_staff(self):
+        self.client.force_login(self.staff)
+        html = self.client.get("/").content.decode()
+        for dock_id in self.DOCK_IDS:
+            self.assertIn(f'id="{dock_id}"', html)
+
+    def test_site_js_actually_handles_the_dock(self):
+        """Utan det här är knappen ett dekorativt element."""
+        js = (Path(django_settings.BASE_DIR) / "static" / "js" / "site.js").read_text()
+        missing = [i for i in self.DOCK_IDS if i not in js]
+        self.assertEqual(
+            missing,
+            [],
+            f"admin_dock.html hänger beteende på id:n som site.js inte känner till: {missing}",
+        )
+        self.assertIn("is-open", js, "site.js sätter aldrig klassen CSS:en väntar på")
+
+
+class EditOrbTests(TestCase):
+    """
+    Redigeringsorben (hette edit_pencil och ritade en penna fram till
+    2026-08-30).
+
+    Pennan hade INGEN CSS alls - varken .edit-pencil eller wrappern - så den
+    låg ostilad i elementets övre vänstra hörn i normalt flöde. Vakten nedan
+    kontrollerar att varje klass partialen använder också är definierad i
+    site.css, vilket är precis det som saknades.
+    """
+
+    #: Klasser som edit_orb.html och dess wrapper hänger utseendet på.
+    ORB_CLASSES = (".edit-orb", ".has-edit-orb", ".edit-orb__cloud", ".edit-orb__gloss")
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.user = get_user_model().objects.create_user("orbuser", password="x")
+        call_command("seed_site", verbosity=0)
+
+    def test_no_orb_for_visitors(self):
+        self.assertNotContains(Client().get("/"), "edit-orb")
+
+    def test_the_orb_is_rendered_for_logged_in_users(self):
+        self.client.force_login(self.user)
+        html = self.client.get("/").content.decode()
+        self.assertIn('class="edit-orb"', html)
+        self.assertIn("has-edit-orb", html)
+
+    def test_the_orb_links_into_manage(self):
+        self.client.force_login(self.user)
+        html = self.client.get("/").content.decode()
+        self.assertRegex(html, r'class="edit-orb" href="/manage/blocks/\d+/"')
+
+    def test_the_pencil_is_gone(self):
+        self.client.force_login(self.user)
+        html = self.client.get("/").content.decode()
+        self.assertNotIn("edit-pencil", html)
+        self.assertNotIn("<svg", html.split('class="edit-orb"')[1][:400])
+
+    def test_every_orb_class_is_styled(self):
+        """Grundfelet: markup som skeppas utan CSS ser ostilad ut i hörnet."""
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        missing = [c for c in self.ORB_CLASSES if c not in css]
+        self.assertEqual(missing, [], f"Klasser utan CSS i site.css: {missing}")
+
+    def test_the_orb_is_positioned_left_and_centred(self):
+        """Kravet: till vänster, lodrätt centrerad - inte i övre hörnet."""
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        block = css.split(".edit-orb {")[1].split("}")[0]
+        self.assertIn("position: absolute", block)
+        self.assertIn("top: 50%", block)
+        self.assertIn("translateY(-50%)", block)
+        self.assertIn("left:", block)
+        self.assertIn(".has-edit-orb { position: relative; }", css)
+
+    def test_the_animation_respects_reduced_motion(self):
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        reduced = css.split("prefers-reduced-motion")[-1]
+        self.assertIn("animation: none", reduced)

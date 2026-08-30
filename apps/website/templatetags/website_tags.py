@@ -37,13 +37,15 @@ def render_block(context, block):
     return block_context
 
 
-@register.inclusion_tag("website/partials/edit_pencil.html", takes_context=True)
-def edit_pencil(context, url, label="Redigera"):
+@register.inclusion_tag("website/partials/edit_orb.html", takes_context=True)
+def edit_orb(context, url, label="Redigera"):
     """
-    Render an edit pencil that links into /manage/ - only for logged-in users.
+    Render the edit orb that links into /manage/ - only for logged-in users.
 
-    Opens the target in a new tab (per the manage convention). Place inside a
-    position:relative container; the pencil positions itself top-right.
+    Place inside a container with .has-edit-orb; the orb positions itself to
+    the left, vertically centred. Hette edit_pencil och ritade en penna-SVG
+    fram till 2026-08-30 - pennan hade dessutom ingen CSS alls, så den låg
+    ostilad i elementets övre vänstra hörn.
     """
     user = context.get("user")
     if user is None:

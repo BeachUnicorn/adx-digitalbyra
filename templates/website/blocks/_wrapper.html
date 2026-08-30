@@ -7,8 +7,8 @@ synkvakten i testsviten fångar den vid bygget i stället.
 render_block-taggen packar upp block.data i kontexten, så mallarna läser
 sina fält direkt. Inloggade får redigeringspennan ovanpå.
 {% endcomment %}
-{% if user.is_authenticated %}<div class="block-edit-wrap has-edit-pencil">
+{% if user.is_authenticated %}<div class="block-edit-wrap has-edit-orb">
 {% url 'manage:block_edit' block.id as block_edit_url %}
-{% edit_pencil url=block_edit_url label="Redigera block" %}{% endif %}
+{% edit_orb url=block_edit_url label="Redigera block" %}{% endif %}
 {% if block_type|known_block_type %}{% include "website/blocks/"|add:block_type|add:".html" %}{% endif %}
 {% if user.is_authenticated %}</div>{% endif %}

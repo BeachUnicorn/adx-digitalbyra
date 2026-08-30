@@ -1,0 +1,18 @@
+{% comment %}
+Redigeringsorben: den lilla knappen som låter inloggad personal hoppa från
+en sektion på den publika sajten rakt in i rätt formulär i /manage/.
+
+Ren CSS - inga bilder, inget JS, ingen extern begäran. Samma teknik som
+AI-orben i /manage/ (roterande conic-gradient + suddade moln i olika takt),
+men gul-orange och liten. Att molnen rör sig olika fort är hela tricket:
+samma hastighet läser som ett snurrande hjul, olika hastighet som ett
+levande ljus.
+
+Den ligger absolut positionerad till vänster och lodrätt centrerad i sitt
+element - se .edit-orb i site.css. Föräldern måste ha .has-edit-orb.
+{% endcomment %}
+{% if show %}<a class="edit-orb" href="{{ url }}" rel="noopener" title="{{ label }}" aria-label="{{ label }}">
+    <span class="edit-orb__cloud edit-orb__cloud--a" aria-hidden="true"></span>
+    <span class="edit-orb__cloud edit-orb__cloud--b" aria-hidden="true"></span>
+    <span class="edit-orb__gloss" aria-hidden="true"></span>
+</a>{% endif %}

@@ -600,3 +600,97 @@
 .faq-answer p{margin-bottom:12px}
 
 .bc-field{position:absolute !important;left:-9999px !important;top:auto !important;width:1px;height:1px;overflow:hidden}
+
+/* ===========================================================================
+   Redigeringsorben (inloggad personal på den publika sajten)
+   ---------------------------------------------------------------------------
+   Ersätter penna-ikonen 2026-08-30. Den gamla .edit-pencil hade INGEN CSS
+   alls - varken den eller sin wrapper - så den låg ostilad i elementets övre
+   vänstra hörn i normalt flöde. Nu: absolut positionerad till vänster,
+   lodrätt centrerad, som en liten gul-orange aura.
+
+   Ren CSS, samma teknik som AI-orben i manage.css: en roterande
+   conic-gradient maskad till en ring, plus två suddade moln som rör sig i
+   OLIKA takt. Samma takt läser som ett hjul; olika takt läser som ljus.
+   Inga bilder, inga nätverksanrop, ingen WebGL-kontext per element - det
+   sista spelar roll när sidan har trettio block.
+   =========================================================================== */
+.has-edit-orb { position: relative; }
+
+.edit-orb {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: block;
+    isolation: isolate;
+    text-decoration: none;
+    opacity: 0.75;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.edit-orb:hover,
+.edit-orb:focus-visible {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.25);
+}
+.edit-orb:focus-visible {
+    outline: 2px solid var(--fg, #fff);
+    outline-offset: 3px;
+}
+
+/* Glöden fyller lådan och dör före kanten, så den aldrig får en hård kant
+   när en förälder klipper (samma lärdom som AI-orben, 2026-08-21). */
+.edit-orb::after {
+    content: ""; position: absolute; inset: -60%; z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        rgba(255, 176, 32, 0.45) 22%,
+        rgba(255, 122, 24, 0.20) 46%,
+        transparent 70%);
+}
+/* Färgringen: gul -> orange -> bärnsten, maskad till en ring. */
+.edit-orb::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg,
+        #ffd23f, #ff9f1c, #ff7a18, #ffc93c, #ffd23f);
+    -webkit-mask: radial-gradient(farthest-side, transparent 34%, #000 56%, #000 82%, transparent 99%);
+    mask: radial-gradient(farthest-side, transparent 34%, #000 56%, #000 82%, transparent 99%);
+    filter: saturate(1.35);
+    animation: edit-orb-spin 7s linear infinite;
+}
+.edit-orb__cloud {
+    position: absolute; inset: 16%;
+    border-radius: 50%;
+    filter: blur(2px) saturate(1.35);
+    opacity: 0.7;
+    will-change: transform;
+}
+.edit-orb__cloud--a {
+    background: radial-gradient(circle at 32% 30%, rgba(255, 214, 90, 0.9), transparent 58%);
+    animation: edit-orb-spin 10s linear infinite;
+}
+.edit-orb__cloud--b {
+    background: radial-gradient(circle at 66% 64%, rgba(255, 122, 24, 0.75), transparent 55%);
+    animation: edit-orb-spin 15s linear infinite reverse;
+}
+.edit-orb__gloss {
+    position: absolute; inset: 22%; border-radius: 50%;
+    background: radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.7), transparent 44%);
+}
+@keyframes edit-orb-spin { to { transform: rotate(360deg); } }
+
+/* Rörelsen är dekor, inte information - den ska gå att stänga av. */
+@media (prefers-reduced-motion: reduce) {
+    .edit-orb::before,
+    .edit-orb__cloud { animation: none; }
+    .edit-orb:hover, .edit-orb:focus-visible { transform: translateY(-50%); }
+}
+
+/* På smala skärmar krockar orben med innehållet - flytta in den i kanten. */
+@media (max-width: 700px) {
+    .edit-orb { left: 4px; width: 18px; height: 18px; }
+}

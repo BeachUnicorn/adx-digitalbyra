@@ -11,9 +11,9 @@
 {% endblock %}
 
 {% block content %}
-<section class="c-faq has-edit-pencil" id="faq">
+<section class="c-faq has-edit-orb" id="faq">
     {% url 'manage:faq_detail' section.slug as edit_url %}
-    {% edit_pencil url=edit_url label="Redigera FAQ" %}
+    {% edit_orb url=edit_url label="Redigera FAQ" %}
     <div class="container c-faq__inner">
         <div class="c-faq__header">
             <p class="c-faq__label"><a href="{% url 'faq:section_list' %}">FAQ</a></p>
