@@ -111,7 +111,7 @@ FOOTER_MENUS = [
         [
             ("Portfolio", "portfolio"),
             ("Paket", "paket"),
-            ("Städer", "/webbyra/"),
+            ("Webbyrå i din stad", "/webbyra/"),
             ("Kontakt", "kontakt"),
         ],
     ),

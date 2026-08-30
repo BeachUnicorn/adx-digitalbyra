@@ -43,6 +43,29 @@ FOOTER_LINKS = [
     ("Hemsida för företag", "hemsida-foretag"),
 ]
 
+#: Branschkolumnen. Sidfoten renderas på VARJE sida, så den här kolumnen är
+#: det som binder ihop sökordssidorna med ortssidorna - två silor som annars
+#: inte länkar till varandra alls. Ortssidan renderar samma lista som en egen
+#: sektion (se areas.views.INDUSTRY_MENU_HEADING), så listan finns på ett
+#: ställe och inte två.
+INDUSTRY_HEADING = "Branscher"
+INDUSTRY_LINKS = [
+    ("Bygg och hantverk", "hemsida-byggforetag"),
+    ("VVS och el", "hemsida-vvs"),
+    ("Tandvård och klinik", "hemsida-tandlakare"),
+    ("Juridik och ekonomi", "hemsida-advokatbyra"),
+    ("Restaurang och hotell", "hemsida-restaurang"),
+    ("Konsult och IT", "hemsida-konsultbolag"),
+]
+
+#: Sidfotslänken till ortssidorna. Den seedades som en rå adress och pekade
+#: kvar på /digitalbyra/ efter sökordsbytet, eftersom seed_site aldrig körs om
+#: i produktion. Resultatet: enda vägen in till 109 ortssidor var en länk som
+#: dessutom gick via en redirect.
+AREAS_URL_OLD = "/digitalbyra/"
+AREAS_URL = "/webbyra/"
+AREAS_LABEL = "Webbyrå i din stad"
+
 
 class Command(BaseCommand):
     help = "Seedar sökordssidor + deras FAQ ur seed_data/ (additivt, tar aldrig bort)."
@@ -115,22 +138,39 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------
 
     def _footer_menu(self):
-        """Lägg till sidfotskolumnen om den inte redan finns. Rör inget annat."""
-        if Menu.objects.filter(location="footer", heading=FOOTER_HEADING).exists():
-            return False
-        last = Menu.objects.filter(location="footer").order_by("-order").first()
-        menu = Menu.objects.create(
-            location="footer",
-            name=f"Sidfot: {FOOTER_HEADING}",
-            heading=FOOTER_HEADING,
-            order=(last.order + 1) if last else 0,
-        )
-        for order, (label, slug) in enumerate(FOOTER_LINKS):
-            page = BlockPage.objects.filter(slug=slug).first()
-            if page is None:
+        """Lägg till sidfotskolumnerna som saknas och laga ortslänken."""
+        added = False
+        for heading, links in ((FOOTER_HEADING, FOOTER_LINKS), (INDUSTRY_HEADING, INDUSTRY_LINKS)):
+            if Menu.objects.filter(location="footer", heading=heading).exists():
                 continue
-            MenuItem.objects.create(menu=menu, label=label, page=page, order=order)
-        return True
+            last = Menu.objects.filter(location="footer").order_by("-order").first()
+            menu = Menu.objects.create(
+                location="footer",
+                name=f"Sidfot: {heading}",
+                heading=heading,
+                order=(last.order + 1) if last else 0,
+            )
+            for order, (label, slug) in enumerate(links):
+                page = BlockPage.objects.filter(slug=slug).first()
+                if page is None:
+                    continue
+                MenuItem.objects.create(menu=menu, label=label, page=page, order=order)
+            added = True
+        self._fix_areas_link()
+        return added
+
+    def _fix_areas_link(self):
+        """
+        Peka sidfotens ortslänk på /webbyra/ i stället för gamla /digitalbyra/.
+
+        Menyposten bär en rå adress (ortsöversikten är ingen BlockPage och kan
+        därför inte vara en sid-FK). Sökordsbytet uppdaterade koden men inte
+        raden i databasen, så länken gick via en 301 på varje sidvisning.
+        """
+        for item in MenuItem.objects.filter(url=AREAS_URL_OLD):
+            item.url = AREAS_URL
+            item.label = AREAS_LABEL
+            item.save(update_fields=["url", "label"])
 
     def _portfolio_image(self):
         """

@@ -49,7 +49,9 @@ class CityPageTests(TestCase):
         self.assertIn("Första stycket.", html)
         self.assertIn("Andra stycket.", html)
 
-    def test_city_page_lists_all_active_services_and_other_cities(self):
+    def test_city_page_lists_all_active_services_and_nearby_areas(self):
+        """Grannlistan är hierarkisk sedan 2026-08-30: samma nivå och samma
+        förälder. Göteborg och Malmö är båda rotnoder här, alltså syskon."""
         html = self.client.get(self.goteborg.get_absolute_url()).content.decode()
         self.assertIn("Webbutveckling", html)
         self.assertIn(self.malmo.get_absolute_url(), html)
@@ -286,3 +288,103 @@ class AreaTitleTests(TestCase):
 
     def test_without_meta_title_the_site_name_is_appended(self):
         self.assertEqual(self._title(), "Kista - ADX")
+
+
+class InternalLinkingTests(TestCase):
+    """
+    Ortssidorna får inte hänga i luften.
+
+    De 109 ortssidorna nåddes bara via EN sidfotslänk, som dessutom pekade på
+    den gamla adressen /digitalbyra/ och alltså gick via en redirect på varje
+    sidvisning. Startsidan och sökordssidorna länkade inte dit alls. En sida
+    som bara finns i sitemapen crawlas sällan och rankar därefter.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from django.core.management import call_command
+
+        call_command("seed_site", verbosity=0)
+        call_command("seed_sokordssidor", verbosity=0)
+
+    def _html(self, path):
+        return self.client.get(path).content.decode()
+
+    def test_every_page_links_to_the_area_index(self):
+        """Sidfoten renderas överallt - det är den billigaste vägen in."""
+        for path in ("/", "/webbutveckling/", "/skapa-hemsida/", "/kontakt/"):
+            with self.subTest(path=path):
+                self.assertIn('href="/webbyra/"', self._html(path))
+
+    def test_no_page_links_to_the_old_address(self):
+        """En intern länk ska aldrig gå via en redirect."""
+        for path in ("/", "/webbutveckling/", "/skapa-hemsida/"):
+            with self.subTest(path=path):
+                self.assertNotIn('href="/digitalbyra/"', self._html(path))
+
+    def test_every_page_links_to_the_industry_pages(self):
+        """Branschkolumnen binder ihop sajtens två silor."""
+        html = self._html("/")
+        self.assertIn('href="/hemsida-vvs/"', html)
+        self.assertIn('href="/hemsida-tandlakare/"', html)
+
+
+class NearbyAreaTests(TestCase):
+    """
+    Ortssidan listade ALLA andra områden - 108 länkar på varje sida.
+
+    Det hjälper varken besökaren, som inte letar efter en slumpvis kommun i
+    ett annat län, eller sökmotorn, som får länkvärdet utspätt över allt.
+    Nu visas hierarkin: föräldern, syskonen och de egna stadsdelarna.
+    """
+
+    def setUp(self):
+        from apps.areas.models import Area, AreaLevel
+
+        self.lan = Area.objects.create(name="Skåne län", level=AreaLevel.REGION)
+        self.annat_lan = Area.objects.create(name="Hallands län", level=AreaLevel.REGION)
+        self.malmo = Area.objects.create(
+            name="Malmö", level=AreaLevel.MUNICIPALITY, parent=self.lan
+        )
+        self.lund = Area.objects.create(name="Lund", level=AreaLevel.MUNICIPALITY, parent=self.lan)
+        self.limhamn = Area.objects.create(
+            name="Limhamn", level=AreaLevel.DISTRICT, parent=self.malmo
+        )
+        self.halmstad = Area.objects.create(
+            name="Halmstad", level=AreaLevel.MUNICIPALITY, parent=self.annat_lan
+        )
+
+    def _nearby_slugs(self, area):
+        import re
+
+        html = self.client.get(area.get_absolute_url()).content.decode()
+        section = html.split("Vi finns nära er")[1]
+        return set(re.findall(r'href="/webbyra/([^"]+)/"', section))
+
+    def test_a_municipality_shows_its_county_siblings_and_districts(self):
+        nearby = self._nearby_slugs(self.malmo)
+        self.assertIn(self.lan.slug, nearby)
+        self.assertIn(self.lund.slug, nearby)
+        self.assertIn(self.limhamn.slug, nearby)
+
+    def test_areas_in_another_county_are_not_listed(self):
+        self.assertNotIn(self.halmstad.slug, self._nearby_slugs(self.malmo))
+
+    def test_the_list_is_capped(self):
+        """Utan tak blir sidan en länklista igen så fort länet är stort."""
+        from apps.areas.models import Area, AreaLevel
+        from apps.areas.views import MAX_NEARBY
+
+        for i in range(MAX_NEARBY + 5):
+            Area.objects.create(name=f"Kommun {i}", level=AreaLevel.MUNICIPALITY, parent=self.lan)
+        self.assertLessEqual(len(self._nearby_slugs(self.malmo)), MAX_NEARBY + 1)
+
+    def test_there_is_always_a_way_to_the_full_list(self):
+        self.assertIn(self.lan.slug, self._nearby_slugs(self.malmo))
+        html = self.client.get(self.malmo.get_absolute_url()).content.decode()
+        self.assertIn('href="/webbyra/"', html)
+
+    def test_a_hidden_area_is_never_linked(self):
+        self.lund.is_active = False
+        self.lund.save(update_fields=["is_active"])
+        self.assertNotIn(self.lund.slug, self._nearby_slugs(self.malmo))

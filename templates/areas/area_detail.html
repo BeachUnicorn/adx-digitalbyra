@@ -53,17 +53,35 @@ copyn - aldrig separata sidor per sökord (doorway-regeln, mönsterkatalogen).
     </div>
 </section>
 
-{% if other_cities %}
+{% if industry_menu %}
 <section>
     <div class="wrap">
         <div class="sec-head">
-            <div class="kicker">[ Fler städer ]</div>
+            <div class="kicker">[ Branscher ]</div>
+            <h2>Vi bygger för</h2>
+        </div>
+        <div class="related">
+            {# Samma villkor som sidfoten: en död eller dold post visas inte. #}
+            {% for item in industry_menu.items.all %}{% if item.is_visible and item.is_alive and item.is_link %}
+            <a href="{{ item.get_url }}">{{ item.label }} &rarr;</a>
+            {% endif %}{% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% if nearby %}
+<section>
+    <div class="wrap">
+        <div class="sec-head">
+            <div class="kicker">[ Närliggande ]</div>
             <h2>Vi finns nära er</h2>
         </div>
         <div class="related">
-            {% for city in other_cities %}
-            <a href="{{ city.get_absolute_url }}">{{ city.name }} &rarr;</a>
+            {% for other in nearby %}
+            <a href="{{ other.get_absolute_url }}">{{ other.name }} &rarr;</a>
             {% endfor %}
+            <a href="{% url 'areas:area_list' %}">Alla orter &rarr;</a>
         </div>
     </div>
 </section>

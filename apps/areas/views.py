@@ -63,14 +63,58 @@ def area_list(request):
     return render(request, "areas/area_list.html", context)
 
 
+#: Hur många grannorter som listas på en ortssida. Sidan listade tidigare
+#: ALLA andra områden - 108 länkar på varje sida. Det hjälper varken
+#: besökaren, som inte letar efter en slumpvis kommun i ett annat län, eller
+#: sökmotorn, som fördelar länkvärdet över allt utan att något pekas ut.
+MAX_NEARBY = 12
+
+
+def _nearby(area):
+    """
+    Områden som faktiskt hör ihop med det här: föräldern, syskonen i samma
+    län och de egna stadsdelarna. Hierarkin finns redan i datan och är den
+    enda relationen som betyder något för en besökare.
+    """
+    visible = Area.objects.visible().exclude(pk=area.pk).select_related("parent")
+    # Samma förälder = syskon, och det gäller även rotnivån: ett län har
+    # inget parent_id, men de andra länen är precis dess syskon. Utan det
+    # fallet fick alla 21 länsidor noll grannlänkar.
+    siblings = [a for a in visible if a.parent_id == area.parent_id]
+    children = [a for a in visible if a.parent_id == area.pk]
+    parents = [a for a in (area.parent, getattr(area.parent, "parent", None)) if a and a.is_visible]
+
+    out, seen = [], {area.pk}
+    for candidate in parents + sort_areas(children) + sort_areas(siblings):
+        if candidate.pk not in seen:
+            seen.add(candidate.pk)
+            out.append(candidate)
+    return out[:MAX_NEARBY]
+
+
+#: Sidfotskolumnen vars länkar också visas som en egen sektion på ortssidan.
+#: Ortssidorna ("webbyrå i X") och branschsidorna ("hemsida för X") är sajtens
+#: två stora silor, och utan den här kopplingen länkar de inte till varandra
+#: alls. Listan bor i menyn så att den finns på ETT ställe - den redigeras i
+#: /manage/ som vilken meny som helst.
+INDUSTRY_MENU_HEADING = "Branscher"
+
+
+def _industry_links(context):
+    return next(
+        (m for m in context.get("footer_menus", []) if m.heading == INDUSTRY_MENU_HEADING),
+        None,
+    )
+
+
 def area_detail(request, slug):
     area = _visible_or_404(slug)
-    others = Area.objects.filter(is_active=True).exclude(pk=area.pk).order_by("order", "name")
     context = _get_site_context()
     context.update(
         {
             "area": area,
-            "other_cities": others,
+            "nearby": _nearby(area),
+            "industry_menu": _industry_links(context),
             "page_color": area.gradient_color or "#2f6f4f",
         }
     )
