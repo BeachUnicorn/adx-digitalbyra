@@ -30,6 +30,16 @@
             <p>Inga frågor i denna sektion ännu.</p>
             {% endfor %}
         </div>
+        {% if owner_links %}
+        <div class="sec-head" style="margin-top: var(--space-4xl);">
+            <div class="kicker">[ Frågorna gäller ]</div>
+        </div>
+        <div class="related">
+            {% for link in owner_links %}
+            <a href="{{ link.href }}">{{ link.title }} &rarr;</a>
+            {% endfor %}
+        </div>
+        {% endif %}
         <div style="margin-top: var(--space-4xl);">
             <a href="{% url 'faq:section_list' %}" class="btn-secondary">← Alla FAQ-sektioner</a>
         </div>

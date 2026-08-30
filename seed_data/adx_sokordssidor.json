@@ -134,7 +134,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "egen-hemsida",
@@ -267,7 +268,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "vad-kostar-en-hemsida",
@@ -408,7 +410,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "billig-hemsida",
@@ -541,7 +544,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "enkel-hemsida",
@@ -670,7 +674,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-foretag",
@@ -807,7 +812,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-med-bokning",
@@ -940,7 +946,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "wordpress-hemsida",
@@ -1073,7 +1080,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "kopa-hemsida",
@@ -1206,7 +1214,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "ny-hemsida",
@@ -1340,7 +1349,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "professionell-hemsida",
@@ -1469,7 +1479,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-vvs",
@@ -1603,7 +1614,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-elfirma",
@@ -1732,7 +1744,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-byggforetag",
@@ -1862,7 +1875,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-maleri",
@@ -1991,7 +2005,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-takfirma",
@@ -2120,7 +2135,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-solceller",
@@ -2249,7 +2265,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-varmepump",
@@ -2378,7 +2395,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-stadforetag",
@@ -2507,7 +2525,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-flyttfirma",
@@ -2636,7 +2655,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-tandlakare",
@@ -2769,7 +2789,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-lakarmottagning",
@@ -2898,7 +2919,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-naprapat",
@@ -3028,7 +3050,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-skonhetsklinik",
@@ -3158,7 +3181,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-veterinar",
@@ -3287,7 +3311,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-frisor",
@@ -3417,7 +3442,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-gym",
@@ -3547,7 +3573,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-advokatbyra",
@@ -3677,7 +3704,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-redovisningsbyra",
@@ -3807,7 +3835,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-konsultbolag",
@@ -3936,7 +3965,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-it-konsult",
@@ -4065,7 +4095,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-arkitekt",
@@ -4194,7 +4225,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-rekrytering",
@@ -4323,7 +4355,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-fastighetsmaklare",
@@ -4452,7 +4485,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-restaurang",
@@ -4582,7 +4616,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-hotell",
@@ -4712,7 +4747,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-bilverkstad",
@@ -4842,7 +4878,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-tillverkande-industri",
@@ -4972,7 +5009,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-fastighetsbolag",
@@ -5102,7 +5140,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "hemsida-transport",
@@ -5232,7 +5271,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "bransch"
   },
   {
    "slug": "byta-webbyra",
@@ -5370,7 +5410,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "flytta-hemsida",
@@ -5500,7 +5541,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "alternativ-till-wix",
@@ -5630,7 +5672,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "alternativ-till-squarespace",
@@ -5759,7 +5802,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "one-com-hemsida",
@@ -5889,7 +5933,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "webbdesign",
@@ -6019,7 +6064,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "e-handel",
@@ -6150,7 +6196,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "sokmotoroptimering",
@@ -6280,7 +6327,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-underhall",
@@ -6410,7 +6458,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "webbapplikation",
@@ -6541,7 +6590,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-syns-inte-pa-google",
@@ -6678,7 +6728,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-laddar-langsamt",
@@ -6808,7 +6859,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "vad-ska-en-hemsida-innehalla",
@@ -6937,7 +6989,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-nystartat-foretag",
@@ -7067,7 +7120,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-enskild-firma",
@@ -7197,7 +7251,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "tillganglighetsdirektivet",
@@ -7327,7 +7382,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "gdpr-cookies-hemsida",
@@ -7457,7 +7513,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-abonnemang",
@@ -7599,7 +7656,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "hemsida-manadskostnad",
@@ -7729,7 +7787,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": "guide"
   },
   {
    "slug": "om-oss",
@@ -7859,7 +7918,8 @@
       "link.url": "/kontakt/"
      }
     }
-   ]
+   ],
+   "kategori": ""
   },
   {
    "slug": "case-skandi-vvs",
@@ -7999,6 +8059,166 @@
      "typ": "bar",
      "falt": {
       "label": "Vill ni veta vad som passar er?",
+      "link.label": "Skicka en förfrågan",
+      "link.url": "/kontakt/"
+     }
+    }
+   ],
+   "kategori": "case"
+  },
+  {
+   "slug": "forvaltning",
+   "titel": "Förvaltning av hemsidor",
+   "gradient": "#1f7a6e",
+   "kategori": "guide",
+   "meta_title": "Förvaltning av hemsidor - drift, uppdateringar och support | ADX",
+   "meta_description": "Vi tar hand om er hemsida: uppdateringar, säkerhet, backup, innehållsändringar och support till fast månadspris. Skräddarsydda sajter och färdiga paket.",
+   "sokord": [
+    "förvaltning hemsida",
+    "drift hemsida",
+    "underhållsavtal hemsida",
+    "webbförvaltning"
+   ],
+   "faq": {
+    "slug": "faq-forvaltning",
+    "titel": "Förvaltning av hemsidor",
+    "meta_description": "Vanliga frågor om förvaltning av hemsidor: vad som ingår, vad det kostar och hur snabbt ändringar görs.",
+    "fragor": [
+     {
+      "fraga": "Vad ingår i förvaltningen?",
+      "svar": "Uppdateringar av plattform och beroenden, säkerhetsövervakning, daglig backup, certifikat, och en pott timmar för innehållsändringar - ni mejlar, vi ändrar."
+     },
+     {
+      "fraga": "Vad kostar förvaltning av en hemsida?",
+      "svar": "Fast månadspris som beror på sajtens storlek och hur mycket löpande hjälp ni vill ha. Vi ger er priset efter en kort genomgång av sajten, och det ändras inte under avtalstiden."
+     },
+     {
+      "fraga": "Måste hemsidan vara byggd av er?",
+      "svar": "Nej. Vi tar över förvaltningen av befintliga sajter också. Vi börjar alltid med en teknisk genomgång så vi vet vad vi tar ansvar för."
+     },
+     {
+      "fraga": "Hur snabbt görs en ändring?",
+      "svar": "Normala innehållsändringar görs inom två arbetsdagar. Akuta fel, som att sajten ligger nere, tar vi direkt."
+     },
+     {
+      "fraga": "Vi har ett paket via Atlas Holly - behöver vi förvaltning?",
+      "svar": "Nej, i paketen från 495 kronor i månaden ingår redan drift, säkerhet och backup. Förvaltningsavtalet är för skräddarsydda sajter och sajter byggda av andra."
+     }
+    ]
+   },
+   "block": [
+    {
+     "typ": "hero",
+     "falt": {
+      "kicker": "Förvaltning",
+      "title": "Vi tar hand om er hemsida.\nVarje månad, år efter år.",
+      "lead": "En hemsida är färdig samma dag den lanseras - sedan börjar jobbet. Uppdateringar, säkerhet, backup och alla små ändringar ni aldrig hinner göra själva.",
+      "primary.label": "Skicka en förfrågan",
+      "primary.url": "/kontakt/",
+      "secondary.label": "Så jobbar vi",
+      "secondary.url": "/tjanster/"
+     }
+    },
+    {
+     "typ": "why",
+     "falt": {
+      "kicker": "Varför",
+      "title": "Det här händer med en hemsida ingen sköter"
+     },
+     "listor": {
+      "items": [
+       {
+        "title": "Den blir långsam och osäker",
+        "text": "Plattform, tillägg och certifikat åldras. En sajt som inte uppdateras blir långsammare för besökaren och lättare att ta över för någon annan."
+       },
+       {
+        "title": "Innehållet slutar stämma",
+        "text": "Priser, personal och öppettider ändras i verkligheten men inte på sajten. Fel uppgifter kostar mer förtroende än en ful design."
+       },
+       {
+        "title": "Ingen märker när den går ner",
+        "text": "De flesta upptäcker driftstopp när en kund ringer. Med övervakning vet vi om det före er - och oftast är det löst innan någon hunnit märka det."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "prose",
+     "falt": {
+      "title": "Så fungerar förvaltningsavtalet",
+      "body": "<p>Vi börjar med en teknisk genomgång av er sajt: plattform, prestanda, säkerhet och vad som behöver rättas från start. Sedan tar vi över ansvaret - uppdateringar, daglig backup, säkerhetsövervakning och certifikat sköts löpande utan att ni behöver tänka på det.</p><p>I avtalet ingår också en pott timmar varje månad för ändringar. Ny personal på teamsidan, ändrade priser, en ny undersida - ni mejlar, vi gör. Normala ändringar levereras inom två arbetsdagar, akuta fel tas direkt.</p><p>Priset är fast per månad och sätts efter genomgången, utifrån sajtens storlek och hur mycket löpande hjälp ni vill ha. Inga rörliga debiteringar, inga överraskningar på fakturan.</p><p>Kör ni ett av våra färdiga paket via Atlas Holly behöver ni inget förvaltningsavtal - där ingår drift, säkerhet och backup redan i månadspriset från 495 kronor.</p>"
+     }
+    },
+    {
+     "typ": "steps",
+     "falt": {
+      "kicker": "Så går det till",
+      "title": "Från genomgång till lugn och ro"
+     },
+     "listor": {
+      "steps": [
+       {
+        "title": "Teknisk genomgång",
+        "text": "Vi går igenom sajten och listar vad som behöver rättas från start. Ni får rapporten oavsett om ni tecknar avtal eller inte."
+       },
+       {
+        "title": "Fast pris",
+        "text": "Ni får ett månadspris baserat på sajtens storlek och önskad servicenivå. Priset ligger fast under avtalstiden."
+       },
+       {
+        "title": "Vi tar över",
+        "text": "Uppdateringar, backup, övervakning och ändringar rullar från dag ett. Ni mejlar när ni vill ha något gjort."
+       }
+      ]
+     }
+    },
+    {
+     "typ": "faq",
+     "falt": {
+      "kicker": "Frågor",
+      "title": "Vanliga frågor om förvaltning"
+     },
+     "faq_section_slug": "faq-forvaltning"
+    },
+    {
+     "typ": "related",
+     "falt": {
+      "kicker": "Läs vidare",
+      "title": "Relaterat"
+     },
+     "listor": {
+      "links": [
+       {
+        "label": "Underhåll av hemsida",
+        "url": "/hemsida-underhall/"
+       },
+       {
+        "label": "Hemsida som abonnemang",
+        "url": "/hemsida-abonnemang/"
+       },
+       {
+        "label": "Vad kostar en hemsida i månaden?",
+        "url": "/hemsida-manadskostnad/"
+       },
+       {
+        "label": "Sökmotoroptimering",
+        "url": "/sokmotoroptimering/"
+       }
+      ]
+     }
+    },
+    {
+     "typ": "inquiry_form",
+     "falt": {
+      "kicker": "Förfrågan",
+      "title": "Berätta om er hemsida",
+      "intro": "Beskriv sajten och vad ni vill ha hjälp med, så återkommer vi med en genomgång och ett fast pris. Svar inom en arbetsdag."
+     }
+    },
+    {
+     "typ": "bar",
+     "falt": {
+      "label": "Trött på att hemsidan är allas ansvar och ingens?",
       "link.label": "Skicka en förfrågan",
       "link.url": "/kontakt/"
      }

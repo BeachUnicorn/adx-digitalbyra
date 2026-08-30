@@ -1,0 +1,18 @@
+{% comment %}
+Länkmotorns ringlänkar (apps/website/related.py). Renderas sist på
+blocksidor med kategori - samma pillerutseende som related-blocket.
+{% endcomment %}
+{% if auto_related %}
+<section>
+    <div class="wrap">
+        <div class="sec-head">
+            <div class="kicker">[ {{ auto_related_heading }} ]</div>
+        </div>
+        <div class="related">
+            {% for link in auto_related %}
+            <a href="{{ link.href }}">{{ link.title }} &rarr;</a>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}

@@ -701,6 +701,143 @@ class KeywordPageSeedTests(TestCase):
             + "; ".join(f"{p.location}: {p.target} ({p.status})" for p in problems),
         )
 
+    def test_every_seed_entry_carries_a_category(self):
+        """Länkmotorn bygger på kategorin - en post utan är ett hål i ringen."""
+        import json
+
+        seed = json.loads(
+            (Path(django_settings.BASE_DIR) / "seed_data" / "adx_sokordssidor.json").read_text()
+        )
+        valid = {"bransch", "guide", "case", ""}
+        for entry in seed["sidor"]:
+            with self.subTest(slug=entry["slug"]):
+                self.assertIn(entry.get("kategori"), valid)
+
+    def test_the_category_is_backfilled_but_never_overwritten(self):
+        from apps.website.models import BlockPage
+
+        page = BlockPage.objects.get(slug="hemsida-vvs")
+        self.assertEqual(page.category, "bransch")
+
+        page.category = ""
+        page.save(update_fields=["category"])
+        call_command("seed_sokordssidor", verbosity=0)
+        page.refresh_from_db()
+        self.assertEqual(page.category, "bransch", "tom kategori ska fyllas i")
+
+        page.category = "guide"
+        page.save(update_fields=["category"])
+        call_command("seed_sokordssidor", verbosity=0)
+        page.refresh_from_db()
+        self.assertEqual(page.category, "guide", "kundens kategori ska aldrig skrivas över")
+
+    def test_the_footer_gets_the_forvaltning_link_even_in_an_existing_menu(self):
+        """Radvis additivitet: nya länkar i listan når en redan seedad sidfot."""
+        from apps.website.models import Menu, MenuItem
+
+        menu = Menu.objects.get(location="footer", heading="Hemsida")
+        self.assertTrue(
+            menu.items.filter(page__slug="forvaltning").exists(),
+            "förvaltningslänken saknas i sidfoten",
+        )
+        before = MenuItem.objects.count()
+        call_command("seed_sokordssidor", verbosity=0)
+        self.assertEqual(MenuItem.objects.count(), before, "omkörning får inte dubblera rader")
+
+    def test_the_crawl_finds_no_orphan_pages(self):
+        """
+        Länkmotorns kvitto: varje sida i sitemapen ska ha minst en inlänk.
+
+        Det här är vakten som gör att en framtida sida (seedad eller
+        AI-skapad) som ingen länkar till blir ett byggfel i stället för en
+        osynlig sida i produktion.
+        """
+        from django.core.management import CommandError
+
+        try:
+            call_command("lankrapport", "--fail", verbosity=0)
+        except CommandError as exc:
+            self.fail(str(exc))
+
+
+class LinkEngineTests(TestCase):
+    """
+    Ringmotorn (apps/website/related.py): sidor i samma kategori länkar
+    automatiskt till varandra så att ingen blir föräldralös.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        from apps.website.models import BlockPage
+
+        for i in range(8):
+            BlockPage.objects.create(
+                slug=f"ring-{i}", title=f"Ring {i}", category="bransch", is_published=True
+            )
+        BlockPage.objects.create(
+            slug="ring-opublicerad", title="Utkast", category="bransch", is_published=False
+        )
+        BlockPage.objects.create(
+            slug="annan-kategori", title="Guide", category="guide", is_published=True
+        )
+        BlockPage.objects.create(slug="utan-kategori", title="Övrig", is_published=True)
+
+    def test_the_ring_links_to_the_following_siblings_with_wraparound(self):
+        from apps.website.models import BlockPage
+        from apps.website.related import ring_links
+
+        page = BlockPage.objects.get(slug="ring-6")
+        hrefs = [link["href"] for link in ring_links(page)]
+        self.assertEqual(
+            hrefs, ["/ring-7/", "/ring-0/", "/ring-1/", "/ring-2/", "/ring-3/", "/ring-4/"]
+        )
+
+    def test_the_ring_excludes_self_drafts_and_other_categories(self):
+        from apps.website.models import BlockPage
+        from apps.website.related import ring_links
+
+        for page in BlockPage.objects.filter(category="bransch", is_published=True):
+            hrefs = {link["href"] for link in ring_links(page)}
+            self.assertNotIn(f"/{page.slug}/", hrefs)
+            self.assertNotIn("/ring-opublicerad/", hrefs)
+            self.assertNotIn("/annan-kategori/", hrefs)
+
+    def test_every_page_in_the_ring_receives_the_same_number_of_inlinks(self):
+        """Ringens poäng: länkkraften sprids exakt jämnt."""
+        from collections import Counter
+
+        from apps.website.models import BlockPage
+        from apps.website.related import ring_links
+
+        inbound = Counter()
+        for page in BlockPage.objects.filter(category="bransch", is_published=True):
+            for link in ring_links(page):
+                inbound[link["href"]] += 1
+        self.assertEqual(set(inbound.values()), {6})
+
+    def test_a_page_without_category_stands_outside_the_engine(self):
+        from apps.website.models import BlockPage
+        from apps.website.related import ring_links
+
+        page = BlockPage.objects.get(slug="utan-kategori")
+        self.assertEqual(ring_links(page), [])
+
+    def test_the_ring_renders_at_the_bottom_of_the_page(self):
+        html = Client().get("/ring-0/").content.decode()
+        self.assertIn("Fler branscher vi bygger f", html)
+        self.assertIn('href="/ring-1/"', html)
+
+    def test_a_new_page_slides_into_the_ring_without_touching_the_others(self):
+        from apps.website.models import BlockPage
+        from apps.website.related import ring_links
+
+        BlockPage.objects.create(
+            slug="ring-05", title="Nykomling", category="bransch", is_published=True
+        )
+        page = BlockPage.objects.get(slug="ring-0")
+        hrefs = [link["href"] for link in ring_links(page)]
+        self.assertIn("/ring-05/", hrefs)
+
 
 class CaseBlockLinkTests(TestCase):
     """

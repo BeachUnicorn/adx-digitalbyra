@@ -21,7 +21,11 @@ app_name = "manage"
 urlpatterns = [
     # Hemsidekollen - i /manage/ under testfasen, blir publik senare.
     path("verktyg/hemsidekollen/", tools_views.hemsidekollen, name="hemsidekollen"),
-    path("verktyg/hemsidekollen/<int:pk>/", tools_views.hemsidekollen_report, name="hemsidekollen_report"),
+    path(
+        "verktyg/hemsidekollen/<int:pk>/",
+        tools_views.hemsidekollen_report,
+        name="hemsidekollen_report",
+    ),
     path("", views.dashboard, name="dashboard"),
     # Versionshistorik (apps/assistant)
     path(

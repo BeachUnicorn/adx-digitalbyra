@@ -40,6 +40,7 @@ def homepage(request):
     blocks = page.blocks.filter(is_visible=True)
     context["blocks"] = blocks
     context["lcp_image_url"] = _get_hero_image_url(blocks)
+    _add_ring(context, page)
     return render(request, "website/page.html", context)
 
 
@@ -55,7 +56,16 @@ def page_detail(request, slug):
     blocks = page.blocks.filter(is_visible=True)
     context["blocks"] = blocks
     context["lcp_image_url"] = _get_hero_image_url(blocks)
+    _add_ring(context, page)
     return render(request, "website/page.html", context)
+
+
+def _add_ring(context, page):
+    """Länkmotorns syskonlänkar, renderas sist på sidan (se related.py)."""
+    from apps.website.related import ring_heading, ring_links
+
+    context["auto_related"] = ring_links(page)
+    context["auto_related_heading"] = ring_heading(page)
 
 
 def _get_hero_image_url(blocks):

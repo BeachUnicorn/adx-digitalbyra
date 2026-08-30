@@ -83,6 +83,17 @@ class BlockPage(models.Model):
     # ADX-designen: EN hexfärg per sida driver hela gradienten och
     # textfärgen (se apps/website/theme.py). Tom = sajtens standardfärg.
     gradient_color = models.CharField(max_length=7, blank=True)
+    # Länkmotorns nyckel: sidor i samma kategori länkar automatiskt till
+    # varandra i en ring (apps/website/related.py), så ingen sida blir
+    # föräldralös. Tom = sidan står utanför motorn (t.ex. kontakt, om oss).
+    CATEGORY_CHOICES = [
+        ("bransch", "Bransch"),
+        ("guide", "Guide"),
+        ("case", "Case"),
+    ]
+    category = models.CharField(
+        max_length=20, blank=True, default="", choices=CATEGORY_CHOICES
+    )
     is_published = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=100)
     created_at = models.DateTimeField(auto_now_add=True)

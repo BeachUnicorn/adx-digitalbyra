@@ -41,6 +41,7 @@ FOOTER_LINKS = [
     ("Vad kostar en hemsida?", "vad-kostar-en-hemsida"),
     ("Billig hemsida", "billig-hemsida"),
     ("Hemsida för företag", "hemsida-foretag"),
+    ("Förvaltning och drift", "forvaltning"),
 ]
 
 #: Branschkolumnen. Sidfoten renderas på VARJE sida, så den här kolumnen är
@@ -99,6 +100,14 @@ class Command(BaseCommand):
                 page = BlockPage.objects.filter(slug=entry["slug"]).first()
                 if page is not None:
                     # Sidan finns: rör den inte. Kunden kan ha skrivit om den.
+                    # Undantaget är länkmotorns kategori - ren metadata som
+                    # inte syns i något innehåll, och utan den står sidan
+                    # utanför ringen (apps/website/related.py). Bara tomma
+                    # fylls i; en satt kategori är kundens.
+                    kategori = entry.get("kategori", "")
+                    if kategori and not page.category:
+                        page.category = kategori
+                        page.save(update_fields=["category", "updated_at"])
                     skipped_pages += 1
                     continue
 
@@ -108,6 +117,7 @@ class Command(BaseCommand):
                     meta_title=entry["meta_title"],
                     meta_description=entry["meta_description"],
                     gradient_color=entry["gradient"],
+                    category=entry.get("kategori", ""),
                     is_published=True,
                     order=50,
                 )
@@ -138,24 +148,37 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------
 
     def _footer_menu(self):
-        """Lägg till sidfotskolumnerna som saknas och laga ortslänken."""
+        """
+        Lägg till sidfotskolumner OCH enskilda rader som saknas.
+
+        Additivt på radnivå, inte bara kolumnnivå: när en ny länk läggs i
+        listorna här måste den nå en sidfot som redan seedats en gång.
+        Matchning sker på sidan (page-FK), så en rad kunden döpt om läggs
+        inte till igen, och befintliga rader rörs aldrig.
+        """
         added = False
         for heading, links in ((FOOTER_HEADING, FOOTER_LINKS), (INDUSTRY_HEADING, INDUSTRY_LINKS)):
-            if Menu.objects.filter(location="footer", heading=heading).exists():
-                continue
-            last = Menu.objects.filter(location="footer").order_by("-order").first()
-            menu = Menu.objects.create(
-                location="footer",
-                name=f"Sidfot: {heading}",
-                heading=heading,
-                order=(last.order + 1) if last else 0,
+            menu = Menu.objects.filter(location="footer", heading=heading).first()
+            if menu is None:
+                last = Menu.objects.filter(location="footer").order_by("-order").first()
+                menu = Menu.objects.create(
+                    location="footer",
+                    name=f"Sidfot: {heading}",
+                    heading=heading,
+                    order=(last.order + 1) if last else 0,
+                )
+            existing_page_ids = set(
+                menu.items.filter(page__isnull=False).values_list("page_id", flat=True)
             )
-            for order, (label, slug) in enumerate(links):
+            last_item = menu.items.order_by("-order").first()
+            next_order = (last_item.order + 1) if last_item else 0
+            for label, slug in links:
                 page = BlockPage.objects.filter(slug=slug).first()
-                if page is None:
+                if page is None or page.pk in existing_page_ids:
                     continue
-                MenuItem.objects.create(menu=menu, label=label, page=page, order=order)
-            added = True
+                MenuItem.objects.create(menu=menu, label=label, page=page, order=next_order)
+                next_order += 1
+                added = True
         self._fix_areas_link()
         return added
 
