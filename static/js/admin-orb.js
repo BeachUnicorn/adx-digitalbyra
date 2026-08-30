@@ -114,7 +114,6 @@
     '',
     '  col += key * glow * 0.40;',
     '  col += fill * smoke * 0.85;',
-    '  alpha = max(alpha, min(glow * 0.45 + smoke * 1.0, 1.0));',
     '',
     // Vinjettering mot cirkelns kant så knappen inte får en fyrkantig ruta.
     '  float edge = smoothstep(1.02, 0.72, length(uv));',
@@ -122,8 +121,19 @@
     // Reinhard: varden over 1 komprimeras i stallet for att klippas.
     // Utan detta blev orben en vit klump - rim, glod och rok summerar
     // langt over 1 och en ren gamma-kurva raddar inte det.
-    '  col *= 1.6;',                                                  // exponering fore
-    '  col = col / (1.0 + col);',
+    '  col *= 1.7;',                                                  // exponering fore
+    // Ton-mappa pa LJUSSTYRKAN och skala kanalerna lika mycket. Reinhard
+    // per kanal mattar rod forst och drar darfor kulor mot vitt - det var
+    // darfor orben blev blek nar den blev ljus.
+    '  float pk = max(col.r, max(col.g, col.b));',
+    '  col *= (pk / (1.0 + pk)) / max(pk, 0.0001);',
+
+    // Alfa ur LJUSSTYRKAN, inte ur hur mycket glod som samlats.
+    // Forut kunde alfa vara > 0 dar fargen var nastan svart, och
+    // premultiplicerat blir det en mork sloja over bakgrunden - en
+    // fyrkantig skugga bakom orben. En lysande sak ska aldrig
+    // morklagga nagot bakom sig: ar det svart ar det genomskinligt.
+    '  alpha = max(alpha, max(col.r, max(col.g, col.b)));',
     '  col = pow(max(col, 0.0), vec3(0.4545));',                     // linjart -> sRGB
     '  gl_FragColor = vec4(col * alpha, alpha);',                     // premultiplicerad
     '}'

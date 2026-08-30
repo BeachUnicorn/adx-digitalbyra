@@ -507,7 +507,8 @@
     display: none;
     /* Klicket hör till knappen. Utan detta äter canvasen upp det. */
     pointer-events: none;
-    filter: drop-shadow(0 0 10px rgba(255, 176, 60, 0.7)) drop-shadow(0 0 24px rgba(255, 128, 20, 0.35));
+    /* Ingen drop-shadow: shadern ritar sin egen glod, och ett filter
+       ovanpa den breder ut alfan till ett synligt sudd bakom orben. */
 }
 
 /* Shadern ritar samma yta, fast levande. Klassen sätts på DOCKEN och inte
