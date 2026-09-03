@@ -611,6 +611,9 @@ class SitemapTests(TestCase):
                 )
 
 
+TJANSTESIDOR_FILE = Path(django_settings.BASE_DIR) / "seed_data" / "adx_tjanstesidor.json"
+
+
 class KeywordPageSeedTests(TestCase):
     """
     Sökordssidornas seed är ADDITIV och bär med sig sina bilder.
@@ -623,6 +626,9 @@ class KeywordPageSeedTests(TestCase):
     def setUpTestData(cls):
         call_command("seed_site", verbosity=0)
         call_command("seed_sokordssidor", verbosity=0)
+        # Tjänstesidorna (undersidor till de sex tjänsterna) går genom
+        # samma seeder och samma vakter: crawl, metadata, inga föräldralösa.
+        call_command("seed_sokordssidor", "--file", str(TJANSTESIDOR_FILE), verbosity=0)
 
     def test_the_pages_are_created_and_respond(self):
         from apps.website.models import BlockPage
@@ -678,6 +684,7 @@ class KeywordPageSeedTests(TestCase):
         seed = json.loads(
             (Path(django_settings.BASE_DIR) / "seed_data" / "adx_sokordssidor.json").read_text()
         )
+        seed["sidor"] += json.loads(TJANSTESIDOR_FILE.read_text())["sidor"]
         titles, missing = [], []
         for entry in seed["sidor"]:
             html = Client().get(f"/{entry['slug']}/").content.decode()
@@ -1223,3 +1230,104 @@ class RobotsAndSchemaTests(TestCase):
         for path in ("/", "/webbutveckling/", "/kontakt/"):
             with self.subTest(path=path):
                 self.assertTrue(self._schemas(path))  # json.loads höjer vid fel
+
+
+class SeedFileStructureTests(TestCase):
+    """
+    Seedfilens egna strukturer: sidfotskolumner, föräldrablock och
+    pensionering av kolumner. Allt additivt utom pensioneringen, som bara
+    rör en kolumn som är exakt som seedad.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+
+    def _seed(self, payload):
+        import json
+        import tempfile
+
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as fh:
+            json.dump(payload, fh, ensure_ascii=False)
+            path = fh.name
+        call_command("seed_sokordssidor", "--file", path, verbosity=0)
+
+    def _page(self, slug, titel):
+        return {
+            "slug": slug,
+            "titel": titel,
+            "gradient": "#123456",
+            "kategori": "",
+            "meta_title": f"{titel} | ADX",
+            "meta_description": "x" * 120,
+            "sokord": [],
+            "faq": {"slug": f"faq-{slug}", "titel": titel, "fragor": []},
+            "block": [{"typ": "prose", "falt": {"title": titel, "body": "<p>Text.</p>"}}],
+        }
+
+    def test_parent_block_is_created_before_the_bar_and_only_grows(self):
+        from apps.website.models import Block, BlockPage
+
+        parent = BlockPage.objects.get(slug="domain")
+        bar_before = parent.blocks.get(block_type="bar").order
+        payload = {
+            "sidor": [self._page("barn-ett", "Barn ett"), self._page("barn-tva", "Barn två")],
+            "foraldrar": {"domain": {"rubrik": "Tjänster inom test", "barn": ["barn-ett"]}},
+        }
+        self._seed(payload)
+        block = Block.objects.get(
+            page=parent, block_type="related", data__title="Tjänster inom test"
+        )
+        self.assertLess(block.order, parent.blocks.get(block_type="bar").order)
+        self.assertEqual([link["label"] for link in block.data["links"]], ["Barn ett"])
+        self.assertEqual(parent.blocks.get(block_type="bar").order, bar_before + 1)
+
+        # Kunden döper om en länk; en ny körning lägger till, skriver aldrig över.
+        block.data["links"][0]["label"] = "Kundens etikett"
+        block.save(update_fields=["data"])
+        payload["foraldrar"]["domain"]["barn"] = ["barn-ett", "barn-tva"]
+        self._seed(payload)
+        block.refresh_from_db()
+        self.assertEqual(
+            [link["label"] for link in block.data["links"]], ["Kundens etikett", "Barn två"]
+        )
+
+    def test_file_footer_columns_are_row_additive(self):
+        from apps.website.models import Menu
+
+        payload = {
+            "sidor": [self._page("kol-sida", "Kolumnsida")],
+            "sidfot": [
+                {
+                    "rubrik": "Testkolumn",
+                    "lankar": [["Kolumnsida", "kol-sida"], ["Orter", "/webbyra/"]],
+                }
+            ],
+        }
+        self._seed(payload)
+        self._seed(payload)
+        menu = Menu.objects.get(location="footer", heading="Testkolumn")
+        self.assertEqual(menu.items.count(), 2)
+
+    def test_a_column_is_retired_only_when_untouched(self):
+        from apps.website.models import Menu, MenuItem
+
+        payload = {
+            "sidor": [],
+            "pensionera_kolumner": [
+                {
+                    "rubrik": "Tjänster",
+                    "sidor": ["webbutveckling", "automation", "content", "hosting"],
+                }
+            ],
+        }
+        menu = Menu.objects.get(location="footer", heading="Tjänster")
+        MenuItem.objects.create(menu=menu, label="Kundens egen", url="/kontakt/", order=99)
+        self._seed(payload)
+        self.assertTrue(
+            Menu.objects.filter(heading="Tjänster").exists(), "rörd kolumn ska stå kvar"
+        )
+
+        menu.items.filter(label="Kundens egen").delete()
+        self._seed(payload)
+        self.assertFalse(Menu.objects.filter(heading="Tjänster").exists())

@@ -77,11 +77,17 @@ class Command(BaseCommand):
             action="store_true",
             help="Visa vad som skulle skapas utan att spara.",
         )
+        parser.add_argument(
+            "--file",
+            default=str(SEED_FILE),
+            help="Seedfil i samma format (standard: adx_sokordssidor.json).",
+        )
 
     def handle(self, *args, **options):
-        if not SEED_FILE.exists():
-            raise CommandError(f"Hittar inte {SEED_FILE}.")
-        payload = json.loads(SEED_FILE.read_text(encoding="utf-8"))
+        seed_file = Path(options["file"])
+        if not seed_file.exists():
+            raise CommandError(f"Hittar inte {seed_file}.")
+        payload = json.loads(seed_file.read_text(encoding="utf-8"))
 
         created_pages = created_blocks = created_sections = created_items = 0
         skipped_pages = 0
@@ -125,6 +131,9 @@ class Command(BaseCommand):
                 created_blocks += self._blocks(page, entry["block"], section)
 
             created_menu = self._footer_menu()
+            created_menu = self._file_footer(payload.get("sidfot") or []) or created_menu
+            self._parent_blocks(payload.get("foraldrar") or {})
+            self._retire_columns(payload.get("pensionera_kolumner") or [])
             self._portfolio_image()
 
             if options["dry_run"]:
@@ -181,6 +190,110 @@ class Command(BaseCommand):
                 added = True
         self._fix_areas_link()
         return added
+
+    def _file_footer(self, columns):
+        """
+        Sidfotskolumner definierade i seedfilen: [{"rubrik", "lankar": [[etikett,
+        slug-eller-adress], ...]}]. Samma radvisa additivitet som kodens
+        kolumner - befintliga rader rörs aldrig, saknade läggs till.
+        """
+        added = False
+        for spec in columns:
+            heading = spec["rubrik"]
+            menu = Menu.objects.filter(location="footer", heading=heading).first()
+            if menu is None:
+                last = Menu.objects.filter(location="footer").order_by("-order").first()
+                menu = Menu.objects.create(
+                    location="footer",
+                    name=f"Sidfot: {heading}",
+                    heading=heading,
+                    order=(last.order + 1) if last else 0,
+                )
+            existing_pages = set(
+                menu.items.filter(page__isnull=False).values_list("page_id", flat=True)
+            )
+            existing_urls = set(menu.items.exclude(url="").values_list("url", flat=True))
+            last_item = menu.items.order_by("-order").first()
+            next_order = (last_item.order + 1) if last_item else 0
+            for label, target in spec["lankar"]:
+                if target.startswith("/"):
+                    if target in existing_urls:
+                        continue
+                    MenuItem.objects.create(menu=menu, label=label, url=target, order=next_order)
+                else:
+                    page = BlockPage.objects.filter(slug=target).first()
+                    if page is None or page.pk in existing_pages:
+                        continue
+                    MenuItem.objects.create(menu=menu, label=label, page=page, order=next_order)
+                next_order += 1
+                added = True
+        return added
+
+    def _parent_blocks(self, parents):
+        """
+        Undersidornas väg in: ett related-block på föräldrasidan som listar
+        barnen. {"domain": {"rubrik": "...", "barn": ["slug", ...]}}. Blocket
+        skapas före bar-blocket om det saknas; finns det läggs bara saknade
+        länkar till (matchat på sida), aldrig något borttaget.
+        """
+        for parent_slug, spec in parents.items():
+            parent = BlockPage.objects.filter(slug=parent_slug).first()
+            if parent is None:
+                continue
+            block = (
+                parent.blocks.filter(block_type="related", data__title=spec["rubrik"]).first()
+            )
+            if block is None:
+                bar = parent.blocks.filter(block_type="bar").order_by("-order").first()
+                if bar is not None:
+                    order = bar.order
+                    bar.order += 1
+                    bar.save(update_fields=["order", "updated_at"])
+                else:
+                    last = parent.blocks.order_by("-order").first()
+                    order = (last.order + 1) if last else 1
+                block = Block.objects.create(
+                    page=parent,
+                    block_type="related",
+                    data=clean_block_values(
+                        "related", {}, {"kicker": "Tjänster", "title": spec["rubrik"]}
+                    ),
+                    order=order,
+                    is_visible=True,
+                )
+            links = list(block.data.get("links") or [])
+            linked_ids = {
+                link["url"]["id"]
+                for link in links
+                if isinstance(link.get("url"), dict) and link["url"].get("kind") == "page"
+            }
+            changed = False
+            for slug in spec["barn"]:
+                child = BlockPage.objects.filter(slug=slug).first()
+                if child is None or child.pk in linked_ids:
+                    continue
+                links.append({"label": child.title, "url": {"kind": "page", "id": child.pk}})
+                changed = True
+            if changed:
+                block.data["links"] = links
+                block.save(update_fields=["data", "updated_at"])
+
+    def _retire_columns(self, specs):
+        """
+        Ta bort en sidfotskolumn BARA om den är exakt som seedad ({"rubrik",
+        "sidor": [slugs]}). Har kunden rört den (annan rad, annan ordning)
+        lämnas den orörd - additivitetsregeln gäller även här.
+        """
+        for spec in specs:
+            menu = Menu.objects.filter(location="footer", heading=spec["rubrik"]).first()
+            if menu is None:
+                continue
+            actual = [
+                item.page.slug if item.page_id else item.url
+                for item in menu.items.order_by("order", "id")
+            ]
+            if actual == spec["sidor"]:
+                menu.delete()
 
     def _fix_areas_link(self):
         """
