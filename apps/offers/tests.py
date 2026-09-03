@@ -502,3 +502,25 @@ class ReviewRegressionTests(StaffClientMixin, TestCase):
                 f"/offert/{quote.token}/fraga/", {"message": "Hallå?"}, follow=True
             )
         self.assertContains(response, "kunde inte skickas")
+
+
+class ProductSeedTests(TestCase):
+    """Katalogseeden är additiv och hittar aldrig på priser."""
+
+    def test_seed_creates_the_catalog_and_never_overwrites(self):
+        from django.core.management import call_command
+
+        Product.objects.create(name="Fotografering", default_price=7500)
+        call_command("seed_produkter", verbosity=0)
+        self.assertGreater(Product.objects.count(), 30)
+        self.assertEqual(Product.objects.get(name="Fotografering").default_price, 7500)
+        before = Product.objects.count()
+        call_command("seed_produkter", verbosity=0)
+        self.assertEqual(Product.objects.count(), before)
+
+    def test_only_established_prices_are_seeded(self):
+        from django.core.management import call_command
+
+        call_command("seed_produkter", verbosity=0)
+        priced = set(Product.objects.exclude(default_price=0).values_list("name", flat=True))
+        self.assertEqual(priced, {"Skräddarsydd hemsida", "Hemsida via Atlas Holly"})

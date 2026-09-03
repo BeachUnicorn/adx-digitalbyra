@@ -1,0 +1,262 @@
+{
+ "produkter": [
+  {
+   "namn": "Skräddarsydd hemsida",
+   "beskrivning": "Design, utveckling och lansering. Byggd för att synas på Google från dag ett.",
+   "riktpris": 50000,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Innehåll och copywriting",
+   "beskrivning": "Texter för alla sidor, skrivna för era kunder och för sökmotorerna.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Sökmotoroptimering vid lansering",
+   "beskrivning": "Sökordsanalys, teknisk optimering och inskick till Google och Bing.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Fotografering",
+   "beskrivning": "En halvdag på plats hos er. Egna bilder i stället för bildbank.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Logotyp och grafisk profil",
+   "beskrivning": "Logotyp, färger och typsnitt som håller i alla kanaler.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Bokningssystem",
+   "beskrivning": "Kunder bokar tid direkt på sajten, bekräftelse via mejl.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Webbutik",
+   "beskrivning": "Produkter, kassa och betalning. Ni sköter lagret, vi bygger flödet.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Fler språk",
+   "beskrivning": "Hela sajten på ytterligare ett språk, korrekt uppmärkt för Google.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Flytt av befintlig hemsida",
+   "beskrivning": "Vi flyttar innehåll, adresser och e-post utan att något tappas i sök.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Tillgänglighetsanpassning",
+   "beskrivning": "Sajten uppfyller tillgänglighetsdirektivet. Rapport före och efter.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Integration eller webbapplikation",
+   "beskrivning": "Koppling till ert affärssystem, kundportal eller internt verktyg.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Utbildning i att redigera sajten",
+   "beskrivning": "Två timmar där ni lär er redigera sajten själva.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Hastighetsoptimering",
+   "beskrivning": "Bilder, kod och server trimmas tills sajten laddar snabbt på mobil. Mätning före och efter.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Cookie- och GDPR-anpassning",
+   "beskrivning": "Samtyckesruta, integritetspolicy och genomgång av vilka tjänster som spårar besökare.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Google Business Profile",
+   "beskrivning": "Uppsättning och verifiering av företagsprofilen som syns i Google Maps och lokala sökningar.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Sökstatistik och analys",
+   "beskrivning": "Google Search Console och besöksstatistik uppsatt och kopplat, med genomgång av vad siffrorna betyder.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Landningssida",
+   "beskrivning": "En fokuserad sida för en kampanj eller en tjänst, byggd för att konvertera.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Förvaltning och drift",
+   "beskrivning": "Uppdateringar, säkerhet, daglig backup och en timme ändringar varje månad.",
+   "riktpris": 0,
+   "pristyp": "monthly"
+  },
+  {
+   "namn": "Drift utan förvaltning",
+   "beskrivning": "Hosting, säkerhetsuppdateringar och daglig backup. Ändringar debiteras separat.",
+   "riktpris": 0,
+   "pristyp": "monthly"
+  },
+  {
+   "namn": "Löpande sökmotoroptimering",
+   "beskrivning": "Månatlig uppföljning av position, innehåll och teknik. Rapport varje månad.",
+   "riktpris": 0,
+   "pristyp": "monthly"
+  },
+  {
+   "namn": "Innehållsproduktion",
+   "beskrivning": "En artikel i månaden som svarar på det era kunder googlar.",
+   "riktpris": 0,
+   "pristyp": "monthly"
+  },
+  {
+   "namn": "Hemsida via Atlas Holly",
+   "beskrivning": "Färdigt paket, klart på fem minuter. Drift, säkerhet och backup ingår.",
+   "riktpris": 495,
+   "pristyp": "monthly"
+  },
+  {
+   "namn": "Webbplatsövervakning",
+   "beskrivning": "Vi bevakar att sajten är uppe och svarar snabbt, dygnet runt. Larm till oss, åtgärd innan ni märker det.",
+   "riktpris": 0,
+   "pristyp": "monthly"
+  },
+  {
+   "namn": "Registrering av domännamn",
+   "beskrivning": "Vi registrerar domänen i ert namn. Ni äger den, vi sköter det praktiska.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Överlåtelse av domännamn",
+   "beskrivning": "Domänen flyttas till er från nuvarande ägare eller byrå, med korrekt ägaruppgifter och utan avbrott.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Flytt av domän till oss",
+   "beskrivning": "Domänen flyttas till vår förvaltning. Ni behåller ägandet, vi tar över administrationen.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Domänförvaltning",
+   "beskrivning": "Förnyelser, ägaruppgifter och inställningar sköts av oss. Ni får aldrig ett utgånget domännamn.",
+   "riktpris": 0,
+   "pristyp": "yearly"
+  },
+  {
+   "namn": "Domänbevakning",
+   "beskrivning": "Vi bevakar liknande och felstavade domännamn i ert namn och varnar när någon registrerar ett.",
+   "riktpris": 0,
+   "pristyp": "yearly"
+  },
+  {
+   "namn": "Bevakning av upptaget domännamn",
+   "beskrivning": "Vi bevakar ett domännamn ni vill ha och försöker fånga det om det blir ledigt.",
+   "riktpris": 0,
+   "pristyp": "yearly"
+  },
+  {
+   "namn": "Förvärv av domännamn",
+   "beskrivning": "Vi kontaktar ägaren, förhandlar och genomför köpet av ett upptaget domännamn åt er.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Genomgång av domänportfölj",
+   "beskrivning": "Alla era domäner listas med ägare, förfallodatum, DNS och risker. Ni får en åtgärdslista.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Centralisering av domännamn",
+   "beskrivning": "Domäner spridda över flera leverantörer samlas på ett ställe med ett konto och en faktura.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Domänstrategi",
+   "beskrivning": "Vilka domäner och toppdomäner ni bör äga för varumärke, marknader och skydd mot kapning.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "DNS-hantering",
+   "beskrivning": "Vi sköter alla DNS-poster: sajt, e-post, verifieringar och underdomäner. Ändringar samma dag.",
+   "riktpris": 0,
+   "pristyp": "yearly"
+  },
+  {
+   "namn": "DNSSEC-aktivering",
+   "beskrivning": "Signering av domänen så att svaren inte kan förfalskas. Aktivering och kontroll.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Omdirigering av domän",
+   "beskrivning": "Gamla domäner och adresser pekas rätt, med permanenta omdirigeringar som Google förstår.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "E-post för företag",
+   "beskrivning": "Uppsättning av Google Workspace eller Microsoft 365 på er domän, med användare och mobiler igång.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "E-postsäkerhet SPF, DKIM och DMARC",
+   "beskrivning": "Era mejl når inkorgen och ingen kan skicka i ert namn. Uppsättning, test och rapport.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "DMARC-övervakning",
+   "beskrivning": "Månatlig rapport över vem som skickar mejl i ert namn, med åtgärd när något avviker.",
+   "riktpris": 0,
+   "pristyp": "monthly"
+  },
+  {
+   "namn": "Flytt av e-post",
+   "beskrivning": "Befintliga brevlådor, kalendrar och kontakter flyttas till den nya lösningen utan förlorade mejl.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Tvåfaktorsinloggning",
+   "beskrivning": "Tvåfaktor på sajtens och domänens inloggningar, med reservkoder och genomgång för er personal.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Säkerhetsgenomgång",
+   "beskrivning": "Sajt, domän, DNS och e-post kontrolleras mot kända risker. Rapport med prioriterade åtgärder.",
+   "riktpris": 0,
+   "pristyp": "one_time"
+  },
+  {
+   "namn": "Årlig teknisk genomgång",
+   "beskrivning": "Sökbarhet, tillgänglighet, e-postsäkerhet och hastighet, med åtgärdslista.",
+   "riktpris": 0,
+   "pristyp": "yearly"
+  }
+ ]
+}

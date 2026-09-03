@@ -134,7 +134,7 @@ ta bort, skicka) är vanliga POST + redirect.
                 <select name="product_id" aria-label="Välj produkt">
                     <option value="">Välj produkt ur katalogen...</option>
                     {% for product in products %}
-                    <option value="{{ product.pk }}">{{ product.name }} ({{ product.default_price }} {{ product.get_default_period_display|lower }})</option>
+                    <option value="{{ product.pk }}">{{ product.name }} ({% if product.default_price %}{{ product.default_price }} {{ product.get_default_period_display|lower }}{% else %}pris per offert{% endif %})</option>
                     {% endfor %}
                 </select>
                 <button type="submit" class="m-btn m-btn--small">Lägg till</button>
