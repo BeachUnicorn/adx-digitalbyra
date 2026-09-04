@@ -60,8 +60,12 @@ fi
 LOCAL="$(git rev-parse HEAD)"
 
 # --- 4. Servern --------------------------------------------------------------
+# Förpull som djangouser så att deploy.sh som körs alltid är den senaste
+# versionen (skriptet uppdaterar ju sig självt i samma pull).
+log "Hämtar senaste koden på ${SSH_HOST}..."
+ssh "$SSH_HOST" "sudo -u djangouser git -C ${REMOTE_APP} pull --ff-only --quiet"
 log "Deployar på ${SSH_HOST}..."
-ssh -t "$SSH_HOST" "sudo ${REMOTE_APP}/server/deploy.sh ${SITE} ${SEED_FLAG}"
+ssh "$SSH_HOST" "sudo ${REMOTE_APP}/server/deploy.sh ${SITE} ${SEED_FLAG}"
 
 # --- 5. Extern verifiering ---------------------------------------------------
 log "Extern hälsokoll ${HEALTH_URL}..."
