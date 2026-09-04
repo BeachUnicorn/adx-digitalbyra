@@ -48,7 +48,7 @@ deploy_one() {
     run_as_app git pull --ff-only --quiet
     after="$(run_as_app git rev-parse HEAD)"
     if [ "$before" = "$after" ]; then
-        log "Ingen ny kod (${after:0:8}) - kör ändå migrate/static/reload."
+        log "Kod: ${after:0:8}"
     else
         log "Kod: ${before:0:8} -> ${after:0:8}"
         run_as_app git --no-pager log --oneline "${before}..${after}" | sed 's/^/    /'

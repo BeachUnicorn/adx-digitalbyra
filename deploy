@@ -66,8 +66,15 @@ LOCAL="$(git rev-parse HEAD)"
 # --- 4. Servern --------------------------------------------------------------
 # Förpull som djangouser så att deploy.sh som körs alltid är den senaste
 # versionen (skriptet uppdaterar ju sig självt i samma pull).
+BEFORE="$(ssh "$SSH_HOST" "sudo -u djangouser git -C ${REMOTE_APP} rev-parse HEAD")"
 log "Hämtar senaste koden på ${SSH_HOST}..."
 ssh "$SSH_HOST" "sudo -u djangouser git -C ${REMOTE_APP} pull --ff-only --quiet"
+if [ "$BEFORE" = "$LOCAL" ]; then
+    log "Servern stod redan på ${LOCAL:0:8} - kör migrate/static/reload ändå."
+else
+    log "Kod: ${BEFORE:0:8} -> ${LOCAL:0:8}"
+    git --no-pager log --oneline "${BEFORE}..${LOCAL}" | sed 's/^/    /'
+fi
 log "Deployar på ${SSH_HOST}..."
 ssh "$SSH_HOST" "sudo ${REMOTE_APP}/server/deploy.sh ${SITE} ${SEED_FLAG}"
 
