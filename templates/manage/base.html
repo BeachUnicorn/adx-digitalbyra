@@ -24,9 +24,7 @@
             {% if user.is_superuser %}{# Dold för kunden tills sidan är godkänd. #}
             <li><a href="{% url 'manage:stats' %}" class="m-nav__link {% if active == 'stats' %}is-active{% endif %}">Statistik</a></li>
             {% endif %}
-            {% if user.is_staff %}{# Testfas: verktyget är inte publikt än. #}
-            <li><a href="{% url 'manage:hemsidekollen' %}" class="m-nav__link {% if active == 'tools' %}is-active{% endif %}">Hemsidekollen</a></li>
-            {% endif %}
+
 
             <li class="m-nav__dropdown">
                 <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'pages' or active == 'services' or active == 'faq' or active == 'areas' %}is-active{% endif %}">Innehåll ▾</button>
@@ -57,6 +55,7 @@
             <li class="m-nav__dropdown">
                 <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'superuser' %}is-active{% endif %}">Superuser ▾</button>
                 <ul class="m-nav__dropdown-menu">
+                    <li><a href="{% url 'manage:hemsidekollen' %}" class="m-nav__link {% if active == 'tools' %}is-active{% endif %}">Hemsidekollen</a></li>
                     <li><a href="{% url 'manage:import_view' %}">Import</a></li>
                     <li><a href="/admin/" target="_blank" rel="noopener">Django Admin ↗</a></li>
                 </ul>
