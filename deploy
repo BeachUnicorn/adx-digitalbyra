@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+#
+# deploy - skjut upp adx.se från den här datorn, hela kedjan i ett kommando.
+#
+#   ./deploy              # tester -> push -> pull/migrate/static/reload på
+#                         #   servern -> extern hälsokoll -> länkrapport
+#   ./deploy --seed       # ...plus de additiva seedkommandona (sidor, produkter)
+#   ./deploy --no-test    # hoppa över den lokala testsviten (snabbt, riskabelt)
+#   ./deploy --quick      # hoppa över länkrapporten efteråt
+#
+# Vägrar med ocommittade ändringar: det som deployas är alltid det som ligger
+# på origin/main, aldrig något halvfärdigt på disk. Opushade commits pushas.
+
+set -euo pipefail
+cd "$(dirname "$0")"
+
+SSH_HOST="adx"
+REMOTE_APP="/home/djangouser/sites/adx/app"
+SITE="adx"
+HEALTH_URL="https://adx.se/healthz/"
+
+RUN_TESTS=1; RUN_REPORT=1; SEED_FLAG=""
+for arg in "$@"; do
+    case "$arg" in
+        --no-test) RUN_TESTS=0 ;;
+        --quick)   RUN_REPORT=0 ;;
+        --seed)    SEED_FLAG="--seed" ;;
+        -h|--help) sed -n '2,13p' "$0"; exit 0 ;;
+        *) echo "okänd flagga: $arg" >&2; exit 2 ;;
+    esac
+done
+
+log()  { printf '\033[1;32m[%s]\033[0m %s\n' "$(date +%H:%M:%S)" "$*"; }
+die()  { printf '\033[1;31m[fel]\033[0m %s\n' "$*" >&2; exit 1; }
+
+# --- 1. Lokalt läge ----------------------------------------------------------
+[ -z "$(git status --porcelain)" ] || die "ocommittade ändringar - committa (eller stasha) först:
+$(git status --short)"
+git fetch --quiet origin main
+BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+[ "$BRANCH" = "main" ] || die "du står på '${BRANCH}' - deploy sker bara från main"
+
+# --- 2. Tester ---------------------------------------------------------------
+if [ "$RUN_TESTS" -eq 1 ]; then
+    log "Kör testsviten lokalt (ca en minut)..."
+    TEST_LOG="$(mktemp)"
+    if ! uv run python manage.py test >"$TEST_LOG" 2>&1 || ! grep -qE "^OK" "$TEST_LOG"; then
+        tail -40 "$TEST_LOG" >&2
+        die "testerna är inte gröna - inget deployas"
+    fi
+    grep -E "^Ran " "$TEST_LOG"
+    uv run ruff check . --quiet || die "ruff klagar - inget deployas"
+fi
+
+# --- 3. Push -----------------------------------------------------------------
+if [ -n "$(git log origin/main..HEAD --oneline)" ]; then
+    log "Pushar $(git rev-list --count origin/main..HEAD) commit(s)..."
+    git push --quiet origin main
+fi
+LOCAL="$(git rev-parse HEAD)"
+
+# --- 4. Servern --------------------------------------------------------------
+log "Deployar på ${SSH_HOST}..."
+ssh -t "$SSH_HOST" "sudo ${REMOTE_APP}/server/deploy.sh ${SITE} ${SEED_FLAG}"
+
+# --- 5. Extern verifiering ---------------------------------------------------
+log "Extern hälsokoll ${HEALTH_URL}..."
+curl -fsS --max-time 15 "$HEALTH_URL" >/dev/null || die "healthz svarar inte utifrån"
+REMOTE="$(ssh "$SSH_HOST" "sudo -u djangouser git -C ${REMOTE_APP} rev-parse HEAD")"
+[ "$REMOTE" = "$LOCAL" ] || die "servern står på ${REMOTE:0:8}, lokalt ${LOCAL:0:8}"
+
+if [ "$RUN_REPORT" -eq 1 ]; then
+    log "Länkrapport (föräldralösa sidor är fel)..."
+    ssh "$SSH_HOST" "sudo -u djangouser -H bash -lc 'cd ${REMOTE_APP} && .venv/bin/python manage.py lankrapport --fail'" \
+        | tail -3
+fi
+
+log "adx.se kör ${LOCAL:0:8} ✔"

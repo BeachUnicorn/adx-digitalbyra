@@ -92,9 +92,27 @@ load_site() {
     export DJANGO_SETTINGS_MODULE
 }
 
+# Run a command AS the site's system user, from the app dir.
+#
+# Deploy körs som root (ubuntu + sudo) eftersom systemctl kräver det, men
+# git, uv och manage.py får ALDRIG köras som root: då blir filer i checkouten
+# och .venv root-ägda och nästa körning som djangouser faller. Är vi redan
+# rätt användare körs kommandot direkt. Login-skal (-l) så att ~/.local/bin
+# (uv) ligger på PATH. Django läser själv projektets .env, så ingen miljö
+# behöver skickas med.
+run_as_app() {
+    if [ "$(id -un)" = "$SYSTEM_USER" ]; then
+        ( cd "$APP_DIR" && "$@" )
+    else
+        local cmd
+        cmd="$(printf '%q ' "$@")"
+        sudo -u "$SYSTEM_USER" -H bash -lc "cd $(printf '%q' "$APP_DIR") && ${cmd}"
+    fi
+}
+
 # Run a manage.py command inside the site's venv, from the app dir.
 manage() {
-    ( cd "$APP_DIR" && "${VENV_DIR}/bin/python" manage.py "$@" )
+    run_as_app "${VENV_DIR}/bin/python" manage.py "$@"
 }
 
 # ---- config rendering (systemd + nginx) -------------------------------------
