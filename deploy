@@ -51,6 +51,10 @@ if [ "$RUN_TESTS" -eq 1 ]; then
     grep -E "^Ran " "$TEST_LOG"
     uv run ruff check . --quiet || die "ruff klagar - inget deployas"
 fi
+# Modelländring utan migration är ett byggfel: den skulle deployas tyst och
+# aldrig hamna i databasen.
+uv run python manage.py makemigrations --check --dry-run >/dev/null 2>&1 \
+    || die "modelländringar saknar migration - kör: uv run python manage.py makemigrations"
 
 # --- 3. Push -----------------------------------------------------------------
 if [ -n "$(git log origin/main..HEAD --oneline)" ]; then
@@ -76,7 +80,7 @@ REMOTE="$(ssh "$SSH_HOST" "sudo -u djangouser git -C ${REMOTE_APP} rev-parse HEA
 if [ "$RUN_REPORT" -eq 1 ]; then
     log "Länkrapport (föräldralösa sidor är fel)..."
     ssh "$SSH_HOST" "sudo -u djangouser -H bash -lc 'cd ${REMOTE_APP} && .venv/bin/python manage.py lankrapport --fail'" \
-        | tail -3
+        | grep -E "sidor i sitemapen|föräldralösa|svarade" || die "länkrapporten hittade problem"
 fi
 
 log "adx.se kör ${LOCAL:0:8} ✔"
