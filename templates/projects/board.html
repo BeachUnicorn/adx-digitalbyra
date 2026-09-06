@@ -1,0 +1,46 @@
+{% extends "projects/base_board.html" %}
+{% load board_tags %}
+{% block content %}
+<section class="hero">
+  <div class="tavla-head">
+    <div>
+      <div class="kicker">[ Ärenden ]</div>
+      <h2>{{ title }}</h2>
+      {% if project and project.customer %}<p class="lead" style="margin-top:8px">{{ project.customer.name }}</p>{% endif %}
+    </div>
+    <form method="post" action="{% url 'manage:issue_create' %}" class="new-issue">
+      {% csrf_token %}
+      <input type="hidden" name="project" value="{{ project.key|default:'' }}">
+      <input type="text" name="title" placeholder="Nytt ärende" aria-label="Nytt ärende" required>
+      <button type="submit" class="btn">Skapa</button>
+    </form>
+  </div>
+  <div class="related filters">
+    <a href="{% url 'manage:board' %}"{% if not project %} class="active"{% endif %}>Alla</a>
+    {% for p in projects %}<a href="?projekt={{ p.key }}"{% if project and project.pk == p.pk %} class="active"{% endif %}>{{ p.key }} &middot; {{ p.name }}</a>{% endfor %}
+    {% if project %}<a href="{% url 'manage:project_detail' project.key %}" class="ghosty">Inställningar</a>{% endif %}
+  </div>
+  <div id="board" aria-label="Kanban"
+       data-move-url="{% url 'manage:issue_move' 0 %}"
+       data-reorder-url="{% url 'manage:issues_reorder' %}"
+       data-add-url="{% url 'manage:issue_quick_add' %}"
+       data-project="{{ project.key|default:'' }}">
+    {% for col in columns %}
+    <section class="col panel{% if col.wip and col.issues|length > col.wip %} is-over{% endif %}" data-col="{{ col.key }}">
+      <header class="col-head">
+        <h3 class="col-title">{{ col.title }}</h3>
+        <span class="col-count" data-count>{{ col.issues|length }}{% if col.wip %}/{{ col.wip }}{% endif %}</span>
+        <span class="col-time">tid <span data-coltime>{{ col.time }}</span></span>
+      </header>
+      <div class="col-body">
+        {% for issue in col.issues %}{% include "projects/_card.html" %}{% endfor %}
+      </div>
+      <form class="col-add" data-col="{{ col.key }}">
+        <input type="text" name="title" placeholder="Nytt ärende" autocomplete="off" aria-label="Nytt ärende i {{ col.title }}">
+        <button type="submit">Lägg till</button>
+      </form>
+    </section>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

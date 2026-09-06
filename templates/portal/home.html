@@ -1,0 +1,19 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<section class="hero">
+  <div class="tavla-head">
+    <div><div class="kicker">[ {{ customer.name }} ]</div><h2>Mina ärenden</h2></div>
+    <a class="btn" href="{% url 'portal:issue_create' %}">Nytt ärende</a>
+  </div>
+  <div id="board" class="portal-board" aria-label="Ärenden">
+    {% for col in columns %}
+    <section class="col panel" data-col="{{ col.key }}">
+      <header class="col-head"><h3 class="col-title">{{ col.title }}</h3><span class="col-count">{{ col.issues|length }}</span></header>
+      <div class="col-body">
+        {% for issue in col.issues %}{% include "portal/_card.html" %}{% empty %}<p class="soft empty">Inget här just nu.</p>{% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends "portal/base.html" %}
+{% load board_tags %}
+{% block content %}
+<section class="hero narrow">
+  <div class="kicker">[ Kundportal ]</div>
+  <h2>Logga in</h2>
+  <p class="lead" style="margin-top:12px">Här skapar ni ärenden, bifogar skärmdumpar och dokument, och följer vad som pågår.</p>
+  <form method="post" class="adx-form compact panel" style="margin-top:28px">{% csrf_token %}
+    {% if form.non_field_errors %}<div class="errors">Fel e-post eller lösenord.</div>{% endif %}
+    <div class="field full"><label for="id_username">E-post</label><input type="email" name="username" id="id_username" autocomplete="username" required autofocus></div>
+    <div class="field full"><label for="id_password">Lösenord</label><input type="password" name="password" id="id_password" autocomplete="current-password" required></div>
+    <input type="hidden" name="next" value="{{ next }}">
+    <div class="form-actions"><button type="submit" class="btn">Logga in</button><a href="{% url 'portal:password_reset' %}" class="form-note">Glömt lösenordet?</a></div>
+  </form>
+</section>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "portal/base.html" %}
+{% load board_tags %}
+{% block content %}
+<section class="hero narrow">
+  <div class="kicker">[ Nytt ärende ]</div>
+  <h2>Vad vill ni ha gjort?</h2>
+  <form method="post" enctype="multipart/form-data" class="adx-form compact panel" style="margin-top:28px">{% csrf_token %}
+    {% field_row form.title True %}
+    {% field_row form.description True %}
+    {% field_row form.files True %}
+    <div class="form-actions"><button type="submit" class="btn">Skicka ärendet</button><span class="form-note">Vi svarar inom en arbetsdag.</span></div>
+  </form>
+</section>
+{% endblock %}

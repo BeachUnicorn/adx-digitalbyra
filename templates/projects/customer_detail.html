@@ -1,0 +1,43 @@
+{% extends "projects/base_board.html" %}
+{% load board_tags %}
+{% block content %}
+<section class="hero">
+  <div class="tavla-head"><div><div class="kicker">[ Kund ]</div><h2 style="text-transform:none">{{ customer.name }}</h2><p class="lead" style="margin-top:8px">{{ time }} loggad tid{% if customer.email %} &middot; {{ customer.email }}{% endif %}</p></div></div>
+  <div class="detail-grid">
+    <div class="detail-main">
+      <div class="panel sub">
+        <div class="kicker">[ Portalkontakter ]</div>
+        <p class="soft">Kontakter loggar in på /kund/ och ser bara den här kundens ärenden som är markerade "Synlig för kund".</p>
+        {% for u in contacts %}
+        <form method="post" action="{% url 'manage:customer_remove_contact' customer.pk u.pk %}" class="col-row">{% csrf_token %}
+          <span style="flex:1">{{ u.get_full_name|default:u.email }} <small class="soft">{{ u.email }}{% if not u.has_usable_password %} &middot; har inte satt lösenord än{% endif %}</small></span>
+          <button type="submit" class="pill danger" onclick="return confirm('Ta bort kontakten från kunden?')">Ta bort</button>
+        </form>
+        {% empty %}<p class="soft">Inga kontakter än.</p>{% endfor %}
+        <form method="post" action="{% url 'manage:customer_invite' customer.pk %}" class="col-row">{% csrf_token %}
+          <input type="email" name="email" placeholder="e-post" required aria-label="E-post">
+          <input type="text" name="first_name" placeholder="Förnamn" aria-label="Förnamn" style="width:140px">
+          <input type="text" name="last_name" placeholder="Efternamn" aria-label="Efternamn" style="width:140px">
+          <button type="submit" class="pill">Bjud in</button>
+        </form>
+      </div>
+      <div class="panel sub">
+        <div class="kicker">[ Projekt ]</div>
+        {% for p in projects %}<p><a href="{% url 'manage:project_detail' p.key %}"><b>{{ p.key }}</b> {{ p.name }}</a> <small class="soft">{{ p.get_status_display }}</small></p>{% empty %}<p class="soft">Inga projekt. Kundens portalärenden får ett "Support"-projekt automatiskt.</p>{% endfor %}
+      </div>
+      <div class="panel sub">
+        <div class="kicker">[ Ärenden ]</div>
+        <table class="tbl"><thead><tr><th>Nyckel</th><th>Rubrik</th><th>Status</th><th>Kund ser</th><th>Tid</th></tr></thead><tbody>
+        {% for i in issues %}<tr><td><a href="{% url 'manage:issue_detail' i.pk %}"><b>{{ i.key }}</b></a></td><td>{{ i.title }}</td><td>{{ i.column.title|default:"-" }}</td><td>{% if i.visible_to_customer %}ja{% else %}nej{% endif %}</td><td>{{ i.seconds|hms }}</td></tr>{% empty %}<tr><td colspan="5" class="soft">Inga ärenden.</td></tr>{% endfor %}
+        </tbody></table>
+      </div>
+    </div>
+    <aside class="detail-side">
+      <form method="post" class="adx-form compact panel">{% csrf_token %}
+        {% field_row form.name True %}{% field_row form.org_number %}{% field_row form.email %}{% field_row form.phone %}{% field_row form.website %}{% field_row form.notes True %}{% field_row form.is_active True %}
+        <div class="form-actions"><button type="submit" class="btn">Spara</button></div>
+      </form>
+    </aside>
+  </div>
+</section>
+{% endblock %}

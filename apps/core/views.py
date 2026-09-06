@@ -54,6 +54,7 @@ def robots_txt(request):
         "Disallow: /forfragan/",
         "Disallow: /nyhetsbrev/",
         "Disallow: /offert/",
+        "Disallow: /kund/",
         "",
         f"Sitemap: {base}/sitemap.xml",
         "",

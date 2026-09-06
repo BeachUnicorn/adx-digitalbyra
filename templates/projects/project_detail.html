@@ -1,0 +1,47 @@
+{% extends "projects/base_board.html" %}
+{% load board_tags %}
+{% block content %}
+<section class="hero">
+  <div class="tavla-head">
+    <div><div class="kicker">[ {{ project.key }} ]</div><h2>{{ project.name }}</h2><p class="lead" style="margin-top:8px">{{ project.customer|default:"Internt" }} &middot; {{ project.get_status_display }} &middot; {{ time }}</p></div>
+    <a class="btn" href="{% url 'manage:board' %}?projekt={{ project.key }}">Öppna tavlan</a>
+  </div>
+  <div class="detail-grid">
+    <div class="detail-main">
+      <div class="panel sub">
+        <div class="kicker">[ Kolumner ]</div>
+        <p class="soft">Ordningen är tavlans ordning. "Avslutar" stänger ärenden som flyttas dit.</p>
+        {% for c in columns %}
+        <form method="post" action="{% url 'manage:column_update' c.pk %}" class="col-row">{% csrf_token %}
+          <input type="text" name="title" value="{{ c.title }}" aria-label="Rubrik">
+          <input type="number" name="wip_limit" value="{{ c.wip_limit|default_if_none:'' }}" placeholder="max" aria-label="Max samtidiga" style="width:80px">
+          <label class="check"><input type="checkbox" name="is_done"{% if c.is_done %} checked{% endif %}> avslutar</label>
+          <button type="submit" name="action" value="save" class="pill">Spara</button>
+          <button type="submit" name="action" value="up" class="pill" title="Upp">&uarr;</button>
+          <button type="submit" name="action" value="down" class="pill" title="Ned">&darr;</button>
+          <button type="submit" name="action" value="delete" class="pill danger" onclick="return confirm('Ta bort kolumnen?')">&times;</button>
+        </form>
+        {% endfor %}
+        <form method="post" action="{% url 'manage:column_add' project.key %}" class="col-row">{% csrf_token %}
+          <input type="text" name="title" placeholder="Ny kolumn" required aria-label="Ny kolumn">
+          <input type="number" name="wip_limit" placeholder="max" aria-label="Max samtidiga" style="width:80px">
+          <label class="check"><input type="checkbox" name="is_done"> avslutar</label>
+          <button type="submit" class="pill">Lägg till</button>
+        </form>
+      </div>
+      <div class="panel sub">
+        <div class="kicker">[ Ärenden ]</div>
+        <table class="tbl"><thead><tr><th>Nyckel</th><th>Rubrik</th><th>Kolumn</th><th>Tid</th></tr></thead><tbody>
+        {% for i in issues %}<tr><td><a href="{% url 'manage:issue_detail' i.pk %}"><b>{{ i.key }}</b></a></td><td>{{ i.title }}</td><td>{{ i.column.title|default:"-" }}</td><td>{{ i.seconds|hms }}</td></tr>{% empty %}<tr><td colspan="4" class="soft">Inga ärenden.</td></tr>{% endfor %}
+        </tbody></table>
+      </div>
+    </div>
+    <aside class="detail-side">
+      <form method="post" class="adx-form compact panel">{% csrf_token %}
+        {% field_row form.name True %}{% field_row form.key %}{% field_row form.customer %}{% field_row form.status %}{% field_row form.hourly_rate %}{% field_row form.budget_hours %}{% field_row form.starts_on %}{% field_row form.due_on %}{% field_row form.description True %}
+        <div class="form-actions"><button type="submit" class="btn">Spara</button></div>
+      </form>
+    </aside>
+  </div>
+</section>
+{% endblock %}

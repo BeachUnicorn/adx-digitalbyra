@@ -1,0 +1,22 @@
+{% extends "projects/base_board.html" %}
+{% load board_tags %}
+{% block content %}
+<section class="hero">
+  <div class="tavla-head"><div><div class="kicker">[ Projekt ]</div><h2>Projekt</h2></div></div>
+  <div class="detail-grid">
+    <div class="detail-main">
+      <table class="tbl panel"><thead><tr><th>Nyckel</th><th>Projekt</th><th>Kund</th><th>Status</th><th>Öppna</th><th>Tid</th></tr></thead><tbody>
+      {% for r in rows %}<tr><td><a href="{% url 'manage:project_detail' r.project.key %}"><b>{{ r.project.key }}</b></a></td><td><a href="{% url 'manage:board' %}?projekt={{ r.project.key }}">{{ r.project.name }}</a></td><td>{{ r.project.customer|default:"Internt" }}</td><td>{{ r.project.get_status_display }}</td><td>{{ r.open }}</td><td>{{ r.time }}</td></tr>
+      {% empty %}<tr><td colspan="6" class="soft">Inga projekt än.</td></tr>{% endfor %}
+      </tbody></table>
+    </div>
+    <aside class="detail-side">
+      <form method="post" class="adx-form compact panel">{% csrf_token %}
+        <div class="kicker" style="grid-column:1/-1">[ Nytt projekt ]</div>
+        {% field_row form.name True %}{% field_row form.key %}{% field_row form.customer %}{% field_row form.status %}{% field_row form.hourly_rate %}{% field_row form.budget_hours %}{% field_row form.starts_on %}{% field_row form.due_on %}{% field_row form.description True %}
+        <div class="form-actions"><button type="submit" class="btn">Skapa</button></div>
+      </form>
+    </aside>
+  </div>
+</section>
+{% endblock %}

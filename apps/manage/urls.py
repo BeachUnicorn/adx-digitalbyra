@@ -3,6 +3,7 @@ from django.urls import path
 from apps.assistant import history_views, oauth_views
 from apps.assistant import views as assistant_views
 from apps.offers import manage_views as offer_views
+from apps.projects import manage_views as project_views
 from apps.tools import views as tools_views
 
 from . import (
@@ -28,6 +29,32 @@ urlpatterns = [
         name="hemsidekollen_report",
     ),
     path("", views.dashboard, name="dashboard"),
+    # Ärendesystemet (apps/projects) - sajtens design, se projects/base_board.html
+    path("tavla/", project_views.board, name="board"),
+    path("tavla/ordna/", project_views.issues_reorder, name="issues_reorder"),
+    path("tavla/timer/stopp/", project_views.timer_stop, name="timer_stop"),
+    path("arenden/ny/", project_views.issue_create, name="issue_create"),
+    path("arenden/snabb/", project_views.issue_quick_add, name="issue_quick_add"),
+    path("arenden/<int:pk>/", project_views.issue_detail, name="issue_detail"),
+    path("arenden/<int:pk>/flytta/", project_views.issue_move, name="issue_move"),
+    path("arenden/<int:pk>/timer/", project_views.issue_timer, name="issue_timer"),
+    path("arenden/<int:pk>/kommentar/", project_views.issue_comment, name="issue_comment"),
+    path("arenden/<int:pk>/bilaga/", project_views.issue_attach, name="issue_attach"),
+    path("arenden/<int:pk>/ta-bort/", project_views.issue_delete, name="issue_delete"),
+    path("bilagor/<int:pk>/", project_views.attachment_download, name="attachment"),
+    path("projekt/", project_views.project_list, name="project_list"),
+    path("projekt/<str:key>/", project_views.project_detail, name="project_detail"),
+    path("projekt/<str:key>/kolumn/", project_views.column_add, name="column_add"),
+    path("kolumner/<int:pk>/", project_views.column_update, name="column_update"),
+    path("kunder/", project_views.customer_list, name="customer_list"),
+    path("kunder/<int:pk>/", project_views.customer_detail, name="customer_detail"),
+    path("kunder/<int:pk>/bjud-in/", project_views.customer_invite, name="customer_invite"),
+    path(
+        "kunder/<int:pk>/kontakt/<int:user_id>/ta-bort/",
+        project_views.customer_remove_contact,
+        name="customer_remove_contact",
+    ),
+    path("tid/", project_views.time_report, name="time_report"),
     # Offertbyggaren (apps/offers)
     path("offerter/", offer_views.offer_list, name="offer_list"),
     path("offerter/ny/", offer_views.offer_create, name="offer_create"),

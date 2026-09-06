@@ -42,6 +42,7 @@ _SKIP_PREFIXES = (
     # sessionens/besökarens landing_page - ett analyslager har en helt
     # annan åtkomst- och backupprofil än en hemlig kapabilitetslänk.
     "/offert/",
+    "/kund/",
 )
 
 _TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)

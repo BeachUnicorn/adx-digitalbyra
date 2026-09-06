@@ -33,11 +33,73 @@ via en räknare på projektet som låses vid tilldelning. Ärenden utan
 projekt visas som #<id>.
 """
 
+import re
+import secrets
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.files.storage import FileSystemStorage
 from django.db import models, transaction
 from django.db.models import F, Q, Sum
 from django.utils import timezone
+from django.utils.text import slugify
+
+
+def private_storage():
+    """
+    Lagring för bilagor UTANFÖR MEDIA_ROOT.
+
+    /media/ serveras rakt av nginx till hela internet; en kunds skärmdump
+    får aldrig ligga där. Bilagor sparas i PRIVATE_MEDIA_ROOT utan
+    webbadress och lämnas ut av en vy som först kontrollerar att den som
+    frågar får se ärendet. Anropbar (inte instans) så att sökvägen aldrig
+    hamnar i en migration.
+    """
+    return FileSystemStorage(location=str(settings.PRIVATE_MEDIA_ROOT), base_url=None)
+
+
+ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024
+ATTACHMENT_EXTENSIONS = {
+    "png",
+    "jpg",
+    "jpeg",
+    "gif",
+    "webp",
+    "heic",
+    "svg",
+    "pdf",
+    "txt",
+    "md",
+    "csv",
+    "doc",
+    "docx",
+    "xls",
+    "xlsx",
+    "ppt",
+    "pptx",
+    "odt",
+    "ods",
+    "zip",
+    "mp4",
+    "mov",
+}
+
+
+def validate_attachment(uploaded):
+    ext = (uploaded.name.rsplit(".", 1)[-1] if "." in uploaded.name else "").lower()
+    if ext not in ATTACHMENT_EXTENSIONS:
+        raise ValidationError(f"Filtypen .{ext or '?'} tillåts inte.")
+    if uploaded.size > ATTACHMENT_MAX_BYTES:
+        raise ValidationError("Filen är större än 15 MB.")
+
+
+def attachment_path(instance, filename):
+    # Slumpad katalog per fil: även den som känner till lagringen kan inte
+    # räkna upp andra kunders filer.
+    safe = slugify(filename.rsplit(".", 1)[0])[:60] or "fil"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
+    return f"arenden/{secrets.token_urlsafe(12)}/{safe}.{ext}"
+
 
 DEFAULT_COLUMNS = [
     ("Att göra", False),
@@ -54,6 +116,11 @@ class Customer(models.Model):
     website = models.URLField("Webbplats", blank=True)
     notes = models.TextField("Anteckningar", blank=True)
     is_active = models.BooleanField("Aktiv", default=True)
+    # Kundens inloggningar i portalen. Vanliga användare utan is_staff;
+    # PortalGateMiddleware håller dem borta från /manage/.
+    users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL, blank=True, related_name="customers", verbose_name="Kontakter"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -64,6 +131,21 @@ class Customer(models.Model):
 
     def __str__(self):
         return self.name
+
+    def support_project(self):
+        """
+        Projektet kundens egna ärenden hamnar i. Skapas vid första behovet.
+
+        Varje ärende ska ha kolumner (annars kan det inte flyttas på en
+        tavla), så portalens ärenden får alltid ett projekt - kundens
+        "Support"-projekt - i stället för att ligga lösa.
+        """
+        project = self.projects.filter(name="Support").first()
+        if project is None:
+            project = Project.objects.create(
+                customer=self, name="Support", key=Project.make_key(self.name)
+            )
+        return project
 
     def total_seconds(self):
         """All loggad tid hos kunden: projektens ärenden + fristående ärenden."""
@@ -128,6 +210,17 @@ class Project(models.Model):
         if creating and not self.columns.exists():
             for position, (title, is_done) in enumerate(DEFAULT_COLUMNS):
                 Column.objects.create(project=self, title=title, position=position, is_done=is_done)
+
+    @classmethod
+    def make_key(cls, name):
+        """Ledig nyckel ur ett namn: 'Nordan Bygg AB' -> NORD, NORD2, NORD3..."""
+        letters = re.sub(r"[^A-Z]", "", slugify(name).upper().replace("-", "")) or "PROJ"
+        base = letters[:4]
+        key, n = base, 1
+        while cls.objects.filter(key=key).exists():
+            n += 1
+            key = f"{base}{n}"
+        return key
 
     def total_seconds(self):
         return TimeEntry.objects.filter(issue__project=self).total_seconds()
@@ -256,6 +349,11 @@ class Issue(models.Model):
     estimate_minutes = models.PositiveIntegerField("Uppskattning (minuter)", null=True, blank=True)
     due_on = models.DateField("Förfaller", null=True, blank=True)
     is_billable = models.BooleanField("Fakturerbart", default=True)
+    # Kunden ser BARA ärenden med den här bocken. Standard av: ett internt
+    # ärende ska aldrig läcka till portalen av misstag. Ärenden kunden själv
+    # skapar sätts till synliga.
+    visible_to_customer = models.BooleanField("Synlig för kund", default=False)
+    created_in_portal = models.BooleanField(default=False, editable=False)
     # Ordning inom kolumnen. Skrivs om för hela kolumnen vid omordning -
     # samma enkla, robusta grepp som offertraderna.
     position = models.PositiveIntegerField(default=0)
@@ -325,6 +423,19 @@ class Issue(models.Model):
     @property
     def is_closed(self):
         return self.closed_at is not None
+
+    @property
+    def stage(self):
+        """
+        Grov status oberoende av projektets kolumnnamn: new / active / done.
+        Portalen visar kundens ärenden från flera projekt på EN tavla, och
+        då är det här den gemensamma nämnaren.
+        """
+        if self.closed_at:
+            return "done"
+        if self.column_id and self.column.position > 0:
+            return "active"
+        return "new"
 
     # ---- validering ----------------------------------------------------------
     def clean(self):
@@ -449,6 +560,8 @@ class Comment(models.Model):
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
     body = models.TextField("Kommentar")
+    # Intern anteckning: syns aldrig i portalen. Kundens egna är alltid externa.
+    is_internal = models.BooleanField("Intern anteckning", default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -458,3 +571,35 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.issue.key}: {self.body[:40]}"
+
+
+class Attachment(models.Model):
+    """Bilaga på ett ärende: skärmdump, dokument. Privat lagring, gated utlämning."""
+
+    issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name="attachments")
+    file = models.FileField(upload_to=attachment_path, storage=private_storage)
+    original_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=120, blank=True)
+    size = models.PositiveIntegerField(default=0)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        verbose_name = "Bilaga"
+        verbose_name_plural = "Bilagor"
+
+    def __str__(self):
+        return self.original_name
+
+    @property
+    def is_image(self):
+        return self.content_type.startswith("image/")
+
+    @property
+    def size_display(self):
+        if self.size >= 1024 * 1024:
+            return f"{self.size / (1024 * 1024):.1f} MB"
+        return f"{max(1, self.size // 1024)} kB"

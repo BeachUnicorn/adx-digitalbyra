@@ -1,0 +1,41 @@
+{% load static theme_tags %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ title|default:"Kundportal" }} - ADX</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}?v={{ site_css_version }}">
+    <link rel="stylesheet" href="{% static 'css/board.css' %}?v={{ static_version }}">
+</head>
+<body {% body_theme "#2f6f4f" %}>
+<canvas id="gradient-canvas"></canvas>
+<div class="page-root">
+<header>
+  <div class="wrap nav">
+    <a class="pill logo-pill" href="{% url 'portal:landing' %}"><img src="{% static 'images/adx-logo.png' %}" alt="ADX"></a>
+    {% if user.is_authenticated %}
+    <nav class="pill nav-links" aria-label="Kundportal">
+      <a href="{% url 'portal:home' %}"{% if active == 'home' %} class="active"{% endif %}>Mina ärenden</a>
+      <a href="{% url 'portal:issue_create' %}"{% if active == 'new' %} class="active"{% endif %}>Nytt ärende</a>
+    </nav>
+    <div class="nav-right">
+      <span class="pill user-pill">{{ user.first_name|default:user.email }}</span>
+      <form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}<button type="submit" class="pill nav-cta">Logga ut</button></form>
+    </div>
+    {% else %}
+    <span class="pill nav-links"><a href="{% url 'portal:login' %}" class="active">Kundportal</a></span>
+    <a class="pill nav-cta" href="/">adx.se</a>
+    {% endif %}
+  </div>
+</header>
+<main id="main" class="page board-page">
+  <div class="wrap">
+    {% if messages %}<ul class="board-msgs">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+</div>
+<script src="{% static 'js/gradient.js' %}?v={{ site_css_version }}" defer></script>
+</body>
+</html>

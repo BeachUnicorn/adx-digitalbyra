@@ -1,0 +1,9 @@
+Hej,
+
+välj ett nytt lösenord till kundportalen här (länken gäller i tre dagar):
+
+{{ protocol }}://{{ domain }}{% url 'portal:password_reset_confirm' uidb64=uid token=token %}
+
+Har du inte begärt detta kan du bortse från mejlet.
+
+ADX

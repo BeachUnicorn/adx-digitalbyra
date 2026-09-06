@@ -1,0 +1,51 @@
+{% load static theme_tags %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>{{ title|default:"Tavlan" }} - ADX</title>
+    <link rel="stylesheet" href="{% static 'css/site.css' %}?v={{ site_css_version }}">
+    <link rel="stylesheet" href="{% static 'css/board.css' %}?v={{ static_version }}">
+</head>
+<body {% body_theme "#0e3a52" %}>
+<canvas id="gradient-canvas"></canvas>
+<div class="page-root">
+<header>
+  <div class="wrap nav">
+    <a class="pill logo-pill" href="{% url 'manage:dashboard' %}"><img src="{% static 'images/adx-logo.png' %}" alt="ADX"></a>
+    <nav class="pill nav-links" aria-label="Ärendesystemet">
+      <a href="{% url 'manage:board' %}"{% if active == 'board' %} class="active"{% endif %}>Tavla</a>
+      <a href="{% url 'manage:project_list' %}"{% if active == 'projects' %} class="active"{% endif %}>Projekt</a>
+      <a href="{% url 'manage:customer_list' %}"{% if active == 'customers' %} class="active"{% endif %}>Kunder</a>
+      <a href="{% url 'manage:time_report' %}"{% if active == 'time' %} class="active"{% endif %}>Tid</a>
+    </nav>
+    <div class="nav-right">
+      {% if running_timer %}
+      <form method="post" action="{% url 'manage:timer_stop' %}" class="pill timer-pill" id="header-timer">
+        {% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+        <span class="dot"></span>
+        <span class="t-title" data-active-title>{{ running_timer.issue.key }} {{ running_timer.issue.title|truncatechars:34 }}</span>
+        <b data-header-timer data-started="{{ running_timer.started_at.timestamp }}" data-base="{{ running_timer.issue.total_seconds }}"></b>
+        <button type="submit" title="Stoppa timern">Stopp</button>
+      </form>
+      {% else %}
+      <span class="pill timer-pill is-idle" id="header-timer"><span class="dot"></span><span class="t-title" data-active-title>Ingen timer igång</span></span>
+      {% endif %}
+      <a class="pill nav-cta" href="{% url 'manage:dashboard' %}">Panelen</a>
+    </div>
+  </div>
+</header>
+<main id="main" class="page board-page">
+  <div class="wrap">
+    {% if messages %}<ul class="board-msgs">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+    {% block content %}{% endblock %}
+  </div>
+</main>
+</div>
+<form id="csrf" hidden>{% csrf_token %}</form>
+<script src="{% static 'js/gradient.js' %}?v={{ site_css_version }}" defer></script>
+<script src="{% static 'js/board.js' %}?v={{ static_version }}" defer></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

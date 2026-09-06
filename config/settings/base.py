@@ -58,6 +58,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    # Kundportalens användare hålls borta från /manage/ (apps/projects).
+    "apps.projects.middleware.PortalGateMiddleware",
     # Versionerar alla skrivande /manage/-requests (apps/assistant/revisions.py).
     "apps.assistant.revisions.ManageRevisionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -81,6 +83,7 @@ TEMPLATES = [
                 "apps.manage.context_processors.inquiry_badge",
                 "apps.manage.context_processors.static_version",
                 "apps.website.context_processors.site_chrome",
+                "apps.projects.context_processors.running_timer",
             ],
         },
     },
@@ -173,6 +176,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR.parent / "user-uploaded-media"
+# Bilagor i ärendesystemet: aldrig under MEDIA_ROOT (som nginx serverar
+# publikt). Lämnas ut av gated vyer i apps/projects.
+PRIVATE_MEDIA_ROOT = BASE_DIR.parent / "private-uploads"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

@@ -1,0 +1,22 @@
+{% extends "projects/base_board.html" %}
+{% load board_tags %}
+{% block content %}
+<section class="hero">
+  <div class="tavla-head"><div><div class="kicker">[ Kunder ]</div><h2>Kunder</h2></div></div>
+  <div class="detail-grid">
+    <div class="detail-main">
+      <table class="tbl panel"><thead><tr><th>Kund</th><th>Projekt</th><th>Öppna ärenden</th><th>Kontakter</th><th>Tid</th></tr></thead><tbody>
+      {% for r in rows %}<tr><td><a href="{% url 'manage:customer_detail' r.customer.pk %}"><b>{{ r.customer.name }}</b></a>{% if not r.customer.is_active %} <span class="flag">inaktiv</span>{% endif %}</td><td>{{ r.customer.projects.count }}</td><td>{{ r.open }}</td><td>{{ r.contacts }}</td><td>{{ r.time }}</td></tr>
+      {% empty %}<tr><td colspan="5" class="soft">Inga kunder än.</td></tr>{% endfor %}
+      </tbody></table>
+    </div>
+    <aside class="detail-side">
+      <form method="post" class="adx-form compact panel">{% csrf_token %}
+        <div class="kicker" style="grid-column:1/-1">[ Ny kund ]</div>
+        {% field_row form.name True %}{% field_row form.org_number %}{% field_row form.email %}{% field_row form.phone %}{% field_row form.website %}{% field_row form.notes True %}
+        <div class="form-actions"><button type="submit" class="btn">Skapa</button></div>
+      </form>
+    </aside>
+  </div>
+</section>
+{% endblock %}

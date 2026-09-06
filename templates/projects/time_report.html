@@ -1,0 +1,22 @@
+{% extends "projects/base_board.html" %}
+{% block content %}
+<section class="hero">
+  <div class="tavla-head"><div><div class="kicker">[ Tid ]</div><h2>Tidrapport</h2><p class="lead" style="margin-top:8px">{{ total }} i perioden</p></div>
+    <a class="btn ghost" href="?from={{ start }}&to={{ end }}&kund={{ selected_customer }}&projekt={{ selected_project }}&format=csv">Ladda ner CSV</a></div>
+  <form method="get" class="filters-form panel">
+    <label>Från <input type="date" name="from" value="{{ start }}"></label>
+    <label>Till <input type="date" name="to" value="{{ end }}"></label>
+    <label>Kund <select name="kund"><option value="">Alla</option>{% for c in customers %}<option value="{{ c.pk }}"{% if selected_customer == c.pk|stringformat:"s" %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
+    <label>Projekt <select name="projekt"><option value="">Alla</option>{% for p in projects %}<option value="{{ p.key }}"{% if selected_project == p.key %} selected{% endif %}>{{ p.key }} {{ p.name }}</option>{% endfor %}</select></label>
+    <button type="submit" class="pill">Visa</button>
+  </form>
+  {% for name, total_s, billable_s, issues in group_rows %}
+  <div class="panel sub">
+    <div class="kicker">[ {{ name }} &middot; {{ total_s }}{% if billable_s != total_s %} &middot; fakturerbart {{ billable_s }}{% endif %} ]</div>
+    <table class="tbl"><thead><tr><th>Ärende</th><th>Rubrik</th><th>Poster</th><th>Tid</th></tr></thead><tbody>
+    {% for issue, t, n in issues %}<tr><td><a href="{% url 'manage:issue_detail' issue.pk %}"><b>{{ issue.key }}</b></a></td><td>{{ issue.title }}</td><td>{{ n }}</td><td>{{ t }}</td></tr>{% endfor %}
+    </tbody></table>
+  </div>
+  {% empty %}<p class="soft">Ingen tid loggad i perioden.</p>{% endfor %}
+</section>
+{% endblock %}

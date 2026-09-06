@@ -1,0 +1,103 @@
+{% extends "projects/base_board.html" %}
+{% load board_tags %}
+{% block content %}
+<section class="hero detail">
+  <div class="tavla-head">
+    <div>
+      <div class="kicker">[ {{ issue.key }}{% if issue.project %} &middot; {{ issue.project.name }}{% endif %} ]</div>
+      <h2 style="text-transform:none;font-size:clamp(26px,3.5vw,42px)">{{ issue.title }}</h2>
+      <p class="lead" style="margin-top:10px">
+        {% with c=issue.effective_customer %}{% if c %}<a href="{% url 'manage:customer_detail' c.pk %}">{{ c.name }}</a>{% else %}Internt{% endif %}{% endwith %}
+        &middot; {{ issue.get_issue_type_display }} &middot; {{ issue.get_priority_display }}
+        {% if issue.column %}&middot; {{ issue.column.title }}{% endif %}
+        {% if issue.visible_to_customer %}&middot; <span class="flag">synlig för kund</span>{% endif %}
+      </p>
+    </div>
+    <div class="detail-actions">
+      <form method="post" action="{% url 'manage:issue_timer' issue.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.path }}">
+        <button type="submit" class="timer big{% if issue.running %} is-on{% endif %}"><span class="timer-ico" aria-hidden="true"></span><span data-timer="{{ issue.pk }}" data-seconds="{{ issue.seconds }}">{{ time_display }}</span></button>
+      </form>
+      <a href="{% url 'manage:board' %}{% if issue.project %}?projekt={{ issue.project.key }}{% endif %}" class="pill">Till tavlan</a>
+    </div>
+  </div>
+
+  <div class="detail-grid">
+    <div class="detail-main">
+      {% if issue.description %}<div class="panel prose-panel">{{ issue.description|linebreaks }}</div>{% endif %}
+
+      <div class="panel sub">
+        <div class="kicker">[ Bilagor ]</div>
+        {% if attachments %}
+        <ul class="files">{% for a in attachments %}
+          <li><a href="{% url 'manage:attachment' a.pk %}"{% if not a.is_image %} download{% endif %}>{{ a.original_name }}</a> <small>{{ a.size_display }} &middot; {{ a.created_at|date:"j M H:i" }}{% if a.uploaded_by %} &middot; {{ a.uploaded_by.get_username }}{% endif %}</small></li>
+        {% endfor %}</ul>
+        {% else %}<p class="soft">Inga bilagor.</p>{% endif %}
+        <form method="post" action="{% url 'manage:issue_attach' issue.pk %}" enctype="multipart/form-data" class="inline-form">
+          {% csrf_token %}<input type="file" name="files" multiple><button type="submit" class="pill">Ladda upp</button>
+        </form>
+      </div>
+
+      <div class="panel sub">
+        <div class="kicker">[ Kommentarer ]</div>
+        {% for c in comments %}
+        <div class="comment{% if c.is_internal %} is-internal{% endif %}">
+          <div class="comment-head"><b>{{ c.author.get_username|default:"Borttagen" }}</b> <span>{{ c.created_at|date:"j M Y H:i" }}</span>{% if c.is_internal %}<span class="flag">intern</span>{% endif %}</div>
+          <div>{{ c.body|linebreaksbr }}</div>
+        </div>
+        {% empty %}<p class="soft">Inga kommentarer.</p>{% endfor %}
+        <form method="post" action="{% url 'manage:issue_comment' issue.pk %}" enctype="multipart/form-data" class="adx-form compact">
+          {% csrf_token %}
+          {% field_row comment_form.body True %}
+          {% field_row comment_form.files True %}
+          {% field_row comment_form.is_internal True %}
+          <div class="form-actions"><button type="submit" class="btn">Kommentera</button></div>
+        </form>
+      </div>
+
+      <div class="panel sub">
+        <div class="kicker">[ Tid: {{ time_display }} ]</div>
+        {% if entries %}
+        <table class="tbl"><thead><tr><th>Start</th><th>Längd</th><th>Vem</th><th>Fakt.</th><th>Anteckning</th></tr></thead><tbody>
+        {% for e in entries %}<tr><td>{{ e.started_at|date:"j M H:i" }}</td><td>{% if e.is_running %}pågår{% else %}{{ e.seconds|hms }}{% endif %}</td><td>{{ e.user.get_username }}</td><td>{% if e.is_billable %}ja{% else %}nej{% endif %}</td><td>{{ e.note }}</td></tr>{% endfor %}
+        </tbody></table>
+        {% else %}<p class="soft">Ingen tid loggad.</p>{% endif %}
+      </div>
+    </div>
+
+    <aside class="detail-side">
+      <form method="post" class="adx-form compact panel" id="issue-form">
+        {% csrf_token %}
+        {% field_row form.title True %}
+        {% field_row form.description True %}
+        {% field_row form.project %}
+        {% field_row form.column %}
+        {% field_row form.customer %}
+        {% field_row form.issue_type %}
+        {% field_row form.priority %}
+        {% field_row form.assignee %}
+        {% field_row form.labels %}
+        {% field_row form.estimate_minutes %}
+        {% field_row form.due_on %}
+        {% field_row form.is_billable %}
+        {% field_row form.visible_to_customer %}
+        {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="form-actions"><button type="submit" class="btn">Spara</button></div>
+      </form>
+      <form method="post" action="{% url 'manage:issue_delete' issue.pk %}" onsubmit="return confirm('Ta bort {{ issue.key }}? Tid och bilagor försvinner.');" style="margin-top:14px">
+        {% csrf_token %}<button type="submit" class="pill danger">Ta bort ärendet</button>
+      </form>
+    </aside>
+  </div>
+</section>
+{% endblock %}
+{% block extra_js %}
+<script>
+// Kolumnlistan hör till projektet: byt projekt -> ladda om formuläret så
+// kolumnerna stämmer (servern filtrerar på valt projekt).
+document.getElementById("id_project").addEventListener("change", function () {
+  var f = document.getElementById("issue-form"); var col = document.getElementById("id_column"); if (col) col.value = "";
+  var q = new URLSearchParams(new FormData(f)); q.delete("csrfmiddlewaretoken");
+  window.location.search = "?" + q.toString();
+});
+</script>
+{% endblock %}

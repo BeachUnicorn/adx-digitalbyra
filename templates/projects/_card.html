@@ -1,0 +1,23 @@
+{% load board_tags %}
+<article class="card{% if issue.running %} is-running{% endif %}" data-id="{{ issue.pk }}" data-stage="{{ issue.stage }}" tabindex="0">
+  <div class="card-top">
+    <a class="key" href="{% url 'manage:issue_detail' issue.pk %}"><b>{{ issue.key }}</b>{% if issue.project %} {{ issue.project.name }}{% endif %}</a>
+    <span class="flags">
+      {% if issue.visible_to_customer %}<span class="flag" title="Synlig för kund">kund</span>{% endif %}
+      {% if issue.priority >= 30 %}<span class="flag prio">{{ issue.get_priority_display }}</span>{% endif %}
+    </span>
+  </div>
+  <h3 class="card-title"><a href="{% url 'manage:issue_detail' issue.pk %}">{{ issue.title }}</a></h3>
+  <div class="meta">
+    {% with c=issue.effective_customer %}{% if c %}<span class="cust">{{ c.name }}</span>{% else %}<span>Internt</span>{% endif %}{% endwith %}
+    {% for l in issue.labels.all %}<span class="lab">{{ l.name }}</span>{% endfor %}
+    {% if issue.assignee %}<span>{{ issue.assignee.first_name|default:issue.assignee.username }}</span>{% endif %}
+  </div>
+  <div class="card-foot">
+    <button class="timer{% if issue.running %} is-on{% endif %}" type="button" data-timer-url="{% url 'manage:issue_timer' issue.pk %}" aria-pressed="{% if issue.running %}true{% else %}false{% endif %}" title="{% if issue.running %}Pausa{% else %}Starta{% endif %} tiden">
+      <span class="timer-ico" aria-hidden="true"></span>
+      <span data-timer="{{ issue.pk }}" data-seconds="{{ issue.seconds }}">{{ issue.seconds|hms }}</span>
+    </button>
+    <button class="card-move" type="button" title="Flytta till nästa kolumn" aria-label="Flytta till nästa kolumn">&rarr;</button>
+  </div>
+</article>

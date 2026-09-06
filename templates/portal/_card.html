@@ -1,0 +1,5 @@
+<a class="card portal-card" href="{% url 'portal:issue_detail' issue.pk %}">
+  <div class="card-top"><span class="key"><b>{{ issue.key }}</b></span><span class="flags">{% if issue.attachments.exists %}<span class="flag">{{ issue.attachments.count }} bilag{{ issue.attachments.count|pluralize:"a,or" }}</span>{% endif %}</span></div>
+  <h3 class="card-title">{{ issue.title }}</h3>
+  <div class="meta"><span>{{ issue.get_issue_type_display }}</span><span>{{ issue.updated_at|date:"j M" }}</span>{% if issue.due_on %}<span>klart {{ issue.due_on|date:"j M" }}</span>{% endif %}</div>
+</a>

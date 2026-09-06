@@ -4887,6 +4887,15 @@
      "webbapplikation"
     ]
    ]
+  },
+  {
+   "rubrik": "Företag",
+   "lankar": [
+    [
+     "Kundportal",
+     "/kund/"
+    ]
+   ]
   }
  ],
  "pensionera_kolumner": [
