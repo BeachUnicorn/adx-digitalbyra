@@ -382,8 +382,8 @@ def _campaigns(sessions):
         out.append(
             {
                 "campaign": row["utm_campaign"],
-                "source": row["utm_source"] or "\u2014",
-                "medium": row["utm_medium"] or "\u2014",
+                "source": row["utm_source"] or "-",
+                "medium": row["utm_medium"] or "-",
                 "variant": variant,
                 "sessions": row["n"],
                 "engaged_display": format_seconds(engaged_avg),
@@ -649,10 +649,10 @@ def _devices(sessions, session_total):
 
 # Buckets chosen to line up with common CSS breakpoints.
 VIEWPORT_BUCKETS = [
-    (0, 430, "360\u2013430 px"),
-    (431, 767, "431\u2013767 px"),
-    (768, 1023, "768\u20131023 px"),
-    (1024, 1439, "1024\u20131439 px"),
+    (0, 430, "360-430 px"),
+    (431, 767, "431-767 px"),
+    (768, 1023, "768-1023 px"),
+    (1024, 1439, "1024-1439 px"),
     (1440, 99999, "1440 px och uppåt"),
 ]
 
@@ -678,8 +678,8 @@ def _loyalty(visitors):
     buckets = [
         ("1 besök", Q(session_count__lte=1)),
         ("2 besök", Q(session_count=2)),
-        ("3\u20134 besök", Q(session_count__gte=3, session_count__lte=4)),
-        ("5\u20139 besök", Q(session_count__gte=5, session_count__lte=9)),
+        ("3-4 besök", Q(session_count__gte=3, session_count__lte=4)),
+        ("5-9 besök", Q(session_count__gte=5, session_count__lte=9)),
         ("10+ besök", Q(session_count__gte=10)),
     ]
     total = visitors.count()
@@ -734,7 +734,7 @@ def _recent_inquiries(inquiries, limit=8):
                 "first_label": first_label,
                 "first_detail": first_detail,
                 "last_label": labels.get(inquiry.traffic_source, inquiry.traffic_source)
-                or "\u2014",
+                or "-",
                 "last_detail": inquiry.traffic_source_detail,
                 "journey": journey,
                 "visits_before": visits_before,

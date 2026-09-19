@@ -142,7 +142,7 @@ class SessionAdmin(admin.ModelAdmin):
 
     @admin.display(description=_("Vyport"))
     def viewport_display(self, obj):
-        return obj.viewport_display or "\u2014"
+        return obj.viewport_display or "-"
 
     def has_add_permission(self, request):
         return False

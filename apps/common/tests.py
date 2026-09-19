@@ -30,24 +30,82 @@ from apps.common.security import AI_TYPOGRAPHY_CHARS, normalize_typography
 
 BASE = Path(django_settings.BASE_DIR)
 
-# JSON-filer kan bära tecknen som \u-escaper i stället för literaler.
-_ESCAPED = re.compile(r"\\u(2014|2013|201c|201d|2018|2019|2026)", re.IGNORECASE)
+# Tecknen kan smyga in förklädda. Två förklädnader hittades 2026-09-19, båda
+# i kod som passerat vakten i veckor:
+#   * \u-escapes  - "\u2014" i en python-sträng eller JSON renderas som tecknet
+#   * HTML-entiteter - &mdash; i en mall renderas som tecknet
+# Mönstren HÄRLEDS ur teckenkartan, så ett nytt tecken i security.py täcks
+# automatiskt i alla tre former.
+_CODEPOINTS = sorted({ord(ch) for ch in AI_TYPOGRAPHY_CHARS})
+_ESCAPED = re.compile(r"\\u(" + "|".join(f"{cp:04x}" for cp in _CODEPOINTS) + r")", re.IGNORECASE)
+_NAMED_ENTITIES = {
+    0x2013: "ndash",
+    0x2014: "mdash",
+    0x2018: "lsquo",
+    0x2019: "rsquo",
+    0x201A: "sbquo",
+    0x201C: "ldquo",
+    0x201D: "rdquo",
+    0x201E: "bdquo",
+    0x2026: "hellip",
+}
+_ENTITY = re.compile(
+    "&(?:"
+    + "|".join(
+        [name for cp, name in _NAMED_ENTITIES.items() if cp in _CODEPOINTS]
+        + [f"#0*{cp}" for cp in _CODEPOINTS]
+        + [f"#x0*{cp:x}" for cp in _CODEPOINTS]
+    )
+    + ");",
+    re.IGNORECASE,
+)
 
 
 def _offenses_in(path: Path) -> list[str]:
     """Alla förekomster i en fil som 'rad: tecken', för ett läsbart testfel."""
     offenses = []
     for lineno, line in enumerate(path.read_text().splitlines(), start=1):
+        where = f"{path.relative_to(BASE) if path.is_relative_to(BASE) else path}:{lineno}"
         for ch in AI_TYPOGRAPHY_CHARS:
             if ch in line:
-                offenses.append(f"{path.relative_to(BASE)}:{lineno}: {ch!r}")
-        if path.suffix == ".json" and _ESCAPED.search(line):
-            offenses.append(f"{path.relative_to(BASE)}:{lineno}: \\u-escapat AI-tecken")
+                offenses.append(f"{where}: {ch!r}")
+        escaped = _ESCAPED.search(line)
+        if escaped:
+            offenses.append(f"{where}: escapat AI-tecken ({escaped.group(0)})")
+        entity = _ENTITY.search(line)
+        if entity:
+            offenses.append(f"{where}: AI-tecken som HTML-entitet ({entity.group(0)})")
     return offenses
 
 
 class AiTypographyFileGuardTests(TestCase):
     """Tecknen får inte finnas i filer som renderas eller seedas."""
+
+    def test_the_guard_sees_through_escapes_and_entities(self):
+        """Vakten vaktar sig själv: varje förklädnad ska ge utslag."""
+        import tempfile
+
+        disguises = {
+            "python-escape": 'label = "360' + "\\" + 'u2013430 px"',
+            "namngiven entitet": "<p>Egen insamling &" + "mdash; ingen data</p>",
+            "decimal entitet": "<p>citat &" + "#8221;</p>",
+            "hex-entitet": "<p>mer &" + "#x2026;</p>",
+        }
+        for name, text in disguises.items():
+            with self.subTest(disguise=name), tempfile.TemporaryDirectory() as tmp:
+                f = Path(tmp) / "prov.html"
+                f.write_text(text)
+                self.assertTrue(_offenses_in(f), f"vakten missade: {name}")
+
+    def test_harmless_entities_and_escapes_pass(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Path(tmp) / "ok.html"
+            f.write_text(
+                '<p>&rarr; &middot; &times; &quot;rakt&quot; &#10495; och "' + "\\" + 'u00e5"</p>'
+            )
+            self.assertEqual(_offenses_in(f), [])
 
     def _assert_clean(self, files):
         offenses = []

@@ -98,7 +98,7 @@ img.ProseMirror-separator {
     <span class="tiptap-tb__sep"></span>
     <button type="button" class="tiptap-tb__btn" data-cmd="toggleBulletList" title="Punktlista" aria-label="Punktlista">\u2022</button>
     <button type="button" class="tiptap-tb__btn" data-cmd="toggleOrderedList" title="Numrerad lista" aria-label="Numrerad lista">1.</button>
-    <button type="button" class="tiptap-tb__btn" data-cmd="toggleBlockquote" title="Citat" aria-label="Citat">&rdquo;</button>`;s.innerHTML=`
+    <button type="button" class="tiptap-tb__btn" data-cmd="toggleBlockquote" title="Citat" aria-label="Citat">&quot;</button>`;s.innerHTML=`
     <button type="button" class="tiptap-tb__btn" data-cmd="toggleBold" title="Fet (\u2318B)" aria-label="Fet"><strong>B</strong></button>
     <button type="button" class="tiptap-tb__btn" data-cmd="toggleItalic" title="Kursiv (\u2318I)" aria-label="Kursiv"><em>I</em></button>
     ${o}

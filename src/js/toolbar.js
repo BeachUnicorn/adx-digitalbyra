@@ -22,7 +22,7 @@ export function createToolbar(editor, mount, variables, opts = {}) {
     <span class="tiptap-tb__sep"></span>
     <button type="button" class="tiptap-tb__btn" data-cmd="toggleBulletList" title="Punktlista" aria-label="Punktlista">•</button>
     <button type="button" class="tiptap-tb__btn" data-cmd="toggleOrderedList" title="Numrerad lista" aria-label="Numrerad lista">1.</button>
-    <button type="button" class="tiptap-tb__btn" data-cmd="toggleBlockquote" title="Citat" aria-label="Citat">&rdquo;</button>`;
+    <button type="button" class="tiptap-tb__btn" data-cmd="toggleBlockquote" title="Citat" aria-label="Citat">&quot;</button>`;
 
   toolbar.innerHTML = `
     <button type="button" class="tiptap-tb__btn" data-cmd="toggleBold" title="Fet (⌘B)" aria-label="Fet"><strong>B</strong></button>

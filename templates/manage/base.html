@@ -75,6 +75,8 @@
 <div class="m-nav__mobile" id="m-mobile-nav" aria-hidden="true">
     <a href="{% url 'manage:dashboard' %}">Översikt</a>
     <a href="{% url 'manage:inquiry_list' %}">Förfrågningar{% if unread_inquiries %} <span class="m-badge m-badge--alert">{{ unread_inquiries }}</span>{% endif %}</a>
+    <a href="{% url 'manage:offer_list' %}">Offerter</a>
+    <a href="{% url 'manage:board' %}">Tavlan</a>
     {% if user.is_superuser %}<a href="{% url 'manage:stats' %}">Statistik</a>{% endif %}
     <span class="m-nav__mobile-label">Innehåll</span>
     <a href="{% url 'manage:page_list' %}">Blocksidor</a>
@@ -88,6 +90,7 @@
     <a href="{% url 'manage:settings' %}">Inställningar</a>
     {% if user.is_superuser %}
     <span class="m-nav__mobile-label">Superuser</span>
+    <a href="{% url 'manage:hemsidekollen' %}">Hemsidekollen</a>
     <a href="{% url 'manage:import_view' %}">Import</a>
     <a href="/admin/" target="_blank" rel="noopener">Django Admin ↗</a>
     {% endif %}

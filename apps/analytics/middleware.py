@@ -104,7 +104,9 @@ def _extract_title(response, site_name=""):
     title = " ".join(title.split())
 
     if site_name:
-        for sep in (" - ", " \u2013 ", " | "):
+        # Tankstrecket skrivs som kodpunkt: koden ska KÄNNA IGEN tecknet i
+        # gamla sidtitlar, men får inte själv bära det (typografivakten).
+        for sep in (" - ", f" {chr(0x2013)} ", " | "):
             suffix = f"{sep}{site_name}"
             if title.endswith(suffix):
                 title = title[: -len(suffix)].strip()

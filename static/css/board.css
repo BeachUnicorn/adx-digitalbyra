@@ -89,7 +89,7 @@ body.is-dragging-any{cursor:grabbing}
 .tbl td{padding:12px 8px;border-top:1px solid var(--border-soft);vertical-align:top}
 .tbl a:hover{text-decoration:underline}
 .pill.danger{border:1px solid #ff6b57;color:#ff6b57;background:transparent}
-.pill[type=submit],button.pill,a.pill{font-family:var(--mono);font-size:14px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border);color:var(--fg);cursor:pointer;padding:9px 16px;display:inline-flex}
+.pill[type=submit]:not(.nav-cta),button.pill:not(.nav-cta),a.pill:not(.nav-cta):not(.logo-pill){font-family:var(--mono);font-size:14px;letter-spacing:.06em;text-transform:uppercase;border:1px solid var(--border);color:var(--fg);cursor:pointer;padding:9px 16px;display:inline-flex}
 .col-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--border-soft)}
 .col-row input[type=text],.col-row input[type=email],.col-row input[type=number]{background:transparent;border:1px solid var(--border);border-radius:999px;padding:8px 14px;font-family:var(--mono);font-size:14px;color:var(--fg);outline:none;flex:1;min-width:120px}
 .col-row .check{font-family:var(--mono);font-size:13px;display:flex;gap:6px;align-items:center;color:var(--fg-soft)}
