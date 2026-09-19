@@ -4,10 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Hantera{% endblock %} - {{ site_settings.name|default:"ADX" }}</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{% static 'css/manage.css' %}?v={{ static_version }}">
+    <link rel="stylesheet" href="{% static 'css/manage-skin.css' %}?v={{ static_version }}">
     {% block extra_head %}{% endblock %}
 </head>
 <body class="m-body">

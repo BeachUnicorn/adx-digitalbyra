@@ -1,0 +1,144 @@
+/* ==========================================================================
+   /manage/ - SKINNET "IS" (valt av Giovanni 2026-09-19).
+
+   manage.css äger STRUKTUREN (layout, grid, ordning). Den här filen äger
+   UTSEENDET: färg, form, typografi och luft, i sajtens eget formspråk -
+   ishimmel, glaspaneler, Space Grotesk i rubriker, IBM Plex Mono i etiketter
+   och knappar, piller. Laddas EFTER manage.css. Regeln för allt som läggs
+   till här: aldrig display/grid/ordning, bara hur det ser ut.
+
+   Typsnitten är sajtens självhostade (static/fonts) - panelen hämtar inget
+   från tredje part längre.
+
+   Färger ska ALLTID gå via tokens. Statusfärger har egna tokens
+   (--s-ok / --s-warn / --s-danger / --s-info med -soft och -line) så att
+   ett framtida mörkt skinn bara byter token-blocket.
+   ========================================================================== */
+@font-face{font-family:'Space Grotesk';font-weight:700;font-display:swap;src:url('../fonts/files/space-grotesk-v22-latin_latin-ext-700.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:400;font-display:swap;src:url('../fonts/files/inter-v20-latin_latin-ext-regular.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:500;font-display:swap;src:url('../fonts/files/inter-v20-latin_latin-ext-500.woff2') format('woff2')}
+@font-face{font-family:'Inter';font-weight:700;font-display:swap;src:url('../fonts/files/inter-v20-latin_latin-ext-700.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:400;font-display:swap;src:url('../fonts/files/ibm-plex-mono-v20-latin_latin-ext-regular.woff2') format('woff2')}
+@font-face{font-family:'IBM Plex Mono';font-weight:500;font-display:swap;src:url('../fonts/files/ibm-plex-mono-v20-latin_latin-ext-500.woff2') format('woff2')}
+
+:root{--s-mono:'IBM Plex Mono','SF Mono',Consolas,monospace;--s-grot:'Space Grotesk','Inter',sans-serif;--m-nav-height:72px}
+body.m-body{font-size:16px;line-height:1.55}
+.m-container{max-width:1180px;padding:0 28px}
+.m-main{padding:44px 0 96px}
+
+/* Navigationen: samma länkar på samma plats, men som sajtens piller */
+.m-nav{border-bottom:0;background:transparent;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.m-nav::before{content:"";position:absolute;inset:0;background:var(--s-nav);z-index:-1}
+.m-nav__links{background:var(--s-pill);border-radius:999px;padding:5px;gap:2px;box-shadow:var(--s-ring)}
+.m-nav__link,.m-nav__dropdown-toggle{font-family:var(--s-mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:9px 16px;color:var(--m-text-muted);font-weight:500}
+.m-nav__link:hover,.m-nav__dropdown-toggle:hover{background:var(--s-hover);color:var(--m-text)}
+.m-nav__link.is-active,.m-nav__dropdown-toggle.is-active{background:var(--m-accent);color:var(--m-accent-text);font-weight:500}
+.m-nav__view-site{font-family:var(--s-mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:11px 20px}
+.m-nav__dropdown-menu{border-radius:18px;border:1px solid var(--m-border);box-shadow:var(--s-float);padding:8px;background:var(--s-menu)}
+.m-nav__dropdown-menu a,.m-nav__dropdown-logout{border-radius:10px;font-size:15px;padding:10px 14px}
+
+/* Rubriker i sajtens röst */
+.m-page-head{margin-bottom:36px}
+.m-page-head__title{font-family:var(--s-grot);font-weight:700;text-transform:uppercase;font-size:clamp(30px,4vw,46px);line-height:1;letter-spacing:-.01em}
+.m-page-head__subtitle{font-size:17px;color:var(--m-text-muted);margin-top:10px}
+.m-section-title,.m-panel-head h2{font-family:var(--s-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted)}
+.m-section-title::before,.m-panel-head h2::before{content:"[ "}.m-section-title::after,.m-panel-head h2::after{content:" ]"}
+.m-section-row{margin:40px 0 16px}
+
+/* Ytor */
+.m-panel,.m-card,.m-stat{border:1px solid var(--m-border);border-radius:var(--m-radius);box-shadow:var(--m-shadow);background:var(--m-surface)}
+.m-stats{gap:16px;margin-bottom:36px}
+.m-stat{padding:24px 26px}
+.m-stat__value{font-family:var(--s-grot);font-size:34px;font-weight:700;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.m-stat__label{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-text-muted);margin-top:6px}
+.m-cards{gap:16px}
+.m-card{padding:24px 26px;transition:transform .15s ease,border-color .2s ease}
+.m-card:hover{transform:translateY(-2px);border-color:var(--m-text)}
+.m-card__icon{border-radius:999px;background:var(--s-hover);color:var(--m-text)}
+.m-card__title{font-size:18px;font-weight:600}
+.m-card__desc{font-size:15px}
+
+/* Listor och tabeller */
+.m-list__row{padding:18px 24px;border-color:var(--m-border)}
+.m-list__row--link:hover{background:var(--s-hover)}
+.m-list__title{font-size:17px;font-weight:500}
+.m-list__meta{font-family:var(--s-mono);font-size:12.5px;letter-spacing:.03em;color:var(--m-text-muted)}
+.m-table{font-size:15px}
+.m-table thead th,.m-inq-table thead th{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);padding:14px 18px}
+.m-table tbody td,.m-inq-table tbody td{padding:16px 18px;border-color:var(--m-border)}
+.m-table tbody tr:hover,.m-inq-table tbody tr:hover{background:var(--s-hover)}
+
+/* Knappar: piller, mono, versaler */
+.m-btn{font-family:var(--s-mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;border-radius:999px;padding:13px 24px;background:var(--m-accent);color:var(--m-accent-text);transition:transform .15s ease,background .2s ease}
+.m-btn:hover{opacity:1;transform:translateY(-1px)}
+.m-btn--small{padding:8px 15px;font-size:11.5px}
+.m-btn--ghost{background:transparent;color:var(--m-text);border:1px solid var(--m-border)}
+.m-btn--ghost:hover{background:var(--s-hover);border-color:var(--m-text)}
+.m-btn--danger{background:transparent;color:var(--s-danger);border:1px solid var(--s-danger-soft)}
+.m-btn--danger:hover{background:var(--s-danger);color:#fff;border-color:transparent}
+.m-row-actions{gap:8px}
+
+/* Fält */
+.m-field label{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-text-muted);font-weight:500}
+.m-field input,.m-field select,.m-field textarea,.m-search-input,.m-select{border-radius:14px;border:1px solid var(--m-border);background:var(--s-field);color:var(--m-text);padding:12px 16px;font-size:15px}
+.m-field input:focus,.m-field select:focus,.m-field textarea:focus,.m-search-input:focus{outline:2px solid var(--m-text);outline-offset:1px}
+.m-filter__item,.m-toggle a{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px}
+.m-filter__item.is-active,.m-toggle a.is-active{background:var(--m-accent);color:var(--m-accent-text)}
+
+/* Etiketter och meddelanden */
+.m-badge{font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:3px 10px;font-weight:500;border:1px solid transparent}
+.m-badge--published{background:var(--s-ok-soft);color:var(--s-ok);border-color:var(--s-ok-line)}
+.m-badge--draft{background:transparent;color:var(--m-text-muted);border-color:var(--m-border)}
+.m-badge--alert,.m-badge--new{background:var(--s-hot);color:var(--s-hot-text)}
+.m-message{border-radius:999px;padding:12px 20px;font-family:var(--s-mono);font-size:13.5px;border:1px solid var(--m-border);background:var(--m-surface)}
+.m-empty{font-family:var(--s-mono);font-size:13.5px;letter-spacing:.04em;padding:32px 24px}
+
+/* Menyn: tio länkar ska rymmas på en rad, som i dag */
+.m-nav__links{flex-wrap:nowrap}
+.m-nav__link,.m-nav__dropdown-toggle{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:11.5px;letter-spacing:.05em;padding:9px 11px}
+.m-nav__view-site{white-space:nowrap;font-size:11.5px;letter-spacing:.06em;padding:11px 18px}
+.m-nav__right{flex:none}
+
+/* ===== SKIN 1 - IS =====
+   Sajtens ljusa startsida: ishimmel, glaspaneler, svart som enda accent.
+   Lugnast för ögonen en hel arbetsdag, och närmast adx.se. */
+:root{
+  --m-bg:#eef5f9;--m-surface:rgba(255,255,255,.66);--m-border:rgba(16,18,20,.14);
+  --m-text:#101214;--m-text-muted:rgba(16,18,20,.64);--m-accent:#101214;--m-accent-text:#fff;
+  --m-radius:20px;--m-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 10px 40px rgba(24,60,90,.07);
+  --s-nav:rgba(238,245,249,.7);--s-pill:rgba(255,255,255,.75);--s-ring:0 0 0 1px rgba(16,18,20,.06);
+  --s-hover:rgba(16,18,20,.05);--s-menu:rgba(255,255,255,.96);--s-float:0 24px 60px rgba(24,60,90,.18);
+  --s-field:rgba(255,255,255,.7);--s-danger:#c8321e;--s-danger-soft:rgba(200,50,30,.35);
+  --s-ok:#1c6b3f;--s-ok-soft:rgba(61,139,95,.1);--s-ok-line:rgba(61,139,95,.35);--s-hot:#101214;--s-hot-text:#fff;
+  --s-warn:#8a5b00;--s-warn-soft:rgba(232,147,12,.12);--s-warn-line:rgba(232,147,12,.4);
+  --s-info:#1d4f8a;--s-info-soft:rgba(37,99,235,.08);--s-info-line:rgba(37,99,235,.3);
+  --s-danger-bg:rgba(200,50,30,.08);--s-gold:#e8930c;--s-solid:#ffffff;
+}
+body.m-body{background:
+  radial-gradient(900px 520px at 12% -8%,#cfe6f4 0%,transparent 60%),
+  radial-gradient(800px 480px at 96% 4%,#f4e9f6 0%,transparent 58%),
+  radial-gradient(900px 600px at 50% 110%,#dff1ea 0%,transparent 60%),#eef5f9;background-attachment:fixed}
+.m-panel,.m-card,.m-stat{backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+
+/* ===== Delade tillstånd: status, meddelanden, fel =====
+   Alla via status-tokens, så varje sida får samma färgspråk. */
+.m-badge--active,.m-badge--quoted{background:var(--s-ok-soft);color:var(--s-ok);border-color:var(--s-ok-line)}
+.m-badge--in_progress,.m-badge--business{background:var(--s-warn-soft);color:var(--s-warn);border-color:var(--s-warn-line)}
+.m-badge--ai{background:var(--s-info-soft);color:var(--s-info);border-color:var(--s-info-line)}
+.m-badge--closed{background:transparent;color:var(--m-text-muted);border-color:var(--m-border)}
+/* Räknare inuti en aktiv (svart) menylänk ska synas: invertera. */
+.m-nav__link.is-active .m-badge{background:var(--m-accent-text);color:var(--m-accent)}
+.m-nav__link .m-badge{padding:2px 8px}
+.m-dot{background:var(--s-gold)}
+.m-inq-table__row--unread,.m-inq-mobile-card--unread{background:var(--s-warn-soft)}
+.m-inq-table__row--unread:hover{background:var(--s-warn-soft)!important}
+.m-inq-mobile-card--unread{border-color:var(--s-warn-line)}
+.m-table thead th,.m-inq-table thead th{background:transparent}
+.m-message--success{background:var(--s-ok-soft);border-color:var(--s-ok-line);color:var(--s-ok)}
+.m-message--error,.m-form-error{background:var(--s-danger-bg);border-color:var(--s-danger-soft);color:var(--s-danger)}
+.m-message--warning{background:var(--s-warn-soft);border-color:var(--s-warn-line);color:var(--s-warn)}
+.m-form-error{border-radius:14px;border:1px solid var(--s-danger-soft)}
+.m-field-error{color:var(--s-danger);font-family:var(--s-mono);font-size:12.5px}
+.m-nav__dropdown-logout{color:var(--s-danger)}
+.m-nav__dropdown-logout:hover{background:var(--s-danger-bg)}
+.m-card--highlight{border-color:var(--m-text);background:var(--m-surface)}

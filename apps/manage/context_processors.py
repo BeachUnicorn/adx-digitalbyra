@@ -67,11 +67,16 @@ def _css_mtime():
 
     from django.conf import settings
 
-    css = Path(settings.BASE_DIR) / "static" / "css" / "manage.css"
-    try:
-        return str(int(css.stat().st_mtime))
-    except OSError:
-        return "1"
+    # Stämpeln täcker BÅDA filerna: manage.css (struktur) och manage-skin.css
+    # (utseende). Senaste ändringen av någon av dem ger ny URL.
+    css_dir = Path(settings.BASE_DIR) / "static" / "css"
+    stamps = []
+    for name in ("manage.css", "manage-skin.css"):
+        try:
+            stamps.append(int((css_dir / name).stat().st_mtime))
+        except OSError:
+            continue
+    return str(max(stamps)) if stamps else "1"
 
 
 _CSS_VERSION = _css_mtime()
