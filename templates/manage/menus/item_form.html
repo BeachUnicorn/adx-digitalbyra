@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="m-page-head">
-    <p class="m-crumb-row"><a href="{% url 'manage:menus_overview' %}">Menyer</a> ›</p>
+    <p class="m-crumb-row"><a href="{% url 'manage:menus_overview' %}">Menyer</a> /</p>
     <h1 class="m-page-head__title">{% if instance %}Redigera menypunkt{% else %}Ny menypunkt{% endif %}</h1>
     <p class="m-page-head__subtitle">
         {% if menu.location == "header" %}Huvudmeny{% else %}Sidfot: {{ menu.heading|default:menu.name }}{% endif %}

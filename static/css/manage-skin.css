@@ -142,3 +142,1742 @@ body.m-body{background:
 .m-nav__dropdown-logout{color:var(--s-danger)}
 .m-nav__dropdown-logout:hover{background:var(--s-danger-bg)}
 .m-card--highlight{border-color:var(--m-text);background:var(--m-surface)}
+
+/* ##### SIDGRUPPER ##### - skinnets regler per del av panelen. */
+
+/* ========== Kärna: översikt, inloggning, länkar, inställningar, import, historik ========== */
+/* ==========================================================================
+   SKINNET "IS" - DELFIL: KÄRNA
+
+   Täcker: ramen i base.html (menyn, rullgardinerna, mobilmenyn, meddelanden),
+   översikten med trafikpanelen, inloggningen, länkrapporten, länkväljaren
+   (modalen och länkfältet), historiksidan, importen och inställningarna.
+
+   Samma regel som grunden: bara utseende - färg, form, typografi och luft.
+   Aldrig display, grid/flex-struktur eller ordning. Alla färger via tokens.
+   ========================================================================== */
+
+/* ===== Ramen: menyn och rullgardinerna ===== */
+.m-nav__link:focus-visible,
+.m-nav__dropdown-toggle:focus-visible,
+.m-nav__view-site:focus-visible,
+.m-nav__hamburger:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+.m-nav__view-site{transition:transform .15s ease}
+.m-nav__view-site:hover{opacity:1;transform:translateY(-1px)}
+
+/* Rullgardinen hänger fritt under pillerraden. Den osynliga bryggan växer
+   lika mycket, så pekaren tappar aldrig menyn på vägen ner. */
+.m-nav__dropdown-menu{margin-top:10px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+/* Luftigare meny bara där raden har plats för den. På smalare skärm gäller
+   strukturens eget mått (160 px), annars sticker den sista menyn ut till
+   höger om fönstret och sidan går att rulla i sidled. */
+@media (min-width:941px){
+  .m-nav__dropdown-menu{min-width:210px}
+}
+.m-nav__dropdown-menu::before{top:-12px;height:12px}
+/* Inga radbrytningar i menyvalen: pilen i Django Admin ska inte hamna ensam
+   på egen rad när menyn är som smalast. */
+.m-nav__dropdown-menu a,
+.m-nav__dropdown-logout{font-weight:500;color:var(--m-text);white-space:nowrap;transition:background .15s ease}
+.m-nav__dropdown-menu a:hover{background:var(--s-hover)}
+/* En menylänk som ligger i en rullgardin ska se ut som sina syskon där,
+   inte som pillerradens versaler. */
+.m-nav__dropdown-menu .m-nav__link{font-family:inherit;font-size:15px;letter-spacing:0;text-transform:none;color:var(--m-text);padding:10px 14px;border-radius:10px}
+.m-nav__dropdown-menu .m-nav__link.is-active{background:var(--s-hover);color:var(--m-text)}
+/* Logga ut är en annan sorts val än länkarna ovanför: egen avdelning. */
+.m-nav__logout-form{margin:6px 0 0;padding-top:6px;border-top:1px solid var(--m-border)}
+.m-nav__dropdown-logout{color:var(--s-danger)}
+
+/* ===== Ramen: menyn på mellanbreda skärmar =====
+   Pillerraden är måttad för 1180 px. Mellan hamburgarens brytpunkt (680 px)
+   och full bredd kläms raden ihop stegvis, i stället för att knuffa de sista
+   länkarna och Visa sajt ur bild. */
+@media (min-width:681px) and (max-width:1240px){
+  .m-nav__link,.m-nav__dropdown-toggle{padding:9px 8px;letter-spacing:.03em}
+  .m-nav__view-site{padding:11px 15px}
+}
+@media (min-width:681px) and (max-width:1100px){
+  .m-nav__inner{gap:10px}
+  .m-nav__links{gap:0;padding:4px}
+  .m-nav__link,.m-nav__dropdown-toggle{font-size:10.5px;padding:8px 6px;letter-spacing:.02em;gap:4px}
+  .m-nav__link .m-badge{font-size:10px;padding:1px 6px}
+  .m-nav__view-site{font-size:10.5px;padding:10px 13px;letter-spacing:.03em}
+}
+@media (min-width:681px) and (max-width:940px){
+  .m-container{padding:0 16px}
+  /* Något stramare menyval, så det längsta ryms på en rad inom 160 px. */
+  .m-nav__dropdown-menu a,
+  .m-nav__dropdown-menu .m-nav__link,
+  .m-nav__dropdown-logout{padding:10px 12px}
+  .m-nav__link,.m-nav__dropdown-toggle{font-size:10px;padding:8px 5px;letter-spacing:0}
+  .m-nav__view-site{font-size:10px;padding:10px 11px;letter-spacing:0}
+}
+/* Stående surfplatta. */
+@media (min-width:681px) and (max-width:840px){
+  .m-nav__inner{gap:8px}
+  .m-nav__link,.m-nav__dropdown-toggle{font-size:9.5px;padding:7px 3px;gap:3px}
+  .m-nav__link .m-badge{font-size:9.5px;padding:1px 5px}
+  .m-nav__view-site{font-size:9.5px;padding:9px 9px}
+}
+/* Sista steget innan hamburgaren tar över. Med superanvändarens tio länkar
+   sköts Visa sajt annars ur bild mellan 681 och 732 px, och hela sidan gick
+   att rulla i sidled. Samma länkar på samma rad, bara tätare. (Delfilen ai
+   bär en likadan kopia med samma värden; den ska bort vid sammanslagningen.) */
+@media (min-width:681px) and (max-width:760px){
+  .m-nav__inner{padding:0 10px;gap:6px}
+  .m-nav__links{gap:0;padding:3px}
+  .m-nav__link,.m-nav__dropdown-toggle{font-size:9px;letter-spacing:0;padding:7px 2px;gap:2px}
+  .m-nav__link .m-badge{font-size:9px;padding:1px 4px}
+  .m-nav__view-site{font-size:9px;letter-spacing:0;padding:9px 8px}
+}
+
+/* ===== Ramen: mobilmenyn ===== */
+/* Hamburgaren blir en rund glasknapp; öppen vänder den till svart kryss. */
+.m-nav__hamburger{padding:15px 12px;border-radius:999px;background:var(--m-surface);border:1px solid var(--m-border);transition:background .2s ease,border-color .2s ease}
+.m-nav__hamburger span{border-radius:2px;transition:transform .2s ease,opacity .15s ease,background .2s ease}
+.m-nav__hamburger[aria-expanded="true"]{background:var(--m-accent);border-color:var(--m-accent)}
+.m-nav__hamburger[aria-expanded="true"] span{background:var(--m-accent-text)}
+.m-nav__hamburger[aria-expanded="true"] span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.m-nav__hamburger[aria-expanded="true"] span:nth-child(2){opacity:0}
+.m-nav__hamburger[aria-expanded="true"] span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+
+/* Panelen är fast placerad och längre än en liten skärm: utan egen rullning
+   går de nedersta valen (Logga ut) inte att nå. Måtten gör ingenting där
+   panelen ryms - de slår bara till när den annars vore avklippt. */
+.m-nav__mobile{background:var(--s-menu);border-bottom:1px solid var(--m-border);border-radius:0 0 26px 26px;box-shadow:var(--s-float);padding:6px 22px 26px;gap:0;max-height:calc(100vh - var(--m-nav-height));max-height:calc(100dvh - var(--m-nav-height));overflow-y:auto;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.m-nav__mobile a{font-family:var(--s-mono);font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--m-text);padding:16px 2px;border-bottom:1px solid var(--m-border)}
+.m-nav__mobile a:active{background:var(--s-hover)}
+.m-nav__mobile a .m-badge{margin-left:8px;vertical-align:1px}
+.m-nav__mobile-label{font-family:var(--s-mono);font-size:11px;letter-spacing:.14em;font-weight:500;color:var(--m-text-muted);padding:26px 2px 6px}
+.m-nav__mobile-label::before{content:"[ "}
+.m-nav__mobile-label::after{content:" ]"}
+/* Visa sajt är panelens huvudhandling, precis som den svarta pillern på desktop. */
+.m-nav__mobile a[href="/"]{margin-top:22px;border:0;border-radius:999px;background:var(--m-accent);color:var(--m-accent-text);text-align:center;padding:16px 20px}
+.m-nav__mobile .m-nav__mobile-user{font-family:var(--s-mono);font-size:12px;letter-spacing:.04em;color:var(--m-text-muted);text-align:center;padding:20px 2px 0}
+.m-nav__signout{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;border-radius:999px;border:1px solid var(--s-danger-soft);color:var(--s-danger);padding:13px 20px;transition:background .2s ease,color .2s ease}
+.m-nav__signout:hover{background:var(--s-danger);color:var(--m-accent-text);border-color:transparent}
+.m-nav__signout--block{width:100%;margin-top:10px}
+
+/* ===== Ramen: meddelanden =====
+   Full piller håller bara för en rad. Med 22 px hörn är en enradare
+   fortfarande en piller, och en lång text får plats utan att se trasig ut. */
+.m-messages{gap:10px;margin-bottom:30px}
+/* Hängande indrag: radbruten text linjerar med texten, inte med pricken. */
+.m-message{border-radius:22px;padding:13px 22px 13px 41px;text-indent:-19px;line-height:1.55;letter-spacing:.01em}
+.m-message::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:currentColor;margin-right:12px;vertical-align:1px}
+.m-message--info{background:var(--s-info-soft);border-color:var(--s-info-line);color:var(--s-info)}
+
+/* ===== Översikten ===== */
+.m-card__title .m-badge{margin-left:6px;vertical-align:2px}
+.m-card:focus-visible{outline:2px solid var(--m-text);outline-offset:3px}
+/* manage.css ger korten en hårdkodad svart skugga vid hover. */
+.m-card:hover{box-shadow:var(--m-shadow)}
+
+/* Döda länkar: en varning man kan klicka på, inte ett kort bland korten.
+   Rutan är en m-panel, precis som före skinnet, och har kvar sin
+   display:block i mallen - strukturen ligger inte i skinnet. */
+.m-dash-alert{transition:border-color .2s ease;padding:16px 24px 16px 44px;text-indent:-20px;margin-bottom:16px;font-size:15.5px;line-height:1.5;border-color:var(--s-warn-line);background:var(--s-warn-soft);color:var(--m-text)}
+.m-dash-alert::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--s-gold);margin-right:12px;vertical-align:1px}
+.m-dash-alert strong{font-weight:600;color:var(--s-warn)}
+.m-dash-alert:hover{border-color:var(--s-warn)}
+.m-dash-alert:focus-visible{outline:2px solid var(--m-text);outline-offset:3px}
+
+/* Trafikpanelen. Nyckeltalen ligger som nedsänkta brickor i glaset - glas
+   på glas med egen skugga blir grötigt. */
+.m-dash-traffic{padding:4px 28px 28px;margin-bottom:16px}
+.m-dash-traffic .m-panel-head{padding:20px 0 18px}
+.m-dash-traffic__more{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--m-text);border-bottom:1px solid var(--m-border);padding-bottom:2px;white-space:nowrap;transition:border-color .15s ease}
+.m-dash-traffic__more:hover{border-bottom-color:var(--m-text)}
+.m-dash-traffic .m-stats{margin:22px 0 0;gap:12px}
+.m-dash-traffic .m-stat{background:var(--s-hover);border-color:transparent;box-shadow:none;border-radius:16px;padding:20px 22px;backdrop-filter:none;-webkit-backdrop-filter:none}
+.m-dash-label{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);margin:30px 0 4px}
+.m-dash-toplist{width:100%;border-collapse:collapse}
+.m-dash-toplist td{padding:11px 0;border-bottom:1px solid var(--m-border);vertical-align:baseline}
+.m-dash-toplist tr:last-child td{border-bottom:0;padding-bottom:0}
+.m-dash-toplist a{font-family:var(--s-mono);font-size:13.5px;color:var(--m-text);word-break:break-all}
+.m-dash-toplist a:hover{text-decoration:underline;text-underline-offset:3px}
+.m-dash-toplist__num{text-align:right;white-space:nowrap;padding-left:16px;font-family:var(--s-mono);font-size:12.5px;letter-spacing:.03em;color:var(--m-text-muted);font-variant-numeric:tabular-nums}
+.m-dash-sources{margin:6px 0 0;font-size:15px;line-height:1.6;color:var(--m-text)}
+
+/* ===== Inloggningen ===== */
+.m-login-wrap{padding:24px 16px}
+.m-login{padding:46px 40px 40px;border-radius:28px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+.m-login__title{font-family:var(--s-grot);font-weight:700;text-transform:uppercase;font-size:40px;line-height:1;letter-spacing:-.01em;margin-bottom:14px}
+.m-login__subtitle{font-family:var(--s-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);margin-bottom:34px}
+.m-login__subtitle::before{content:"[ "}
+.m-login__subtitle::after{content:" ]"}
+.m-login .m-field{margin-bottom:20px}
+.m-login .m-field label{margin-bottom:9px}
+/* 16 px i fälten: mindre än så och mobilwebbläsaren zoomar in vid fokus. */
+.m-login .m-field input{padding:14px 16px;font-size:16px;transition:border-color .15s ease}
+.m-login .m-field input:hover{border-color:var(--m-text-muted)}
+.m-login .m-field input:focus{border-color:var(--m-border)}
+/* Webbläsarens autofyll målar annars fälten gula eller blå. */
+.m-login .m-field input:-webkit-autofill{-webkit-text-fill-color:var(--m-text);box-shadow:0 0 0 1000px var(--s-solid) inset;caret-color:var(--m-text)}
+.m-login .m-btn{margin-top:12px;padding:16px 24px}
+.m-login .m-form-error{font-family:var(--s-mono);font-size:13px;line-height:1.55;padding:13px 16px;margin-bottom:24px}
+
+/* ===== Länkrapporten ===== */
+/* Fem kolumner ryms inte på en telefon. Panelen bär strukturens egen
+   m-table-wrap (samma mönster som offertlistan), så tabellen rullar i sidled
+   i stället för att åtgärdsknappen klipps bort. Minsta bredden håller
+   textkolumnerna läsbara medan man rullar, och är vald så att tredje
+   kolumnen sticker fram i kanten på en telefon och visar att det finns mer.
+   På bred skärm gör den ingenting. */
+.m-links-panel .m-table{min-width:660px}
+.m-links-panel .m-table td{vertical-align:middle}
+.m-links-panel .m-form-hint{font-family:var(--s-mono);font-size:12px;letter-spacing:.03em;color:var(--m-text-muted)}
+.m-links-target{font-family:var(--s-mono);font-size:12.5px;background:var(--s-hover);border-radius:6px;padding:3px 8px;white-space:nowrap}
+
+/* ===== Historiken ===== */
+.m-history-entry{padding:26px 30px 28px;margin-bottom:16px}
+/* Den version som gäller nu bär den mörka kanten. */
+.m-history-entry:has(.m-badge--active){border-color:var(--m-text)}
+.m-history-entry__head{gap:8px 16px;margin-bottom:18px}
+.m-history-entry__head strong{font-family:var(--s-grot);font-weight:700;font-size:20px;letter-spacing:-.005em;margin-right:10px}
+.m-history-entry__head .m-badge{vertical-align:3px;margin-right:2px}
+/* Källetiketten saknar egen variant och blir annars bara lös text. */
+.m-history-entry__head .m-badge:not(.m-badge--active):not(.m-badge--ai){border-color:var(--m-border);color:var(--m-text-muted)}
+.m-history-entry__who{font-family:var(--s-mono);font-size:12.5px;letter-spacing:.03em;color:var(--m-text-muted)}
+.m-history-entry > .m-form-hint{margin:0;font-size:14.5px;color:var(--m-text-muted)}
+.m-history-entry__actions{margin-top:22px}
+.m-table.m-history-diff{border-top:1px solid var(--m-border)}
+.m-table.m-history-diff th{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);padding:16px 20px 14px 0;border-bottom:1px solid var(--m-border);line-height:1.6}
+.m-table.m-history-diff tbody td{padding:14px 0;border-bottom:1px solid var(--m-border)}
+.m-table.m-history-diff tbody tr:last-child th,
+.m-table.m-history-diff tbody tr:last-child td{border-bottom:0;padding-bottom:0}
+.m-table.m-history-diff tbody tr:hover{background:transparent}
+.m-history-diff__value{font-size:15px;line-height:1.65;color:var(--m-text)}
+.m-history-diff ins,
+.m-history-diff del{border-radius:4px;padding:1px 3px}
+.m-history-diff ins{background:var(--s-ok-soft);color:var(--s-ok);text-decoration:none}
+.m-history-diff del{background:var(--s-danger-bg);color:var(--s-danger);text-decoration:line-through}
+.m-panel.m-empty p{margin:0}
+
+/* ===== Importen ===== */
+.m-import-errors{border-color:var(--s-danger-soft);background:var(--s-danger-bg);margin-bottom:22px}
+.m-import-errors__body{padding:18px 26px;font-family:var(--s-mono);font-size:13.5px;line-height:1.6;color:var(--s-danger)}
+.m-import-preview{margin-bottom:22px}
+/* Samma luft som formulärpanelen under, så rubrikerna står i samma lodlinje. */
+.m-import-preview__body{padding:30px 32px}
+.m-import-preview__errors{font-family:var(--s-mono);font-size:13px;line-height:1.6;color:var(--s-danger);background:var(--s-danger-bg);border:1px solid var(--s-danger-soft);border-radius:14px;padding:13px 16px;margin-bottom:8px}
+/* Gruppnamnen i förhandsvisningen är etiketter, inte brödtext. Tre klasser:
+   den första etiketten följer direkt på panelrubriken, och där drar en annan
+   delfil annars upp hjälptexten 10 px mot rubriken. */
+.m-import-preview .m-import-preview__body > .m-form-hint{margin:26px 0 2px}
+.m-import-preview__body > .m-form-hint strong{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted)}
+.m-import-list{margin:0;font-size:15.5px}
+.m-import-list li{padding:12px 0;border-bottom:1px solid var(--m-border);line-height:1.5}
+/* Liten marginal: radbryts etiketten på en telefon ska den inte stå indragen. */
+.m-import-list li .m-badge{margin-left:4px;vertical-align:2px}
+.m-import-summary{font-size:15.5px;font-weight:600;margin-top:26px}
+.m-import-confirm{margin-top:22px}
+.m-import-confirm .m-btn + .m-btn{margin-left:8px}
+.m-form .m-field textarea.m-import-json{font-family:var(--s-mono);font-size:13px;line-height:1.65;min-height:320px}
+.m-import-format{margin-top:30px}
+/* Växeln bär även klassen m-form-hint. Två klasser, så att mono-etiketten
+   vinner över hjälptextens mått oavsett ordning vid sammanslagningen. */
+.m-import-format .m-import-format__toggle{cursor:pointer;font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);margin:0;transition:color .15s ease}
+.m-import-format .m-import-format__toggle:hover{color:var(--m-text)}
+.m-import-format__code{font-family:var(--s-mono);font-size:12.5px;line-height:1.65;color:var(--m-text);background:var(--s-hover);border:1px solid var(--m-border);border-radius:16px;padding:20px 22px;margin-top:14px;overflow-x:auto}
+
+/* ===== Länkväljaren: modalen =====
+   Strukturen (flex, mått, rullning) står kvar i mallens stilblock. */
+.lnkm{padding:24px;background:color-mix(in srgb,var(--m-text) 42%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.lnkm__dialog{background:var(--s-menu);border:1px solid var(--m-border);border-radius:26px;box-shadow:var(--s-float);color:var(--m-text)}
+.lnkm__head{padding:24px 26px 16px}
+.lnkm__title{font-family:var(--s-grot);font-weight:700;font-size:26px;line-height:1;letter-spacing:-.01em;text-transform:uppercase}
+.lnkm__close{border-radius:999px;border:1px solid var(--m-border);font-size:12px;color:var(--m-text-muted);transition:background .15s ease,color .15s ease,border-color .15s ease}
+.lnkm__close:hover{background:var(--s-hover);color:var(--m-text);border-color:var(--m-text)}
+.lnkm__tabs{gap:6px;padding:0 26px 18px;border-bottom:1px solid var(--m-border)}
+.lnkm__tab{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);border:1px solid var(--m-border);border-radius:999px;padding:8px 16px;transition:background .15s ease,color .15s ease}
+.lnkm__tab:hover{background:var(--s-hover);color:var(--m-text)}
+.lnkm__tab.is-active{background:var(--m-accent);color:var(--m-accent-text);border-color:var(--m-accent)}
+.lnkm__body{padding:20px 26px 10px}
+.lnkm__search,
+.lnkm__addr{font-family:inherit;font-size:15px;color:var(--m-text);border:1px solid var(--m-border);border-radius:14px;background:var(--s-field);padding:12px 16px}
+.lnkm__search{margin-bottom:6px}
+.lnkm__search::placeholder,
+.lnkm__addr::placeholder{color:var(--m-text-muted)}
+.lnkm__search:focus,
+.lnkm__addr:focus{outline:2px solid var(--m-text);outline-offset:1px}
+.lnkm__group{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);padding:16px 4px 8px;transition:color .15s ease}
+.lnkm__group--toggle:hover{color:var(--m-text)}
+.lnkm__opt{font-family:inherit;font-size:15px;line-height:1.4;color:var(--m-text);padding:11px 14px;border:1px solid transparent;border-radius:12px;transition:background .12s ease}
+.lnkm__opt:hover{background:var(--s-hover)}
+.lnkm__opt.is-selected{border-color:var(--m-text);background:var(--s-hover);font-weight:500}
+.lnkm__opt-note{font-family:var(--s-mono);font-size:11.5px;font-weight:400;color:var(--m-text-muted)}
+.lnkm__opt-note--warn{color:var(--s-warn)}
+.lnkm__empty{font-family:var(--s-mono);font-size:13.5px;letter-spacing:.04em;color:var(--m-text-muted);padding:40px 0}
+.lnkm__hint{font-size:13.5px;line-height:1.55;color:var(--m-text-muted);margin-top:12px}
+.lnkm__check{margin-top:14px;font-family:var(--s-mono);font-size:13px;line-height:1.6;color:var(--m-text-muted)}
+.lnkm__check--ok,
+.lnkm__check--warn,
+.lnkm__check--bad{border:1px solid transparent;border-radius:14px;padding:12px 16px}
+.lnkm__check--ok{background:var(--s-ok-soft);border-color:var(--s-ok-line);color:var(--s-ok)}
+.lnkm__check--warn{background:var(--s-warn-soft);border-color:var(--s-warn-line);color:var(--s-warn)}
+.lnkm__check--bad{background:var(--s-danger-bg);border-color:var(--s-danger-soft);color:var(--s-danger)}
+.lnkm__suggest{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:500;margin:6px 0 0 8px;padding:5px 13px;border:1px solid var(--s-warn-line);border-radius:999px;background:var(--s-solid);color:var(--m-text);transition:border-color .15s ease}
+.lnkm__suggest:hover{border-color:var(--m-text)}
+.lnkm__foot{padding:16px 26px 22px;border-top:1px solid var(--m-border)}
+.lnkm__error{font-family:var(--s-mono);font-size:12.5px;line-height:1.5;color:var(--s-danger)}
+.lnkm__use{font-family:var(--s-mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;border-radius:999px;padding:13px 24px;background:var(--m-accent);color:var(--m-accent-text);white-space:nowrap;transition:transform .15s ease,opacity .2s ease}
+.lnkm__use:hover:not(:disabled){transform:translateY(-1px)}
+.lnkm__use:disabled{opacity:.3}
+
+/* ===== Länkväljaren: fältet ===== */
+.lnkf__label{font-size:14.5px;line-height:1.4;color:var(--m-text);background:var(--s-hover);border:1px solid var(--m-border);border-radius:999px;padding:6px 16px}
+/* Tre klasser: ska vinna över fältpillerns mått oavsett i vilken ordning
+   delfilerna slås ihop. */
+.m-body .lnkf__label.lnkf__label--empty{padding:8px 16px}
+.lnkf__label--empty{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted);background:transparent;border-style:dashed;border-color:var(--m-text-muted)}
+.lnkf__btn{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--m-text);background:transparent;border:1px solid var(--m-border);border-radius:999px;padding:8px 15px;transition:background .15s ease,border-color .15s ease,color .15s ease}
+.lnkf__btn:hover{background:var(--s-hover);border-color:var(--m-text)}
+.lnkf__btn:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+.lnkf__btn--remove{color:var(--s-danger);border-color:var(--s-danger-soft)}
+.lnkf__btn--remove:hover{background:var(--s-danger);color:var(--m-accent-text);border-color:transparent}
+
+/* ===== Inställningarna =====
+   Formulärdelarna (paneler, fält, väljare, reglage, bildfält, richtext) ägs av
+   delfilerna sidor och innehall. Här står bara det som är sidans eget. */
+/* Växlarna hör till logotypen ovanför och ska inte krocka med nästa bildfält. */
+.m-settings-form .m-form-panel > .m-field-inline{margin:26px 0 34px}
+/* Pillerknappen i bildfältets hjälptext är högre än sin textrad och sticker
+   ut 6 px under den: växlarna direkt efter ett bildfält får det tillbaka. */
+.m-settings-form .m-form-panel > .m-image-field + .m-field-inline{margin-top:32px}
+.m-settings-form .m-form-panel > .m-form-hint{margin-bottom:22px;max-width:62ch}
+/* En pillerknapp i en hjälptext (Ladda upp nya bilder) är en knapp, inte en
+   textlänk: hjälptextens länkunderstrykning ska aldrig nå den, oavsett i
+   vilken ordning delfilerna slås ihop. */
+.m-form-hint a.m-btn{text-decoration:none}
+
+/* ===== Mobil ===== */
+@media (max-width:680px){
+  .m-container{padding:0 16px}
+  .m-main{padding:28px 0 72px}
+  .m-page-head{margin-bottom:28px}
+  .m-page-head__subtitle{font-size:16px}
+  /* Meddelanden radbryts oftare här: något stramare hörn (samma mått som delfilen innehall). */
+  .m-message{border-radius:20px}
+  .m-card{padding:20px 20px 22px}
+  .m-dash-alert{padding:15px 18px 15px 38px}
+  .m-dash-traffic{padding:2px 18px 22px}
+  .m-dash-traffic .m-stat{padding:16px 18px}
+  .m-import-preview__body{padding:24px 20px}
+  .m-history-entry{padding:20px 18px 22px}
+  .m-history-entry__head strong{font-size:18px}
+  .m-import-errors__body{padding:16px 18px}
+  .m-import-format__code{padding:16px;font-size:12px}
+  .m-login{padding:36px 24px 28px;border-radius:24px}
+  .m-login__title{font-size:34px}
+  .lnkm{padding:12px}
+  .lnkm__dialog{border-radius:22px}
+  .lnkm__head{padding:20px 18px 14px}
+  .lnkm__title{font-size:22px}
+  .lnkm__tabs{padding:0 18px 16px}
+  .lnkm__body{padding:16px 18px 8px}
+  .lnkm__foot{padding:14px 18px 18px}
+  .lnkm__opt{padding:11px 10px}
+}
+/* Historikens etikett staplas över värdet på smal skärm (manage.css). */
+@media (max-width:600px){
+  .m-table.m-history-diff th{padding:0 0 6px;border-bottom:0}
+  .m-table.m-history-diff tbody td{padding:0;border-bottom:0}
+  .m-history-diff tr{padding:14px 0}
+  .m-table.m-history-diff tbody tr:last-child{padding-bottom:0}
+}
+
+/* ========== Blocksidor och media ========== */
+/* ==========================================================================
+   SKINNET "IS" - DELFIL: SIDOR (blocksidor och media)
+
+   Täcker: listan över blocksidor, en sidas blocklista, sidinställningar,
+   blockredigeraren (alla fälttyper: text, richtext, val, bild, länk, reglage
+   och listor med radkort) samt mediabiblioteket (kort, fokuspunkt, optimera,
+   uppladdning, sök).
+
+   Samma regel som grunden: bara utseende - färg, form, typografi och luft.
+   Aldrig display, grid/flex-struktur eller ordning. Alla färger via tokens.
+
+   DELADE KOMPONENTER (brödsmulor, formulärfält, väljare, reglagekryssruta,
+   bildfält, richtext) har medvetet SAMMA värden som delfilen innehall, så att
+   sammanslagningen blir entydig oavsett ordning. De hör hemma i grunden.
+   Det som bara finns på de här sidorna (radkort, blocklistan, media) är
+   avgränsat med egna väljare.
+   ========================================================================== */
+
+/* ===== Brödsmulor och sidhuvud (delat) ===== */
+.m-crumb-row{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-text-muted);margin-bottom:14px}
+.m-crumb-row a{color:var(--m-text-muted);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:1px;transition:color .2s ease,border-color .2s ease}
+.m-crumb-row a:hover{color:var(--m-text);border-bottom-color:var(--m-text)}
+/* Sidrubriken får aldrig sticka ut ur innehållsytan. Blocktypernas etiketter
+   och sidtitlar kan vara ETT långt ord (20 tecken versalt, t.ex. blocktypen
+   för förfrågningsformuläret): kan ordet inte stå på en egen rad bryts det
+   hellre än att sidan får vågrät rullning. Hör hemma i grunden - gäller alla
+   sidhuvuden i panelen. Avstavning (hyphens:auto) är medvetet bortvald: den
+   kan dela ett långt ord i radslutet där ordet hellre ska flyttas ner helt,
+   och webbläsarna skiljer sig åt i stöd. Graden på mobil (längst ner) gör att
+   de etiketter som finns i dag ryms utan brytning. */
+.m-page-head__title{overflow-wrap:anywhere}
+/* Knapparna under rubriken är inline-element: ge raden luft så pillren inte
+   kryper upp i rubriken eller in i varandra när de radbryts på mobil. */
+.m-page-head__subtitle:has(>.m-btn){margin-top:20px;line-height:2.9}
+.m-page-head__subtitle .m-btn{margin-right:2px}
+
+/* ===== Listrader (sidor och block) ===== */
+/* Länken är bara rubrikdelen av raden - en halv radmarkering ser trasig ut,
+   så hovern bärs av understrykningen i stället. */
+a.m-list__main.m-list__row--link:hover{background:transparent}
+a.m-list__main:hover .m-list__title{text-decoration-thickness:1px;text-underline-offset:4px}
+.m-list__row{gap:16px}
+.m-list__title .m-badge{margin-left:8px;vertical-align:2px}
+.m-list__meta{margin-top:3px}
+.m-row-actions .m-list__meta{margin-top:0;padding:0 6px}
+.m-empty a{color:var(--m-text);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.m-empty code{font-family:var(--s-mono);font-size:.86em;background:var(--s-hover);border:1px solid var(--m-border);border-radius:7px;padding:1px 7px;color:var(--m-text)}
+
+/* Avstängda knappar (flytta upp på första raden, ner på sista). */
+.m-btn:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.m-btn--ghost:disabled:hover{background:transparent;border-color:var(--m-border)}
+.m-btn:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+
+/* ===== Formulär (delat) ===== */
+.m-form{gap:22px}
+.m-form-panel{padding:30px 32px}
+.m-form-section{font-family:var(--s-grot);font-weight:700;text-transform:uppercase;font-size:21px;line-height:1.1;letter-spacing:-.005em;color:var(--m-text);margin-bottom:22px}
+/* Panelrubriken är Grotesk utan hakparenteser - parenteserna hör till mono-etiketterna. */
+.m-form-section::before,.m-form-section::after{content:none}
+.m-form-hint{font-size:14.5px;line-height:1.6;color:var(--m-text-muted);margin-bottom:20px}
+.m-form-hint strong{color:var(--m-text);font-weight:600}
+.m-field-help{font-size:13.5px;line-height:1.55;color:var(--m-text-muted);margin-top:8px}
+.m-field-help a,.m-form-hint a:not(.m-btn){color:var(--m-text);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.m-form .m-field{margin-bottom:22px}
+.m-form .m-field label{font-size:12px;letter-spacing:.1em;margin-bottom:9px}
+.m-form-actions{gap:10px;margin-top:6px}
+/* Hjälptext inne i ett fält (blockredigeraren): tätt under fältet, mindre grad. */
+.m-form .m-field .m-form-hint{margin:8px 0 0;font-size:13.5px;line-height:1.55}
+
+/* Fälten: manage.css .m-form-regler väger tyngre än grundens .m-field-regler,
+   så glasfältet sätts om här med samma tyngd. */
+.m-form .m-field input,.m-form .m-field select,.m-form .m-field textarea,.m-field-inline input[type=number]{border-radius:14px;border:1px solid var(--m-border);background:var(--s-field);color:var(--m-text);padding:12px 16px;font-size:15px;transition:border-color .2s ease,background .2s ease}
+/* Fast radhöjd ger jämn fälthöjd (48px) så väljarens pil hamnar på hel pixel. */
+.m-form .m-field input,.m-form .m-field select{line-height:22px}
+.m-select{line-height:22px}
+.m-form .m-field textarea{line-height:1.55;min-height:92px}
+.m-form .m-field input:hover,.m-form .m-field select:hover,.m-form .m-field textarea:hover,.m-field-inline input[type=number]:hover{border-color:var(--m-text-muted)}
+.m-form .m-field input:focus,.m-form .m-field select:focus,.m-form .m-field textarea:focus,.m-field-inline input[type=number]:focus{outline:2px solid var(--m-text);outline-offset:1px;border-color:transparent;background-color:var(--s-solid)}
+.m-form ::placeholder,.m-search-input::placeholder{color:var(--m-text-muted);opacity:.75}
+.m-field-inline input[type=number]{padding:10px 14px;font-variant-numeric:tabular-nums}
+/* Fält med fel: röd kontur, så felet syns innan man läser texten. */
+.m-form .m-field:has(.m-field-error) input,.m-form .m-field:has(.m-field-error) select,.m-form .m-field:has(.m-field-error) textarea{border-color:var(--s-danger);background-color:var(--s-danger-bg)}
+.m-field-error{margin-top:8px;letter-spacing:.02em}
+
+/* Väljare: egen pil ritad med tokens i stället för webbläsarens. */
+.m-form .m-field select,.m-select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--m-text) 50%),linear-gradient(135deg,var(--m-text) 50%,transparent 50%);background-position:right 22px top 50%,right 16px top 50%;background-size:6px 6px,6px 6px;background-repeat:no-repeat;padding-right:46px;cursor:pointer;text-overflow:ellipsis}
+/* Blocktypsväljaren sitter bredvid en liten knapp: piller i samma höjd (36px). */
+.m-add-block .m-select{border:1px solid var(--m-border);border-radius:999px;background-color:var(--s-field);background-image:conic-gradient(from -45deg at 50% 100%,var(--m-text) 90deg,transparent 0);background-position:right 18px center;background-size:12px 6px;color:var(--m-text);padding:7px 44px 7px 18px;font-size:14px;line-height:20px;min-width:0;transition:border-color .2s ease}
+.m-add-block .m-select:hover{border-color:var(--m-text)}
+.m-add-block .m-select:focus{outline:2px solid var(--m-text);outline-offset:1px}
+.m-add-block .m-btn{white-space:nowrap}
+
+/* Kryssruta som reglage (av/på-val): spår i piller, ljus knopp. Väljaren är
+   tyngre än nödvändigt med flit - en äldre bockruta med ::after i en annan
+   delfil får aldrig blandas med reglaget. */
+.m-form input[type=checkbox],
+.m-form .m-field-inline input[type=checkbox]{appearance:none;-webkit-appearance:none;width:40px;min-width:40px;height:24px;padding:0;margin:0;border-radius:999px;border:1px solid var(--m-border);background-color:var(--s-hover);background-image:radial-gradient(circle,var(--s-solid) 0 7px,var(--m-border) 7.5px 8.5px,transparent 9px);background-repeat:no-repeat;background-size:22px 22px;background-position:0 50%;cursor:pointer;vertical-align:middle;transition:background-color .2s ease,background-position .2s ease,border-color .2s ease}
+.m-form input[type=checkbox]:hover,
+.m-form .m-field-inline input[type=checkbox]:hover{border-color:var(--m-text-muted)}
+.m-form input[type=checkbox]:checked,
+.m-form .m-field-inline input[type=checkbox]:checked{background-color:var(--m-accent);border-color:var(--m-accent);background-position:100% 50%}
+.m-form input[type=checkbox]:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+.m-form .m-field-inline input[type=checkbox]:checked::after{content:none}
+.m-field-inline{gap:16px 30px;margin:4px 0 18px}
+.m-field-inline:last-child{margin-bottom:4px}
+.m-field-inline label,
+.m-form .m-field-inline label{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--m-text);gap:10px;cursor:pointer}
+/* Panelens fotrad (synlig/publicerad/ordning): avdelad från fälten ovanför. */
+.m-form .m-form-panel > .m-field-inline--foot{margin:28px 0 0;padding-top:24px;border-top:1px solid var(--m-border)}
+.m-form .m-form-panel > .m-field-inline--foot:first-child{margin-top:0;padding-top:0;border-top:0}
+
+/* ===== Radkort (listor i ett block: paket, frågor, länkar ...) ===== */
+.m-rows{gap:22px;margin-bottom:20px;counter-reset:radkort}
+/* Löpnumret sticker upp över kortets kant - ge rubriken ovanför mer luft. */
+.m-form-section + .m-rows{margin-top:34px}
+.m-row-card{position:relative;border:1px solid var(--m-border);border-radius:16px;padding:28px 22px 18px;background:var(--m-bg);gap:18px;counter-increment:radkort}
+/* Löpnummer på kortets kant - långa listor blir annars en vägg av lika kort. */
+.m-row-card::before{content:counter(radkort,decimal-leading-zero);position:absolute;top:-11px;left:20px;font-family:var(--s-mono);font-size:11px;letter-spacing:.1em;font-weight:500;line-height:1;padding:5px 10px;border-radius:999px;background:var(--m-accent);color:var(--m-accent-text)}
+/* Kortets gap bär avståndet mellan fälten - fältens egen marginal nollas. */
+.m-form .m-row-card .m-field{margin-bottom:0}
+/* Tyngre väljare än den delade etikettregeln (.m-form .m-field label), så att
+   måttet håller oavsett i vilken ordning delfilerna slås ihop. */
+.m-form .m-row-card .m-field label{margin-bottom:8px}
+.m-row-card__actions{gap:8px;margin-top:4px;padding-top:16px;border-top:1px solid var(--m-border)}
+[data-add-row]{border-style:dashed;border-color:var(--m-text-muted)}
+[data-add-row]:hover{border-style:solid}
+
+/* ===== Bildfält och mediaväljare (delat) ===== */
+.m-image-field__preview{border-radius:16px;border:1px dashed var(--m-border);background:var(--m-bg);margin:2px 0 14px}
+.m-image-field__preview:has(img){border-style:solid}
+.m-image-field__empty{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-media-picker{margin-top:0}
+.m-media-picker__panel{border-radius:16px;border-color:var(--m-border);background:var(--s-field);padding:14px;margin-top:12px}
+.m-media-picker__grid{gap:10px}
+.m-media-picker__item{border-radius:14px;padding:7px;gap:6px}
+.m-media-picker__item:hover{background:var(--s-hover)}
+.m-media-picker__item.is-selected{border-color:var(--m-accent);background:var(--s-hover)}
+.m-media-picker__thumb{border-radius:9px;background:var(--s-hover)}
+.m-media-picker__name,.m-media-picker__none-label{font-family:var(--s-mono);font-size:10.5px;letter-spacing:.02em;color:var(--m-text-muted)}
+.m-media-picker__item--none{border:1px dashed var(--m-border)}
+
+/* ===== Reglage ===== */
+.m-range-field{gap:16px}
+/* Fältregeln ovan träffar även reglaget - här återställs det till en tunn skena. */
+.m-form .m-field .m-range-field__input,
+.m-range-field__input{height:4px;padding:0;border:0;border-radius:999px;background:var(--m-border)}
+.m-form .m-field .m-range-field__input:hover,
+.m-form .m-field .m-range-field__input:focus{outline:0;background-color:var(--m-border)}
+.m-range-field__input::-webkit-slider-thumb{width:20px;height:20px;background:var(--m-accent);border:3px solid var(--s-solid);box-shadow:0 0 0 1px var(--m-border)}
+.m-range-field__input::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--m-accent);border:3px solid var(--s-solid);box-shadow:0 0 0 1px var(--m-border)}
+.m-form .m-field .m-range-field__input:focus-visible,
+.m-range-field__input:focus-visible{outline:2px solid var(--m-text);outline-offset:6px}
+.m-range-field__value{font-family:var(--s-mono);font-size:13px;font-weight:500;font-variant-numeric:tabular-nums;color:var(--m-text)}
+
+/* ===== Mediabiblioteket ===== */
+.m-media-toolbar{gap:12px;margin-bottom:22px}
+.m-media-toolbar .m-search-input{border-radius:999px;padding:12px 22px;min-width:300px}
+.m-media-toolbar .m-search-input::placeholder{color:var(--m-text-muted)}
+.m-media-toolbar label.m-btn{cursor:pointer}
+/* Optimera är en förbättring, inte huvudhandlingen: varningstonen binder ihop
+   knappen i verktygsraden med knappen på varje kort. */
+.m-btn[data-optimize-all],
+.m-media-card__opt-btn{font-family:var(--s-mono);letter-spacing:.08em;text-transform:uppercase;font-weight:500;border-radius:999px;background:var(--s-warn-soft);color:var(--s-warn);border:1px solid var(--s-warn-line);transition:transform .15s ease,background .2s ease,color .2s ease}
+.m-btn[data-optimize-all]:hover,
+.m-media-card__opt-btn:hover{background:var(--s-warn);color:var(--m-accent-text);border-color:transparent}
+.m-media-card__opt-btn{font-size:11.5px;padding:8px 15px}
+.m-optimize-progress{font-family:var(--s-mono);font-size:12.5px;letter-spacing:.04em;color:var(--m-text-muted)}
+.m-media-toolbar + .m-form-hint{max-width:74ch;font-size:14.5px;margin-bottom:24px}
+
+.m-media-grid{gap:18px}
+.m-media-card{border:1px solid var(--m-border);border-radius:var(--m-radius);background:var(--m-surface);box-shadow:var(--m-shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);transition:border-color .2s ease}
+.m-media-card:hover{border-color:var(--m-text-muted)}
+.m-media-card__thumb{background:var(--s-hover);border-bottom:1px solid var(--m-border)}
+.m-media-card__file{font-family:var(--s-mono);font-size:12px;color:var(--m-text-muted)}
+.m-media-card__meta{padding:18px 18px 20px;gap:10px}
+.m-media-card__name{font-size:15px;font-weight:600;color:var(--m-text)}
+.m-media-card__info{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.04em;color:var(--m-text-muted);margin-top:-6px}
+.m-media-card__alt{gap:8px;margin-top:6px}
+.m-media-card__alt label{font-family:var(--s-mono);font-size:11px;letter-spacing:.1em;font-weight:500;color:var(--m-text-muted)}
+.m-media-card__alt input{border:1px solid var(--m-border);border-radius:12px;background:var(--s-field);color:var(--m-text);padding:10px 13px;font-size:14px}
+.m-media-card__alt input:focus{outline:2px solid var(--m-text);outline-offset:1px;border-color:var(--m-border)}
+.m-media-card__alt input::placeholder{color:var(--m-text-muted)}
+.m-media-card__opt-wrap,.m-media-card__optimized{margin-top:0}
+/* Kortet klipper sitt innehåll (overflow:hidden i manage.css) och är som
+   smalast 220 px: rutan får därför aldrig bli bredare än kortets innehållsyta,
+   annars kapas dess högerkant. */
+.m-media-card__opt-popover{background:var(--s-solid);border:1px solid var(--m-border);border-radius:16px;box-shadow:var(--s-float);padding:14px 16px;min-width:min(200px,100%)}
+.m-media-card__opt-info{font-size:13.5px;line-height:1.5;color:var(--m-text-muted);margin-bottom:12px}
+
+/* Fokuspunkten ligger ovanpå godtyckliga bilder: guld med ljus ring och mörk
+   ytterkant syns mot både ljusa och mörka motiv. */
+.m-focal__dot{width:20px;height:20px;border:3px solid var(--s-solid);background:var(--s-gold);box-shadow:0 0 0 1px var(--m-accent),var(--s-float)}
+.m-focal__flash{font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;background:var(--m-accent);color:var(--m-accent-text);padding:4px 10px;right:8px;bottom:8px}
+.m-focal__flash.is-error{background:var(--s-danger);color:var(--m-accent-text)}
+
+/* Länkfältet (lnkf) och länkmodalen (lnkm) skinnas av delfilen karna, som äger
+   komponenten. Här finns bara mobilanpassningen för de smala radkorten (längst ner). */
+
+/* ===== Richtext-redigeraren (tiptap), delad =====
+   tiptap.css laddas EFTER skinnet (extra_head), därför .m-body framför - utan
+   den förlorar reglerna mot tiptap.css på lika specificitet. */
+.m-body .tiptap-field{border:1px solid var(--m-border);border-radius:14px;background:var(--s-field);transition:border-color .2s ease,background .2s ease}
+.m-body .tiptap-field:hover{border-color:var(--m-text-muted)}
+.m-body .tiptap-field:focus-within{outline:2px solid var(--m-text);outline-offset:1px;border-color:transparent;background:var(--s-solid)}
+.m-body .tiptap-tb{background:var(--m-bg);border-bottom:1px solid var(--m-border);border-radius:13px 13px 0 0;padding:8px 10px;gap:4px}
+.m-body .tiptap-tb__btn{background:transparent;color:var(--m-text);border-radius:999px;font-size:14px;transition:background .15s ease,color .15s ease}
+.m-body .tiptap-tb__btn:hover{background:var(--s-hover);color:var(--m-text)}
+.m-body .tiptap-tb__btn.is-active{background:var(--m-accent);color:var(--m-accent-text)}
+.m-body .tiptap-tb__btn--var{font-family:var(--s-mono);font-size:11.5px}
+.m-body .tiptap-tb__sep{background:var(--m-border);margin:0 5px}
+.m-body .tiptap-tb__var-menu{background:var(--s-menu);border:1px solid var(--m-border);border-radius:16px;box-shadow:var(--s-float);padding:6px}
+.m-body .tiptap-tb__var-item{color:var(--m-text);border-radius:9px;font-size:14px;padding:8px 12px}
+.m-body .tiptap-tb__var-item:hover{background:var(--s-hover)}
+.m-body .tiptap-editor .tiptap{padding:14px 16px;border-radius:0 0 13px 13px;font-size:15px;line-height:1.65;color:var(--m-text)}
+.m-body .tiptap-editor .tiptap blockquote{border-left:2px solid var(--m-text);color:var(--m-text-muted)}
+.m-body .tiptap-editor .tiptap a{text-decoration-color:var(--s-info);text-decoration-thickness:1px}
+.m-body .tiptap-editor .tiptap p.is-editor-empty:first-child::before{color:var(--m-text-muted);opacity:.75;font-style:normal}
+.m-body .tiptap-variable-pill{font-family:var(--s-mono);font-size:.82em;background:var(--s-info-soft);color:var(--s-info);border:1px solid var(--s-info-line);border-radius:999px;padding:.1em .6em}
+.m-body .tiptap-variable-pill.ProseMirror-selectednode{background:var(--s-info-soft);border-color:var(--s-info);box-shadow:0 0 0 2px var(--s-info-line)}
+
+/* ===== Mobil ===== */
+@media (max-width:680px){
+  /* Rubriken följer skärmbredden under ca 450 px (390 px ger 26 px grad), så
+     att panelens längsta enordsrubrik ryms på EN rad ner till 320 px - både
+     med grundens 28 px sidmarginal och med mobilens 16 px. Över 450 px är
+     graden grundens 30 px, och där ryms ordet redan. */
+  .m-page-head__title{font-size:clamp(21px,6.7vw,30px)}
+  .m-form-panel{padding:24px 20px}
+  .m-form-section{font-size:19px}
+  .m-list__row{padding:18px 20px}
+  /* Blocklistans fem knappar ska rymmas på EN rad i 390 px. */
+  .m-list__row .m-row-actions--tight{gap:6px}
+  .m-row-actions--tight .m-btn--small{padding:8px 10px;font-size:11px;letter-spacing:.04em}
+  .m-row-actions--tight .m-list__meta{font-size:10.5px;letter-spacing:0;padding:0 2px}
+  .m-row-card{padding:26px 14px 14px}
+  .m-row-card::before{left:14px}
+  .m-media-toolbar .m-search-input{min-width:268px;padding:12px 20px}
+  /* Väljaren får krympa så att knappen bredvid ryms på samma rad. */
+  .m-add-block{max-width:100%}
+  .m-add-block .m-select{font-size:13.5px;padding-left:16px}
+  /* Länkfältet i de smala radkorten: etikett och två knappar på en rad. */
+  .m-body .lnkf__label{padding:5px 12px}
+  .m-body .lnkf__btn{padding:7px 11px;font-size:11px;letter-spacing:.05em}
+}
+
+/* ========== Tjänster, FAQ, städer, menyer ========== */
+/* ==========================================================================
+   Skinnet "Is" - delfil för gruppen INNEHÅLL: Tjänster, FAQ, Städer, Menyer.
+
+   Täcker det grunden inte når på de sidorna: brödsmulor, flikar, listrader,
+   menykolumner, formulärpaneler, select/kryssrutor/sifferfält, textredigeraren,
+   bildväljaren, steg- och upprepningsrader, områdestabellen med filter och
+   bläddring, sökträffsförhandsvisningen och farozonen.
+
+   Samma regel som i grunden: bara utseende (färg, form, typografi, luft) -
+   aldrig display, grid eller ordning. Alla färger går via tokens.
+   ========================================================================== */
+
+/* ===== Sidhuvud: brödsmulor, bakåtlänk, knapprad under rubriken ===== */
+.m-crumb-row,.m-page-head__back{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-text-muted);margin-bottom:14px}
+.m-crumb-row a,.m-page-head__back a{color:var(--m-text-muted);border-bottom:1px solid transparent;padding-bottom:1px;transition:color .2s ease,border-color .2s ease}
+.m-crumb-row a:hover,.m-page-head__back a:hover{color:var(--m-text);border-bottom-color:var(--m-text)}
+/* Knapparna under rubriken är inline-element: ge raden luft så pillren inte
+   kryper upp i rubriken eller in i varandra när de radbryts på mobil. */
+.m-page-head__subtitle:has(>.m-btn){margin-top:20px;line-height:2.9}
+.m-page-head__subtitle .m-btn{margin-right:2px}
+.m-page-head__title .m-badge{margin-left:12px;letter-spacing:.08em;vertical-align:.7em}
+/* Håll ingressen i läsbar bredd så knappen får plats till höger som förut */
+.m-page-head--split{gap:20px}
+.m-page-head--split .m-page-head__subtitle{max-width:46em}
+.m-page-head--split>span .m-btn+.m-btn{margin-left:6px}
+.m-page-head code,.m-form-hint code,.m-field-help code,.m-empty code{font-family:var(--s-mono);font-size:.86em;background:var(--s-hover);border:1px solid var(--m-border);border-radius:7px;padding:1px 7px;color:var(--m-text);white-space:nowrap}
+
+/* ===== Flikar (tjänsteöversikten): piller i stället för understrykning ===== */
+.m-tabs__nav{border-bottom:0;gap:6px;margin-bottom:4px}
+.m-tabs__btn{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;padding:10px 18px;border:1px solid var(--m-border);border-radius:999px;margin-bottom:0;color:var(--m-text-muted);transition:background .2s ease,color .2s ease,border-color .2s ease}
+.m-tabs__btn:hover{background:var(--s-hover);color:var(--m-text);border-color:var(--m-text)}
+.m-tabs__btn.is-active{background:var(--m-accent);color:var(--m-accent-text);border-color:var(--m-accent)}
+.m-tabs__btn:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+.m-tabs__panel>.m-section-row:first-child{margin-top:28px}
+
+/* ===== Listrader ===== */
+.m-list__thumb{border-radius:12px;background:var(--m-bg);border:1px solid var(--m-border)}
+/* Tom miniatyr: snedstreckad platshållare, så rutan ser avsedd ut */
+.m-list__thumb:not(:has(img)){background-image:repeating-linear-gradient(135deg,transparent 0 5px,var(--m-border) 5px 6px)}
+.m-list__row{gap:16px}
+.m-list__title .m-badge{margin-left:8px;vertical-align:2px}
+.m-list__meta{margin-top:3px}
+a.m-list__main:hover .m-list__title{text-decoration-thickness:1px;text-underline-offset:4px}
+/* Etikett utan variant ("Endast text"): neutral kontur */
+.m-badge:not([class*="m-badge--"]){background:transparent;color:var(--m-text-muted);border-color:var(--m-border)}
+.m-empty a{color:var(--m-text);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+/* Flytta upp/ner i ändlägena: nedtonad och orörlig */
+.m-btn:disabled{opacity:.3;cursor:not-allowed;transform:none}
+.m-btn--ghost:disabled:hover{background:transparent;border-color:var(--m-border)}
+.m-btn:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+
+/* ===== Menyer: sidfotskolumnernas huvud ===== */
+.m-menu-col{margin-bottom:18px}
+.m-menu-col__head{background:var(--m-bg);padding:20px 24px;border-bottom:1px solid var(--m-border);gap:16px}
+.m-menu-col__head .m-list__title{font-family:var(--s-grot);font-weight:700;text-transform:uppercase;font-size:19px;line-height:1.15;letter-spacing:-.005em}
+.m-menu-col__head .m-list__meta{margin-top:5px}
+
+/* ===== Formulärpaneler ===== */
+.m-form{gap:22px}
+.m-form-panel{padding:30px 32px}
+.m-form-section{font-family:var(--s-grot);font-weight:700;text-transform:uppercase;font-size:21px;line-height:1.1;letter-spacing:-.005em;margin-bottom:22px}
+.m-form-section+.m-form-hint{margin-top:-10px}
+.m-form-hint{font-size:14.5px;line-height:1.6;color:var(--m-text-muted);margin-bottom:20px}
+.m-form-hint strong{color:var(--m-text);font-weight:600}
+.m-field-help{font-size:13.5px;line-height:1.55;color:var(--m-text-muted);margin-top:8px}
+.m-field-help a,.m-form-hint a:not(.m-btn){color:var(--m-text);text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:3px}
+.m-form .m-field{margin-bottom:22px}
+.m-form .m-field-grid{gap:0 18px}
+.m-form .m-field-grid .m-field{margin-bottom:22px}
+.m-form .m-field label{font-size:12px;letter-spacing:.1em;margin-bottom:9px}
+.m-field--after-rows{margin-top:26px}
+.m-form-actions{gap:10px;margin-top:6px}
+
+/* Fälten: manage.css .m-form-regler väger tyngre än grundens .m-field-regler,
+   så glasfältet sätts om här med samma tyngd. */
+.m-form .m-field input,.m-form .m-field select,.m-form .m-field textarea,.m-step-row input,.m-repeat-row__main,.m-field-inline input[type=number]{border-radius:14px;border:1px solid var(--m-border);background:var(--s-field);color:var(--m-text);padding:12px 16px;font-size:15px;transition:border-color .2s ease,background .2s ease}
+/* Fast radhöjd ger jämn fälthöjd (48px) så selectens pil hamnar på hel pixel */
+.m-form .m-field input,.m-form .m-field select,.m-step-row input,.m-repeat-row__main{line-height:22px}
+.m-select{line-height:22px}
+.m-form .m-field textarea{line-height:1.55;min-height:92px}
+.m-form .m-field input:hover,.m-form .m-field select:hover,.m-form .m-field textarea:hover,.m-step-row input:hover,.m-repeat-row__main:hover,.m-field-inline input[type=number]:hover{border-color:var(--m-text-muted)}
+.m-form .m-field input:focus,.m-form .m-field select:focus,.m-form .m-field textarea:focus,.m-step-row input:focus,.m-repeat-row__main:focus,.m-field-inline input[type=number]:focus{outline:2px solid var(--m-text);outline-offset:1px;border-color:transparent;background-color:var(--s-solid)}
+.m-form ::placeholder,.m-search-input::placeholder{color:var(--m-text-muted);opacity:.75}
+.m-field-inline input[type=number]{padding:10px 14px;font-variant-numeric:tabular-nums}
+/* Fält med fel: röd kontur, så felet syns innan man läser texten */
+.m-form .m-field:has(.m-field-error) input,.m-form .m-field:has(.m-field-error) select,.m-form .m-field:has(.m-field-error) textarea{border-color:var(--s-danger);background-color:var(--s-danger-bg)}
+.m-field-error{margin-top:8px;letter-spacing:.02em}
+
+/* Select: egen pil ritad med tokens i stället för webbläsarens */
+.m-form .m-field select,.m-select,.m-image-field__select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--m-text) 50%),linear-gradient(135deg,var(--m-text) 50%,transparent 50%);background-position:right 22px top 50%,right 16px top 50%;background-size:6px 6px,6px 6px;background-repeat:no-repeat;padding-right:46px;cursor:pointer;text-overflow:ellipsis}
+
+/* Kryssruta som reglage (av/på-val): spår i piller, vit knopp */
+.m-form input[type=checkbox]{appearance:none;-webkit-appearance:none;width:40px;min-width:40px;height:24px;padding:0;margin:0;border-radius:999px;border:1px solid var(--m-border);background-color:var(--s-hover);background-image:radial-gradient(circle,var(--s-solid) 0 7px,var(--m-border) 7.5px 8.5px,transparent 9px);background-repeat:no-repeat;background-size:22px 22px;background-position:0 50%;cursor:pointer;vertical-align:middle;transition:background-color .2s ease,background-position .2s ease,border-color .2s ease}
+.m-form input[type=checkbox]:hover{border-color:var(--m-text-muted)}
+.m-form input[type=checkbox]:checked{background-color:var(--m-accent);border-color:var(--m-accent);background-position:100% 50%}
+.m-form input[type=checkbox]:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+.m-field-inline{gap:16px 30px;margin:4px 0 18px}
+.m-field-inline:last-child{margin-bottom:4px}
+.m-field-inline label,.m-repeat-row__check{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--m-text);gap:10px;cursor:pointer}
+
+/* Kryssruta i långa listor (målgrupper, grannområden): liten ruta med bock */
+.m-form .m-checkbox-list input[type=checkbox]{width:20px;min-width:20px;height:20px;border-radius:7px;background-color:var(--s-field);background-image:none}
+.m-form .m-checkbox-list input[type=checkbox]:checked{background-color:var(--m-accent);background-image:linear-gradient(to top right,transparent calc(50% - 1px),var(--m-accent-text) calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to bottom right,transparent calc(50% - 1px),var(--m-accent-text) calc(50% - 1px) calc(50% + 1px),transparent calc(50% + 1px));background-size:4px 4px,7px 7px;background-position:4px 9px,7.5px 5.5px}
+.m-checkbox-list>div>div{margin-bottom:9px}
+.m-checkbox-list>div>div:last-child{margin-bottom:0}
+.m-checkbox-list label{gap:11px;font-size:15px;cursor:pointer}
+.m-checkbox-list>div:not(:has(label))::before{content:"Inget att välja ännu.";font-family:var(--s-mono);font-size:13px;letter-spacing:.04em;color:var(--m-text-muted)}
+.m-checkbox-list--scroll{border-radius:16px;border-color:var(--m-border);background:var(--s-field);padding:16px 18px;max-height:260px}
+.m-filter-box{gap:14px;margin-bottom:12px}
+.m-filter-box .m-search-input{border-radius:999px;padding:10px 18px;font-size:14.5px}
+.m-filter-box__count{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+
+/* ===== Steg (tjänst) och upprepningsrader (underområden, frågor) ===== */
+.m-step-row{gap:10px;margin-bottom:10px}
+#add-step{margin-top:10px}
+.m-repeat-row{gap:12px;padding:10px 0;border-color:var(--m-border)}
+.m-repeat-row:last-child{border-bottom-color:transparent}
+.m-repeat-row__main{padding:10px 16px}
+.m-repeat-row__check{font-size:11.5px}
+#children-list,#faq-list{margin-bottom:14px}
+.m-repeat-block{border-radius:16px;border-color:var(--m-border);background:var(--m-bg);padding:22px;margin-bottom:12px}
+.m-repeat-block .m-field:last-of-type{margin-bottom:14px}
+
+/* ===== Bildfält och bildväljare ===== */
+.m-image-field__preview{border-radius:16px;border:1px dashed var(--m-border);background:var(--m-bg);margin:2px 0 14px}
+.m-image-field__preview:has(img){border-style:solid}
+.m-image-field__empty{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-image-field .m-form-hint{margin-bottom:0}
+.m-media-picker{margin-top:0}
+.m-media-picker__panel{border-radius:16px;border-color:var(--m-border);background:var(--s-field);padding:14px;margin-top:12px}
+.m-media-picker__grid{gap:10px}
+.m-media-picker__item{border-radius:14px;padding:7px;gap:6px}
+.m-media-picker__item:hover{background:var(--s-hover)}
+.m-media-picker__item.is-selected{border-color:var(--m-accent);background:var(--s-hover)}
+.m-media-picker__thumb{border-radius:9px;background:var(--s-hover)}
+.m-media-picker__name,.m-media-picker__none-label{font-family:var(--s-mono);font-size:10.5px;letter-spacing:.02em;color:var(--m-text-muted)}
+.m-media-picker__item--none{border:1px dashed var(--m-border)}
+
+/* ===== Textredigeraren: glas och svart i stället för limegult =====
+   tiptap.css länkas i mallarnas extra_head, alltså EFTER skinnet. På lika
+   specificitet vinner den då och det limegula kommer tillbaka. Därför står
+   body.m-body framför varje regel - skinnet vinner oavsett laddordning. */
+body.m-body .tiptap-field{border:1px solid var(--m-border);border-radius:14px;background:var(--s-field);transition:border-color .2s ease,background .2s ease}
+body.m-body .tiptap-field:hover{border-color:var(--m-text-muted)}
+body.m-body .tiptap-field:focus-within{outline:2px solid var(--m-text);outline-offset:1px;border-color:transparent;background:var(--s-solid)}
+body.m-body .tiptap-tb{background:var(--m-bg);border-bottom:1px solid var(--m-border);border-radius:13px 13px 0 0;padding:8px 10px;gap:4px}
+body.m-body .tiptap-tb__btn{background:transparent;color:var(--m-text);border-radius:999px;font-size:14px;transition:background .15s ease,color .15s ease}
+body.m-body .tiptap-tb__btn:hover{background:var(--s-hover);color:var(--m-text)}
+body.m-body .tiptap-tb__btn.is-active{background:var(--m-accent);color:var(--m-accent-text)}
+body.m-body .tiptap-tb__btn--var{font-family:var(--s-mono);font-size:11.5px}
+body.m-body .tiptap-tb__sep{background:var(--m-border);margin:0 5px}
+body.m-body .tiptap-tb__var-menu{background:var(--s-menu);border:1px solid var(--m-border);border-radius:16px;box-shadow:var(--s-float);padding:6px}
+body.m-body .tiptap-tb__var-item{color:var(--m-text);border-radius:9px;font-size:14px;padding:8px 12px}
+body.m-body .tiptap-tb__var-item:hover{background:var(--s-hover)}
+body.m-body .tiptap-editor .tiptap{padding:14px 16px;border-radius:0 0 13px 13px;font-size:15px;line-height:1.65;color:var(--m-text)}
+body.m-body .tiptap-editor .tiptap blockquote{border-left:2px solid var(--m-text);color:var(--m-text-muted)}
+body.m-body .tiptap-editor .tiptap a{text-decoration-color:var(--s-info);text-decoration-thickness:1px}
+body.m-body .tiptap-editor .tiptap p.is-editor-empty:first-child::before{color:var(--m-text-muted);opacity:.75;font-style:normal}
+body.m-body .tiptap-variable-pill{font-family:var(--s-mono);font-size:.82em;background:var(--s-info-soft);color:var(--s-info);border:1px solid var(--s-info-line);border-radius:999px;padding:.1em .6em}
+body.m-body .tiptap-variable-pill.ProseMirror-selectednode{background:var(--s-info-soft);border-color:var(--s-info);box-shadow:0 0 0 2px var(--s-info-line)}
+
+/* ===== Städer: filterrad, tabell, bläddring ===== */
+.m-areas-filter{gap:14px;margin-bottom:20px}
+.m-areas-filter .m-filter{gap:6px}
+.m-areas-filter .m-filter__item{padding:10px 16px;border-color:var(--m-border)}
+.m-areas-filter .m-filter__item:hover{background:var(--s-hover);border-color:var(--m-text)}
+.m-areas-filter .m-filter__item.is-active{border-color:var(--m-accent)}
+.m-areas-filter__right{gap:8px}
+.m-areas-filter__right .m-select,.m-areas-filter__right .m-search-input{border-radius:999px;padding:9px 18px;font-size:14px}
+.m-areas-filter__right .m-select{padding-right:42px}
+.m-areas-filter__right .m-btn{padding:10px 18px}
+.m-table thead th{border-color:var(--m-border)}
+.m-table tbody td{border-color:var(--m-border)}
+.m-cell-title{font-size:16px;font-weight:500}
+.m-path{font-family:var(--s-mono);font-size:12px;letter-spacing:.02em;margin-top:3px;word-break:normal;overflow-wrap:anywhere}
+.m-table td.m-muted{font-size:14.5px}
+.m-table td.m-num{font-family:var(--s-mono);font-size:13.5px}
+.m-table td .m-badge+.m-badge{margin-left:4px}
+/* En senare regel i manage.css ger .m-inline-form 14px toppmarginal, vilket
+   sänker Dölj-knappen under Redigera. Nollas i knappraden. */
+.m-row-actions .m-inline-form{margin-top:0}
+.m-pager{padding:16px 24px;border-color:var(--m-border)}
+.m-pager .m-btn{white-space:nowrap}
+.m-pager__status{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase}
+.m-empty--note{border-color:var(--m-border);font-size:12.5px;line-height:1.75;letter-spacing:.02em;padding:20px 24px}
+
+/* ===== Sökträffsförhandsvisning och farozon ===== */
+.m-serp{background:var(--s-solid);border-color:var(--m-border);border-radius:16px;padding:20px 22px;margin-top:10px}
+.m-serp__label{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.12em;font-weight:500;color:var(--m-text-muted);margin-bottom:12px}
+.m-serp__url{font-size:13px;color:var(--s-ok)}
+.m-serp__title{font-size:19px;line-height:1.3;color:var(--s-info);margin:3px 0 5px}
+.m-serp__desc{font-size:14px;line-height:1.6;color:var(--m-text-muted)}
+.m-danger-zone{margin-top:40px;padding-top:24px;border-top:1px dashed var(--s-danger-soft)}
+
+/* ===== Smal skärm ===== */
+@media (max-width:680px){
+  .m-form-panel{padding:24px 20px}
+  .m-form-section{font-size:19px}
+  .m-tabs__btn{padding:9px 13px;font-size:11px;letter-spacing:.06em}
+  .m-menu-col__head{padding:18px 20px}
+  .m-list__row{padding:18px 20px}
+  .m-row-actions{gap:8px}
+  /* Kolumnhuvudet radbryts inte i manage.css, så knappraden (100% bred) trycks ut
+     ur panelen och klipps. Här hålls den inom panelen i stället: knappraden blir
+     aldrig smalare än sin bredaste knapp (min-content), textkolumnen får krympa
+     (min-width:0) och rubriken får brytas mitt i ett långt ord hellre än att
+     knuffa ut knapparna. Mindre piller i huvudet ger rubriken mer plats. */
+  .m-menu-col__head{gap:14px}
+  .m-menu-col__head>div:first-child{min-width:0}
+  .m-menu-col__head .m-row-actions{width:auto;max-width:58%;min-width:min-content}
+  .m-menu-col__head .m-btn--small{padding:7px 11px;font-size:10.5px;letter-spacing:.04em}
+  .m-menu-col__head .m-list__title{font-size:15px;overflow-wrap:anywhere;hyphens:auto;-webkit-hyphens:auto}
+  .m-menu-col__head .m-list__meta{font-size:11.5px;letter-spacing:.01em;line-height:1.6;overflow-wrap:anywhere}
+  .m-repeat-block{padding:18px 16px}
+  .m-serp{padding:18px}
+  /* Stegen staplas här: luft mellan grupperna så varje steg läses som en enhet */
+  .m-step-row{margin-bottom:24px}
+  /* Meddelanden radbryts på smal skärm - piller med två rader ser trasigt ut */
+  .m-message{border-radius:20px}
+  .m-serp__title{font-size:17px}
+  /* Knapparna uppe till höger radbryts här: jämn vänsterkant och luft mellan raderna */
+  .m-page-head--split>span .m-btn{margin:0 6px 8px 0}
+  .m-page-head--split>span .m-btn+.m-btn{margin-left:0}
+  .m-table thead th,.m-table tbody td{padding-left:16px;padding-right:16px}
+  /* Bläddringsraden: tre delar på en rad. Mindre piller och mindre status, så
+     statusen ryms på högst två rader mellan knapparna. */
+  .m-pager{padding:14px 16px;gap:8px}
+  .m-pager .m-btn{padding:8px 11px;font-size:10.5px;letter-spacing:.04em}
+  .m-pager__status{font-size:10.5px;letter-spacing:.04em;line-height:1.55;text-align:center}
+  /* Kodpillret i importnoten är bredare än en smal skärm: låt det brytas
+     i stället för att sticka ut ur panelen. */
+  .m-empty code{white-space:normal;overflow-wrap:anywhere;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+}
+/* Riktigt smal skärm: knapparna i menyhuvudet staplas ändå en och en, så
+   knappraden görs exakt så bred som sin bredaste knapp - resten går till rubriken. */
+@media (max-width:460px){
+  .m-menu-col__head .m-row-actions{width:min-content;max-width:none}
+}
+
+/* ========== Förfrågningar, offerter, produkter, Hemsidekollen ========== */
+/* ==========================================================================
+   SKINNET "IS" - DELFIL "AFFÄR"
+   Täcker: Förfrågningar (lista + detalj), Offerter (lista + byggaren),
+   Produktkatalogen och Hemsidekollen.
+
+   Prefix: af- = delat inom gruppen, o- = offerter/produkter,
+   hk- = Hemsidekollen, m-inq- = förfrågningar (strukturen ägs av manage.css).
+
+   Avsnitt 1 är STRUKTUR som tidigare låg som inline-stilar i mallarna. Den är
+   flyttad hit med oförändrade värden. Avsnitt 1b listar de få TILLÄGG som rör
+   mått och inte bara utseende - samlade på ett ställe så att de går att se
+   och ta ställning till. Allt därefter är utseende: färg, form, typografi
+   och luft, alltid via tokens.
+   Offertbyggarens eget rutnät ligger kvar i <style>-blocket i edit.html.
+   ========================================================================== */
+
+/* ---------- 1. Struktur flyttad från inline-stilar (oförändrade värden) ---------- */
+.af-hero__row,.hk-report__head,.o-top{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px}
+.o-create{display:flex;gap:10px;flex-wrap:wrap;max-width:640px}
+.o-create input{flex:1;min-width:180px}
+.hk-form{display:flex;gap:10px;max-width:560px}
+.hk-form input{flex:1}
+.o-prod-create{display:grid;grid-template-columns:1.4fr 1fr 130px 140px auto;gap:10px;align-items:start}
+.o-prod-row{display:grid;grid-template-columns:1.4fr 1fr 130px 140px auto auto;gap:10px;align-items:center}
+@media (max-width:900px){.o-prod-create,.o-prod-row{grid-template-columns:1fr 1fr}}
+.o-prod__active{display:flex;gap:6px;align-items:center}
+.o-status{display:inline-block}
+.o-table thead th.m-num{text-align:right}
+.o-add__pick{display:flex;gap:8px;flex:1;min-width:260px}
+.o-add__link{align-self:center}
+.o-preview{display:block;text-align:center}
+.o-actions{display:flex;gap:8px;flex-wrap:wrap}
+.hk-table{width:100%;border-collapse:collapse}
+.hk-row__dot{width:26px}
+.hk-row__title{white-space:nowrap}
+.hk-history__meta{text-align:right}
+
+/* ---------- 1b. Tillägg som rör mått (nytt jämfört med före skinnet) ----------
+   Inget här flyttar element, byter ordning eller ändrar display. Varje regel
+   lagar något som var trasigt redan före skinnet; tas en regel bort faller
+   sidan tillbaka till hur den betedde sig då.
+
+   a) Produktkatalogen: fälten får krympa med sina spår. Utan detta tvingar
+      fältens egenbredd ut rutnätet under 900 px och panelen klipper
+      Spara-knappen. */
+.o-prod-create > *,.o-prod-row > *{min-width:0}
+/* b) Hemsidekollen: rapporten är en tabell per kontrollgrupp. Fast bredd på
+      titelkolumnen ger alla grupper samma kolumnlinje; annars räknar varje
+      tabell fram sin egen. På smala skärmar en andel i stället för 240 px. */
+.hk-row .hk-row__title{width:240px}
+@media (max-width:680px){.hk-row .hk-row__title{width:46%}}
+/* c) Offertbyggaren: beskrivningsfältet växer med sin text. Förut visade det
+      en rad och klippte resten, och i låst läge går fältet inte att dra
+      större - längre beskrivningar blev oläsliga. Webbläsare som saknar
+      field-sizing beter sig som förut. */
+.o-line .o-desc{field-sizing:content}
+/* Tom beskrivning i låst läge: platshållaren är osynlig där och ska inte ge fältet höjd */
+.o-line .o-desc:disabled:placeholder-shown{field-sizing:fixed}
+/* Hör hit men ligger i mallarna:
+   d) offers/list.html - panelen runt tabellen har klassen m-table-wrap, som
+      redan finns i manage.css och används på Statistik. Utan den klipper
+      panelen kolumnerna Status och Uppdaterad på smala skärmar, och de går
+      inte att nå. Sex kolumner ryms inte på 390 px hur texten än sätts, så
+      tabellen rullar i sidled inne i panelen - sidan själv rullar inte.
+   e) offers/edit.html - en regel som bara gäller låst läge (radens namn
+      hålls kvar i sin kolumn när skriptet gömmer handtaget), och två regler
+      som bytt plats så att mobilens kolumnval för beskrivningen vinner.
+   f) tools/hemsidekollen.html - Granska-knappen har m-btn--inline i stället
+      för en klass som inte fanns; se kommentaren överst i mallen. */
+
+/* ---------- 2. Delat inom gruppen ---------- */
+
+/* Sidhuvudet på Offerter, Produkter och Hemsidekollen är en panel med rubrik
+   och skapa-formulär. Panelens yta släcks så att rubriken står direkt på
+   ishimlen, precis som .m-page-head gör på alla andra sidor. */
+.m-panel.af-hero{background:transparent;border:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;overflow:visible;padding:0;margin-bottom:32px}
+.af-hero__row{gap:12px 20px}
+.af-hero__title{font-family:var(--s-grot);font-weight:700;text-transform:uppercase;font-size:clamp(30px,4vw,46px);line-height:1;letter-spacing:-.01em;margin:0}
+.af-hero__desc{font-size:17px;line-height:1.5;color:var(--m-text-muted);margin:12px 0 26px;max-width:64ch}
+.af-hero__link{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--m-text);border:1px solid var(--m-border);border-radius:999px;padding:8px 15px;background:var(--m-surface);transition:background .2s ease,border-color .2s ease}
+.af-hero__link:hover{background:var(--s-hover);border-color:var(--m-text)}
+
+/* Fält i skapa-raderna: samma form som grundens .m-field */
+.o-create input,.hk-form input,.o-prod-create input,.o-prod-create select{font:inherit;font-size:15px;line-height:1.35;color:var(--m-text);background-color:var(--s-field);border:1px solid var(--m-border);border-radius:14px;padding:12px 16px;transition:border-color .2s ease}
+.o-create input:hover,.hk-form input:hover,.o-prod-create input:hover,.o-prod-create select:hover{border-color:var(--m-text-muted)}
+.o-create input:focus,.hk-form input:focus,.o-prod-create input:focus,.o-prod-create select:focus{outline:2px solid var(--m-text);outline-offset:1px}
+.o-create input::placeholder,.hk-form input::placeholder,.o-prod-create input::placeholder,.o-prod-row input::placeholder,.o-line textarea::placeholder{color:var(--m-text-muted);opacity:.8}
+
+/* Rullistor: egen pil ritad med tokens i stället för webbläsarens standard */
+.o-line select,.o-add select,.o-prod-create select,.o-prod-row select,.m-inq-status-form .m-select{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--m-text) 50%),linear-gradient(135deg,var(--m-text) 50%,transparent 50%);background-position:calc(100% - 18px) 52%,calc(100% - 13px) 52%;background-size:5px 5px,5px 5px;background-repeat:no-repeat;padding-right:34px;cursor:pointer}
+
+/* Brödsmula, filterpiller, datum och tomt läge */
+.af-crumb{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;margin-bottom:14px}
+.af-filter{gap:8px;margin-bottom:22px}
+.af-filter .m-filter__item{background:var(--m-surface);padding:8px 16px;border-color:var(--m-border)}
+.af-filter .m-filter__item:hover{background:var(--s-hover);border-color:var(--m-text)}
+.af-filter .m-filter__item.is-active{background:var(--m-accent);border-color:var(--m-accent);color:var(--m-accent-text)}
+.af-mono{font-family:var(--s-mono);font-size:12.5px;letter-spacing:.03em}
+.af-empty{font-family:var(--s-mono);font-size:13.5px;letter-spacing:.04em;line-height:1.6;color:var(--m-text-muted);padding:32px 24px;margin:0}
+
+/* ---------- 3. Förfrågningar: listan ---------- */
+.m-inq-table__dot-cell{padding-left:22px}
+.m-inq-table__name{font-size:16px;font-weight:600}
+.m-inq-table__name:hover{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
+.m-inq-table__org{font-family:var(--s-mono);font-size:12px;letter-spacing:.03em;margin-top:3px}
+.m-inq-mobile-card{border-radius:var(--m-radius);padding:18px 20px;margin-bottom:10px;box-shadow:var(--m-shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.m-inq-mobile-card:hover{background:var(--s-hover)}
+.m-inq-mobile-card--unread:hover{background:var(--s-warn-soft)}
+.m-inq-mobile-card__top{margin-bottom:8px;gap:12px}
+.m-inq-mobile-card .m-badge{white-space:nowrap}
+.m-inq-mobile-card__name{font-size:17px;font-weight:600}
+.m-inq-mobile-card__meta{font-family:var(--s-mono);font-size:12px;letter-spacing:.03em;line-height:1.6}
+
+/* ---------- 4. Förfrågningar: detaljsidan ---------- */
+.m-inq-status-form{gap:12px}
+.m-inq-status-label{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:500}
+.m-inq-status-form .m-select{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;border-radius:999px;padding:11px 40px 11px 20px;background-color:var(--m-surface);background-position:calc(100% - 22px) 52%,calc(100% - 17px) 52%;transition:border-color .2s ease}
+.m-inq-status-form .m-select:hover{border-color:var(--m-text)}
+.m-inq-status-form .m-select:focus{outline:2px solid var(--m-text);outline-offset:1px}
+.m-inq-section{margin-bottom:18px}
+.m-inq-section__head{background:transparent;padding:20px 24px 16px}
+.m-inq-section__title{font-family:var(--s-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted)}
+.m-inq-section__title::before{content:"["}
+.m-inq-section__title::after{content:"]"}
+.m-inq-section__title .m-badge{letter-spacing:.08em}
+.m-inq-section__body{padding:22px 24px 24px}
+.m-inq-detail-item{padding:16px 24px 18px;gap:5px;border-bottom-color:transparent;box-shadow:0 1px 0 var(--m-border)}
+.m-inq-detail-label{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.12em;font-weight:500}
+.m-inq-detail-value{font-size:16px;overflow-wrap:anywhere}
+.m-inq-detail-value a{color:var(--m-text);text-decoration:underline;text-decoration-color:var(--m-text-muted);text-decoration-thickness:1px;text-underline-offset:4px}
+.m-inq-detail-value a:hover{text-decoration-color:var(--m-text);text-decoration-thickness:2px}
+.m-inq-description{font-size:16px;max-width:76ch}
+.m-inq-images{gap:14px}
+.m-inq-images__item{border-radius:14px;background:var(--s-field)}
+.m-inq-images__item:hover{box-shadow:var(--m-shadow);border-color:var(--m-text)}
+.m-inq-images__name{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.03em;padding:10px 12px}
+
+/* ---------- 5. Offerter: listan ---------- */
+.o-table__name{font-size:16px;font-weight:600;color:var(--m-text)}
+.o-table__name:hover{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
+.o-table__muted{color:var(--m-text-muted)}
+.o-table .m-num{font-variant-numeric:tabular-nums}
+/* Månads- och årsbelopp får brytas på två rader, som före skinnet */
+.o-table td.o-table__recurring{white-space:normal}
+
+/* Offertens status: samma form som .m-badge, färg via status-tokens */
+.o-status{font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;line-height:1.5;padding:3px 10px;border-radius:999px;border:1px solid var(--m-border);background:transparent;color:var(--m-text-muted);white-space:nowrap}
+.o-status--sent{background:var(--s-warn-soft);color:var(--s-warn);border-color:var(--s-warn-line)}
+.o-status--opened{background:var(--s-info-soft);color:var(--s-info);border-color:var(--s-info-line)}
+.o-status--accepted{background:var(--s-ok-soft);color:var(--s-ok);border-color:var(--s-ok-line)}
+.o-status--declined{background:var(--s-danger-bg);color:var(--s-danger);border-color:var(--s-danger-soft)}
+
+/* ---------- 6. Offertbyggaren ---------- */
+.o-top{gap:12px 20px;margin-bottom:28px}
+.o-top__title{font-family:var(--s-grot);font-weight:700;text-transform:uppercase;font-size:clamp(26px,3.4vw,40px);line-height:1.05;letter-spacing:-.01em;margin:0}
+.o-top__crumb{color:var(--m-text-muted);transition:color .2s ease}
+.o-top__crumb:hover{color:var(--m-text)}
+#save-state{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted);margin-left:8px}
+#save-state.is-error{color:var(--s-danger);font-weight:500;text-transform:none;letter-spacing:.02em}
+.o-locked-note{background:var(--s-ok-soft);color:var(--s-ok);border:1px solid var(--s-ok-line);border-radius:16px;padding:14px 20px;font-family:var(--s-mono);font-size:13px;line-height:1.55;margin-bottom:20px}
+
+/* Radlistan: redigeras på plats, fälten visar sin ram först vid hover/fokus */
+.o-head-row{font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);border-bottom:1px solid var(--m-border)}
+.o-head-row span{padding-left:11px}
+.o-head-row .o-head-row__num{text-align:right;padding-left:0;padding-right:11px}
+.o-line{border-top:1px solid var(--m-border)}
+.o-line:first-child{border-top:0}
+.o-line input,.o-line textarea,.o-line select{font:inherit;font-size:15px;line-height:1.35;color:var(--m-text);border:1px solid transparent;border-radius:10px;padding:8px 10px;background-color:transparent;transition:border-color .15s ease,background-color .15s ease}
+.o-line select{padding-right:30px;background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%}
+.o-line input:hover,.o-line textarea:hover,.o-line select:hover{border-color:var(--m-border);background-color:var(--s-field)}
+.o-line input:focus,.o-line textarea:focus,.o-line select:focus{outline:2px solid var(--m-text);outline-offset:0;border-color:transparent;background-color:var(--s-solid)}
+.o-line .o-label{font-size:16px;font-weight:600}
+.o-line .o-desc{font-size:14.5px;line-height:1.5;color:var(--m-text-muted)}
+.o-line .o-price{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.o-handle,.o-del{font-size:16px;line-height:36px;color:var(--m-text-muted);border-radius:8px;transition:background .15s ease,color .15s ease}
+.o-handle:hover{background:var(--s-hover);color:var(--m-text)}
+.o-handle:focus-visible,.o-del:focus-visible{outline:2px solid var(--m-text);outline-offset:1px}
+.o-del{width:28px;font-size:18px}
+.o-del:hover{background:var(--s-danger-bg);color:var(--s-danger)}
+
+/* Tillval/Förvald: av = konturpiller, på = svart, som filterpillren */
+.o-flags{padding:2px 0 0 10px}
+.o-flag{font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;line-height:1.5;border:1px solid var(--m-border);border-radius:999px;padding:4px 12px;background:transparent;color:var(--m-text-muted);transition:background .15s ease,color .15s ease,border-color .15s ease}
+.o-flag:hover{border-color:var(--m-text);color:var(--m-text)}
+.o-flag[aria-pressed="true"]{background:var(--m-accent);border-color:var(--m-accent);color:var(--m-accent-text)}
+.o-flag:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+.o-flag-hint{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.02em;color:var(--m-text-muted)}
+
+/* Lägg till-raden: en verktygsrad av piller */
+.o-add{border-top:1px solid var(--m-border)}
+.o-add select{font:inherit;font-size:14px;line-height:1.35;color:var(--m-text);border:1px solid var(--m-border);border-radius:999px;padding:8px 36px 8px 16px;background-color:var(--s-field);transition:border-color .2s ease}
+.o-add select:hover{border-color:var(--m-text)}
+.o-add select:focus{outline:2px solid var(--m-text);outline-offset:1px}
+.o-add__link,.o-add__link:visited{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted);text-decoration:underline;text-decoration-color:var(--m-border);text-underline-offset:4px}
+.o-add__link:hover{color:var(--m-text);text-decoration-color:var(--m-text)}
+
+/* Sidopanelen: summering, kund, utskick. Rutnätets gap sköter avståndet,
+   så panelernas egen bottenmarginal nollas där den annars dubblas. */
+.o-wrap > .m-panel,.o-side > .m-panel:last-child{margin-bottom:0}
+.o-card{padding:22px 24px 24px}
+.o-card__title{font-family:var(--s-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);margin:0 0 16px}
+.o-card__title::before{content:"[ "}
+.o-card__title::after{content:" ]"}
+.o-sumrow{font-size:15px;color:var(--m-text-muted);padding:11px 0;border-top:1px solid var(--m-border)}
+/* Etiketten sänks två pixlar så att den delar baslinje med det större beloppet */
+.o-sumrow span{padding-top:2px}
+.o-sumrow b{font-family:var(--s-grot);font-size:21px;line-height:1.1;font-weight:700;letter-spacing:-.01em;color:var(--m-text)}
+.o-sum-note{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.02em;color:var(--m-text-muted);border-top:1px solid var(--m-border);padding-top:14px;margin:0}
+.o-side .m-field{margin-bottom:18px}
+.o-side .m-field:last-child{margin-bottom:0}
+.o-side .m-field label{margin-bottom:8px}
+.o-side .m-field input,.o-side .m-field textarea{font-family:inherit;font-size:15px;line-height:1.35}
+.o-side .m-field textarea{line-height:1.5;resize:vertical}
+.o-side .m-field textarea::placeholder{color:var(--m-text-muted);opacity:.8}
+.o-side .m-field input[type="date"]{font-variant-numeric:tabular-nums}
+.o-side .m-field input[type="date"]::-webkit-calendar-picker-indicator{opacity:.55;cursor:pointer}
+.o-side .m-field input[type="date"]::-webkit-calendar-picker-indicator:hover{opacity:1}
+.o-send{margin-bottom:10px}
+.o-preview{margin-bottom:18px;padding:11px 15px}
+.o-sent-meta{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.02em;line-height:1.7;color:var(--m-text-muted);border-top:1px solid var(--m-border);padding-top:14px;margin:18px 0 0}
+
+/* Låst läge (accepterad offert): fälten läses som ett dokument */
+.o-line input:disabled,.o-line textarea:disabled,.o-line select:disabled{-webkit-text-fill-color:currentColor;opacity:1;cursor:default;border-color:transparent;background-color:transparent}
+.o-line select:disabled{background-image:none}
+.o-line textarea:disabled{resize:none}
+.o-line textarea:disabled::placeholder{color:transparent}
+.o-side .m-field .o-meta:disabled{-webkit-text-fill-color:currentColor;opacity:1;cursor:default;color:var(--m-text-muted);background:transparent;resize:none}
+.o-side .m-field .o-meta:disabled::placeholder{color:transparent}
+
+/* ---------- 7. Produktkatalogen ---------- */
+.o-prod-create .o-prod__price{text-align:right}
+.o-prod-row{padding:10px 20px;transition:background .15s ease}
+.o-prod-row + .o-prod-row{border-top:1px solid var(--m-border)}
+.o-prod-row:hover{background:var(--s-hover)}
+.o-prod-row.is-inactive{opacity:.55}
+.o-prod-row input:not([type="checkbox"]),.o-prod-row select{font:inherit;font-size:15px;line-height:1.35;color:var(--m-text);border:1px solid transparent;border-radius:10px;padding:8px 10px;background-color:transparent;transition:border-color .15s ease,background-color .15s ease}
+.o-prod-row select{font-size:14px;padding-right:30px;background-position:calc(100% - 15px) 52%,calc(100% - 10px) 52%}
+.o-prod-row input:not([type="checkbox"]):hover,.o-prod-row select:hover{border-color:var(--m-border);background-color:var(--s-field)}
+.o-prod-row input:not([type="checkbox"]):focus,.o-prod-row select:focus{outline:2px solid var(--m-text);outline-offset:0;border-color:transparent;background-color:var(--s-solid)}
+.o-prod-row input.o-prod__name{font-size:16px;font-weight:600}
+.o-prod-row input.o-prod__desc{color:var(--m-text-muted)}
+.o-prod-row input.o-prod__price{text-align:right;font-variant-numeric:tabular-nums;font-weight:500}
+.o-prod__active{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted);gap:8px;cursor:pointer}
+
+/* Kryssrutan: egen ruta, bocken ritad med clip-path och token-färg */
+.o-prod__active input[type="checkbox"]{appearance:none;-webkit-appearance:none;display:inline-grid;place-content:center;width:20px;height:20px;margin:0;border:1px solid var(--m-text-muted);border-radius:6px;background:var(--s-field);cursor:pointer;transition:background .15s ease,border-color .15s ease}
+.o-prod__active input[type="checkbox"]::before{content:"";width:11px;height:11px;transform:scale(0);transition:transform .12s ease;background:var(--m-accent-text);clip-path:polygon(14% 44%,0 65%,50% 100%,100% 16%,80% 0,43% 62%)}
+.o-prod__active input[type="checkbox"]:checked{background:var(--m-accent);border-color:var(--m-accent)}
+.o-prod__active input[type="checkbox"]:checked::before{transform:scale(1)}
+.o-prod__active input[type="checkbox"]:hover{border-color:var(--m-text)}
+.o-prod__active input[type="checkbox"]:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+
+/* ---------- 8. Hemsidekollen ---------- */
+.hk-error{font-family:var(--s-mono);font-size:13px;line-height:1.55;color:var(--s-danger);background:var(--s-danger-bg);border:1px solid var(--s-danger-soft);border-radius:14px;padding:11px 16px;margin:14px 0 0;max-width:560px}
+.hk-report,.hk-history{padding:26px 28px 28px}
+.hk-report__head{gap:10px 20px;padding-bottom:4px}
+.hk-report__url{font-family:var(--s-grot);font-size:24px;line-height:1.15;font-weight:700;letter-spacing:-.01em;margin:0;overflow-wrap:anywhere}
+.hk-report__sum{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted)}
+.hk-group,.hk-history__title{font-family:var(--s-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted)}
+.hk-group{margin:30px 0 12px}
+.hk-history__title{margin:0 0 14px}
+.hk-group::before,.hk-history__title::before{content:"[ "}
+.hk-group::after,.hk-history__title::after{content:" ]"}
+.hk-table{font-size:15px}
+.hk-row{border-top:1px solid var(--m-border)}
+.hk-row td{padding:12px 0;vertical-align:top}
+.hk-row .hk-row__dot{padding-right:8px}
+.hk-row .hk-row__title{padding-right:24px;font-weight:600}
+/* Långa odelbara värden (SPF-poster, adresser) bryts i stället för att
+   tvinga ut sin kolumn */
+.hk-row__detail{color:var(--m-text-muted);line-height:1.5;overflow-wrap:anywhere}
+.hk-dot{font-size:11px;line-height:1}
+.hk-dot--ok{color:var(--s-ok)}
+.hk-dot--varning{color:var(--s-gold)}
+.hk-dot--fel{color:var(--s-danger)}
+.hk-row--fel .hk-row__title{color:var(--s-danger)}
+.hk-row--varning .hk-row__title{color:var(--s-warn)}
+.hk-history__url a{font-weight:500;text-decoration:underline;text-decoration-color:var(--m-border);text-decoration-thickness:1px;text-underline-offset:4px;overflow-wrap:anywhere}
+.hk-history__url a:hover{text-decoration-color:var(--m-text)}
+.hk-history__meta{font-family:var(--s-mono);font-size:12px;letter-spacing:.03em;color:var(--m-text-muted);white-space:nowrap;padding-left:16px}
+
+/* ---------- 9. Smala skärmar: luft, textstorlek och radbrytning ----------
+   (De måttregler som gäller smala skärmar står i avsnitt 1b.) */
+
+/* Offertlistan har sex kolumner. Med tätare sättning ryms hela tabellen ned
+   till ungefär 740 px; därunder rullar den i sidled inne i panelen, och då
+   syns så mycket som möjligt innan man behöver dra. */
+@media (max-width:900px){
+  .o-table{font-size:14px}
+  .o-table thead th{font-size:10.5px;letter-spacing:.08em;padding:12px 9px}
+  .o-table tbody td{padding:14px 9px}
+  .o-table thead th:first-child,.o-table tbody td:first-child{padding-left:18px}
+  .o-table thead th:last-child,.o-table tbody td:last-child{padding-right:18px}
+  .o-table__name{font-size:15px}
+  .o-table .o-status{font-size:10px;letter-spacing:.06em;padding:2px 8px}
+}
+@media (max-width:680px){
+  .m-panel.af-hero{margin-bottom:26px}
+  .af-hero__desc{font-size:16px;margin-bottom:22px}
+  .o-card,.hk-report,.hk-history{padding:20px 20px 22px}
+  .m-inq-section__head{padding:18px 20px 14px}
+  .m-inq-section__body{padding:18px 20px 20px}
+  .m-inq-detail-item{padding:14px 20px 16px}
+  .o-prod-row{padding:14px 16px}
+  .hk-table{font-size:14.5px}
+  .hk-row .hk-row__title{font-size:14px;white-space:normal;padding-right:12px}
+}
+
+/* ========== AI-assistenten ========== */
+/* ==========================================================================
+   SKINNET "IS" - DELFIL: AI-ASSISTENTEN (/manage/ai/...)
+
+   Täcker chatten (meddelanden, steg, skrivruta, @-meny, förslagskort),
+   förslagslistan och granskningssidan (utkastkort, diff, klumpmarkering),
+   skrivguiden, anslutningssidan (nyckelvisning, steglista), samtyckessidan
+   och förhandsgranskningen. Bara utseende: färg, form, typografi och luft.
+   Strukturen (display, grid, ordning) ägs av manage.css och rörs inte här.
+
+   Orben och den molniga skicka-knappen är panelens enda färgklick. Deras
+   palett ligger som egna tokens nedan, så att ett framtida mörkt skinn kan
+   byta dem på ett ställe. Flyttas till grundens token-block vid hopslagning.
+   ========================================================================== */
+:root{
+  --s-prisma-a:rgba(124,92,255,.4);--s-prisma-b:rgba(34,211,238,.32);--s-prisma-c:rgba(244,114,182,.36);
+  --s-prisma-edge:rgba(255,255,255,.75);--s-prisma-sheen:rgba(255,255,255,.45);
+}
+
+/* ===== Sektionsnavigationen: flikar i mono, svart understrykning ===== */
+.m-subnav{gap:2px;border-bottom:1px solid var(--m-border);margin:0 0 30px}
+.m-subnav__item{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;padding:13px 16px;color:var(--m-text-muted);border-bottom:2px solid transparent;border-radius:12px 12px 0 0}
+.m-subnav__item:hover{color:var(--m-text);background:var(--s-hover)}
+.m-subnav__item.is-active{color:var(--m-text);font-weight:500;border-bottom-color:var(--m-accent)}
+.m-subnav__item .m-badge{padding:2px 8px}
+
+/* Brödsmulan ovanför rubriken: etikett, inte löptext */
+.m-crumb-row{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:14px;color:var(--m-text-muted)}
+.m-crumb-row a{color:var(--m-text-muted);border-bottom:1px solid transparent;transition:color .15s ease,border-color .15s ease}
+.m-crumb-row a:hover{color:var(--m-text);border-bottom-color:var(--m-text)}
+.m-page-head--orb{gap:18px}
+
+/* Varningsrutor inne i paneler och kort (avstängd assistent, inaktuellt
+   utkast, ej publik adress). Löptext, inte fältfel - därför egen klass. */
+.m-ai-alert{font-family:inherit;font-size:14.5px;line-height:1.55;letter-spacing:0;margin:14px 0;padding:12px 16px;border-radius:14px;border:1px solid var(--s-danger-soft);background:var(--s-danger-bg);color:var(--s-danger)}
+.m-ai-alert:first-child{margin-top:0}
+.m-ai-alert:last-child{margin-bottom:0}
+.m-ai-alert a{color:inherit;text-decoration:underline;text-underline-offset:2px}
+.m-ai-alert strong{font-weight:600}
+/* Ensam i sin panel: låt panelen bära varningsfärgen i stället för en ruta i rutan */
+.m-form-panel:has(> .m-ai-alert:only-child){border-color:var(--s-danger-soft);background:linear-gradient(var(--s-danger-bg),var(--s-danger-bg)),var(--m-surface)}
+.m-form-panel > .m-ai-alert:only-child{border:0;background:transparent;padding:2px 4px;font-size:15px}
+.m-form-hint a{color:var(--m-text);text-decoration:underline;text-underline-offset:2px}
+.m-form-panel > .m-form-hint:last-child{margin-bottom:0}
+
+/* ===== Chatten ===== */
+.m-chat{gap:28px}
+.m-chat__log{padding:4px 4px 12px;margin-bottom:18px}
+.m-msg{margin-bottom:24px}
+.m-msg__meta{font-family:var(--s-mono);font-size:11px;letter-spacing:.12em;font-weight:500;gap:8px;margin-bottom:8px;color:var(--m-text-muted)}
+.m-msg__meta time{letter-spacing:.04em;opacity:.8}
+.m-msg__body{padding:14px 20px;border-radius:22px;font-size:15.5px;line-height:1.6}
+/* Inga fallskuggor inne i loggen: den scrollar, och en mjuk skugga klipps
+   då till en hård rand i loggens kant. Glas och kantlinje räcker. */
+.m-msg--user .m-msg__body{background:var(--m-accent);color:var(--m-accent-text);border-bottom-right-radius:6px}
+.m-msg--assistant .m-msg__body{background:var(--m-surface);border:1px solid var(--m-border);border-bottom-left-radius:6px;box-shadow:none;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.m-msg .m-msg__body--working{font-family:var(--s-mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:10px 18px;gap:10px;color:var(--m-text-muted)}
+.m-msg .m-msg__body.m-field-error{font-family:inherit;font-size:15px;letter-spacing:0;margin-top:0;background:var(--s-danger-bg);border-color:var(--s-danger-soft);color:var(--s-danger);box-shadow:none}
+.m-elapsed{font-size:12px;letter-spacing:.04em;text-transform:none}
+
+/* Stegen: tidslinjen i mono, som en logg */
+.m-msg__steps{margin:0 0 12px;padding:0 0 0 4px}
+.m-step{font-family:var(--s-mono);font-size:.78rem;letter-spacing:.02em;color:var(--m-text-muted);gap:0 10px;padding:3px 0 3px 16px}
+.m-step::before{border-left-color:var(--m-border)}
+.m-step__dot{background:var(--s-solid);border-color:var(--m-text-muted)}
+.m-step--done .m-step__dot{background:var(--m-text-muted);border-color:var(--m-text-muted)}
+.m-step--running{color:var(--m-text)}
+.m-step--running .m-step__dot{background:var(--s-gold);border-color:var(--s-gold)}
+.m-step--fail{color:var(--s-danger)}
+.m-step--fail .m-step__dot{background:var(--s-danger);border-color:var(--s-danger)}
+.m-step--note{font-family:inherit;font-size:13.5px;letter-spacing:0;color:var(--m-text-muted)}
+.m-step--note .m-step__dot{background:transparent}
+.m-step__label b{font-weight:500;color:var(--m-text)}
+.m-step--fail .m-step__label b{color:inherit}
+.m-step__error{font-size:11.5px;opacity:.9}
+
+/* Renderad markdown i svaren */
+.m-prose strong{font-weight:600}
+.m-prose code{font-family:var(--s-mono);font-size:.84em;border-radius:6px;padding:2px 6px;background:var(--s-hover);border-color:transparent}
+.m-prose pre{background:var(--s-hover);border-color:var(--m-border);border-radius:14px;padding:12px 16px}
+.m-prose pre code{background:none;padding:0}
+.m-prose blockquote{border-left:2px solid var(--m-text);padding-left:14px;color:var(--m-text-muted)}
+
+/* @-omnämnanden: chip i loggen och sökmenyn över skrivrutan */
+.m-chip{font-family:var(--s-mono);font-size:.78em;letter-spacing:.02em;padding:2px 9px;background:var(--s-hover);border-color:var(--m-border)}
+.m-chip b{font-weight:500}
+.m-msg--user .m-chip{background:color-mix(in srgb,var(--m-accent-text) 16%,transparent);border-color:color-mix(in srgb,var(--m-accent-text) 36%,transparent)}
+.m-mention-menu{background:var(--s-menu);border-color:var(--m-border);border-radius:18px;box-shadow:var(--s-float);padding:8px;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.m-mention-menu__item{border-radius:10px;padding:10px 14px;font-size:15px;color:var(--m-text)}
+.m-mention-menu__item b{font-weight:500}
+.m-mention-menu__item span{font-family:var(--s-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.m-mention-menu__item.is-active,.m-mention-menu__item:hover{background:var(--s-hover)}
+
+/* Skrivrutan */
+.m-chat__form{border-top-color:var(--m-border);padding-top:20px}
+.m-chat__form--flush{padding-top:0}
+.m-chat__form textarea,.m-guide-input{border:1px solid var(--m-border);border-radius:22px;padding:16px 20px;font-size:16px;line-height:1.55;color:var(--m-text);background:var(--s-field);box-shadow:var(--m-shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.m-chat__form textarea::placeholder,.m-guide-input::placeholder,.m-inline-form .m-input::placeholder{color:var(--m-text-muted);opacity:.85}
+.m-chat__form textarea:focus,.m-guide-input:focus{outline:2px solid var(--m-text);outline-offset:1px;border-color:transparent}
+.m-chat__form textarea:disabled{background:var(--s-hover);color:var(--m-text-muted);box-shadow:none}
+.m-chat__actions{gap:10px;margin-top:14px}
+.m-chat__hint{font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-chat__hint kbd{font-family:var(--s-mono);font-size:11px;padding:2px 7px;border:1px solid var(--m-border);border-bottom-width:2px;border-radius:7px;background:var(--s-field);color:var(--m-text)}
+
+/* Skicka-knappen "Prisma": frostat glas i orbens färger. Grundens svarta
+   piller tar annars över bakgrunden och lämnar en halv knapp kvar. */
+.m-btn.m-btn--prisma{color:var(--m-text);background:linear-gradient(90deg,var(--s-prisma-a),var(--s-prisma-b),var(--s-prisma-c),var(--s-prisma-a));background-size:300% 100%;border:1px solid var(--m-text);box-shadow:inset 0 1px 0 var(--s-prisma-edge);padding:13px 30px}
+.m-btn--prisma::after{border-radius:inherit;background:radial-gradient(120% 90% at 50% 0%,var(--s-prisma-sheen),transparent 65%)}
+.m-btn.m-btn--prisma:hover{border-color:var(--m-text);filter:saturate(1.5)}
+.m-btn.m-btn--prisma[disabled]{opacity:.5;transform:none}
+
+/* Budgetmätaren (AI-kostnad): hör till chattens stilar i manage.css */
+.m-meter{background:var(--s-hover)}
+.m-meter__fill{background:var(--m-accent)}
+.m-meter__fill.is-full{background:var(--s-danger)}
+
+/* Sidopanelen: väntande utkast och tidigare samtal */
+.m-chat__side{gap:16px}
+.m-chat__side .m-form-panel{padding:22px 24px}
+.m-chat__side .m-section-title{margin-bottom:12px}
+.m-chat__drafts,.m-followups{border:1px solid var(--m-text)}
+.m-chat__recent{font-size:15px;line-height:1.4;margin:0;padding:11px 0;border-top:1px solid var(--m-border)}
+.m-chat__side .m-section-title + .m-chat__recent{border-top:0;padding-top:2px}
+.m-chat__recent:last-child{padding-bottom:0}
+.m-chat__recent a:hover{text-decoration:underline;text-underline-offset:3px}
+.m-chat__recent.is-active a{font-weight:600}
+.m-chat__recent .m-form-hint{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.03em;margin-top:3px}
+
+/* Radera-krysset: diskret, rött först när man siktar på det */
+.m-icon-btn{border-radius:999px;padding:3px 9px;color:var(--m-text-muted)}
+.m-icon-btn:hover{background:var(--s-danger-bg);color:var(--s-danger)}
+
+/* Förslagskort i chatten och klickbara nästa steg */
+.m-chat__drafts-inline{gap:12px;margin-top:14px}
+.m-inline-draft{border:1px solid var(--m-text);border-radius:var(--m-radius);padding:20px 22px;background:var(--m-surface);box-shadow:none;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.m-inline-draft__head{margin-bottom:10px}
+.m-inline-draft__title{font-size:16px;font-weight:600}
+.m-inline-draft__head .m-form-hint{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase}
+.m-inline-draft__list{font-size:14.5px;margin:0 0 16px;color:var(--m-text-muted)}
+.m-inline-draft__list li{padding:3px 0 3px 16px}
+.m-inline-draft__list li::before{background:var(--m-text-muted);top:12px}
+.m-followups{margin-top:28px}
+.m-followups .m-section-title{margin-bottom:14px}
+.m-chat__examples{gap:10px}
+.m-example{padding:15px 20px;border-radius:16px;border-color:var(--m-border);background:var(--s-field);color:var(--m-text);font-size:15.5px;font-weight:600}
+.m-example span{margin-top:5px;font-family:var(--s-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-example:hover{border-color:var(--m-text)}
+.m-example:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+
+/* ===== Granskningssidan ===== */
+/* Klumpraden är klistrad under menyn: tätare glas så korten inte lyser igenom */
+.m-bulkbar{padding:12px 14px 12px 22px;margin-bottom:20px;gap:16px;background:var(--s-menu);border-color:var(--m-border);border-radius:var(--m-radius);box-shadow:var(--s-float);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.m-bulkbar__all,.m-preview__label{font-size:15px;font-weight:500;gap:10px}
+.m-bulkbar__count{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-bulkbar .m-btn[disabled]{opacity:.4;transform:none}
+.m-bulkbar__actions form .m-btn + .m-btn{margin-left:4px}
+
+/* Kryssrutor: egen form i stället för webbläsarens standard */
+.m-bulkbar input[type=checkbox],.m-group-check input[type=checkbox],.m-draft__check input[type=checkbox]{-webkit-appearance:none;appearance:none;position:relative;flex:none;width:20px;height:20px;margin:0;border:1.5px solid var(--m-text-muted);border-radius:7px;background:var(--s-field);cursor:pointer;vertical-align:-4px;transition:background .15s ease,border-color .15s ease}
+.m-bulkbar input[type=checkbox]:hover,.m-group-check input[type=checkbox]:hover,.m-draft__check input[type=checkbox]:hover{border-color:var(--m-text)}
+.m-bulkbar input[type=checkbox]:checked,.m-group-check input[type=checkbox]:checked,.m-draft__check input[type=checkbox]:checked,
+.m-bulkbar input[type=checkbox]:indeterminate,.m-group-check input[type=checkbox]:indeterminate{background:var(--m-accent);border-color:var(--m-accent)}
+.m-bulkbar input[type=checkbox]:checked::before,.m-group-check input[type=checkbox]:checked::before,.m-draft__check input[type=checkbox]:checked::before{content:"";position:absolute;left:5px;top:1.5px;width:5px;height:10px;border:solid var(--m-accent-text);border-width:0 2px 2px 0;transform:rotate(45deg)}
+.m-bulkbar input[type=checkbox]:indeterminate::before,.m-group-check input[type=checkbox]:indeterminate::before{content:"";position:absolute;left:4px;right:4px;top:50%;height:2px;margin-top:-1px;border:0;width:auto;transform:none;background:var(--m-accent-text)}
+.m-bulkbar input[type=checkbox]:focus-visible,.m-group-check input[type=checkbox]:focus-visible,.m-draft__check input[type=checkbox]:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+
+/* Grupprubrik med kryssruta: hakparenteserna flyttar in runt texten så
+   att rutan inte hamnar innanför dem. */
+.m-section-title:has(.m-group-check)::before,.m-section-title:has(.m-group-check)::after{content:none}
+.m-group-check{gap:12px}
+.m-group-check span::before{content:"[ "}.m-group-check span::after{content:" ]"}
+.m-section-row + .m-form-hint{margin-top:-4px}
+
+/* Utkastkorten: glas, och bärnstenston på affärsdata */
+.m-draft{border:1px solid var(--m-border);border-radius:var(--m-radius);padding:22px 24px;margin-bottom:14px;background:var(--m-surface);box-shadow:var(--m-shadow);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.m-draft--business{border-color:var(--s-warn-line);background:linear-gradient(var(--s-warn-soft),var(--s-warn-soft)),var(--m-surface)}
+.m-draft:target{border-color:var(--s-gold);box-shadow:0 0 0 3px var(--s-warn-soft),var(--m-shadow)}
+.m-draft__head{gap:12px 16px;margin-bottom:14px}
+.m-draft__title{font-size:16.5px;font-weight:600;line-height:1.35;gap:12px;align-items:flex-start}
+.m-draft__check{line-height:1}
+.m-draft__meta{gap:8px}
+.m-draft__meta .m-badge:not(.m-badge--business){border-color:var(--m-border);color:var(--m-text-muted)}
+.m-draft__op{font-family:var(--s-mono);font-size:11px;letter-spacing:.04em;color:var(--m-text-muted)}
+.m-draft__actions{margin-top:16px;gap:8px}
+.m-draft > .m-form-hint{margin:0}
+
+/* Diffen i korten */
+.m-draft .m-history-diff{font-size:15px}
+.m-draft .m-history-diff th{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);padding:15px 16px 13px 0;border-bottom:1px solid var(--m-border)}
+.m-draft .m-history-diff td{padding:12px 0;border-bottom:1px solid var(--m-border)}
+.m-draft .m-history-diff tr:first-child th,.m-draft .m-history-diff tr:first-child td{border-top:1px solid var(--m-border)}
+.m-draft .m-history-diff tr:last-child th,.m-draft .m-history-diff tr:last-child td{border-bottom:0}
+.m-draft .m-history-diff tbody tr:hover{background:transparent}
+.m-draft .m-history-diff__value{font-size:15px;line-height:1.6}
+.m-draft .m-history-diff ins{background:var(--s-ok-soft);color:var(--s-ok);text-decoration:none;border-radius:5px;padding:1px 4px;box-shadow:inset 0 0 0 1px var(--s-ok-line);-webkit-box-decoration-break:clone;box-decoration-break:clone}
+.m-draft .m-history-diff del{background:var(--s-danger-bg);color:var(--s-danger);border-radius:5px;padding:1px 4px;text-decoration-thickness:1px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+
+/* ===== Förhandsgranskningen ===== */
+.m-preview{border-color:var(--m-border);border-radius:var(--m-radius);background:var(--m-surface);box-shadow:var(--m-shadow)}
+.m-preview__frame{background:var(--s-solid)}
+.m-preview__diff{margin-top:24px}
+.m-preview__diff summary{font-family:var(--s-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--m-text-muted);padding:10px 0 14px}
+.m-preview__diff summary:hover{color:var(--m-text)}
+
+/* ===== Förslagslistan ===== */
+.m-ai-table td a:not(.m-btn){font-weight:500}
+.m-ai-table td a:not(.m-btn):hover{text-decoration:underline;text-underline-offset:3px}
+/* Radlinjen ritas på raden, inte på cellerna. Knappcellen (m-row-actions) är
+   en flexlåda som inte fyller radens höjd, så dess egen linje hamnade mitt i
+   raden så fort ett namn bröts på flera rader. */
+.m-table.m-ai-table tbody td{border-bottom:0}
+.m-table.m-ai-table tbody tr{border-bottom:1px solid var(--m-border)}
+.m-table.m-ai-table tbody tr:last-child{border-bottom:0}
+.m-ai-table .m-btn,.m-inline-form .m-btn{white-space:nowrap}
+.m-ai-table td code,.m-form-hint code,.m-steps code{font-family:var(--s-mono);font-size:.86em;padding:2px 7px;border-radius:6px;background:var(--s-hover);color:var(--m-text);word-break:break-all}
+.m-ai-table td code{word-break:normal}
+/* Adresser i löptext (kopplingsadressen, appens returadress) måste få brytas
+   var som helst. En annan del av skinnet håller kod i hjälptexter på en rad,
+   och då sköt en lång adress ut ur panelen på telefon. */
+.m-form-hint code.m-ai-url,.m-steps code.m-ai-url{white-space:normal;word-break:break-all}
+/* Bred skärm: bara första kolumnen (namnet) får radbrytas - datum, etiketter
+   och knappar hålls hela. Så bred behöver panelen vara för att den hela
+   tabellen ska rymmas; under det gäller blocket "Tabellerna på smal skärm"
+   längst ner i stället. */
+@media (min-width:821px){
+  .m-ai-table td{white-space:nowrap}
+  .m-ai-table td:first-child{white-space:normal;min-width:150px}
+}
+/* Nyckeltabellen har sex kolumner och behöver drygt 900 px för att rymmas
+   med hela celler. Upp till 1020 px får dess datum och kolumnrubriker brytas
+   på två rader; nyckel, etikett och knapp hålls hela. */
+@media (min-width:821px) and (max-width:1020px){
+  .m-form-panel .m-table.m-ai-table thead th,.m-form-panel .m-ai-table td{white-space:normal}
+  .m-form-panel .m-table.m-ai-table thead th,.m-form-panel .m-table.m-ai-table tbody td{padding-left:12px;padding-right:12px}
+  .m-form-panel .m-ai-table td:first-child{min-width:120px}
+  .m-form-panel .m-ai-table td code,.m-form-panel .m-ai-table .m-badge{white-space:nowrap}
+}
+
+/* ===== Skrivguiden ===== */
+.m-guide-input{border-radius:18px;font-size:15.5px;line-height:1.65}
+.m-guide-input + .m-chat__actions{margin-top:16px}
+.m-chat__actions .m-form-hint{margin:0}
+.m-form-panel form > .m-btn + .m-form-hint{margin-left:12px}
+
+/* ===== Anslutning och samtycke ===== */
+.m-steps{font-size:15.5px;line-height:1.65;margin:2px 0 18px 30px}
+.m-steps li{padding-left:6px;margin-bottom:8px}
+ol.m-steps{list-style:decimal-leading-zero}
+ul.m-steps{list-style:square}
+.m-steps li::marker{font-family:var(--s-mono);font-size:12px;color:var(--m-text-muted)}
+.m-steps + .m-section-title{margin-top:26px}
+.m-key-reveal{padding:24px 26px;border-color:var(--m-text)}
+.m-key-reveal .m-section-title{margin-bottom:8px}
+.m-key-reveal__value{font-family:var(--s-mono);font-size:13px;line-height:1.6;letter-spacing:.01em;padding:16px 20px;border-radius:14px;background:var(--m-accent);color:var(--m-accent-text)}
+.m-key-reveal__value::selection{background:var(--s-gold);color:var(--m-accent)}
+.m-form-panel > .m-inline-form{gap:10px;margin-top:18px}
+.m-inline-form .m-input{min-width:0;font:inherit;font-size:14.5px;padding:8px 18px;border:1px solid var(--m-border);border-radius:999px;background:var(--s-field);color:var(--m-text)}
+.m-inline-form .m-input:focus{outline:2px solid var(--m-text);outline-offset:1px}
+
+/* ===== Smal skärm ===== */
+@media (max-width:600px){
+  .m-subnav{gap:0;margin-bottom:24px}
+  .m-subnav__item{font-size:11px;letter-spacing:.05em;padding:11px 7px}
+  .m-msg__body{padding:12px 16px;border-radius:20px}
+  .m-inline-draft,.m-draft{padding:18px}
+  .m-bulkbar{padding:14px 16px;gap:10px 14px}
+  .m-bulkbar .m-btn--small{white-space:nowrap;font-size:10.5px;letter-spacing:.04em;padding:9px 12px}
+  /* Platshållaren bryts på tre rader i en smal ruta - ge den höjd nog */
+  .m-chat__form textarea{min-height:112px;padding:14px 18px}
+  .m-draft .m-history-diff th{padding:12px 0 2px;border-bottom:0}
+  .m-draft .m-history-diff td{padding:0 0 12px;border-bottom:0}
+  .m-draft .m-history-diff tr:first-child th,.m-draft .m-history-diff tr:first-child td{border-top:0}
+  .m-draft .m-history-diff tr{padding:0;border-bottom-color:var(--m-border)}
+  .m-steps{margin-left:26px}
+  .m-key-reveal{padding:20px}
+  .m-key-reveal__value{padding:14px 16px;font-size:12.5px}
+}
+/* De smalaste telefonerna (320 px): klumpradens två knappar ska rymmas bredvid varandra */
+@media (max-width:340px){
+  .m-bulkbar{padding:12px}
+  .m-bulkbar .m-btn--small{letter-spacing:.02em;padding:9px}
+}
+
+/* ===== Tabellerna på smal skärm =====
+   Förslagslistan har fem kolumner och sidans huvudknapp (Granska) sist. Den
+   ska synas i en telefonbred panel utan sidledsrullning. Därför får allt
+   radbrytas här, cellerna sitter tätare, och statusetiketten blir en färgad
+   monoetikett utan pillerram - ett piller som bryts på två rader ser trasigt
+   ut. Långa svenska sammansättningar i namnet avstavas (sidan har lang="sv"),
+   men aldrig med bara ett par bokstäver kvar på raden. Alla celler linjerar
+   mot första radens baslinje, så knappcellen - som alltid hamnar överst i
+   raden - står jämsides med namnet. */
+@media (max-width:820px){
+  .m-table.m-ai-table{font-size:14.5px;line-height:1.4}
+  .m-table.m-ai-table thead th{white-space:normal;vertical-align:bottom}
+  .m-table.m-ai-table thead th,.m-table.m-ai-table tbody td{padding:14px 8px}
+  .m-table.m-ai-table tbody td{vertical-align:baseline}
+  .m-table.m-ai-table thead th:first-child,.m-table.m-ai-table tbody td:first-child{padding-left:18px}
+  .m-table.m-ai-table thead th:last-child,.m-table.m-ai-table tbody td:last-child{padding-right:14px}
+  .m-table.m-ai-table td:first-child{-webkit-hyphens:auto;hyphens:auto;hyphenate-limit-chars:8 4 3;-webkit-hyphenate-limit-before:4;-webkit-hyphenate-limit-after:3;overflow-wrap:break-word}
+  .m-ai-table .m-badge,.m-ai-table .m-badge--draft,.m-ai-table .m-badge--active{padding:0;border:0;border-radius:0;background:transparent;line-height:1.4}
+  .m-ai-table td code{padding:0;background:transparent;overflow-wrap:anywhere}
+  /* Tabellen i en formulärpanel har redan panelens luft runt sig */
+  .m-form-panel .m-table.m-ai-table thead th:first-child,.m-form-panel .m-table.m-ai-table tbody td:first-child{padding-left:0}
+  .m-form-panel .m-table.m-ai-table thead th:last-child,.m-form-panel .m-table.m-ai-table tbody td:last-child{padding-right:0}
+  /* Nyckeltabellen (sex kolumner, bara superuser) ryms inte i en telefon ens
+     så här tät. Namn och nyckel hålls läsbara i stället för att krossas till
+     en bokstav per rad, och resten nås med sidledsrullning i panelen. */
+  .m-form-panel .m-table.m-ai-table td:first-child{min-width:76px}
+  .m-form-panel .m-table.m-ai-table td:has(> code){min-width:68px}
+}
+/* Kantskugga som visar att en tabellpanel går att rulla i sidled: skugga i
+   högerkanten från början, i båda kanterna under rullningen och bara till
+   vänster när slutet är nått. Tidslinjen följer panelens egen rullning, så en
+   tabell som ryms får ingen skugga alls. Webbläsare utan stödet hoppar över
+   blocket - där är det den avskurna kolumnen som visar att det finns mer. */
+@supports (animation-timeline:scroll()){
+  @media (max-width:820px){
+    .m-table-wrap:has(.m-ai-table){animation:m-ai-rullkant 1ms linear both;animation-timeline:scroll(self inline)}
+  }
+}
+@keyframes m-ai-rullkant{
+  0%{box-shadow:var(--m-shadow),inset 0 0 0 0 transparent,inset -24px 0 20px -20px color-mix(in srgb,var(--m-text) 34%,transparent)}
+  12%,88%{box-shadow:var(--m-shadow),inset 24px 0 20px -20px color-mix(in srgb,var(--m-text) 34%,transparent),inset -24px 0 20px -20px color-mix(in srgb,var(--m-text) 34%,transparent)}
+  100%{box-shadow:var(--m-shadow),inset 24px 0 20px -20px color-mix(in srgb,var(--m-text) 34%,transparent),inset 0 0 0 0 transparent}
+}
+
+@media (max-width:600px){
+  .m-table.m-ai-table{font-size:13.5px}
+  .m-table.m-ai-table thead th{font-size:9.5px;letter-spacing:.04em}
+  .m-table.m-ai-table thead th,.m-table.m-ai-table tbody td{padding:13px 4px}
+  .m-table.m-ai-table thead th:first-child,.m-table.m-ai-table tbody td:first-child{padding-left:16px}
+  .m-table.m-ai-table thead th:last-child,.m-table.m-ai-table tbody td:last-child{padding-right:10px}
+  /* Datum är bisak på telefon: mindre och dämpat, så namnet får bredden */
+  .m-table.m-ai-table td:not(:first-child){font-size:12px;color:var(--m-text-muted)}
+  .m-table.m-ai-table td strong{font-size:13.5px;color:var(--m-text)}
+  .m-ai-table .m-badge{font-size:9.5px;letter-spacing:.03em}
+  .m-ai-table .m-btn--small{font-size:10px;letter-spacing:.04em;padding:7px 9px}
+  .m-ai-table .m-icon-btn{padding:2px 8px}
+}
+/* Smala telefoner (under 380 px): sista snäppet */
+@media (max-width:380px){
+  .m-table.m-ai-table thead th{font-size:9px;letter-spacing:0}
+  .m-table.m-ai-table thead th,.m-table.m-ai-table tbody td{padding-left:3px;padding-right:3px}
+  .m-table.m-ai-table thead th:first-child,.m-table.m-ai-table tbody td:first-child{padding-left:14px}
+  .m-table.m-ai-table thead th:last-child,.m-table.m-ai-table tbody td:last-child{padding-right:8px}
+  .m-table.m-ai-table td:not(:first-child){font-size:11.5px}
+  .m-ai-table .m-badge{font-size:9px;letter-spacing:.01em}
+  .m-ai-table .m-btn--small{font-size:9.5px;letter-spacing:.02em;padding:6px}
+}
+
+/* ===== Ramen: menyn på mellanbreda skärmar =====
+   DUBBLETT - TA BORT HELA BLOCKET VID SAMMANSLAGNINGEN. Kärnans delfil äger
+   menyn och bär samma steg med samma värden i sitt block "menyn på
+   mellanbreda skärmar". Kopian finns här bara för att AI-sidorna ska gå att
+   granska med enbart den här delfilen laddad: grundens pillerrad är 1149 px
+   bred för en superanvändare och får inte brytas, så mellan hamburgarens
+   brytpunkt (680 px) och ca 1150 px sköts Superuser och Visa sajt ur bild
+   och hela sidan gick att rulla i sidled. Raden kläms ihop stegvis i
+   stället: samma länkar på samma rad, bara tätare.
+   Det sista steget (681-760 px) kom till i den här rättningen och är infört
+   med samma värden i kärnans delfil. */
+@media (min-width:681px) and (max-width:1240px){
+  .m-nav__link,.m-nav__dropdown-toggle{padding:9px 8px;letter-spacing:.03em}
+  .m-nav__view-site{padding:11px 15px}
+}
+@media (min-width:681px) and (max-width:1100px){
+  .m-nav__inner{gap:10px}
+  .m-nav__links{gap:0;padding:4px}
+  .m-nav__link,.m-nav__dropdown-toggle{font-size:10.5px;padding:8px 6px;letter-spacing:.02em;gap:4px}
+  .m-nav__link .m-badge{font-size:10px;padding:1px 6px}
+  .m-nav__view-site{font-size:10.5px;padding:10px 13px;letter-spacing:.03em}
+}
+@media (min-width:681px) and (max-width:940px){
+  .m-container{padding:0 16px}
+  .m-nav__link,.m-nav__dropdown-toggle{font-size:10px;padding:8px 5px;letter-spacing:0}
+  .m-nav__view-site{font-size:10px;padding:10px 11px;letter-spacing:0}
+}
+@media (min-width:681px) and (max-width:840px){
+  .m-nav__inner{gap:8px}
+  .m-nav__link,.m-nav__dropdown-toggle{font-size:9.5px;padding:7px 3px;gap:3px}
+  .m-nav__link .m-badge{font-size:9.5px;padding:1px 5px}
+  .m-nav__view-site{font-size:9.5px;padding:9px 9px}
+}
+@media (min-width:681px) and (max-width:760px){
+  .m-nav__inner{padding:0 10px;gap:6px}
+  .m-nav__links{gap:0;padding:3px}
+  .m-nav__link,.m-nav__dropdown-toggle{font-size:9px;letter-spacing:0;padding:7px 2px;gap:2px}
+  .m-nav__link .m-badge{font-size:9px;padding:1px 4px}
+  .m-nav__view-site{font-size:9px;letter-spacing:0;padding:9px 8px}
+}
+
+/* ========== Statistik ========== */
+/* ==========================================================================
+   SKINNET "IS" - delfil för STATISTIK (/manage/statistik/).
+   Täcker: periodväljare och attributionsväxel, nyckeltalens underrad,
+   panelhuvuden, datatabeller (sökvägar, detaljrader, mätare), fotnoter,
+   kolumndiagrammet, tratten, värmekartan (sex nivåer is-blått) och
+   besökarens resa. Bara utseende - aldrig display, grid eller ordning.
+   Alla färger via tokens; is-skalan blandas fram ur --s-info och --s-solid.
+
+   AVGRÄNSNING: flera klasser här delas med andra sidor (m-stats-head,
+   m-filter__item, m-section-title, m-panel-head, m-table, m-cell-title,
+   m-path, m-muted, m-empty). Varje regel på en delad klass är därför
+   förankrad i .st-head - klassen som bara statistiksidans huvudrad bär - så
+   att inget läcker ut till andra sidor när delfilerna slås ihop. Klasser som
+   bara finns på statistiksidan (m-toggle, m-stat__sub, m-block, m-grid-2,
+   m-bars, m-axis, m-legend, m-funnel, m-heat, m-journey, m-cell-detail)
+   står fria.
+   ========================================================================== */
+
+/* Statistikens egna semantiska färger pekas om till skinnets status-tokens.
+   Förfrågningar (konvertering) = ok-grönt, tapp i tratten = felrött. */
+:root{
+  --m-conv:var(--s-ok);
+  --m-drop:var(--s-danger);
+  /* Is-skalan: en enda kulör, ljus till mörk, jämna steg i ljushet.
+     Nivå 0 är neutral (tom ruta), nivå 5 är ren --s-info. */
+  --st-heat-0:var(--s-hover);
+  --st-heat-1:color-mix(in oklab,var(--s-info) 20%,var(--s-solid));
+  --st-heat-2:color-mix(in oklab,var(--s-info) 40%,var(--s-solid));
+  --st-heat-3:color-mix(in oklab,var(--s-info) 60%,var(--s-solid));
+  --st-heat-4:color-mix(in oklab,var(--s-info) 80%,var(--s-solid));
+  --st-heat-5:var(--s-info);
+}
+
+/* ===== Huvudraden: period till vänster, attribution till höger ===== */
+.st-head{gap:14px 20px;margin-bottom:34px}
+.st-head .m-filter{gap:6px}
+.st-head .m-filter__item{padding:9px 16px;border-color:var(--m-border);background:var(--s-field);color:var(--m-text-muted);font-weight:500}
+.st-head .m-filter__item:hover{background:var(--s-hover);color:var(--m-text);border-color:var(--m-text)}
+.st-head .m-filter__item.is-active,.st-head .m-filter__item.is-active:hover{background:var(--m-accent);color:var(--m-accent-text);border-color:var(--m-accent)}
+.st-head .m-filter__item:focus-visible,.m-toggle a:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+
+/* Växeln: ett glaspiller med två lägen, som menyn högst upp */
+.m-toggle{border-radius:999px;border-color:var(--m-border);background:var(--s-field);padding:4px;gap:2px}
+.m-toggle a{padding:7px 15px;font-weight:500;color:var(--m-text-muted)}
+.m-toggle a:hover{background:var(--s-hover);color:var(--m-text)}
+.m-toggle a.is-active,.m-toggle a.is-active:hover{background:var(--m-accent);color:var(--m-accent-text);font-weight:500}
+
+/* Avsnittsrubrikens hakparenteser binds till orden, så ingen parentes radbryts ensam */
+.st-head ~ .m-section-title::before,.st-head ~ * .m-section-title::before{content:"[\00a0"}
+.st-head ~ .m-section-title::after,.st-head ~ * .m-section-title::after{content:"\00a0]"}
+
+/* ===== Nyckeltal: underraden får egen hårlinje ===== */
+.m-stat__sub{font-size:13px;line-height:1.45;color:var(--m-text-muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--m-border)}
+
+/* ===== Block och paneler ===== */
+.m-block{margin-bottom:40px}
+.m-grid-2{gap:16px;margin-bottom:40px}
+.st-head ~ * .m-panel-head{padding:18px 24px;gap:8px 16px;border-bottom-color:var(--m-border)}
+.st-head ~ * .m-panel-head h2{color:var(--m-text);line-height:1.5;font-size:12.5px;letter-spacing:.12em;text-wrap:balance}
+/* Hakparenteserna binds till första och sista ordet, så ingen parentes hamnar ensam på egen rad */
+.st-head ~ * .m-panel-head h2::before{content:"[\00a0"}
+.st-head ~ * .m-panel-head h2::after{content:"\00a0]"}
+.st-head ~ * .m-panel-head p{font-family:var(--s-mono);font-size:12px;letter-spacing:.03em;line-height:1.5;color:var(--m-text-muted)}
+
+/* ===== Datatabeller ===== */
+/* Sidluften i cellerna sätts uttryckligen, så statistikens tabeller ser likadana ut oavsett vad andra delar gör med m-table */
+.st-head ~ * .m-table thead th,.st-head ~ * .m-table tbody td{padding-left:18px;padding-right:18px}
+.st-head ~ * .m-table thead th{border-bottom-color:var(--m-border);padding-top:13px;padding-bottom:13px}
+.st-head ~ * .m-table thead th:first-child,.st-head ~ * .m-table tbody td:first-child{padding-left:24px}
+.st-head ~ * .m-table thead th:last-child,.st-head ~ * .m-table tbody td:last-child{padding-right:24px}
+.st-head ~ * .m-table tbody td{padding-top:14px;padding-bottom:14px}
+.st-head ~ * .m-table tbody td.m-num{font-family:var(--s-mono);font-size:13.5px;letter-spacing:.01em;color:var(--m-text)}
+/* Dämpade celler håller tabellens storlek - bara färgen skiljer dem */
+.st-head ~ * .m-table tbody td.m-muted{color:var(--m-text-muted);font-size:inherit}
+.st-head ~ * .m-cell-title{font-size:15px;font-weight:500;line-height:1.35}
+.m-cell-detail{font-family:var(--s-mono);font-size:12px;letter-spacing:.02em;color:var(--m-text-muted);margin-top:3px}
+/* Sökvägar bryts bara när de måste, inte mitt i ord i onödan */
+.st-head ~ * .m-path{font-family:var(--s-mono);font-size:12px;letter-spacing:.02em;color:var(--m-text-muted);margin-top:2px;word-break:normal;overflow-wrap:anywhere}
+.st-head ~ * .m-muted{color:var(--m-text-muted)}
+
+/* Fotnoten under en tabell: lugn löptext, inte tomt-läge i mono */
+.st-head ~ * .m-empty--note{font-family:var(--m-font);font-size:13.5px;letter-spacing:0;line-height:1.6;color:var(--m-text-muted);padding:16px 24px 18px;border-top-color:var(--m-border)}
+.st-head ~ * .m-empty--note code,.m-journey code{font-family:var(--s-mono);font-size:12px;background:var(--s-solid);color:var(--m-text);border:1px solid var(--m-border);border-radius:999px;padding:2px 9px}
+/* Parameternamn i fotnoten hålls ihop på en rad (resans sidtitlar får fortsatt radbrytas) */
+.st-head ~ * .m-empty--note code{white-space:nowrap}
+
+/* Mätaren i kontaktgrad-kolumnen */
+.st-head ~ * .m-table .m-meter{height:6px;margin:8px 0 0;border-radius:999px;background:var(--s-hover);box-shadow:inset 0 0 0 1px var(--m-border)}
+.st-head ~ * .m-table .m-meter__fill{border-radius:999px;background:var(--m-accent)}
+
+/* ===== Kolumndiagrammet ===== */
+.m-bars{padding:26px 24px 0;gap:4px;height:190px;
+  background-image:linear-gradient(to top,var(--m-border) 1px,transparent 1px);
+  background-size:100% 25%;background-origin:content-box;background-clip:content-box}
+.m-bars__col{gap:2px;border-radius:4px 4px 0 0;transition:background .15s ease}
+.m-bars__col:hover{background:var(--s-hover)}
+.m-bars__bar{background:var(--m-accent);border-radius:4px 4px 0 0;opacity:1}
+.m-bars__bar--conv{background:var(--m-conv);border-radius:0}
+/* Långa perioder (90 dagar, i år): tätare kolumner så hela perioden ryms i
+   panelen i stället för att klippas i högerkanten. Räknar kolumnerna med :has(). */
+.m-bars:has(.m-bars__col:nth-child(61)){gap:2px}
+.m-bars:has(.m-bars__col:nth-child(61)) .m-bars__bar{border-radius:2px 2px 0 0}
+.m-bars:has(.m-bars__col:nth-child(150)){gap:1px}
+.m-bars:has(.m-bars__col:nth-child(150)) .m-bars__col{min-width:0;border-radius:0}
+.m-bars:has(.m-bars__col:nth-child(150)) .m-bars__bar{border-radius:1px 1px 0 0}
+.m-axis{padding:10px 24px 0;font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-legend{padding:16px 24px 20px;gap:18px;font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-legend__dot{border-radius:999px;margin-right:8px;background:var(--m-accent)}
+.m-legend__dot--conv{background:var(--m-conv)}
+
+/* ===== Tratten ===== */
+.m-funnel__step{padding:18px 24px;gap:20px;border-bottom-color:var(--m-border)}
+.m-funnel__name{font-size:15px;font-weight:500}
+.m-funnel__track{border-radius:999px;background:var(--s-hover);box-shadow:inset 0 0 0 1px var(--m-border)}
+/* Stapeln är sin egen mätbehållare, så siffran kan rätta sig efter stapelns verkliga längd */
+.m-funnel__fill{border-radius:999px;background:var(--m-accent);container-type:inline-size}
+/* Reserv för webbläsare utan behållarfrågor: siffran bär en egen svart botten och går att läsa även på en kort stapel */
+.m-funnel__fill span{font-family:var(--s-mono);font-size:12.5px;font-weight:500;letter-spacing:.04em;line-height:30px;padding:0 14px;border-radius:999px;background:var(--m-accent);color:var(--m-accent-text)}
+/* Kort stapel: den svarta ytan ska vara sann. Siffran lyfts ut och står i mörk
+   text på spåret direkt efter stapeln (100cqw = stapelns egen bredd), i stället
+   för att bredda det svarta med ett eget piller. */
+@container (max-width:72px){
+  .m-funnel__fill span{margin-left:100cqw;padding:0 0 0 10px;border-radius:0;background:transparent;color:var(--m-text)}
+}
+.m-funnel__drop{font-family:var(--s-mono);font-size:12.5px;font-weight:500;letter-spacing:.02em;color:var(--m-drop)}
+.m-funnel__drop em{font-family:var(--m-font);font-size:12.5px;letter-spacing:0;color:var(--m-text-muted);margin-top:3px}
+/* Sista steget har redan en linje mot fotnoten - undvik dubbel */
+.m-funnel__step + .m-empty--note{border-top:0}
+
+/* ===== Värmekartan ===== */
+.m-heat{padding:22px 24px 8px}
+/* Rutnätet fyller panelens bredd på skrivbord; på mobil gäller rutans minsta bredd och ytan rullar i sidled som förut */
+.m-heat table{border-spacing:3px;width:100%}
+.m-heat caption{font-size:13px;color:var(--m-text-muted);padding-top:14px}
+.m-heat th{font-family:var(--s-mono);font-size:11px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-heat th[scope="row"]{width:1%;white-space:nowrap;padding-right:12px}
+.m-heat td{width:30px;min-width:26px;height:28px;border-radius:7px;transition:box-shadow .12s ease}
+.m-heat td:hover{box-shadow:0 0 0 2px var(--m-text)}
+.m-heat td[data-level="0"],.m-heat-legend i[data-level="0"]{background:var(--st-heat-0)}
+.m-heat td[data-level="1"],.m-heat-legend i[data-level="1"]{background:var(--st-heat-1)}
+.m-heat td[data-level="2"],.m-heat-legend i[data-level="2"]{background:var(--st-heat-2)}
+.m-heat td[data-level="3"],.m-heat-legend i[data-level="3"]{background:var(--st-heat-3)}
+.m-heat td[data-level="4"],.m-heat-legend i[data-level="4"]{background:var(--st-heat-4)}
+.m-heat td[data-level="5"],.m-heat-legend i[data-level="5"]{background:var(--st-heat-5)}
+.m-heat-legend{padding:6px 24px 22px;gap:5px;font-family:var(--s-mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted)}
+.m-heat-legend i{width:22px;height:12px;border-radius:4px}
+.m-heat-legend i:first-of-type{margin-left:6px}
+.m-heat-legend i:last-of-type{margin-right:6px}
+
+/* ===== Resan: varje sida som ett litet piller ===== */
+.st-head ~ * .m-table tbody td.m-ref{font-family:var(--s-mono);font-size:13.5px;letter-spacing:.02em;white-space:nowrap}
+.m-journey{font-size:12.5px;line-height:2.1;color:var(--m-text-muted)}
+
+/* ===== Tomt läge för hela perioden ===== */
+/* Sju bleka staplar ovanför texten - ett diagram som väntar på data.
+   Ritas som bakgrund, så markupen är orörd. */
+.st-head + .m-panel .m-empty{
+  padding:128px 18% 60px;text-align:center;text-wrap:balance;line-height:1.75;color:var(--m-text-muted);
+  background-repeat:no-repeat;
+  background-image:
+    linear-gradient(var(--m-border),var(--m-border)),linear-gradient(var(--m-border),var(--m-border)),
+    linear-gradient(var(--m-border),var(--m-border)),linear-gradient(var(--m-text),var(--m-text)),
+    linear-gradient(var(--m-border),var(--m-border)),linear-gradient(var(--m-border),var(--m-border)),
+    linear-gradient(var(--m-border),var(--m-border)),linear-gradient(var(--m-border),var(--m-border));
+  background-size:10px 14px,10px 26px,10px 18px,10px 40px,10px 22px,10px 30px,10px 12px,106px 1px;
+  background-position:
+    calc(50% - 48px) 82px,calc(50% - 32px) 70px,calc(50% - 16px) 78px,50% 56px,
+    calc(50% + 16px) 74px,calc(50% + 32px) 66px,calc(50% + 48px) 84px,50% 100px}
+
+/* ===== Mobil ===== */
+@media (max-width:900px){
+  .m-funnel__step{gap:10px 16px}
+  /* Lika breda spår på alla steg, annars går staplarna inte att jämföra: utan
+     minsta bredd blir första stegets spår (ingen tapptext) nästan dubbelt så
+     brett som de övriga. Stapelns längd är sann oavsett - se behållarfrågan ovan. */
+  .m-funnel__drop{font-size:12px;min-width:150px}
+  .m-funnel__drop em{font-size:12px}
+}
+@media (max-width:640px){
+  .st-head{margin-bottom:28px}
+  .st-head .m-filter__item{padding:8px 13px}
+  .m-toggle a{padding:7px 13px}
+  .st-head ~ * .m-panel-head{padding:16px 18px}
+  .st-head ~ * .m-panel-head h2{font-size:12px;letter-spacing:.09em}
+  .st-head ~ * .m-panel-head p{font-size:11.5px;letter-spacing:0}
+  /* Åtta nyckeltal på rad blir långt - tätare kort på mobil */
+  .st-head ~ .m-stats{gap:10px;margin-bottom:30px}
+  .st-head ~ .m-stats .m-stat{padding:18px 20px}
+  .st-head ~ .m-stats .m-stat__value{font-size:30px}
+  .m-stat__sub{margin-top:10px;padding-top:10px}
+  .st-head ~ * .m-table thead th:first-child,.st-head ~ * .m-table tbody td:first-child{padding-left:18px}
+  .st-head ~ * .m-table thead th:last-child,.st-head ~ * .m-table tbody td:last-child{padding-right:18px}
+  .st-head ~ * .m-empty--note{padding:14px 18px 16px}
+  .m-bars{padding:22px 18px 0;gap:2px;height:160px}
+  .m-bars:has(.m-bars__col:nth-child(61)){gap:1px}
+  .m-bars:has(.m-bars__col:nth-child(61)) .m-bars__col{min-width:0}
+  .m-bars:has(.m-bars__col:nth-child(150)){gap:0}
+  .m-axis{padding:10px 18px 0}
+  .m-legend{padding:14px 18px 18px}
+  .m-funnel__step{padding:16px 18px}
+  .st-head + .m-panel .m-empty{padding:124px 24px 44px}
+  .m-heat{padding:18px 18px 6px}
+  /* Tabellen rullar i sidled; bildtexten ska ändå gå att läsa utan att rulla */
+  .m-heat caption{max-width:calc(100vw - 96px)}
+  .m-heat-legend{padding:6px 18px 18px}
+}

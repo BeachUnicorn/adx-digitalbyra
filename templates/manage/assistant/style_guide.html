@@ -1,6 +1,6 @@
 {% extends "manage/base.html" %}
 
-{% block title %}Skrivguide &ndash; AI-assistent{% endblock %}
+{% block title %}Skrivguide - AI-assistent{% endblock %}
 
 {% block content %}
 <div class="m-page-head">
@@ -14,7 +14,7 @@
     {% csrf_token %}
     <p class="m-form-hint">
         Skriv hur texterna ska låta: tilltal, längd, ord att undvika, sådant som
-        är typiskt för er. {% if is_default %}<strong>Just nu används standardguiden</strong> &ndash;
+        är typiskt för er. {% if is_default %}<strong>Just nu används standardguiden</strong> -
         skriv något här för att ersätta den.{% endif %}
     </p>
     <textarea name="ai_style_guide" rows="10" maxlength="4000" class="m-guide-input"

@@ -82,7 +82,7 @@
             <label>{{ form.body.label }}</label>
             {{ form.body }}
             <div class="m-field-help">
-                Skriv något som bara stämmer för det här området &mdash; hustyper, kvarter, vanliga jobb.
+                Skriv något som bara stämmer för det här området - hustyper, kvarter, vanliga jobb.
                 Det är den texten som gör att sidan rankar i stället för att se ut som en mall.
             </div>
         </div>
@@ -94,7 +94,7 @@
         <h2 class="m-form-section">{{ child_level_label }}</h2>
         <p class="m-form-hint">
             Listas på sidan. Kryssa i <strong>Egen sida</strong> för att området ska bli en
-            klickbar undersida &mdash; annars visas bara namnet som text. En undersida ärver
+            klickbar undersida - annars visas bara namnet som text. En undersida ärver
             {{ instance.name }}s tjänster, frågor och grannområden tills den får egna.
         </p>
         <div id="children-list">
@@ -139,7 +139,7 @@
             {% endfor %}
         </div>
         <button type="button" class="m-btn m-btn--ghost m-btn--small" data-add-row="faq-list" data-template="faq-template">Lägg till fråga</button>
-        <div class="m-field" style="margin-top:16px;">
+        <div class="m-field m-field--after-rows">
             <label for="{{ form.faq_section.id_for_label }}">{{ form.faq_section.label }}</label>
             {{ form.faq_section }}
             <div class="m-field-help">Valfritt. Visas efter områdets egna frågor.</div>
@@ -212,7 +212,7 @@
         {% if instance %}
         <div class="m-serp">
             <p class="m-serp__label">Så här kan träffen se ut i Google</p>
-            <p class="m-serp__url">{{ site_settings.domain|default:"adx.se" }} › digitalbyra › {{ instance.slug }}</p>
+            <p class="m-serp__url">{{ site_settings.domain|default:"adx.se" }} &gt; digitalbyra &gt; {{ instance.slug }}</p>
             <p class="m-serp__title">{{ instance.meta_title|default:instance.display_heading }}</p>
             <p class="m-serp__desc">{{ instance.meta_description|default:instance.intro }}</p>
         </div>

@@ -1,9 +1,9 @@
 {% load website_tags manage_ui %}
 {% comment %}
-Render one block field by type. Expects `field` with keys:
-  key, type, label, value, choices (for choice), help (optional)
-and `name` = the input name to use (defaults to field.key).
-For image fields, `all_media` must be in context.
+Renderar ett blockfält efter typ. Väntar sig `field` med nycklarna:
+  key, type, label, value, choices (för choice), help (valfri)
+och `name` = inputens namn (standard: field.key).
+Bildfält kräver `all_media` i kontexten.
 {% endcomment %}
 {% with iname=name|default:field.key %}
 <div class="m-field {% if field.type == 'image' %}m-image-field{% endif %}"{% if field.type == 'image' %} data-image-field{% endif %}>

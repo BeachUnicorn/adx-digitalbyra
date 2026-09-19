@@ -24,7 +24,7 @@
         </div>
         <div class="m-history-entry__who">
             {% if row.revision.user %}{{ row.revision.user.get_username }}{% endif %}
-            {% if row.revision.comment %} &middot; {{ row.revision.comment }}{% endif %}
+            {% if row.revision.comment %}{% if row.revision.user %} &middot; {% endif %}{{ row.revision.comment }}{% endif %}
         </div>
     </div>
 

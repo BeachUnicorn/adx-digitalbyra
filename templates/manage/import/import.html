@@ -9,8 +9,8 @@
 </div>
 
 {% if errors %}
-<div class="m-panel" style="border-color: #f5c6c2; margin-bottom: 20px;">
-    <div style="padding: 14px 18px; color: #dc2626; font-size: 0.9rem;">
+<div class="m-panel m-import-errors">
+    <div class="m-import-errors__body">
         {% for error in errors %}
         <p>{{ error }}</p>
         {% endfor %}
@@ -19,19 +19,19 @@
 {% endif %}
 
 {% if preview %}
-<div class="m-panel" style="margin-bottom: 20px;">
-    <div style="padding: 18px;">
+<div class="m-panel m-import-preview">
+    <div class="m-import-preview__body">
         <h2 class="m-form-section">Förhandsvisning</h2>
 
         {% if preview.errors %}
-        <div style="color: #dc2626; margin-bottom: 12px;">
-            {% for err in preview.errors %}<p>⚠️ {{ err }}</p>{% endfor %}
+        <div class="m-import-preview__errors">
+            {% for err in preview.errors %}<p>{{ err }}</p>{% endfor %}
         </div>
         {% endif %}
 
         {% if preview.categories %}
         <p class="m-form-hint"><strong>Kategorier:</strong></p>
-        <ul style="margin: 0 0 12px 18px; font-size: 0.88rem;">
+        <ul class="m-import-list">
             {% for cat in preview.categories %}
             <li>{{ cat.name }} {% if cat.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
             {% endfor %}
@@ -40,7 +40,7 @@
 
         {% if preview.services %}
         <p class="m-form-hint"><strong>Tjänster:</strong></p>
-        <ul style="margin: 0 0 12px 18px; font-size: 0.88rem;">
+        <ul class="m-import-list">
             {% for svc in preview.services %}
             <li>{{ svc.name }}{% if svc.category %} ({{ svc.category }}){% endif %} - {{ svc.steps }} steg {% if svc.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
             {% endfor %}
@@ -49,19 +49,19 @@
 
         {% if preview.faq_sections %}
         <p class="m-form-hint"><strong>FAQ-sektioner:</strong></p>
-        <ul style="margin: 0 0 12px 18px; font-size: 0.88rem;">
+        <ul class="m-import-list">
             {% for sec in preview.faq_sections %}
             <li>{{ sec.title }} - {{ sec.items }} frågor {% if sec.exists %}<span class="m-badge m-badge--draft">Finns redan</span>{% else %}<span class="m-badge m-badge--published">Ny</span>{% endif %}</li>
             {% endfor %}
         </ul>
         {% endif %}
 
-        <p style="font-size: 0.9rem; font-weight: 600; margin-top: 12px;">
+        <p class="m-import-summary">
             Skapar {{ preview.totals.create }} nya, hoppar över {{ preview.totals.skip }} (finns redan).
         </p>
 
         {% if preview.totals.create and not preview.errors %}
-        <form method="post" style="margin-top: 16px;">
+        <form method="post" class="m-import-confirm">
             {% csrf_token %}
             <input type="hidden" name="json_data" value="{{ raw_json }}">
             <input type="hidden" name="action" value="confirm">
@@ -79,7 +79,7 @@
     <div class="m-panel m-form-panel">
         <h2 class="m-form-section">JSON-data</h2>
         <div class="m-field">
-            <textarea name="json_data" rows="16" style="font-family: monospace; font-size: 0.82rem;" placeholder="Klistra in JSON här...">{{ raw_json }}</textarea>
+            <textarea name="json_data" rows="16" class="m-import-json" placeholder="Klistra in JSON här...">{{ raw_json }}</textarea>
         </div>
     </div>
     <div class="m-form-actions">
@@ -87,8 +87,8 @@
     </div>
 </form>
 
-<details style="margin-top: 24px;">
-    <summary class="m-form-hint" style="cursor: pointer; font-weight: 600;">Visa JSON-format (kopiera till AI)</summary>
-    <pre style="background: #f4f5f7; padding: 14px; border-radius: 8px; font-size: 0.78rem; overflow-x: auto; margin-top: 8px;">{{ json_format }}</pre>
+<details class="m-import-format">
+    <summary class="m-form-hint m-import-format__toggle">Visa JSON-format (kopiera till AI)</summary>
+    <pre class="m-import-format__code">{{ json_format }}</pre>
 </details>
 {% endblock %}

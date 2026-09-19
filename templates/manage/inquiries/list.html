@@ -12,15 +12,15 @@
     </h1>
 </div>
 
-<!-- Status filter -->
-<div class="m-filter">
+<!-- Statusfilter -->
+<div class="m-filter af-filter">
     <a href="{% url 'manage:inquiry_list' %}" class="m-filter__item {% if not status_filter %}is-active{% endif %}">Alla</a>
     {% for value, label in status_choices %}
     <a href="{% url 'manage:inquiry_list' %}?status={{ value }}" class="m-filter__item {% if status_filter == value %}is-active{% endif %}">{{ label }}</a>
     {% endfor %}
 </div>
 
-<!-- Desktop table -->
+<!-- Tabell på breda skärmar -->
 <div class="m-panel m-inq-table-wrap">
     <table class="m-inq-table">
         <thead>
@@ -45,7 +45,7 @@
                 </td>
                 <td class="m-inq-table__meta">{{ inquiry.get_customer_type_display }}</td>
                 <td class="m-inq-table__meta">{% if inquiry.image_count %}📷 {{ inquiry.image_count }}{% else %}-{% endif %}</td>
-                <td class="m-inq-table__meta">{{ inquiry.created_at|date:"j M Y" }}</td>
+                <td class="m-inq-table__meta af-mono">{{ inquiry.created_at|date:"j M Y" }}</td>
                 <td><span class="m-badge m-badge--{{ inquiry.status }}">{{ inquiry.get_status_display }}</span></td>
             </tr>
             {% empty %}
@@ -55,7 +55,7 @@
     </table>
 </div>
 
-<!-- Mobile cards -->
+<!-- Kort på smala skärmar -->
 <div class="m-inq-mobile-list">
     {% for inquiry in inquiries %}
     <a href="{% url 'manage:inquiry_detail' pk=inquiry.pk %}" class="m-inq-mobile-card {% if not inquiry.is_read %}m-inq-mobile-card--unread{% endif %}">

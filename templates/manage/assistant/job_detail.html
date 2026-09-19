@@ -1,10 +1,10 @@
 {% extends "manage/base.html" %}
 
-{% block title %}Granska förslag &ndash; AI-assistent{% endblock %}
+{% block title %}Granska förslag - AI-assistent{% endblock %}
 
 {% block content %}
 <div class="m-page-head">
-    <p class="m-crumb-row"><a href="{% url 'manage:assistant_jobs' %}">Förslag</a> ›</p>
+    <p class="m-crumb-row"><a href="{% url 'manage:assistant_jobs' %}">Förslag</a> /</p>
     <h1 class="m-page-head__title">{{ job }}</h1>
     <p class="m-page-head__subtitle">
         {{ job.created_at|date:"j F Y H:i" }} &middot; {{ job.get_status_display }}
@@ -88,7 +88,7 @@ grupp - och nya objekt hamnade i var sin grupp.
     </div>
 
     {% if group.has_business %}
-    <p class="m-form-hint">Ändringar märkta <strong>Affärsdata</strong> påverkar priser eller vad kunderna ser &ndash; läs dem extra noga.</p>
+    <p class="m-form-hint">Ändringar märkta <strong>Affärsdata</strong> påverkar priser eller vad kunderna ser - läs dem extra noga.</p>
     {% endif %}
 
     {% for row in group.rows %}

@@ -43,10 +43,10 @@ behåller sin märkning, så det syns vad markeringen innehåller.
     <p class="m-form-hint">Ingen textändring att visa.</p>
     {% endif %}
 
-    {% if row.change.error %}<p class="m-field-error">{{ row.change.error }}</p>{% endif %}
+    {% if row.change.error %}<p class="m-field-error m-ai-alert">{{ row.change.error }}</p>{% endif %}
 
     {% if row.stale %}
-    <p class="m-field-error">
+    <p class="m-field-error m-ai-alert">
         <strong>Ändrat sedan förslaget lades:</strong> {{ row.stale|join:", " }}.
         Godkänner du nu skrivs den ändringen över.
     </p>

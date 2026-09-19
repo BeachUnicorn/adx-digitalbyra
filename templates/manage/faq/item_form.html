@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="m-page-head">
-    <p class="m-crumb-row"><a href="{% url 'manage:faq_overview' %}">FAQ</a> › <a href="{% url 'manage:faq_detail' section.slug %}">{{ section.title }}</a> ›</p>
+    <p class="m-crumb-row"><a href="{% url 'manage:faq_overview' %}">FAQ</a> / <a href="{% url 'manage:faq_detail' section.slug %}">{{ section.title }}</a> /</p>
     <h1 class="m-page-head__title">{% if instance %}Redigera fråga{% else %}Ny fråga{% endif %}</h1>
 </div>
 

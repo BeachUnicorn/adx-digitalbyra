@@ -1,6 +1,6 @@
 {% extends "manage/base.html" %}
 
-{% block title %}Anslutning &ndash; AI-assistent{% endblock %}
+{% block title %}Anslutning - AI-assistent{% endblock %}
 
 {% block content %}
 <div class="m-page-head">
@@ -22,22 +22,22 @@ Claude Code-vägen är byråns verktyg och ligger sist, bakom superuser.
         <li>Öppna <strong>Claude</strong> eller <strong>ChatGPT</strong> och gå till
             Inställningar &rarr; <em>Connectors</em> (kopplingar).</li>
         <li>Välj att lägga till en egen koppling och klistra in adressen:
-            <code>{{ mcp_url }}</code></li>
+            <code class="m-ai-url">{{ mcp_url }}</code></li>
         <li>Appen skickar dig hit. Logga in som vanligt och klicka <strong>Tillåt</strong>.</li>
     </ol>
     <p class="m-form-hint">
-        Ingen nyckel och ingen kod behövs &ndash; det är din vanliga inloggning på
+        Ingen nyckel och ingen kod behövs - det är din vanliga inloggning på
         webbplatsen som är godkännandet, och du kan
         koppla bort appen här när som helst.
     </p>
     <p class="m-form-hint">
-        Sedan är det bara att be om saker: <em>&rdquo;Gör texten om badrumsrenovering
-        tydligare&rdquo;</em>. Allt AI:n skriver hamnar som förslag under
+        Sedan är det bara att be om saker: <em>"Gör texten om badrumsrenovering
+        tydligare"</em>. Allt AI:n skriver hamnar som förslag under
         <a href="{% url 'manage:assistant_jobs' %}">Förslag</a> och syns inte på
         webbplatsen förrän du godkänt det.
     </p>
     {% if not mcp_url_is_https %}
-    <p class="m-field-error">
+    <p class="m-field-error m-ai-alert">
         Adressen ovan är inte publik (https), så appen kan inte nå den härifrån.
         Det här fungerar först på den riktiga webbplatsen.
     </p>
@@ -55,14 +55,14 @@ Claude Code-vägen är byråns verktyg och ligger sist, bakom superuser.
     </form>
     {% endif %}
 </div>
-<div class="m-panel">
-    <table class="m-table">
+<div class="m-panel m-table-wrap">
+    <table class="m-table m-ai-table">
         <thead><tr><th>App</th><th>Ansluten</th><th></th></tr></thead>
         <tbody>
         {% for app in oauth_clients %}
             <tr>
                 <td>{{ app.client_name|default:"Namnlös app" }}</td>
-                <td>{{ app.created_at|date:"j M Y" }}</td>
+                <td>{{ app.created_at|date:"j" }}&nbsp;{{ app.created_at|date:"M Y" }}</td>
                 <td>
                     <form method="post" action="{% url 'manage:assistant_oauth_disconnect' app.pk %}"
                           onsubmit="return confirm('Ta bort anslutningen? Appen måste anslutas och godkännas på nytt för att användas igen.');">
@@ -102,17 +102,17 @@ bakom nyckelknapparna är dessutom gatade i views.py.
 </div>
 
 <div class="m-section-row"><p class="m-section-title">Superuser: personliga nycklar</p></div>
-<div class="m-panel m-form-panel">
+<div class="m-panel m-form-panel m-table-wrap">
     {% if tokens %}
-    <table class="m-table">
+    <table class="m-table m-ai-table">
         <thead><tr><th>Namn</th><th>Nyckel</th><th>Skapad</th><th>Senast använd</th><th>Status</th><th></th></tr></thead>
         <tbody>
         {% for token in tokens %}
             <tr>
                 <td>{{ token.name }}</td>
-                <td><code>{{ token.key_hint }}&hellip;</code></td>
-                <td>{{ token.created_at|date:"j M Y" }}</td>
-                <td>{% if token.last_used_at %}{{ token.last_used_at|date:"j M H:i" }}{% else %}&ndash;{% endif %}</td>
+                <td><code>{{ token.key_hint }}...</code></td>
+                <td>{{ token.created_at|date:"j" }}&nbsp;{{ token.created_at|date:"M Y" }}</td>
+                <td>{% if token.last_used_at %}{{ token.last_used_at|date:"j" }}&nbsp;{{ token.last_used_at|date:"M H:i" }}{% else %}-{% endif %}</td>
                 <td>
                     {% if token.is_active %}<span class="m-badge m-badge--active">Aktiv</span>
                     {% else %}<span class="m-badge m-badge--draft">Återkallad</span>{% endif %}

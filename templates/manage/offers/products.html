@@ -2,66 +2,53 @@
 {% comment %}
 Produktkatalogen. Riktpriset är ett förslag: när produkten läggs på en
 offert kopieras värdena till raden, som därefter prissätts fritt.
+Utseendet ligger i skinnets delfil "affar" (klasserna af- och o-prod).
 {% endcomment %}
 {% block title %}Produkter{% endblock %}
 
 {% block content %}
-<div class="m-panel" style="padding:20px 24px;margin-bottom:16px;">
-    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;">
-        <h1 style="margin:0 0 4px;font-size:18px;">Produkter</h1>
-        <a href="{% url 'manage:offer_list' %}" style="font-size:13px;color:var(--m-text-muted);">Till offerterna</a>
+<div class="m-panel af-hero">
+    <div class="af-hero__row">
+        <h1 class="af-hero__title">Produkter</h1>
+        <a href="{% url 'manage:offer_list' %}" class="af-hero__link">Till offerterna</a>
     </div>
-    <p style="margin:0 0 14px;color:var(--m-text-muted);font-size:13px;">
+    <p class="af-hero__desc">
         Återanvändbara rader för offerterna. Riktpriset är ett förslag - varje offert kan sätta sitt eget pris.
     </p>
-    <form method="post" action="{% url 'manage:product_create' %}" style="display:grid;grid-template-columns:1.4fr 1fr 130px 140px auto;gap:10px;align-items:start;">
+    <form method="post" action="{% url 'manage:product_create' %}" class="o-prod-create">
         {% csrf_token %}
-        <input name="name" placeholder="Namn, t.ex. Skräddarsydd hemsida" required
-               style="padding:10px 14px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;">
-        <input name="description" placeholder="Beskrivning (valfri)"
-               style="padding:10px 14px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;">
-        <input name="default_price" inputmode="numeric" placeholder="Riktpris kr"
-               style="padding:10px 14px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;text-align:right;">
-        <select name="default_period" style="padding:10px;border:1px solid var(--m-border);border-radius:8px;font-size:14px;">
+        <input name="name" placeholder="Namn, t.ex. Skräddarsydd hemsida" required>
+        <input name="description" placeholder="Beskrivning (valfri)">
+        <input name="default_price" inputmode="numeric" placeholder="Riktpris kr" class="o-prod__price">
+        <select name="default_period">
             {% for value, name in periods.choices %}<option value="{{ value }}">{{ name }}</option>{% endfor %}
         </select>
         <button type="submit" class="m-btn m-btn--inline">Skapa</button>
     </form>
 </div>
 
-<div class="m-panel" style="padding:0;">
+<div class="m-panel">
     {% for product in products %}
     <form method="post" action="{% url 'manage:product_update' product.pk %}"
-          style="display:grid;grid-template-columns:1.4fr 1fr 130px 140px auto auto;gap:10px;align-items:center;padding:12px 14px;{% if not forloop.first %}border-top:1px solid var(--m-border);{% endif %}{% if not product.is_active %}opacity:.55;{% endif %}">
+          class="o-prod-row{% if not product.is_active %} is-inactive{% endif %}">
         {% csrf_token %}
-        <input name="name" value="{{ product.name }}"
-               style="padding:8px 10px;border:1px solid transparent;border-radius:8px;font-size:14px;font-weight:600;background:transparent;">
-        <input name="description" value="{{ product.description }}" placeholder="Beskrivning"
-               style="padding:8px 10px;border:1px solid transparent;border-radius:8px;font-size:14px;background:transparent;color:var(--m-text-muted);">
-        <input name="default_price" inputmode="numeric" value="{{ product.default_price }}"
-               style="padding:8px 10px;border:1px solid transparent;border-radius:8px;font-size:14px;text-align:right;font-variant-numeric:tabular-nums;background:transparent;">
-        <select name="default_period" style="padding:8px;border:1px solid var(--m-border);border-radius:8px;font-size:13px;">
+        <input name="name" value="{{ product.name }}" class="o-prod__name">
+        <input name="description" value="{{ product.description }}" placeholder="Beskrivning" class="o-prod__desc">
+        <input name="default_price" inputmode="numeric" value="{{ product.default_price }}" class="o-prod__price">
+        <select name="default_period">
             {% for value, name in periods.choices %}
             <option value="{{ value }}" {% if product.default_period == value %}selected{% endif %}>{{ name }}</option>
             {% endfor %}
         </select>
-        <label style="font-size:13px;display:flex;gap:6px;align-items:center;color:var(--m-text-muted);">
+        <label class="o-prod__active">
             <input type="checkbox" name="is_active" {% if product.is_active %}checked{% endif %}> Aktiv
         </label>
-        <button type="submit" class="m-btn m-btn--small">Spara</button>
+        <button type="submit" class="m-btn m-btn--small m-btn--ghost">Spara</button>
     </form>
     {% empty %}
-    <p style="padding:20px 14px;margin:0;color:var(--m-text-muted);font-size:14px;">
+    <p class="af-empty">
         Inga produkter än. Skapa t.ex. "Skräddarsydd hemsida", "Förvaltning och drift" eller "Sökmotoroptimering" ovan.
     </p>
     {% endfor %}
 </div>
-
-<style>
-    .m-panel form input:hover { border-color: var(--m-border); }
-    .m-panel form input:focus { outline: 2px solid var(--m-accent); background: var(--m-surface); }
-    @media (max-width: 900px) {
-        .m-panel form { grid-template-columns: 1fr 1fr !important; }
-    }
-</style>
 {% endblock %}

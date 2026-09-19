@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="m-page-head">
-    <p class="m-crumb-row"><a href="{% url 'manage:page_list' %}">Blocksidor</a> ›</p>
+    <p class="m-crumb-row"><a href="{% url 'manage:page_list' %}">Blocksidor</a> /</p>
     <h1 class="m-page-head__title">{{ page.title }}</h1>
     <p class="m-page-head__subtitle">
         <a href="/{{ page.slug }}/" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a>
@@ -36,7 +36,7 @@
             </div>
             <div class="m-list__meta">#{{ item.obj.order }}{% if item.summary %} · {{ item.summary }}{% endif %}</div>
         </div>
-        <div class="m-row-actions">
+        <div class="m-row-actions m-row-actions--tight">
             <form method="post" action="{% url 'manage:block_move' item.obj.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="direction" value="up">

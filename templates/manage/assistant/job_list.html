@@ -1,6 +1,6 @@
 {% extends "manage/base.html" %}
 
-{% block title %}Förslag &ndash; AI-assistent{% endblock %}
+{% block title %}Förslag - AI-assistent{% endblock %}
 
 {% block content %}
 <div class="m-page-head">
@@ -17,8 +17,8 @@
     <p>Inga förslag hittades.</p>
 </div>
 {% else %}
-<div class="m-panel">
-    <table class="m-table">
+<div class="m-panel m-table-wrap">
+    <table class="m-table m-ai-table">
         <thead>
             <tr><th>Jobb</th><th>När</th><th>Status</th><th>Väntar</th><th></th></tr>
         </thead>
@@ -26,12 +26,12 @@
         {% for job in jobs %}
             <tr>
                 <td><a href="{% url 'manage:assistant_job' job.pk %}">{{ job }}</a></td>
-                <td>{{ job.created_at|date:"j M H:i" }}</td>
+                <td>{{ job.created_at|date:"j" }}&nbsp;{{ job.created_at|date:"M H:i" }}</td>
                 <td>
                     {% if job.status == 'open' %}<span class="m-badge m-badge--draft">{{ job.get_status_display }}</span>
                     {% else %}<span class="m-badge m-badge--active">{{ job.get_status_display }}</span>{% endif %}
                 </td>
-                <td>{% if job.pending_count %}<strong>{{ job.pending_count }}</strong>{% else %}&ndash;{% endif %}</td>
+                <td>{% if job.pending_count %}<strong>{{ job.pending_count }}</strong>{% else %}-{% endif %}</td>
                 <td class="m-row-actions">
                     <a href="{% url 'manage:assistant_job' job.pk %}" class="m-btn m-btn--ghost m-btn--small">Granska</a>
                     <form method="post" action="{% url 'manage:assistant_job_delete' job.pk %}"

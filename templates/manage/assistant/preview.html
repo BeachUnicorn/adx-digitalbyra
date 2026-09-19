@@ -1,12 +1,12 @@
 {% extends "manage/base.html" %}
 
-{% block title %}Förhandsgranska &ndash; AI-assistent{% endblock %}
+{% block title %}Förhandsgranska - AI-assistent{% endblock %}
 
 {% block content %}
 <div class="m-page-head">
     <p class="m-crumb-row">
-        <a href="{% url 'manage:assistant_jobs' %}">Förslag</a> ›
-        <a href="{% url 'manage:assistant_job' job.pk %}">{{ job }}</a> ›
+        <a href="{% url 'manage:assistant_jobs' %}">Förslag</a> /
+        <a href="{% url 'manage:assistant_job' job.pk %}">{{ job }}</a> /
     </p>
     <h1 class="m-page-head__title">Förhandsgranskning</h1>
     <p class="m-page-head__subtitle">{{ change.summary }}</p>
@@ -41,7 +41,7 @@ tillbaka och leta rätt på samma kort igen.
 {% endif %}
 
 {% if row.stale %}
-<p class="m-field-error">
+<p class="m-field-error m-ai-alert">
     <strong>Ändrat sedan förslaget lades:</strong> {{ row.stale|join:", " }}.
     Godkänner du nu skrivs den ändringen över.
 </p>

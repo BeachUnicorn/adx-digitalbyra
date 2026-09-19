@@ -6,11 +6,11 @@
 <div class="m-page-head">
     <h1 class="m-page-head__title">Statistik</h1>
     <p class="m-page-head__subtitle">
-        Besökare och trafik på webbplatsen. Egen insamling &mdash; ingen data lämnar servern.
+        Besökare och trafik på webbplatsen. Egen insamling - ingen data lämnar servern.
     </p>
 </div>
 
-<div class="m-stats-head">
+<div class="m-stats-head st-head">
     <div class="m-filter" role="group" aria-label="Välj period">
         {% for key, label, days in periods %}
         <a href="?period={{ key }}{% if attribution == 'first' %}&amp;attribution=first{% endif %}"
@@ -121,7 +121,7 @@
     <div class="m-panel">
         <div class="m-panel-head">
             <h2>Trafikkällor rangordnade efter kontaktgrad</h2>
-            <p>{% if attribution == 'first' %}Första källa &mdash; hur de ursprungligen hittade er{% else %}Sista källa &mdash; besöket som konverterade{% endif %}</p>
+            <p>{% if attribution == 'first' %}Första källa - hur de ursprungligen hittade er{% else %}Sista källa - besöket som konverterade{% endif %}</p>
         </div>
         <div class="m-table-wrap">
             <table class="m-table">
@@ -190,7 +190,7 @@
                     <tr>
                         <td>{{ row.campaign }}</td>
                         <td class="m-muted">{{ row.source }} / {{ row.medium }}</td>
-                        <td class="m-muted">{{ row.variant|default:"&mdash;" }}</td>
+                        <td class="m-muted">{{ row.variant|default:"-" }}</td>
                         <td class="m-num">{{ row.sessions }}</td>
                         <td class="m-num">{{ row.engaged_display }}</td>
                         <td class="m-num">{{ row.tel }}</td>
@@ -282,7 +282,7 @@
             </table>
         </div>
         <div class="m-empty m-empty--note">
-            Hög utgång på kontaktsidan är inte nödvändigtvis dåligt &mdash; många ringer
+            Hög utgång på kontaktsidan är inte nödvändigtvis dåligt - många ringer
             därifrån och lämnar sedan.
         </div>
     </div>
@@ -335,7 +335,7 @@
             </div>
             <div class="m-funnel__drop">
                 {% if step.dropped %}
-                &minus;{{ step.dropped }} ({{ step.drop_share }} %)
+                -{{ step.dropped }} ({{ step.drop_share }} %)
                 {% endif %}
                 {% if step.errors or step.abandons %}
                 <em>
@@ -521,12 +521,12 @@
                 <tbody>
                     {% for row in recent_inquiries %}
                     <tr>
-                        <td>
+                        <td class="m-ref">
                             {{ row.reference }}
                             <div class="m-cell-detail">{{ row.created_at|date:"j M, H:i" }}</div>
                         </td>
                         <td>
-                            {{ row.first_label|default:"&mdash;" }}
+                            {{ row.first_label|default:"-" }}
                             {% if row.first_detail %}<div class="m-cell-detail">{{ row.first_detail }}</div>{% endif %}
                         </td>
                         <td>
@@ -536,7 +536,7 @@
                         <td class="m-journey">
                             {% for hop in row.journey %}{% if not forloop.first %} &rarr; {% endif %}<code title="{{ hop.path }}">{{ hop.title|default:hop.path }}</code>{% empty %}<span class="m-muted">Ingen sessionsdata</span>{% endfor %}
                         </td>
-                        <td class="m-num">{{ row.visits_before|default_if_none:"&mdash;" }}</td>
+                        <td class="m-num">{{ row.visits_before|default_if_none:"-" }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

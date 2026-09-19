@@ -17,7 +17,7 @@
 
 {% if not enabled %}
 <div class="m-panel m-form-panel">
-    <p class="m-field-error">
+    <p class="m-field-error m-ai-alert">
         <strong>Assistenten är avstängd.</strong> Ingen modell är konfigurerad.
         Din egen Claude-app fungerar fortfarande via
         <a href="{% url 'manage:assistant_connection' %}">anslutningen</a>.
@@ -25,7 +25,7 @@
 </div>
 {% elif budget_full %}
 <div class="m-panel m-form-panel">
-    <p class="m-field-error">
+    <p class="m-field-error m-ai-alert">
         <strong>Assistenten är pausad till imorgon.</strong>
         Den har arbetat ovanligt mycket idag och tar paus som säkerhetsåtgärd.
         {% if user.is_superuser %}Dygnstaket ({{ budget_limit }} USD) är nått.{% endif %}

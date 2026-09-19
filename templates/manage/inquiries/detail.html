@@ -5,7 +5,7 @@
 
 {% block content %}
 <div class="m-page-head">
-    <p class="m-crumb-row"><a href="{% url 'manage:inquiry_list' %}">← Förfrågningar</a></p>
+    <p class="m-crumb-row af-crumb"><a href="{% url 'manage:inquiry_list' %}">← Förfrågningar</a></p>
     <div class="m-page-head__row">
         <div>
             <h1 class="m-page-head__title">{{ inquiry.reference }}</h1>
@@ -23,7 +23,7 @@
     </div>
 </div>
 
-<!-- Contact details -->
+<!-- Kontaktuppgifter -->
 <div class="m-panel m-inq-section">
     <div class="m-inq-section__head">
         <h2 class="m-inq-section__title">Kontaktuppgifter</h2>
@@ -58,7 +58,7 @@
     </div>
 </div>
 
-<!-- Description -->
+<!-- Beskrivning -->
 <div class="m-panel m-inq-section">
     <div class="m-inq-section__head">
         <h2 class="m-inq-section__title">Beskrivning</h2>
@@ -68,7 +68,7 @@
     </div>
 </div>
 
-<!-- Traffic source -->
+<!-- Trafikkälla -->
 <div class="m-panel m-inq-section">
     <div class="m-inq-section__head">
         <h2 class="m-inq-section__title">Varifrån kom besökaren?</h2>
@@ -87,7 +87,7 @@
     </div>
 </div>
 
-<!-- Images -->
+<!-- Bifogade bilder -->
 {% if images %}
 <div class="m-panel m-inq-section">
     <div class="m-inq-section__head">

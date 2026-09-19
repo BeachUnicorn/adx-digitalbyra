@@ -1,19 +1,27 @@
-{% comment %}
+{% load static %}{% comment %}
 Fristående dokument - visas inuti förhandsgranskningens iframe, alltså utan
-manage-mallen omkring sig. Egna stilar därför, medvetet minimala.
+manage-mallen omkring sig. Hämtar bara skinnets tokens (färg och typsnitt)
+så att rutan följer panelens formspråk; resten är medvetet minimalt.
 {% endcomment %}
 <!doctype html>
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
     <title>Kan inte förhandsgranskas</title>
+    <link rel="stylesheet" href="{% static 'css/manage-skin.css' %}?v={{ static_version }}">
     <style>
         body {
-            margin: 0; padding: 40px 28px;
-            font: 15px/1.6 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            color: #5c636b; background: #f4f5f7;
+            margin: 0; padding: 64px 28px;
+            font: 400 13.5px/1.7 var(--s-mono);
+            letter-spacing: .03em;
+            color: var(--m-text-muted); background: var(--m-bg);
         }
-        p { max-width: 46ch; margin: 0 auto; text-align: center; }
+        p { max-width: 52ch; margin: 0 auto; text-align: center; }
+        p::before {
+            content: "[ Ingen förhandsgranskning ]"; display: block; margin-bottom: 14px;
+            font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+            color: var(--m-text);
+        }
     </style>
 </head>
 <body><p>{{ message }}</p></body>

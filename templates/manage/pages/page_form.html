@@ -4,7 +4,7 @@
 
 {% block content %}
 <div class="m-page-head">
-    <p class="m-crumb-row"><a href="{% url 'manage:page_list' %}">Blocksidor</a> ›</p>
+    <p class="m-crumb-row"><a href="{% url 'manage:page_list' %}">Blocksidor</a> /</p>
     <h1 class="m-page-head__title">{% if instance %}Redigera: {{ instance.title }}{% else %}Ny sida{% endif %}</h1>
     {% if instance %}
     <p class="m-page-head__subtitle"><a href="/{{ instance.slug }}/" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a></p>
@@ -35,7 +35,7 @@
             <label for="{{ form.meta_description.id_for_label }}">{{ form.meta_description.label }}</label>
             {{ form.meta_description }}
         </div>
-        <div class="m-field-inline">
+        <div class="m-field-inline m-field-inline--foot">
             <label>{{ form.is_published }} {{ form.is_published.label }}</label>
             <label>{{ form.order.label }} {{ form.order }}</label>
         </div>

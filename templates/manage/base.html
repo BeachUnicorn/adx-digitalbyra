@@ -43,7 +43,7 @@
                     <li><a href="{% url 'manage:settings' %}">Inställningar</a></li>
                     <li><a href="{% url 'manage:menus_overview' %}">Menyer</a></li>
                     <li>
-                        <form method="post" action="{% url 'logout' %}" style="margin:0;">
+                        <form method="post" action="{% url 'logout' %}" class="m-nav__logout-form">
                             {% csrf_token %}
                             <button type="submit" class="m-nav__dropdown-logout">Logga ut</button>
                         </form>
@@ -96,7 +96,7 @@
     <div class="m-nav__mobile-user">Inloggad som {{ user.get_username }}</div>
     <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
-        <button type="submit" class="m-nav__signout" style="width:100%; margin-top:8px;">Logga ut</button>
+        <button type="submit" class="m-nav__signout m-nav__signout--block">Logga ut</button>
     </form>
     {% endif %}
 </div>
