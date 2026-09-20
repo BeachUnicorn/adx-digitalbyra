@@ -1,23 +1,24 @@
-{% load board_tags %}
-<article class="card{% if issue.running %} is-running{% endif %}" data-id="{{ issue.pk }}" data-stage="{{ issue.stage }}" tabindex="0">
-  <div class="card-top">
-    <a class="key" href="{% url 'manage:issue_detail' issue.pk %}"><b>{{ issue.key }}</b>{% if issue.project %} {{ issue.project.name }}{% endif %}</a>
-    <span class="flags">
-      {% if issue.visible_to_customer %}<span class="flag" title="Synlig för kund">kund</span>{% endif %}
-      {% if issue.priority >= 30 %}<span class="flag prio">{{ issue.get_priority_display }}</span>{% endif %}
+{% load board_tags %}{% with done_total=issue.checklist_progress %}<article class="tv-card{% if issue.running %} is-running{% endif %}" data-id="{{ issue.pk }}" data-stage="{{ issue.stage }}" data-key="{{ issue.key }}" tabindex="0" aria-label="{{ issue.key }} {{ issue.title }}">
+  <div class="tv-card-top">
+    <span class="tv-key"><b>{{ issue.key }}</b>{% if issue.project %} {{ issue.project.name }}{% endif %}</span>
+    <span class="tv-flags">
+      {% if issue.priority >= 30 %}<span class="tv-flag prio">{{ issue.get_priority_display }}</span>{% endif %}
+      {% if issue.visible_to_customer %}<span class="tv-flag kund" title="Synlig för kund">kund</span>{% endif %}
+      {% if issue.is_late %}<span class="tv-flag late" title="Försenat">{{ issue.due_on|date:"j M" }}</span>{% elif issue.is_due_soon %}<span class="tv-flag due" title="Förfaller">{{ issue.due_on|date:"j M" }}</span>{% endif %}
     </span>
   </div>
-  <h3 class="card-title"><a href="{% url 'manage:issue_detail' issue.pk %}">{{ issue.title }}</a></h3>
-  <div class="meta">
-    {% with c=issue.effective_customer %}{% if c %}<span class="cust">{{ c.name }}</span>{% else %}<span>Internt</span>{% endif %}{% endwith %}
-    {% for l in issue.labels.all %}<span class="lab">{{ l.name }}</span>{% endfor %}
-    {% if issue.assignee %}<span>{{ issue.assignee.first_name|default:issue.assignee.username }}</span>{% endif %}
+  <h3 class="tv-title">{{ issue.title }}</h3>
+  <div class="tv-meta">
+    {% with c=issue.effective_customer %}{% if c %}<span>@ {{ c.name }}</span>{% else %}<span>Internt</span>{% endif %}{% endwith %}
+    {% for l in issue.labels.all %}<span class="tv-lab" style="--lab:{{ l.color }}">{{ l.name }}</span>{% endfor %}
+    {% if done_total.1 %}<span class="tv-check{% if done_total.0 == done_total.1 %} is-done{% endif %}">{{ done_total.0 }}/{{ done_total.1 }}</span>{% endif %}
+    {% if issue.assignee %}<span class="tv-avatar" title="{{ issue.assignee.get_full_name|default:issue.assignee.get_username }}">{{ issue.assignee.first_name|default:issue.assignee.username|first|upper }}</span>{% endif %}
   </div>
-  <div class="card-foot">
-    <button class="timer{% if issue.running %} is-on{% endif %}" type="button" data-timer-url="{% url 'manage:issue_timer' issue.pk %}" aria-pressed="{% if issue.running %}true{% else %}false{% endif %}" title="{% if issue.running %}Pausa{% else %}Starta{% endif %} tiden">
-      <span class="timer-ico" aria-hidden="true"></span>
-      <span data-timer="{{ issue.pk }}" data-seconds="{{ issue.seconds }}">{{ issue.seconds|hms }}</span>
+  <div class="tv-foot">
+    <button class="tv-timer{% if issue.running %} is-on{% endif %}" type="button" data-act="timer" aria-pressed="{% if issue.running %}true{% else %}false{% endif %}" title="{% if issue.running %}Stoppa{% else %}Starta{% endif %} tiden">
+      <span class="ico" aria-hidden="true"></span>
+      <span data-timer="{{ issue.pk }}" data-seconds="{{ issue.seconds }}"{% if issue.running %} data-live="1"{% endif %}>{{ issue.seconds|hms }}</span>
     </button>
-    <button class="card-move" type="button" title="Flytta till nästa kolumn" aria-label="Flytta till nästa kolumn">&rarr;</button>
+    <button class="tv-move" type="button" data-act="move" title="Flytta till nästa kolumn" aria-label="Flytta till nästa kolumn">&rarr;</button>
   </div>
-</article>
+</article>{% endwith %}

@@ -1,6 +1,7 @@
 from django import template
+from django.utils.html import format_html
 
-from apps.projects.board import fmt_seconds
+from apps.projects.board import fmt_hours, fmt_seconds
 
 register = template.Library()
 
@@ -10,11 +11,25 @@ def hms(seconds):
     return fmt_seconds(seconds)
 
 
+@register.filter
+def hours(seconds):
+    """Timmar:minuter, för summor."""
+    return fmt_hours(seconds)
+
+
+@register.filter
+def as_minutes(seconds):
+    return int(round((seconds or 0) / 60))
+
+
+@register.filter
+def minutes_as_hours(minutes):
+    return fmt_hours((minutes or 0) * 60)
+
+
 @register.simple_tag
 def field_row(field, full=False):
-    """En formulärrad i sajtens .adx-form-stil."""
-    from django.utils.html import format_html
-
+    """En formulärrad i sajtens .adx-form-stil - kundportalen (/kund/)."""
     css = "field full" if full or field.field.widget.input_type in ("textarea", "file") else "field"
     if getattr(field.field.widget, "input_type", "") == "checkbox":
         return format_html(
@@ -33,5 +48,31 @@ def field_row(field, full=False):
         format_html('<small class="form-note">{}</small>', field.help_text)
         if field.help_text
         else "",
+        field.errors,
+    )
+
+
+@register.simple_tag
+def m_field(field, wide=False):
+    """En formulärrad i panelens .m-form-stil (label över fält, hjälptext, fel)."""
+    widget = field.field.widget
+    if getattr(widget, "input_type", "") == "checkbox":
+        return format_html(
+            '<div class="m-field m-field--check{}"><label>{} <span>{}</span></label>{}</div>',
+            " m-field--wide" if wide else "",
+            field,
+            field.label,
+            field.errors,
+        )
+    help_text = (
+        format_html('<p class="m-field-help">{}</p>', field.help_text) if field.help_text else ""
+    )
+    return format_html(
+        '<div class="m-field{}"><label for="{}">{}</label>{}{}{}</div>',
+        " m-field--wide" if wide else "",
+        field.id_for_label,
+        field.label,
+        field,
+        help_text,
         field.errors,
     )

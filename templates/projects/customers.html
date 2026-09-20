@@ -1,22 +1,30 @@
 {% extends "projects/base_board.html" %}
 {% load board_tags %}
-{% block content %}
-<section class="hero">
-  <div class="tavla-head"><div><div class="kicker">[ Kunder ]</div><h2>Kunder</h2></div></div>
-  <div class="detail-grid">
-    <div class="detail-main">
-      <table class="tbl panel"><thead><tr><th>Kund</th><th>Projekt</th><th>Öppna ärenden</th><th>Kontakter</th><th>Tid</th></tr></thead><tbody>
-      {% for r in rows %}<tr><td><a href="{% url 'manage:customer_detail' r.customer.pk %}"><b>{{ r.customer.name }}</b></a>{% if not r.customer.is_active %} <span class="flag">inaktiv</span>{% endif %}</td><td>{{ r.customer.projects.count }}</td><td>{{ r.open }}</td><td>{{ r.contacts }}</td><td>{{ r.time }}</td></tr>
-      {% empty %}<tr><td colspan="5" class="soft">Inga kunder än.</td></tr>{% endfor %}
-      </tbody></table>
-    </div>
-    <aside class="detail-side">
-      <form method="post" class="adx-form compact panel">{% csrf_token %}
-        <div class="kicker" style="grid-column:1/-1">[ Ny kund ]</div>
-        {% field_row form.name True %}{% field_row form.org_number %}{% field_row form.email %}{% field_row form.phone %}{% field_row form.website %}{% field_row form.notes True %}
-        <div class="form-actions"><button type="submit" class="btn">Skapa</button></div>
-      </form>
-    </aside>
+{% block board %}
+<div class="tv-head">
+  <div><h1 class="tv-h1">Kunder</h1><div class="tv-sub">Kundens kontakter loggar in på /kund/ och ser bara sina egna ärenden som är markerade "Synlig för kund".</div></div>
+</div>
+<div class="tv-grid">
+  <div class="m-panel m-table-wrap">
+    <table class="m-table">
+      <thead><tr><th>Kund</th><th class="m-num">Projekt</th><th class="m-num">Öppna ärenden</th><th class="m-num">Kontakter</th><th class="m-num">Tid</th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><a href="{% url 'manage:customer_detail' r.customer.pk %}" class="tv-link"><b>{{ r.customer.name }}</b></a>{% if not r.customer.is_active %} <span class="m-badge">inaktiv</span>{% endif %}</td>
+        <td class="m-num">{{ r.customer.projects.count }}</td>
+        <td class="m-num">{{ r.open }}</td>
+        <td class="m-num">{{ r.contacts }}</td>
+        <td class="m-num">{{ r.time }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="5" class="m-empty">Inga kunder än. Skapa den första till höger.</td></tr>{% endfor %}
+      </tbody>
+    </table>
   </div>
-</section>
+  <form method="post" class="m-panel tv-form">{% csrf_token %}
+    <div class="tv-sec-title">Ny kund</div>
+    {% m_field form.name %}{% m_field form.org_number %}{% m_field form.email %}{% m_field form.phone %}{% m_field form.website %}{% m_field form.notes %}
+    <div class="tv-form__actions"><button type="submit" class="m-btn">Skapa</button></div>
+  </form>
+</div>
 {% endblock %}

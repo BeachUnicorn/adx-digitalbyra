@@ -1,22 +1,34 @@
 {% extends "projects/base_board.html" %}
 {% load board_tags %}
-{% block content %}
-<section class="hero">
-  <div class="tavla-head"><div><div class="kicker">[ Projekt ]</div><h2>Projekt</h2></div></div>
-  <div class="detail-grid">
-    <div class="detail-main">
-      <table class="tbl panel"><thead><tr><th>Nyckel</th><th>Projekt</th><th>Kund</th><th>Status</th><th>Öppna</th><th>Tid</th></tr></thead><tbody>
-      {% for r in rows %}<tr><td><a href="{% url 'manage:project_detail' r.project.key %}"><b>{{ r.project.key }}</b></a></td><td><a href="{% url 'manage:board' %}?projekt={{ r.project.key }}">{{ r.project.name }}</a></td><td>{{ r.project.customer|default:"Internt" }}</td><td>{{ r.project.get_status_display }}</td><td>{{ r.open }}</td><td>{{ r.time }}</td></tr>
-      {% empty %}<tr><td colspan="6" class="soft">Inga projekt än.</td></tr>{% endfor %}
-      </tbody></table>
-    </div>
-    <aside class="detail-side">
-      <form method="post" class="adx-form compact panel">{% csrf_token %}
-        <div class="kicker" style="grid-column:1/-1">[ Nytt projekt ]</div>
-        {% field_row form.name True %}{% field_row form.key %}{% field_row form.customer %}{% field_row form.status %}{% field_row form.hourly_rate %}{% field_row form.budget_hours %}{% field_row form.starts_on %}{% field_row form.due_on %}{% field_row form.description True %}
-        <div class="form-actions"><button type="submit" class="btn">Skapa</button></div>
-      </form>
-    </aside>
+{% block board %}
+<div class="tv-head">
+  <div><h1 class="tv-h1">Projekt</h1><div class="tv-sub">Varje projekt har sin egen tavla med egna kolumner. Ärendena numreras NYCKEL-1, NYCKEL-2...</div></div>
+</div>
+<div class="tv-grid">
+  <div class="m-panel m-table-wrap">
+    <table class="m-table">
+      <thead><tr><th>Nyckel</th><th>Projekt</th><th>Kund</th><th>Status</th><th class="m-num">Öppna</th><th class="m-num">Tid</th></tr></thead>
+      <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><a href="{% url 'manage:project_detail' r.project.key %}" class="tv-link"><b>{{ r.project.key }}</b></a></td>
+        <td><a href="{% url 'manage:board' %}?projekt={{ r.project.key }}" class="tv-link">{{ r.project.name }}</a></td>
+        <td class="tv-muted">{{ r.project.customer|default:"Internt" }}</td>
+        <td><span class="m-badge m-badge--{{ r.project.status }}">{{ r.project.get_status_display }}</span></td>
+        <td class="m-num">{{ r.open }}</td>
+        <td class="m-num">{{ r.time }}</td>
+      </tr>
+      {% empty %}<tr><td colspan="6" class="m-empty">Inga projekt än. Skapa det första till höger.</td></tr>{% endfor %}
+      </tbody>
+    </table>
   </div>
-</section>
+  <form method="post" class="m-panel tv-form">{% csrf_token %}
+    <div class="tv-sec-title">Nytt projekt</div>
+    {% m_field form.name %}{% m_field form.key %}{% m_field form.customer %}{% m_field form.status %}
+    <div class="tv-form__pair">{% m_field form.hourly_rate %}{% m_field form.budget_hours %}</div>
+    <div class="tv-form__pair">{% m_field form.starts_on %}{% m_field form.due_on %}</div>
+    {% m_field form.description %}
+    <div class="tv-form__actions"><button type="submit" class="m-btn">Skapa</button></div>
+  </form>
+</div>
 {% endblock %}

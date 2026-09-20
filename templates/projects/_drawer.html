@@ -1,0 +1,142 @@
+{% load board_tags %}{% comment %}
+Glidpanelens innehåll för ETT ärende. Renderas av issue_panel och skickas
+tillbaka av varje handling som ändrar panelen. Allt med data-field
+autosparas av tavla.js; formulär med data-act hanteras där också.
+
+Knappen "Svar + mejl till kunden" är systemets ENDA väg till ett kundmejl.
+{% endcomment %}
+<div class="tv-detail" data-id="{{ issue.pk }}" data-key="{{ issue.key }}">
+  <div class="tv-detail-head">
+    <div class="tv-detail-head__main">
+      <span class="tv-key"><b>{{ issue.key }}</b>{% if issue.project %} {{ issue.project.name }}{% endif %}{% if customer %} @ <a href="{% url 'manage:customer_detail' customer.pk %}">{{ customer.name }}</a>{% elif not issue.project %} Internt{% endif %}</span>
+      <h2 class="tv-detail-title" contenteditable="true" spellcheck="false" data-field="title" aria-label="Rubrik">{{ issue.title }}</h2>
+    </div>
+    <div class="tv-detail-head__tools">
+      <span class="tv-saved" data-saved aria-live="polite">Sparat</span>
+      <button class="tv-close" type="button" data-act="close" aria-label="Stäng">&times;</button>
+    </div>
+  </div>
+
+  <div class="tv-detail-row">
+    <button class="tv-timer{% if issue.running %} is-on{% endif %}" type="button" data-act="timer" aria-pressed="{% if issue.running %}true{% else %}false{% endif %}">
+      <span class="ico" aria-hidden="true"></span>
+      <span data-timer="{{ issue.pk }}" data-seconds="{{ issue.seconds }}"{% if issue.running %} data-live="1"{% endif %}>{{ issue.seconds|hms }}</span>
+    </button>
+    <span class="tv-chip"><span>Totalt</span><b>{{ issue.seconds|hours }}</b></span>
+    {% if issue.estimate_minutes %}<span class="tv-chip"><span>Uppskattat</span><b>{{ issue.estimate_minutes|minutes_as_hours }}</b></span>{% endif %}
+    {% if budget %}<span class="tv-chip"><span>Projektet</span><b>{{ budget.logged }} av {{ budget.hours }} h</b></span>{% endif %}
+  </div>
+
+  <div class="tv-props">
+    <div class="tv-prop"><label for="f-column">Kolumn</label>
+      <select id="f-column" data-field="column">{% for key, label, on in columns %}<option value="{{ key }}"{% if on %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="tv-prop"><label for="f-assignee">Ansvarig</label>
+      <select id="f-assignee" data-field="assignee"><option value="">Ingen</option>{% for u in staff %}<option value="{{ u.pk }}"{% if issue.assignee_id == u.pk %} selected{% endif %}>{{ u.get_full_name|default:u.get_username }}</option>{% endfor %}</select></div>
+    <div class="tv-prop"><label for="f-priority">Prioritet</label>
+      <select id="f-priority" data-field="priority">{% for value, label in priorities %}<option value="{{ value }}"{% if issue.priority == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="tv-prop"><label for="f-due">Förfaller{% if issue.is_late %} <span class="tv-flag late">försenat</span>{% endif %}</label>
+      <input id="f-due" type="date" data-field="due_on" value="{{ issue.due_on|date:'Y-m-d' }}"></div>
+    <div class="tv-prop"><label for="f-type">Typ</label>
+      <select id="f-type" data-field="issue_type">{% for value, label in types %}<option value="{{ value }}"{% if issue.issue_type == value %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="tv-prop"><label for="f-estimate">Uppskattning (min)</label>
+      <input id="f-estimate" type="text" inputmode="numeric" data-field="estimate_minutes" data-on="change" value="{{ issue.estimate_minutes|default_if_none:'' }}" placeholder="t.ex. 120"></div>
+    <div class="tv-prop toggle">
+      <button class="tv-switch" type="button" data-field="visible_to_customer" role="switch" aria-checked="{% if issue.visible_to_customer %}true{% else %}false{% endif %}" aria-label="Synlig för kund"></button>
+      <label>Synlig för kund</label>
+      <span class="tv-prop__note">{% if issue.visible_to_customer %}Kunden ser ärendet i portalen.{% else %}Bara byrån ser ärendet.{% endif %}</span>
+    </div>
+    <div class="tv-prop toggle">
+      <button class="tv-switch" type="button" data-field="is_billable" role="switch" aria-checked="{% if issue.is_billable %}true{% else %}false{% endif %}" aria-label="Fakturerbart"></button>
+      <label>Fakturerbart</label>
+    </div>
+    <div class="tv-prop tv-prop--wide"><label>Etiketter</label>
+      <div class="tv-pills">{% for l in labels %}<button type="button" class="tv-pill tv-pill--small{% if l in issue.labels.all %} is-on{% endif %}" data-field="label" data-value="{{ l.pk }}" style="--lab:{{ l.color }}">{{ l.name }}</button>{% empty %}<span class="tv-prop__note">Inga etiketter än - skapa i Django admin.</span>{% endfor %}</div></div>
+  </div>
+
+  <div class="tv-sec">
+    <div class="tv-sec-title">Beskrivning</div>
+    <textarea class="tv-desc" data-field="description" rows="3" placeholder="Skriv en beskrivning...">{{ issue.description }}</textarea>
+  </div>
+
+  {% with progress=issue.checklist_progress %}
+  <div class="tv-sec">
+    <div class="tv-sec-title">Checklista{% if progress.1 %} <span>{{ progress.0 }}/{{ progress.1 }}</span>{% endif %}</div>
+    {% if progress.1 %}<div class="tv-progress"><i style="width:{% widthratio progress.0 progress.1 100 %}%"></i></div>{% endif %}
+    <ul class="tv-list">
+      {% for item in checklist %}
+      <li class="{% if item.is_done %}done{% endif %}" data-check-id="{{ item.pk }}">
+        <input type="checkbox" data-check="{{ item.pk }}"{% if item.is_done %} checked{% endif %} aria-label="{{ item.text }}">
+        <span>{{ item.text }}</span>
+        <button type="button" class="tv-x" data-check-delete="{{ item.pk }}" aria-label="Ta bort punkten">&times;</button>
+      </li>
+      {% endfor %}
+    </ul>
+    <form class="tv-list-add" data-act="add-check"><input name="text" placeholder="Ny punkt" autocomplete="off" aria-label="Ny punkt"><button class="tv-btn ghost" type="submit">Lägg till</button></form>
+  </div>
+  {% endwith %}
+
+  <div class="tv-sec">
+    <div class="tv-sec-title">Tid <span>{{ issue.seconds|hours }}</span></div>
+    <div class="tv-log">
+      {% for e in entries %}
+      <div class="row{% if e.is_running %} is-live{% endif %}" data-entry="{{ e.pk }}">
+        <span class="when">{{ e.started_at|date:"j M" }}</span>
+        <span class="what">{% if e.note %}{{ e.note }}{% else %}<span class="who">{% if e.is_running %}pågår{% else %}utan anteckning{% endif %}</span>{% endif %} <span class="who">{{ e.user.first_name|default:e.user.username }}{% if not e.is_billable %} &middot; ej fakt.{% endif %}</span></span>
+        {% if e.is_running %}<span class="amt">pågår</span>{% else %}
+        <input class="amt tv-min" type="text" inputmode="numeric" value="{{ e.seconds|as_minutes }}" data-entry-min="{{ e.pk }}" aria-label="Minuter" title="Ändra minuter">
+        <button type="button" class="tv-x" data-entry-delete="{{ e.pk }}" aria-label="Ta bort tidsposten">&times;</button>{% endif %}
+      </div>
+      {% empty %}<div class="tv-empty tv-empty--inline">Ingen tid loggad.</div>{% endfor %}
+    </div>
+    <form class="tv-time-form" data-act="add-time">
+      <input name="minutes" inputmode="numeric" placeholder="min" aria-label="Minuter" required>
+      <input name="date" type="date" value="{{ today }}" max="{{ today }}" aria-label="Datum">
+      <input name="note" placeholder="Vad gjorde du?" aria-label="Anteckning" autocomplete="off">
+      <button type="submit">Logga</button>
+    </form>
+  </div>
+
+  <div class="tv-sec">
+    <div class="tv-sec-title">Bilagor{% if attachments %} <span>{{ attachments|length }}</span>{% endif %}</div>
+    {% if attachments %}<ul class="tv-files">{% for a in attachments %}
+      <li><a href="{% url 'manage:attachment' a.pk %}"{% if not a.is_image %} download{% endif %}>{{ a.original_name }}</a> <small>{{ a.size_display }} &middot; {{ a.created_at|date:"j M" }}{% if a.uploaded_by %} &middot; {{ a.uploaded_by.first_name|default:a.uploaded_by.username }}{% endif %}</small></li>
+    {% endfor %}</ul>{% endif %}
+    <form class="tv-upload" data-act="upload" enctype="multipart/form-data">
+      <label class="tv-btn ghost tv-upload__label"><input type="file" name="files" multiple hidden> Ladda upp</label>
+      <span class="tv-prop__note">Max 15 MB per fil.</span>
+    </form>
+  </div>
+
+  <div class="tv-sec">
+    <div class="tv-sec-title">Konversation</div>
+    <div class="tv-thread">
+      {% for c in comments %}
+      <div class="tv-msg{% if c.is_internal %} is-internal{% elif c.author and not c.author.is_staff %} is-customer{% endif %}">
+        <div class="tv-msg__head">{{ c.author.first_name|default:c.author.username|default:"Borttagen" }} &middot; {{ c.created_at|date:"j M H:i" }}{% if c.is_internal %} &middot; intern{% elif c.author and not c.author.is_staff %} &middot; kund{% endif %}</div>
+        <div class="tv-msg__body">{{ c.body|linebreaksbr }}</div>
+      </div>
+      {% empty %}<div class="tv-empty tv-empty--inline">Inga kommentarer.</div>{% endfor %}
+    </div>
+    <div class="tv-comment">
+      <textarea data-comment placeholder="Intern anteckning, eller ett svar till kunden"></textarea>
+      <div class="tv-comment-actions">
+        <button class="tv-btn ghost" type="button" data-act="comment-internal">Intern anteckning</button>
+        <button class="tv-btn ghost" type="button" data-act="comment-portal"{% if not customer %} disabled title="Ärendet har ingen kund"{% endif %}>Svar i portalen</button>
+        <button class="tv-btn" type="button" data-act="comment-email"{% if not customer %} disabled title="Ärendet har ingen kund"{% endif %} data-confirm="Mejla svaret till {{ customer.name|default:'kunden' }}? Inget skickas annars.">Svar + mejl till kunden</button>
+      </div>
+      <p class="tv-prop__note">Inget mejlas automatiskt. Bara den sista knappen skickar ett mejl, och den frågar först.</p>
+    </div>
+  </div>
+
+  <div class="tv-sec">
+    <div class="tv-sec-title">Aktivitet</div>
+    <div class="tv-act">
+      {% for a in activity %}<div><span class="when">{{ a.created_at|date:"j M H:i" }}</span><b>{{ a.who }}</b> {{ a.text }}</div>{% empty %}<div class="tv-empty tv-empty--inline">Inget loggat än.</div>{% endfor %}
+    </div>
+  </div>
+
+  <div class="tv-sec tv-detail-foot">
+    <button class="tv-btn ghost" type="button" data-act="move">Nästa kolumn &rarr;</button>
+    <form method="post" action="{% url 'manage:issue_delete' issue.pk %}" data-confirm="Ta bort {{ issue.key }}? Tid, kommentarer och bilagor försvinner.">{% csrf_token %}<button type="submit" class="tv-btn danger">Ta bort</button></form>
+  </div>
+</div>

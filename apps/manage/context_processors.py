@@ -67,11 +67,12 @@ def _css_mtime():
 
     from django.conf import settings
 
-    # Stämpeln täcker BÅDA filerna: manage.css (struktur) och manage-skin.css
-    # (utseende). Senaste ändringen av någon av dem ger ny URL.
+    # Stämpeln täcker alla panelens filer: manage.css (struktur),
+    # manage-skin.css (utseende) och tavla.css (tavlan). Senaste ändringen
+    # av någon av dem ger ny URL.
     css_dir = Path(settings.BASE_DIR) / "static" / "css"
     stamps = []
-    for name in ("manage.css", "manage-skin.css"):
+    for name in ("manage.css", "manage-skin.css", "tavla.css"):
         try:
             stamps.append(int((css_dir / name).stat().st_mtime))
         except OSError:

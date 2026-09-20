@@ -395,25 +395,23 @@ class BoardTests(PortalFixtureMixin, TestCase):
             json.dumps({"title": "Snabbt", "target": "new", "project": "ACME"}),
             content_type="application/json",
         )
-        self.assertIn("ACME-", r.json()["html"])
+        self.assertIn("ACME-", r.json()["card"])
 
-    def test_issue_detail_saves_visibility(self):
-        client = self.as_staff()
-        client.post(
-            f"/manage/arenden/{self.hidden.pk}/",
-            {
-                "title": "Internt jobb",
-                "description": "",
-                "project": self.project.pk,
-                "column": self.hidden.column_id,
-                "issue_type": "task",
-                "priority": 20,
-                "is_billable": "on",
-                "visible_to_customer": "on",
-            },
-        )
-        self.hidden.refresh_from_db()
-        self.assertTrue(self.hidden.visible_to_customer)
+    def test_the_issue_deep_link_opens_the_drawer_on_the_board(self):
+        r = self.as_staff().get(f"/manage/arenden/{self.hidden.pk}/")
+        self.assertEqual(r.status_code, 302)
+        self.assertIn(f"arende={self.hidden.pk}", r["Location"])
+        self.assertIn("projekt=ACME", r["Location"])
+        html = self.as_staff().get(r["Location"]).content.decode()
+        self.assertIn(f'data-open="{self.hidden.pk}"', html)
+
+    def test_the_board_wears_the_panel_skin(self):
+        html = self.as_staff().get("/manage/tavla/").content.decode()
+        self.assertIn("manage-skin.css", html)
+        self.assertIn("tavla.css", html)
+        self.assertNotIn("site.css", html)
+        for page in ("/manage/projekt/", "/manage/kunder/", "/manage/tid/"):
+            self.assertIn("manage-skin.css", self.as_staff().get(page).content.decode())
 
     def test_time_report_csv(self):
         TimeEntry.objects.create(
@@ -428,3 +426,210 @@ class BoardTests(PortalFixtureMixin, TestCase):
         self.assertIn("ACME-1", r.content.decode())
         html = self.as_staff().get("/manage/tid/").content.decode()
         self.assertIn("Acme AB", html)
+
+    def test_time_report_presets(self):
+        TimeEntry.log(self.visible, self.staff, 30, on_date=timezone.localdate())
+        for preset in ("vecka", "forra-veckan", "forra-manaden"):
+            self.assertEqual(self.as_staff().get(f"/manage/tid/?period={preset}").status_code, 200)
+        html = self.as_staff().get("/manage/tid/?period=vecka").content.decode()
+        self.assertIn("ACME-1", html)
+
+
+class FilterTests(PortalFixtureMixin, TestCase):
+    """Filtren lever i adressen och servern tillämpar dem."""
+
+    def test_project_filter_and_pills(self):
+        from .board import BoardFilter
+
+        flt = BoardFilter({"projekt": "acme", "mina": "1", "q": "x"})
+        self.assertEqual(flt.project_key, "ACME")
+        self.assertTrue(flt.is_active)
+        self.assertIn("mina=1", flt.url())
+        self.assertNotIn("mina", flt.url(mina=""))
+        self.assertEqual(flt.clear_url, "?projekt=ACME")
+
+    def test_mine_due_prio_and_label_filters(self):
+        from .models import Label
+
+        webb, _ = Label.objects.get_or_create(name="webb")
+        mine = Issue.objects.create(project=self.project, title="Mitt", assignee=self.staff)
+        late = Issue.objects.create(
+            project=self.project,
+            title="Sent",
+            due_on=timezone.localdate() - timezone.timedelta(days=1),
+        )
+        hot = Issue.objects.create(project=self.project, title="Akut", priority=40)
+        hot.labels.add(webb)
+        client = self.as_staff()
+        self.assertContains(client.get("/manage/tavla/?mina=1"), "Mitt")
+        self.assertNotContains(client.get("/manage/tavla/?mina=1"), "Sent")
+        self.assertContains(client.get("/manage/tavla/?forfaller=1"), "Sent")
+        self.assertNotContains(client.get("/manage/tavla/?forfaller=1"), "Mitt")
+        self.assertContains(client.get("/manage/tavla/?prio=1"), "Akut")
+        self.assertContains(client.get("/manage/tavla/?etikett=webb"), "Akut")
+        self.assertNotContains(client.get("/manage/tavla/?etikett=webb"), "Mitt")
+        self.assertContains(client.get("/manage/tavla/?q=sent"), "Sent")
+        self.assertNotContains(client.get("/manage/tavla/?q=sent"), "Akut")
+        html = client.get("/manage/tavla/").content.decode()
+        self.assertIn("försenade", html)
+        self.assertIn(f"{late.pk}", html)
+        self.assertIn("Mitt", html)
+        self.assertEqual(mine.assignee, self.staff)
+
+    def test_unknown_project_key_falls_back_to_all(self):
+        html = self.as_staff().get("/manage/tavla/?projekt=NOPE").content.decode()
+        self.assertIn("Internt jobb", html)
+
+
+class DrawerTests(PortalFixtureMixin, TestCase):
+    """Glidpanelen: panelen, autospar per fält, checklista, tid, konversation."""
+
+    def _post(self, url, payload):
+        return self.as_staff().post(url, json.dumps(payload), content_type="application/json")
+
+    def test_panel_renders_the_issue(self):
+        r = self.as_staff().get(f"/manage/arenden/{self.visible.pk}/panel/")
+        html = r.json()["panel"]
+        self.assertIn("Synligt", html)
+        self.assertIn("Svar + mejl till kunden", html)
+        self.assertIn('data-field="column"', html)
+
+    def test_field_autosave_and_activity(self):
+        url = f"/manage/arenden/{self.hidden.pk}/falt/"
+        self.assertTrue(self._post(url, {"field": "title", "value": "Ny rubrik"}).json()["ok"])
+        self.assertEqual(self._post(url, {"field": "title", "value": "  "}).status_code, 400)
+        self._post(url, {"field": "due_on", "value": "2030-01-01"})
+        self._post(url, {"field": "visible_to_customer", "value": True})
+        self._post(url, {"field": "priority", "value": 30})
+        self._post(url, {"field": "assignee", "value": self.staff.pk})
+        self.hidden.refresh_from_db()
+        self.assertEqual(self.hidden.title, "Ny rubrik")
+        self.assertEqual(str(self.hidden.due_on), "2030-01-01")
+        self.assertTrue(self.hidden.visible_to_customer)
+        self.assertEqual(self.hidden.priority, 30)
+        self.assertEqual(self.hidden.assignee, self.staff)
+        texts = list(self.hidden.activity.values_list("text", flat=True))
+        self.assertIn("synlig för kund: på", texts)
+        self.assertIn("prioritet: Hög", texts)
+        self.assertEqual(self._post(url, {"field": "hemligt", "value": 1}).status_code, 400)
+
+    def test_label_toggle_and_column_move_via_the_panel(self):
+        from .models import Label
+
+        webb, _ = Label.objects.get_or_create(name="webb")
+        url = f"/manage/arenden/{self.hidden.pk}/falt/"
+        r = self._post(url, {"field": "label", "value": webb.pk, "panel": True}).json()
+        self.assertIn("webb", r["card"])
+        self.assertIn("panel", r)
+        self._post(url, {"field": "label", "value": webb.pk})
+        self.assertEqual(self.hidden.labels.count(), 0)
+        done = self.project.columns.get(is_done=True)
+        r = self._post(url, {"field": "column", "value": f"c{done.pk}"}).json()
+        self.assertEqual(r["stage"], "done")
+        self.hidden.refresh_from_db()
+        self.assertIsNotNone(self.hidden.closed_at)
+        texts = list(self.hidden.activity.values_list("text", flat=True))
+        self.assertIn("flyttade till Klart", texts)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_checklist(self):
+        r = self._post(f"/manage/arenden/{self.hidden.pk}/checklista/", {"text": "Första"}).json()
+        self.assertIn("Första", r["panel"])
+        item = self.hidden.checklist.get()
+        self._post(f"/manage/checklista/{item.pk}/", {"done": True})
+        item.refresh_from_db()
+        self.assertTrue(item.is_done)
+        url = f"/manage/arenden/{self.hidden.pk}/falt/"
+        r = self._post(url, {"field": "priority", "value": 20})
+        self.assertIn("1/1", r.json()["card"])
+        self._post(f"/manage/checklista/{item.pk}/", {"delete": True})
+        self.assertEqual(self.hidden.checklist.count(), 0)
+
+    def test_time_in_retrospect(self):
+        yesterday = (timezone.localdate() - timezone.timedelta(days=1)).isoformat()
+        r = self._post(
+            f"/manage/arenden/{self.hidden.pk}/tid/",
+            {"minutes": "45", "date": yesterday, "note": "Utkast"},
+        )
+        self.assertTrue(r.json()["ok"])
+        entry = self.hidden.time_entries.get()
+        self.assertEqual(entry.seconds, 2700)
+        self.assertEqual(timezone.localtime(entry.ended_at).date().isoformat(), yesterday)
+        self.assertFalse(entry.is_running)
+        self.assertIn("loggade 45 min", list(self.hidden.activity.values_list("text", flat=True)))
+        # Framtid och noll nekas.
+        tomorrow = (timezone.localdate() + timezone.timedelta(days=1)).isoformat()
+        url = f"/manage/arenden/{self.hidden.pk}/tid/"
+        self.assertEqual(self._post(url, {"minutes": 5, "date": tomorrow}).status_code, 400)
+        self.assertEqual(self._post(url, {"minutes": 0}).status_code, 400)
+        # Ändra och ta bort.
+        self._post(f"/manage/tid/{entry.pk}/", {"minutes": 60, "note": "Mer"})
+        entry.refresh_from_db()
+        self.assertEqual(entry.seconds, 3600)
+        self.assertEqual(entry.note, "Mer")
+        self._post(f"/manage/tid/{entry.pk}/", {"delete": True})
+        self.assertEqual(self.hidden.time_entries.count(), 0)
+
+    def test_today_summary_counts_finished_and_running_time(self):
+        from .board import today_seconds
+
+        TimeEntry.log(self.visible, self.staff, 30)
+        self.assertEqual(today_seconds(self.staff), 1800)
+        self.visible.start_timer(self.staff)
+        self.assertGreaterEqual(today_seconds(self.staff), 1800)
+        stats = self._post(f"/manage/arenden/{self.visible.pk}/timer/", {}).json()["stats"]
+        self.assertIsNone(stats["timer"])
+        self.assertIn("today", stats)
+
+    def test_comments_never_mail_the_customer(self):
+        url = f"/manage/arenden/{self.visible.pk}/kommentar/"
+        self._post(url, {"body": "Internt", "internal": True})
+        self._post(url, {"body": "Till portalen", "internal": False})
+        self.assertEqual(self.visible.comments.filter(is_internal=True).count(), 1)
+        self.assertEqual(self.visible.comments.filter(is_internal=False).count(), 1)
+        self.assertEqual(len(mail.outbox), 0)
+        # Flytt till Klart mejlar inte heller.
+        done = self.project.columns.get(is_done=True)
+        self._post(f"/manage/arenden/{self.visible.pk}/flytta/", {"target": f"c{done.pk}"})
+        self.assertEqual(len(mail.outbox), 0)
+
+    @override_settings(**EMAIL)
+    def test_the_manual_button_is_the_only_way_to_mail_the_customer(self):
+        url = f"/manage/arenden/{self.visible.pk}/mejla-kunden/"
+        r = self._post(url, {"body": "Nu är det klart."})
+        self.assertTrue(r.json()["mailed"])
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["anna@acme.se"])
+        self.assertIn("Nu är det klart.", mail.outbox[0].body)
+        self.assertIn("/kund/arenden/", mail.outbox[0].body)
+        comment = self.visible.comments.get()
+        self.assertFalse(comment.is_internal)
+        texts = list(self.visible.activity.values_list("text", flat=True))
+        self.assertIn("mejlade kunden (Acme AB)", texts)
+        # Utan kund: nekas.
+        internal = Issue.objects.create(title="Internt utan kund")
+        r = self._post(f"/manage/arenden/{internal.pk}/mejla-kunden/", {"body": "x"})
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_customer_recipients_are_deduplicated(self):
+        from .emails import customer_recipients
+
+        self.acme.email = "Anna@acme.se"
+        self.acme.save()
+        self.assertEqual(customer_recipients(self.acme), ["anna@acme.se"])
+
+    def test_attachment_upload_from_the_panel(self):
+        r = self.as_staff().post(
+            f"/manage/arenden/{self.hidden.pk}/bilaga/",
+            {
+                "files": SimpleUploadedFile("bild.png", b"x" * 10, content_type="image/png"),
+                "panel": "1",
+            },
+        )
+        self.assertIn("bild.png", r.json()["panel"])
+        self.assertEqual(self.hidden.attachments.count(), 1)
+
+    def test_customer_contact_cannot_reach_the_panel(self):
+        r = self.as_contact().get(f"/manage/arenden/{self.visible.pk}/panel/")
+        self.assertEqual(r.status_code, 302)

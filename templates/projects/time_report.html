@@ -1,22 +1,59 @@
 {% extends "projects/base_board.html" %}
-{% block content %}
-<section class="hero">
-  <div class="tavla-head"><div><div class="kicker">[ Tid ]</div><h2>Tidrapport</h2><p class="lead" style="margin-top:8px">{{ total }} i perioden</p></div>
-    <a class="btn ghost" href="?from={{ start }}&to={{ end }}&kund={{ selected_customer }}&projekt={{ selected_project }}&format=csv">Ladda ner CSV</a></div>
-  <form method="get" class="filters-form panel">
-    <label>Från <input type="date" name="from" value="{{ start }}"></label>
-    <label>Till <input type="date" name="to" value="{{ end }}"></label>
-    <label>Kund <select name="kund"><option value="">Alla</option>{% for c in customers %}<option value="{{ c.pk }}"{% if selected_customer == c.pk|stringformat:"s" %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select></label>
-    <label>Projekt <select name="projekt"><option value="">Alla</option>{% for p in projects %}<option value="{{ p.key }}"{% if selected_project == p.key %} selected{% endif %}>{{ p.key }} {{ p.name }}</option>{% endfor %}</select></label>
-    <button type="submit" class="pill">Visa</button>
+{% load board_tags %}
+{% block board %}
+<div class="tv-head">
+  <div><h1 class="tv-h1">Tid</h1><div class="tv-sub">{{ total }} i perioden{% if billable != total %} &middot; {{ billable }} fakturerbart{% endif %}</div></div>
+  <a class="m-btn m-btn--ghost" href="?from={{ start }}&to={{ end }}&kund={{ selected_customer }}&projekt={{ selected_project }}&format=csv">Ladda ner CSV</a>
+</div>
+
+<div class="tv-filters">
+  <a class="tv-pill{% if preset == 'vecka' %} is-on{% endif %}" href="?period=vecka&kund={{ selected_customer }}&projekt={{ selected_project }}">Denna vecka</a>
+  <a class="tv-pill{% if preset == 'forra-veckan' %} is-on{% endif %}" href="?period=forra-veckan&kund={{ selected_customer }}&projekt={{ selected_project }}">Förra veckan</a>
+  <a class="tv-pill{% if preset == 'manad' %} is-on{% endif %}" href="?kund={{ selected_customer }}&projekt={{ selected_project }}">Denna månad</a>
+  <a class="tv-pill{% if preset == 'forra-manaden' %} is-on{% endif %}" href="?period=forra-manaden&kund={{ selected_customer }}&projekt={{ selected_project }}">Förra månaden</a>
+  <span class="sep"></span>
+  <form method="get" class="tv-period">
+    <input type="date" name="from" value="{{ start }}" aria-label="Från" class="tv-input">
+    <input type="date" name="to" value="{{ end }}" aria-label="Till" class="tv-input">
+    <select name="kund" class="m-select" aria-label="Kund"><option value="">Alla kunder</option>{% for c in customers %}<option value="{{ c.pk }}"{% if selected_customer == c.pk|stringformat:"s" %} selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+    <select name="projekt" class="m-select" aria-label="Projekt"><option value="">Alla projekt</option>{% for p in projects %}<option value="{{ p.key }}"{% if selected_project == p.key %} selected{% endif %}>{{ p.key }} {{ p.name }}</option>{% endfor %}</select>
+    <button type="submit" class="m-btn m-btn--small">Visa</button>
   </form>
-  {% for name, total_s, billable_s, issues in group_rows %}
-  <div class="panel sub">
-    <div class="kicker">[ {{ name }} &middot; {{ total_s }}{% if billable_s != total_s %} &middot; fakturerbart {{ billable_s }}{% endif %} ]</div>
-    <table class="tbl"><thead><tr><th>Ärende</th><th>Rubrik</th><th>Poster</th><th>Tid</th></tr></thead><tbody>
-    {% for issue, t, n in issues %}<tr><td><a href="{% url 'manage:issue_detail' issue.pk %}"><b>{{ issue.key }}</b></a></td><td>{{ issue.title }}</td><td>{{ n }}</td><td>{{ t }}</td></tr>{% endfor %}
-    </tbody></table>
+</div>
+
+<div class="tv-grid tv-grid--report">
+  <div class="tv-stack">
+    {% for name, total_s, billable_s, issues in group_rows %}
+    <div class="m-panel m-table-wrap">
+      <div class="tv-panel-head"><div class="tv-sec-title">{{ name }}</div><span class="tv-panel-head__sum">{{ total_s }}{% if billable_s != total_s %} &middot; fakturerbart {{ billable_s }}{% endif %}</span></div>
+      <table class="m-table">
+        <thead><tr><th>Ärende</th><th>Rubrik</th><th class="m-num">Poster</th><th class="m-num">Tid</th></tr></thead>
+        <tbody>{% for issue, t, n in issues %}<tr><td><a href="{% url 'manage:issue_detail' issue.pk %}" class="tv-link"><b>{{ issue.key }}</b></a></td><td>{{ issue.title }}</td><td class="m-num">{{ n }}</td><td class="m-num">{{ t }}</td></tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% empty %}<div class="m-panel m-empty">Ingen tid loggad i perioden.</div>{% endfor %}
+
+    {% if entries %}
+    <div class="m-panel m-table-wrap">
+      <div class="tv-panel-head"><div class="tv-sec-title">Poster</div><span class="tv-panel-head__sum">senaste 200</span></div>
+      <table class="m-table">
+        <thead><tr><th>När</th><th>Ärende</th><th>Anteckning</th><th>Vem</th><th class="m-num">Min</th></tr></thead>
+        <tbody>{% for e in entries %}<tr>
+          <td class="tv-muted">{{ e.started_at|date:"j M H:i" }}</td>
+          <td><a href="{% url 'manage:issue_detail' e.issue.pk %}" class="tv-link"><b>{{ e.issue.key }}</b></a> {{ e.issue.title|truncatechars:40 }}</td>
+          <td class="tv-muted">{{ e.note }}{% if not e.is_billable %} <span class="m-badge">ej fakt.</span>{% endif %}</td>
+          <td class="tv-muted">{{ e.user.first_name|default:e.user.username }}</td>
+          <td class="m-num">{{ e.seconds|as_minutes }}</td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% endif %}
   </div>
-  {% empty %}<p class="soft">Ingen tid loggad i perioden.</p>{% endfor %}
-</section>
+  <div class="m-panel m-table-wrap tv-days">
+    <div class="tv-panel-head"><div class="tv-sec-title">Per dag</div></div>
+    <table class="m-table">
+      <tbody>{% for d, t in day_rows %}<tr><td>{{ d|date:"D j M" }}</td><td class="m-num">{{ t }}</td></tr>{% empty %}<tr><td class="m-empty">Inget än.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}

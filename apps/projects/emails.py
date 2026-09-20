@@ -1,4 +1,8 @@
-"""Portalens mejl: inbjudan (sätt lösenord) och notiser till byrån."""
+"""
+Portalens mejl: inbjudan (sätt lösenord), notiser till byrån - och ETT
+kundmejl, send_issue_update_to_customer, som bara vyn bakom knappen
+"Svar + mejl till kunden" får anropa. Ingen annan kod mejlar en kund.
+"""
 
 import logging
 
@@ -69,6 +73,45 @@ def send_portal_issue_notice(issue, customer):
         f"Nytt ärende från {customer.name}: {issue.title}",
         body,
         _as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
+    )
+
+
+def customer_recipients(customer):
+    """Kundens adresser: portalkontakterna plus kundens egen, utan dubbletter."""
+    seen, out = set(), []
+    addresses = [u.email for u in customer.users.all()] + [customer.email]
+    for address in addresses:
+        address = (address or "").strip().lower()
+        if address and address not in seen:
+            seen.add(address)
+            out.append(address)
+    return out
+
+
+def send_issue_update_to_customer(issue, comment):
+    """
+    Mejla kunden ett svar på ett ärende. Anropas BARA av
+    manage_views.issue_email_customer - alltså bara när någon tryckt på
+    knappen som uttryckligen säger att kunden mejlas.
+    """
+    customer = issue.effective_customer
+    if customer is None:
+        return False
+    to = customer_recipients(customer)
+    if not to:
+        return False
+    portal = ""
+    if issue.visible_to_customer:
+        portal = f"\n\nFölj ärendet i portalen: {_base_url()}/kund/arenden/{issue.pk}/"
+    body = (
+        f"Hej,\n\nnytt från ADX om {issue.key} {issue.title}:\n\n{comment.body}{portal}\n\n"
+        f"Vänliga hälsningar\nADX"
+    )
+    return _send(
+        f"{issue.key} {issue.title}",
+        body,
+        to,
+        reply_to=_as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
     )
 
 

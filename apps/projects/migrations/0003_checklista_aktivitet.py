@@ -6,42 +6,74 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('projects', '0002_comment_is_internal_customer_users_and_more'),
+        ("projects", "0002_comment_is_internal_customer_users_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Activity',
+            name="Activity",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('text', models.CharField(max_length=300)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('issue', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='activity', to='projects.issue')),
-                ('user', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("text", models.CharField(max_length=300)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "issue",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="activity",
+                        to="projects.issue",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="+",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Aktivitet',
-                'verbose_name_plural': 'Aktivitet',
-                'ordering': ['-created_at', '-id'],
+                "verbose_name": "Aktivitet",
+                "verbose_name_plural": "Aktivitet",
+                "ordering": ["-created_at", "-id"],
             },
         ),
         migrations.CreateModel(
-            name='ChecklistItem',
+            name="ChecklistItem",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('text', models.CharField(max_length=200, verbose_name='Punkt')),
-                ('is_done', models.BooleanField(default=False)),
-                ('position', models.PositiveIntegerField(default=0)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('issue', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='checklist', to='projects.issue')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("text", models.CharField(max_length=200, verbose_name="Punkt")),
+                ("is_done", models.BooleanField(default=False)),
+                ("position", models.PositiveIntegerField(default=0)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "issue",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="checklist",
+                        to="projects.issue",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Delmoment',
-                'verbose_name_plural': 'Delmoment',
-                'ordering': ['position', 'id'],
+                "verbose_name": "Delmoment",
+                "verbose_name_plural": "Delmoment",
+                "ordering": ["position", "id"],
             },
         ),
     ]
