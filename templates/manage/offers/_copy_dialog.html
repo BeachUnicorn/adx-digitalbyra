@@ -19,6 +19,18 @@ Kopiera offerten till ett annat företag. EN dialog per sida; knapparna
             <button type="submit" class="m-btn m-btn--small">Skapa kopia</button>
         </div>
     </form>
+    <details class="o-dialog__many">
+        <summary>Kopiera till flera på en gång</summary>
+        <form method="post" class="o-dialog__form" id="copy-many-form">
+            {% csrf_token %}
+            <p class="af-hero__desc">En mottagare per rad: <span class="af-mono">Företag; e-post</span>. Varje rad blir en egen offert med egen länk. Projekttiteln följer med från originalet.</p>
+            <div class="m-field"><label for="copy-recipients">Mottagare</label>
+                <textarea id="copy-recipients" name="recipients" rows="5" placeholder="Sydan Bygg AB; info@sydan.se&#10;Östan Bygg AB; kontakt@ostan.se"></textarea></div>
+            <div class="o-dialog__actions">
+                <button type="submit" class="m-btn m-btn--small">Skapa kopiorna</button>
+            </div>
+        </form>
+    </details>
 </dialog>
 <script>
 (function () {
@@ -28,6 +40,8 @@ Kopiera offerten till ett annat företag. EN dialog per sida; knapparna
         btn.addEventListener("click", function (e) {
             e.preventDefault();
             form.action = btn.getAttribute("data-copy");
+            document.getElementById("copy-many-form").action = btn.getAttribute("data-copy").replace(/kopiera\/$/, "kopiera-flera/");
+            dialog.querySelector(".o-dialog__many").open = false;
             document.getElementById("copy-project").value = "";
             document.getElementById("copy-name").value = "";
             document.getElementById("copy-email").value = "";

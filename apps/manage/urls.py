@@ -81,6 +81,11 @@ urlpatterns = [
         name="offer_create_issues",
     ),
     path("offerter/<int:pk>/kopiera/", offer_views.offer_duplicate, name="offer_duplicate"),
+    path(
+        "offerter/<int:pk>/kopiera-flera/",
+        offer_views.offer_duplicate_many,
+        name="offer_duplicate_many",
+    ),
     path("offerter/<int:pk>/bilaga/", offer_views.offer_attach, name="offer_attach"),
     path(
         "offerter/bilaga/<int:pk>/ta-bort/",

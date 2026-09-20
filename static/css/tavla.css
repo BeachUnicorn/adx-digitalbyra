@@ -331,3 +331,17 @@ body.is-dragging-any{cursor:grabbing}
   .tv-form__pair{grid-template-columns:1fr}
   .tv-subnav{margin-bottom:18px}
 }
+
+/* Läsbarhet i portalen (Giovanni 2026-09-20): kunden läser svart på vitt.
+   Dämpad text är nästan svart här, små mono-texter får vikt 500 i stället
+   för 400, och kolumner och paneler är helt vita - inget genomskinligt. */
+.pt-body{--m-text-muted:#33373b;--m-surface:#ffffff}
+.pt-body .tv-col,.pt-body .m-panel{background:var(--s-solid);backdrop-filter:none;-webkit-backdrop-filter:none}
+.pt-body .tv-card{box-shadow:0 1px 2px rgba(16,18,20,.06)}
+.pt-body .tv-meta,.pt-body .tv-key,.pt-body .tv-col-title,.pt-body .tv-col-count,.pt-body .tv-kicker,.pt-body .tv-flag,.pt-body .tv-msg__head,.pt-body .tv-sec-title,.pt-body .pt-meta__table th,.pt-body .tv-form .m-field label,.pt-body .pt-choice legend,.pt-body .pt-login .m-field label,.pt-body .pt-user,.pt-body .tv-files small,.pt-body .tv-empty{font-weight:500;color:var(--m-text)}
+.pt-body .tv-sub,.pt-body .pt-lead,.pt-body .pt-note,.pt-body .m-field-help,.pt-body .tv-prop__note,.pt-body .pt-example p,.pt-body .pt-meta__table td,.pt-body .tv-msg__body{color:var(--m-text)}
+.pt-body .tv-meta{font-size:13.5px}
+.pt-body .tv-key{font-size:13px}
+.pt-body .tv-flag{font-size:12px}
+.pt-body .tv-lab{color:var(--m-text)}
+.pt-body .m-message--success{color:var(--s-ok)}

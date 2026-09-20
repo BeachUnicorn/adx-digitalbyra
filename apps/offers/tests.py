@@ -980,3 +980,66 @@ class DuplicateTests(TestCase):
         copy = Quote.objects.exclude(pk=self.original.pk).get()
         editor = self.client_staff.get(f"/manage/offerter/{copy.pk}/").content.decode()
         self.assertIn(f'Kopia av <a href="/manage/offerter/{self.original.pk}/">', editor)
+
+
+class DuplicateManyTests(TestCase):
+    """Samma offert till många: en kopia per rad, varje med egen länk."""
+
+    def setUp(self):
+        self.staff = get_user_model().objects.create_user("g", password="x", is_staff=True)
+        self.client_staff = Client()
+        self.client_staff.force_login(self.staff)
+        self.original = Quote.objects.create(
+            customer_name="Nordan Bygg AB", project_title="Ny hemsida", status=QuoteStatus.SENT
+        )
+        QuoteLine.objects.create(quote=self.original, label="Hemsida", price=50000, order=1)
+        self.url = f"/manage/offerter/{self.original.pk}/kopiera-flera/"
+
+    def test_recipient_lines_in_several_formats(self):
+        from .manage_views import parse_recipient
+
+        self.assertEqual(
+            parse_recipient("Sydan Bygg AB; info@sydan.se"), ("Sydan Bygg AB", "info@sydan.se")
+        )
+        self.assertEqual(
+            parse_recipient("Sydan Bygg AB <info@sydan.se>"), ("Sydan Bygg AB", "info@sydan.se")
+        )
+        self.assertEqual(
+            parse_recipient("Sydan Bygg AB, info@sydan.se"), ("Sydan Bygg AB", "info@sydan.se")
+        )
+        self.assertEqual(parse_recipient("info@sydan.se"), ("info@sydan.se", "info@sydan.se"))
+        self.assertEqual(parse_recipient("Bara namn"), ("Bara namn", ""))
+
+    def test_one_copy_per_line(self):
+        r = self.client_staff.post(
+            self.url,
+            {
+                "recipients": (
+                    "Sydan Bygg AB; info@sydan.se\nÖstan Bygg AB <kontakt@ostan.se>\n\nVästan AB\n"
+                )
+            },
+        )
+        self.assertEqual(r["Location"], "/manage/offerter/?status=draft")
+        copies = Quote.objects.filter(copied_from=self.original).order_by("pk")
+        self.assertEqual(
+            [(c.customer_name, c.customer_email, c.status) for c in copies],
+            [
+                ("Sydan Bygg AB", "info@sydan.se", "draft"),
+                ("Östan Bygg AB", "kontakt@ostan.se", "draft"),
+                ("Västan AB", "", "draft"),
+            ],
+        )
+        self.assertEqual(len({c.token for c in copies}), 3)
+        self.assertTrue(all(c.lines.count() == 1 for c in copies))
+        self.assertTrue(all(c.project_title == "Ny hemsida" for c in copies))
+
+    def test_empty_and_oversized_batches_are_refused(self):
+        self.client_staff.post(self.url, {"recipients": "   \n\n"})
+        self.assertEqual(Quote.objects.count(), 1)
+        self.client_staff.post(self.url, {"recipients": "\n".join(f"Kund {i}" for i in range(51))})
+        self.assertEqual(Quote.objects.count(), 1)
+
+    def test_the_dialog_offers_the_many_form(self):
+        html = self.client_staff.get("/manage/offerter/").content.decode()
+        self.assertIn("Kopiera till flera på en gång", html)
+        self.assertIn('name="recipients"', html)

@@ -22,6 +22,7 @@ from django.db import transaction
 from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from apps.projects.models import Customer, Issue, Project, ProjectStatus
@@ -334,6 +335,61 @@ def offer_duplicate(request, pk):
         f"innan du skickar - den är kopierad ordagrant.",
     )
     return redirect("manage:offer_edit", pk=copy.pk)
+
+
+#: Tak för en omgång kopior - ett skydd mot ett inklistrat kundregister.
+MAX_COPIES_PER_BATCH = 50
+
+
+def parse_recipient(line):
+    """
+    En rad i "flera mottagare": 'Sydan Bygg AB; info@sydan.se',
+    'Sydan Bygg AB <info@sydan.se>', 'Sydan Bygg AB, info@sydan.se' eller
+    bara 'info@sydan.se'. Returnerar (namn, e-post); namn faller tillbaka
+    på adressen om raden bara är en adress.
+    """
+    parts = [
+        part.strip(" <>\t")
+        for part in line.replace("<", ";")
+        .replace(">", "")
+        .replace("\t", ";")
+        .replace(",", ";")
+        .split(";")
+    ]
+    parts = [part for part in parts if part]
+    email = next((part for part in parts if "@" in part), "")
+    name = " ".join(part for part in parts if part != email).strip()
+    return (name or email)[:200], email[:254]
+
+
+@login_required
+@require_POST
+def offer_duplicate_many(request, pk):
+    """Samma offert till flera företag: en kopia (eget utkast, egen länk) per rad."""
+    original = get_object_or_404(Quote.objects.prefetch_related("lines", "attachments"), pk=pk)
+    lines = [ln.strip() for ln in request.POST.get("recipients", "").splitlines() if ln.strip()]
+    if not lines:
+        messages.error(request, "Skriv en mottagare per rad: företag; e-post.")
+        return redirect("manage:offer_edit", pk=pk)
+    if len(lines) > MAX_COPIES_PER_BATCH:
+        messages.error(request, f"Högst {MAX_COPIES_PER_BATCH} mottagare per omgång.")
+        return redirect("manage:offer_edit", pk=pk)
+    made = []
+    for line in lines:
+        name, email = parse_recipient(line)
+        if not name:
+            continue
+        made.append(original.duplicate(customer_name=name, customer_email=email, user=request.user))
+    if not made:
+        messages.error(request, "Ingen rad gick att läsa som en mottagare.")
+        return redirect("manage:offer_edit", pk=pk)
+    names = ", ".join(copy.customer_name for copy in made[:5]) + (" ..." if len(made) > 5 else "")
+    messages.success(
+        request,
+        f"{len(made)} kopior av offert #{original.pk} skapade som utkast: {names}. "
+        f"Kontrollera hälsningen i varje kopia innan du skickar.",
+    )
+    return redirect(reverse("manage:offer_list") + "?status=draft")
 
 
 # ------------------------------------------------------------------ bilagor

@@ -1647,3 +1647,9 @@ ul.m-steps{list-style:square}
 .o-table__act .m-btn{width:auto}
 .o-copy-of{font-family:var(--s-mono);font-size:12px;letter-spacing:.04em;color:var(--m-text-muted);margin-left:8px}
 .o-copy-of a{color:var(--m-text)}
+.o-dialog__many{border-top:1px solid var(--m-border);padding:0 28px 22px}
+.o-dialog__many summary{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);padding:16px 0 4px;cursor:pointer;list-style:none}
+.o-dialog__many summary::-webkit-details-marker{display:none}
+.o-dialog__many summary:hover{color:var(--m-text)}
+.o-dialog__many .o-dialog__form{padding:10px 0 0}
+.o-dialog__many textarea{width:100%;box-sizing:border-box;resize:vertical}
