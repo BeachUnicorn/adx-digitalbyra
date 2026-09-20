@@ -3,7 +3,7 @@
     <div class="wrap">
         {% if kicker or title or intro %}
         <div class="sec-head">
-            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if kicker %}<div class="kicker">{{ kicker }}</div>{% endif %}
             {% if title %}<h2>{{ title }}</h2>{% endif %}
             {% if intro %}<p>{{ intro }}</p>{% endif %}
         </div>
@@ -11,7 +11,7 @@
         <div class="why">
             {% for item in items %}
             <div class="item panel">
-                <div class="num">[ {{ forloop.counter|stringformat:"02d" }} ]</div>
+                <div class="num">{{ forloop.counter|stringformat:"02d" }}</div>
                 <h3>{{ item.title }}</h3>
                 <p>{{ item.text }}</p>
             </div>

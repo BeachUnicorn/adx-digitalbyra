@@ -200,15 +200,11 @@ body.m-body{font-size:16px;line-height:1.55;background:
 .m-crumb-row a{color:var(--m-text-muted);text-decoration:none;border-bottom:1px solid transparent;padding-bottom:1px;transition:color .15s ease,border-color .15s ease}
 .m-crumb-row a:hover{color:var(--m-text);border-bottom-color:var(--m-text)}
 
-/* Avsnittsrubriker i hakparentes: EN etikettstil för alla paneler och
+/* Avsnittsrubriker (mono, versaler): EN etikettstil för alla paneler och
    avsnitt (översikt, statistik, förfrågningsdetaljen, offertbyggarens kort,
    Hemsidekollens grupper). Parentesen binds till ordet med hårt mellanslag,
    så ingen parentes radbryts ensam. */
 .m-section-title,.m-panel-head h2,.m-inq-section__title,.o-card__title,.hk-group,.hk-history__title{font-family:var(--s-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted)}
-.m-section-title::before,.m-panel-head h2::before,.m-inq-section__title::before,.o-card__title::before,.hk-group::before,.hk-history__title::before,
-.m-login__subtitle::before,.m-nav__mobile-label::before,.m-group-check span::before{content:"[\00a0"}
-.m-section-title::after,.m-panel-head h2::after,.m-inq-section__title::after,.o-card__title::after,.hk-group::after,.hk-history__title::after,
-.m-login__subtitle::after,.m-nav__mobile-label::after,.m-group-check span::after{content:"\00a0]"}
 .m-section-row{margin:40px 0 16px}
 /* Panelhuvud: rubrik till vänster, en mono-notis till höger. */
 .m-panel-head{padding:18px 24px;gap:8px 16px;border-bottom-color:var(--m-border)}
@@ -352,7 +348,7 @@ a.m-list__main:hover .m-list__title{text-decoration-thickness:1px;text-underline
 .m-form{gap:22px}
 .m-form-panel{padding:30px 32px}
 .m-form-section{font-family:var(--s-grot);font-weight:700;text-transform:uppercase;font-size:21px;line-height:1.1;letter-spacing:-.005em;color:var(--m-text);margin-bottom:22px}
-/* Panelrubriken är Grotesk utan hakparenteser - parenteserna hör till mono-etiketterna. */
+/* Panelrubriken är Grotesk; mono-etiketterna är avsnittsrubrikerna. */
 .m-form-section::before,.m-form-section::after{content:none}
 .m-form-section+.m-form-hint{margin-top:-10px}
 .m-form-hint{font-size:14.5px;line-height:1.6;color:var(--m-text-muted);margin-bottom:20px}
@@ -910,8 +906,6 @@ a.m-list__main.m-list__row--link:hover{background:transparent}
 .m-inq-section__head{background:transparent;padding:20px 24px 16px}
 /* Rubriken är en flexrad med 8 px gap i manage.css: gapet ger redan luften
    innanför hakparenteserna, så här står de utan grundens hårda mellanslag. */
-.m-inq-section__title::before{content:"["}
-.m-inq-section__title::after{content:"]"}
 .m-inq-section__title .m-badge{letter-spacing:.08em}
 .m-inq-section__body{padding:22px 24px 24px}
 .m-inq-detail-item{padding:16px 24px 18px;gap:5px;border-bottom-color:transparent;box-shadow:0 1px 0 var(--m-border)}

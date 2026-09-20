@@ -6,13 +6,61 @@
     <div>
       <div class="tv-kicker">Nytt ärende</div>
       <h1 class="tv-h1 tv-h1--plain">Vad vill ni ha gjort?</h1>
-      <div class="tv-sub">Var gärna konkret: vilken sida, vad som ska ändras, och när. Bifoga skärmdumpar om det hjälper.</div>
+      <div class="tv-sub">Ju mer konkret, desto snabbare kan vi sätta igång. Osäker på hur ni ska formulera er? <button type="button" class="pt-linkbtn" data-examples-toggle>Visa exempel</button></div>
     </div>
   </div>
-  <form method="post" enctype="multipart/form-data" class="m-panel tv-form">{% csrf_token %}
+
+  <div class="m-panel tv-panel pt-examples" data-examples hidden>
+    <div class="tv-sec-title">Tre exempel på bra ärenden</div>
+    <div class="pt-examples__grid">
+      <article class="pt-example">
+        <h3>En färdig idé</h3>
+        <p data-example-text>Vi vill ha en ny sida under Tjänster som beskriver vår takservice.
+
+Rubrik: Takservice i Stockholm
+Innehåll: vad vi gör (läckagesökning, omläggning, snöskottning), varför man ska välja oss (20 år i branschen, fast pris), och en knapp för att boka besiktning.
+
+Bilder bifogar vi. Sidan ska ligga i menyn under Tjänster och länkas från startsidan.</p>
+        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use data-kind="build">Använd som mall</button>
+      </article>
+      <article class="pt-example">
+        <h3>Vi vill ha er input</h3>
+        <p data-example-text>Vi får få förfrågningar via kontaktformuläret, kanske en i månaden.
+
+Kan ni titta på startsidan och kontaktsidan och föreslå vad vi kan ändra för att fler ska höra av sig? Vi är öppna för förslag om både text, bilder och layout.
+
+Målgruppen är villaägare i Stockholm.</p>
+        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use data-kind="advice">Använd som mall</button>
+      </article>
+      <article class="pt-example">
+        <h3>Något är fel</h3>
+        <p data-example-text>Kontaktformuläret ger ett felmeddelande när man trycker Skicka.
+
+Testat i Chrome på dator och i Safari på iPhone, samma sak. Skärmdump bifogad. Vi märkte det i går förmiddag, innan dess fungerade det.</p>
+        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use data-kind="build" data-urgency="asap">Använd som mall</button>
+      </article>
+    </div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="m-panel tv-form pt-form">{% csrf_token %}
     {% m_field form.title %}
+
+    <fieldset class="pt-choice">
+      <legend>{{ form.request_kind.label }}</legend>
+      {% for radio in form.request_kind %}<label class="pt-radio">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
+      {{ form.request_kind.errors }}
+    </fieldset>
+
     {% m_field form.description %}
-    {% m_field form.files %}
+    {% m_field form.page_url %}
+
+    <fieldset class="pt-choice">
+      <legend>{{ form.urgency.label }}</legend>
+      {% for radio in form.urgency %}<label class="pt-radio">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
+      {{ form.urgency.errors }}
+    </fieldset>
+
+    <div class="tv-form__pair">{% m_field form.due_on %}{% m_field form.files %}</div>
     <div class="tv-form__actions pt-actions"><button type="submit" class="m-btn">Skicka ärendet</button><span class="tv-prop__note">Vi svarar inom en arbetsdag.</span></div>
   </form>
 </div>

@@ -324,6 +324,53 @@ class CustomerCreateTests(PortalFixtureMixin, TestCase):
         self.assertIn("inaktiv", html)
 
 
+@override_settings(**EMAIL)
+class PortalRequestTests(PortalFixtureMixin, TestCase):
+    """Kundens frågor i formuläret följer med ärendet in i panelen."""
+
+    def test_the_customers_answers_travel_with_the_issue(self):
+        client = self.as_contact()
+        r = client.post(
+            "/kund/arenden/nytt/",
+            {
+                "title": "Formuläret är trasigt",
+                "request_kind": "build",
+                "description": "Felmeddelande vid Skicka.",
+                "page_url": "acme.se/kontakt/",
+                "urgency": "critical",
+                "due_on": "2030-01-02",
+            },
+        )
+        issue = Issue.objects.get(title="Formuläret är trasigt")
+        self.assertEqual(r["Location"], f"/kund/arenden/{issue.pk}/")
+        self.assertEqual(issue.request_kind, "build")
+        self.assertEqual(issue.urgency, "critical")
+        self.assertEqual(issue.priority, 40, "akut hos kunden = akut på tavlan")
+        self.assertEqual(issue.page_url, "https://acme.se/kontakt/")
+        self.assertEqual(str(issue.due_on), "2030-01-02")
+        html = client.get(f"/kund/arenden/{issue.pk}/").content.decode()
+        expected = ("Ni bad om", "Genomför det som beskrivs", "Akut", "acme.se/kontakt/", "Skickat")
+        for text in expected:
+            self.assertIn(text, html)
+        self.assertNotIn("[ ", html)
+        panel = self.as_staff().get(f"/manage/arenden/{issue.pk}/panel/").json()["panel"]
+        self.assertIn("Kundens uppgifter", panel)
+        self.assertIn("Akut", panel)
+
+    def test_the_form_offers_examples_and_the_logo(self):
+        html = self.as_contact().get("/kund/arenden/nytt/").content.decode()
+        self.assertIn("Visa exempel", html)
+        self.assertIn("Använd som mall", html)
+        self.assertIn("adx-logo.png", html)
+        self.assertIn('name="request_kind"', html)
+
+    def test_no_brackets_anywhere(self):
+        client = self.as_contact()
+        for url in ("/kund/tavla/", f"/kund/arenden/{self.visible.pk}/", "/kund/arenden/nytt/"):
+            self.assertNotIn("[ ", client.get(url).content.decode())
+        self.assertNotIn("[ ", self.as_staff().get("/manage/tavla/").content.decode())
+
+
 class ViewAsCustomerTests(PortalFixtureMixin, TestCase):
     """Byrån tittar på portalen som en kund: ser exakt kundens vy, kan inte skriva."""
 

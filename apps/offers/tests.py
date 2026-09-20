@@ -256,7 +256,7 @@ class OptionalLineTests(TestCase):
 
         html = Client().get(self.quote.get_public_url()).content.decode()
         self.assertIn('name="tillval"', html)
-        self.assertIn("[ Tillval ]", html)
+        self.assertIn("Tillval", html)
         # Förvalet styr checked-attributet: SEO förvald, Bokning inte.
         toggles = dict(re.findall(r'value="(\d+)"[^>]*?(checked)?>\s*<span class="switch"', html))
         self.assertEqual(toggles.get(str(self.seo.pk)), "checked")

@@ -1,7 +1,15 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from .models import Column, Customer, Issue, Project, validate_attachment
+from .models import (
+    Column,
+    Customer,
+    Issue,
+    Project,
+    RequestKind,
+    Urgency,
+    validate_attachment,
+)
 
 
 class MultiFileInput(forms.ClearableFileInput):
@@ -59,16 +67,53 @@ class IssueForm(forms.ModelForm):
 
 
 class PortalIssueForm(forms.Form):
-    title = forms.CharField(label="Rubrik", max_length=200)
+    """
+    Kundens ärendeformulär. Frågorna är kundens språk, inte byråns: vad
+    de vill ha, hur bråttom, vilken sida. Svaren bär ärendet in i panelen.
+    """
+
+    title = forms.CharField(label="Vad gäller det?", max_length=200)
+    request_kind = forms.ChoiceField(
+        label="Vad vill ni att vi gör?",
+        choices=RequestKind.choices,
+        initial=RequestKind.BUILD,
+        required=False,
+        widget=forms.RadioSelect,
+    )
     description = forms.CharField(
         label="Beskrivning",
-        widget=forms.Textarea(attrs={"rows": 7}),
+        widget=forms.Textarea(attrs={"rows": 8}),
         required=False,
-        help_text="Vad vill ni ha gjort? Var gärna konkret: sida, vad som ska ändras, när.",
+        help_text="Var gärna konkret: vilken sida, vad som ska ändras eller byggas, och varför.",
+    )
+    page_url = forms.URLField(
+        label="Gäller sida (adress)",
+        required=False,
+        assume_scheme="https",
+        help_text="Klistra in adressen om det gäller en särskild sida.",
+    )
+    urgency = forms.ChoiceField(
+        label="Hur bråttom är det?",
+        choices=Urgency.choices,
+        initial=Urgency.NONE,
+        required=False,
+        widget=forms.RadioSelect,
+    )
+    due_on = forms.DateField(
+        label="Önskat klart senast",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
     )
     files = MultiFileField(
         label="Bilagor", required=False, help_text="Skärmdumpar, dokument. Max 15 MB per fil."
     )
+
+
+class PortalCommentForm(forms.Form):
+    """Kundens svar på ett ärende: text och bilagor, inget annat."""
+
+    description = forms.CharField(label="Kommentar", widget=forms.Textarea(attrs={"rows": 4}))
+    files = MultiFileField(label="Bilagor", required=False)
 
 
 class CommentForm(forms.Form):

@@ -4,19 +4,37 @@
 <div class="pt-narrow">
   <div class="tv-head">
     <div>
-      <div class="tv-kicker">{{ issue.key }} &middot; {{ stage_label }}</div>
+      <div class="tv-kicker">Ärende {{ issue.key }}</div>
       <h1 class="tv-h1 tv-h1--plain">{{ issue.title }}</h1>
-      <div class="tv-sub">Skapat {{ issue.created_at|date:"j F Y" }}{% if issue.due_on %} &middot; planerat klart {{ issue.due_on|date:"j F" }}{% endif %}</div>
     </div>
     <a href="{% url 'portal:home' %}" class="m-btn m-btn--ghost">Till mina ärenden</a>
   </div>
 
-  {% if issue.description %}<div class="m-panel tv-panel pt-prose">{{ issue.description|linebreaks }}</div>{% endif %}
+  <div class="m-panel pt-meta">
+    <table class="pt-meta__table">
+      <tbody>
+        <tr><th>Status</th><td><span class="m-badge pt-status pt-status--{{ issue.stage }}">{{ stage_label }}</span></td></tr>
+        {% if issue.request_kind %}<tr><th>Ni bad om</th><td>{{ issue.get_request_kind_display }}</td></tr>{% endif %}
+        {% if issue.urgency %}<tr><th>Brådska</th><td>{{ issue.get_urgency_display }}</td></tr>{% endif %}
+        {% if issue.page_url %}<tr><th>Gäller sida</th><td><a href="{{ issue.page_url }}" rel="noopener" target="_blank">{{ issue.page_url }}</a></td></tr>{% endif %}
+        <tr><th>Skickat</th><td>{{ issue.created_at|date:"j F Y, H:i" }}{% if issue.reporter and not issue.reporter.is_staff %} av {{ issue.reporter.first_name|default:issue.reporter.email }}{% elif issue.reporter %} av ADX{% endif %}</td></tr>
+        <tr><th>Senast uppdaterat</th><td>{{ issue.updated_at|date:"j F Y, H:i" }}</td></tr>
+        {% if issue.due_on %}<tr><th>Planerat klart</th><td>{{ issue.due_on|date:"j F Y" }}</td></tr>{% endif %}
+        {% if issue.assignee %}<tr><th>Ansvarig hos ADX</th><td>{{ issue.assignee.first_name|default:"ADX" }}</td></tr>{% endif %}
+        <tr><th>Bilagor</th><td>{{ attachments|length }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="m-panel tv-panel">
+    <div class="tv-sec-title">Beskrivning</div>
+    {% if issue.description %}<div class="pt-prose">{{ issue.description|linebreaks }}</div>{% else %}<p class="tv-muted">Ingen beskrivning.</p>{% endif %}
+  </div>
 
   {% if attachments %}
   <div class="m-panel tv-panel">
     <div class="tv-sec-title">Bilagor</div>
-    <ul class="tv-files">{% for a in attachments %}<li><a href="{% url 'portal:attachment' a.pk %}"{% if not a.is_image %} download{% endif %}>{{ a.original_name }}</a> <small>{{ a.size_display }}</small></li>{% endfor %}</ul>
+    <ul class="tv-files">{% for a in attachments %}<li><a href="{% url 'portal:attachment' a.pk %}"{% if not a.is_image %} download{% endif %}>{{ a.original_name }}</a> <small>{{ a.size_display }} &middot; {{ a.created_at|date:"j M" }}</small></li>{% endfor %}</ul>
   </div>
   {% endif %}
 

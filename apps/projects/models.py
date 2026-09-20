@@ -292,6 +292,21 @@ class IssueType(models.TextChoices):
     SUPPORT = "support", "Support"
 
 
+class RequestKind(models.TextChoices):
+    """Vad kunden vill att vi gör med ärendet - frågas i portalen."""
+
+    BUILD = "build", "Genomför det som beskrivs"
+    ADVICE = "advice", "Ge oss förslag och råd först"
+    QUOTE = "quote", "Vi vill ha en offert"
+
+
+class Urgency(models.TextChoices):
+    NONE = "none", "Ingen brådska"
+    TWO_WEEKS = "two_weeks", "Inom två veckor"
+    ASAP = "asap", "Så snart som möjligt"
+    CRITICAL = "critical", "Akut - något är trasigt"
+
+
 class IssueQuerySet(models.QuerySet):
     def open(self):
         return self.filter(closed_at__isnull=True)
@@ -364,6 +379,13 @@ class Issue(models.Model):
     # skapar sätts till synliga.
     visible_to_customer = models.BooleanField("Synlig för kund", default=False)
     created_in_portal = models.BooleanField(default=False, editable=False)
+    # Kundens egna uppgifter från portalens formulär. Tomma för ärenden
+    # byrån skapar själv; visas i panelen så byrån ser vad kunden bad om.
+    request_kind = models.CharField(
+        "Vad kunden vill", max_length=10, choices=RequestKind.choices, blank=True
+    )
+    urgency = models.CharField("Brådska", max_length=10, choices=Urgency.choices, blank=True)
+    page_url = models.URLField("Gäller sida", blank=True)
     # Ordning inom kolumnen. Skrivs om för hela kolumnen vid omordning -
     # samma enkla, robusta grepp som offertraderna.
     position = models.PositiveIntegerField(default=0)

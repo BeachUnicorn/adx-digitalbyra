@@ -3,7 +3,7 @@
     <div class="wrap">
         {% if kicker or title or intro %}
         <div class="sec-head">
-            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if kicker %}<div class="kicker">{{ kicker }}</div>{% endif %}
             {% if title %}<h2>{{ title }}</h2>{% endif %}
             {% if intro %}<p>{{ intro }}</p>{% endif %}
         </div>
@@ -13,7 +13,7 @@
             <div class="quote panel">
                 <div class="mark">&quot;</div>
                 <p>{{ q.text }}</p>
-                <div class="who">[ {{ q.who }} ]</div>
+                <div class="who">{{ q.who }}</div>
             </div>
             {% endfor %}
         </div>

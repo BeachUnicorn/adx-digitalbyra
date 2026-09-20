@@ -53,6 +53,18 @@ Knappen "Svar + mejl till kunden" är systemets ENDA väg till ett kundmejl.
       <div class="tv-pills">{% for l in labels %}<button type="button" class="tv-pill tv-pill--small{% if l in issue.labels.all %} is-on{% endif %}" data-field="label" data-value="{{ l.pk }}" style="--lab:{{ l.color }}">{{ l.name }}</button>{% empty %}<span class="tv-prop__note">Inga etiketter än - skapa i Django admin.</span>{% endfor %}</div></div>
   </div>
 
+  {% if issue.created_in_portal or issue.request_kind or issue.urgency or issue.page_url %}
+  <div class="tv-sec">
+    <div class="tv-sec-title">Kundens uppgifter</div>
+    <dl class="tv-facts">
+      {% if issue.request_kind %}<dt>Vill</dt><dd>{{ issue.get_request_kind_display }}</dd>{% endif %}
+      {% if issue.urgency %}<dt>Brådska</dt><dd>{{ issue.get_urgency_display }}</dd>{% endif %}
+      {% if issue.page_url %}<dt>Sida</dt><dd><a href="{{ issue.page_url }}" rel="noopener" target="_blank">{{ issue.page_url }}</a></dd>{% endif %}
+      {% if issue.reporter %}<dt>Skickat av</dt><dd>{{ issue.reporter.get_full_name|default:issue.reporter.email }} &middot; {{ issue.created_at|date:"j M H:i" }}</dd>{% endif %}
+    </dl>
+  </div>
+  {% endif %}
+
   <div class="tv-sec">
     <div class="tv-sec-title">Beskrivning</div>
     <textarea class="tv-desc" data-field="description" rows="3" placeholder="Skriv en beskrivning...">{{ issue.description }}</textarea>

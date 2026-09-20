@@ -29,8 +29,21 @@ from .access import (
 from .auth import contact_for_email, issue_code, verify_code
 from .board import STAGES
 from .emails import send_login_code, send_portal_comment_notice, send_portal_issue_notice
-from .forms import MultiFileField, PortalIssueForm
-from .models import Attachment, Comment, Issue, IssueType
+from .forms import PortalCommentForm, PortalIssueForm
+from .models import (
+    Attachment,
+    Comment,
+    Issue,
+    IssuePriority,
+    IssueType,
+    RequestKind,
+    Urgency,
+)
+
+_PRIORITY_FOR_URGENCY = {
+    Urgency.CRITICAL: IssuePriority.URGENT,
+    Urgency.ASAP: IssuePriority.HIGH,
+}
 
 #: Sessionsnycklar mellan e-poststeget och kodsteget.
 _PENDING_EMAIL = "portal_login_email"
@@ -125,14 +138,22 @@ def issue_create(request):
     form = PortalIssueForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         project = request.customer.support_project()
+        data = form.cleaned_data
         issue = Issue.objects.create(
             project=project,
-            title=form.cleaned_data["title"],
-            description=form.cleaned_data["description"],
+            title=data["title"],
+            description=data["description"],
             issue_type=IssueType.SUPPORT,
             reporter=request.user,
             visible_to_customer=True,
             created_in_portal=True,
+            request_kind=data["request_kind"] or RequestKind.BUILD,
+            urgency=data["urgency"] or Urgency.NONE,
+            page_url=data["page_url"],
+            due_on=data["due_on"],
+            # Kundens brådska blir byråns prioritet - det är samma sak sett
+            # från två håll, och tavlan ska visa det utan att någon öppnar.
+            priority=_PRIORITY_FOR_URGENCY.get(data["urgency"], IssuePriority.NORMAL),
         )
         _save_files(issue, form.cleaned_data["files"], request.user)
         issue.log(request.user, "skapade ärendet i portalen")
@@ -142,20 +163,6 @@ def issue_create(request):
     return render(
         request, "portal/issue_form.html", {"form": form, "title": "Nytt ärende", "active": "new"}
     )
-
-
-class PortalCommentForm(PortalIssueForm):
-    """Bara text + filer; rubriken används inte."""
-
-    title = None  # type: ignore[assignment]
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields.pop("title", None)
-        self.fields["description"].label = "Kommentar"
-        self.fields["description"].required = True
-        self.fields["description"].help_text = ""
-        self.fields["files"] = MultiFileField(label="Bilagor", required=False)
 
 
 @customer_required

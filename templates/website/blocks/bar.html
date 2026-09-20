@@ -4,7 +4,7 @@
     <div class="wrap">
         <div class="bar panel" data-analytics-position="cta">
             <div class="l">{{ label }}</div>
-            {% if note %}<div class="r">[ {{ note }} ]</div>{% endif %}
+            {% if note %}<div class="r">{{ note }}</div>{% endif %}
             {% resolve_link link.url as bar_link %}
             {% if link.label and bar_link %}<a class="btn" href="{{ bar_link.href }}">{{ link.label }}</a>{% endif %}
         </div>

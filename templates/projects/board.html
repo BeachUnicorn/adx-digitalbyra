@@ -52,7 +52,7 @@ Klick på ett kort öppnar glidpanelen (#drawer) med ärendet.
     </header>
     <div class="tv-col-body">
       {% for issue in col.issues %}{% include "projects/_card.html" %}{% endfor %}
-      <div class="tv-empty" data-empty{% if col.issues %} hidden{% endif %}>[ tomt ]</div>
+      <div class="tv-empty" data-empty{% if col.issues %} hidden{% endif %}>Tomt</div>
     </div>
     <form class="tv-add" data-col="{{ col.key }}">
       <input type="text" name="title" placeholder="Nytt ärende" autocomplete="off" aria-label="Nytt ärende i {{ col.title }}">

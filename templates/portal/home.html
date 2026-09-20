@@ -16,7 +16,7 @@
       <span class="tv-col-count">{{ col.issues|length }}</span>
     </header>
     <div class="tv-col-body">
-      {% for issue in col.issues %}{% include "portal/_card.html" %}{% empty %}<div class="tv-empty">[ inget här just nu ]</div>{% endfor %}
+      {% for issue in col.issues %}{% include "portal/_card.html" %}{% empty %}<div class="tv-empty">Inget här just nu</div>{% endfor %}
     </div>
   </section>
   {% endfor %}

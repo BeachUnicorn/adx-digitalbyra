@@ -1,7 +1,7 @@
 <a class="tv-card pt-card" href="{% url 'portal:issue_detail' issue.pk %}">
   <div class="tv-card-top">
     <span class="tv-key"><b>{{ issue.key }}</b></span>
-    <span class="tv-flags">{% with n=issue.attachments.count %}{% if n %}<span class="tv-flag">{{ n }} bilag{{ n|pluralize:"a,or" }}</span>{% endif %}{% endwith %}</span>
+    <span class="tv-flags">{% if issue.urgency == "critical" %}<span class="tv-flag late">Akut</span>{% elif issue.urgency == "asap" %}<span class="tv-flag due">Snarast</span>{% endif %}{% with n=issue.attachments.count %}{% if n %}<span class="tv-flag">{{ n }} bilag{{ n|pluralize:"a,or" }}</span>{% endif %}{% endwith %}</span>
   </div>
   <h3 class="tv-title">{{ issue.title }}</h3>
   <div class="tv-meta"><span>{{ issue.get_issue_type_display }}</span><span>{{ issue.updated_at|date:"j M" }}</span>{% if issue.due_on %}<span>klart {{ issue.due_on|date:"j M" }}</span>{% endif %}</div>

@@ -10,7 +10,7 @@ sökmotorer. Google läser frågorna strukturerat i stället för att gissa.{% e
     <div class="wrap">
         {% if kicker or title or intro %}
         <div class="sec-head">
-            {% if kicker %}<div class="kicker">[ {{ kicker }} ]</div>{% endif %}
+            {% if kicker %}<div class="kicker">{{ kicker }}</div>{% endif %}
             {% if title %}<h2>{{ title }}</h2>{% endif %}
             {% if intro %}<p>{{ intro }}</p>{% endif %}
         </div>

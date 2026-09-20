@@ -5,7 +5,7 @@
     <div class="contact-grid">
         {% for card in cards %}
         <div class="contact-card panel">
-            <div class="kicker">[ {{ card.kicker }} ]</div>
+            <div class="kicker">{{ card.kicker }}</div>
             {% resolve_link card.url as card_link %}
             {% if card_link %}<a class="big" href="{{ card_link.href }}">{{ card.value }}</a>{% else %}<div class="big">{{ card.value }}</div>{% endif %}
         </div>
