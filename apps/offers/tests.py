@@ -68,9 +68,7 @@ class ProductReuseTests(StaffClientMixin, TestCase):
             name="Förvaltning", default_price=1495, default_period=PricePeriod.MONTHLY
         )
         quote = make_quote()
-        self.staff().post(
-            f"/manage/offerter/{quote.pk}/rader/ny/", {"product_id": product.pk}
-        )
+        self.staff().post(f"/manage/offerter/{quote.pk}/rader/ny/", {"product_id": product.pk})
         line = quote.lines.get()
         self.assertEqual((line.label, line.price, line.period), ("Förvaltning", 1495, "monthly"))
 
@@ -234,12 +232,20 @@ class OptionalLineTests(TestCase):
             quote=self.quote, label="Hemsida", price=50000, order=1
         )
         self.seo = QuoteLine.objects.create(
-            quote=self.quote, label="SEO", price=6500, order=2,
-            is_optional=True, is_selected=True,
+            quote=self.quote,
+            label="SEO",
+            price=6500,
+            order=2,
+            is_optional=True,
+            is_selected=True,
         )
         self.booking = QuoteLine.objects.create(
-            quote=self.quote, label="Bokning", price=12000, order=3,
-            is_optional=True, is_selected=False,
+            quote=self.quote,
+            label="Bokning",
+            price=12000,
+            order=3,
+            is_optional=True,
+            is_selected=False,
         )
 
     def test_totals_count_only_selected_options(self):
@@ -252,16 +258,12 @@ class OptionalLineTests(TestCase):
         self.assertIn('name="tillval"', html)
         self.assertIn("[ Tillval ]", html)
         # Förvalet styr checked-attributet: SEO förvald, Bokning inte.
-        toggles = dict(
-            re.findall(r'value="(\d+)"[^>]*?(checked)?>\s*<span class="switch"', html)
-        )
+        toggles = dict(re.findall(r'value="(\d+)"[^>]*?(checked)?>\s*<span class="switch"', html))
         self.assertEqual(toggles.get(str(self.seo.pk)), "checked")
         self.assertEqual(toggles.get(str(self.booking.pk)), "")
 
     def test_accepting_with_choices_persists_the_customers_selection(self):
-        Client().post(
-            f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(self.booking.pk)]}
-        )
+        Client().post(f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(self.booking.pk)]})
         self.seo.refresh_from_db()
         self.booking.refresh_from_db()
         self.quote.refresh_from_db()
@@ -274,21 +276,21 @@ class OptionalLineTests(TestCase):
     def test_foreign_line_ids_cannot_be_smuggled_into_the_selection(self):
         other = make_quote(customer_name="Annan", status=QuoteStatus.SENT)
         foreign = QuoteLine.objects.create(
-            quote=other, label="Främmande", price=1, order=1,
-            is_optional=True, is_selected=False,
+            quote=other,
+            label="Främmande",
+            price=1,
+            order=1,
+            is_optional=True,
+            is_selected=False,
         )
-        Client().post(
-            f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(foreign.pk)]}
-        )
+        Client().post(f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(foreign.pk)]})
         foreign.refresh_from_db()
         self.base.refresh_from_db()
         self.assertFalse(foreign.is_selected, "annan offerts rad får inte påverkas")
         self.assertTrue(self.base.is_selected, "fasta rader rörs aldrig av valet")
 
     def test_after_accept_the_page_shows_chosen_options_without_toggles(self):
-        Client().post(
-            f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(self.seo.pk)]}
-        )
+        Client().post(f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(self.seo.pk)]})
         html = Client().get(self.quote.get_public_url()).content.decode()
         self.assertNotIn('type="checkbox" name="tillval"', html)
         self.assertIn("SEO", html)
@@ -333,9 +335,7 @@ class AcceptFlowTests(TestCase):
 
     def test_a_question_reaches_staff_with_reply_to_customer(self):
         quote = make_quote(status=QuoteStatus.SENT)
-        response = Client().post(
-            f"/offert/{quote.token}/fraga/", {"message": "Ingår hosting?"}
-        )
+        response = Client().post(f"/offert/{quote.token}/fraga/", {"message": "Ingår hosting?"})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("Ingår hosting?", mail.outbox[0].body)
@@ -438,9 +438,7 @@ class ReviewRegressionTests(StaffClientMixin, TestCase):
         from apps.analytics.models import PageView, Session, Visitor
 
         quote = make_quote(status=QuoteStatus.SENT)
-        Client(HTTP_USER_AGENT="Mozilla/5.0 (Macintosh) Chrome/128").get(
-            quote.get_public_url()
-        )
+        Client(HTTP_USER_AGENT="Mozilla/5.0 (Macintosh) Chrome/128").get(quote.get_public_url())
         for model in (PageView, Session, Visitor):
             self.assertEqual(model.objects.count(), 0)
 
@@ -502,6 +500,160 @@ class ReviewRegressionTests(StaffClientMixin, TestCase):
                 f"/offert/{quote.token}/fraga/", {"message": "Hallå?"}, follow=True
             )
         self.assertContains(response, "kunde inte skickas")
+
+
+@override_settings(**EMAIL_SETTINGS)
+class ProjectLinkTests(StaffClientMixin, TestCase):
+    """
+    Offert -> projekt -> ärenden. Kopplingen är manuell (aldrig vid accept),
+    idempotent (rader minns sitt ärende) och mejlar aldrig någon.
+    """
+
+    def _update(self, quote, payload):
+        return self.staff().post(
+            f"/manage/offerter/{quote.pk}/uppdatera/",
+            json.dumps(payload),
+            content_type="application/json",
+        )
+
+    def test_autosave_links_and_unlinks_a_project(self):
+        from apps.projects.models import Project
+
+        project = Project.objects.create(name="Nordan Bygg", key="NORD")
+        quote = make_quote()
+        self.assertEqual(self._update(quote, {"project": str(project.pk)}).status_code, 200)
+        quote.refresh_from_db()
+        self.assertEqual(quote.project, project)
+        self.assertIsNone(quote.customer, "utan kund på projektet finns ingen kund")
+
+        self.assertEqual(self._update(quote, {"project": ""}).status_code, 200)
+        quote.refresh_from_db()
+        self.assertIsNone(quote.project)
+
+    def test_an_unknown_project_id_is_ignored(self):
+        quote = make_quote()
+        response = self._update(quote, {"project": "999999"})
+        self.assertEqual(response.status_code, 400)
+        quote.refresh_from_db()
+        self.assertIsNone(quote.project)
+
+    def test_the_link_is_outside_the_lock_but_the_content_is_not(self):
+        from apps.projects.models import Project
+
+        project = Project.objects.create(name="Nordan Bygg", key="NORD")
+        quote = make_quote(status=QuoteStatus.ACCEPTED)
+        self.assertEqual(self._update(quote, {"project": str(project.pk)}).status_code, 200)
+        response = self._update(quote, {"customer_name": "Nytt namn"})
+        self.assertEqual(response.status_code, 400)
+        quote.refresh_from_db()
+        self.assertEqual((quote.project, quote.customer_name), (project, "Testkund AB"))
+
+    def test_the_editor_offers_active_projects_only(self):
+        from apps.projects.models import Project, ProjectStatus
+
+        Project.objects.create(name="Aktivt", key="AKT")
+        Project.objects.create(name="Gammalt", key="GAM", status=ProjectStatus.ARCHIVED)
+        html = self.staff().get(f"/manage/offerter/{make_quote().pk}/").content.decode()
+        self.assertIn('data-field="project"', html)
+        self.assertIn("AKT - Aktivt", html)
+        self.assertNotIn("GAM - Gammalt", html)
+
+    def test_creating_issues_builds_customer_project_and_issues_once(self):
+        from apps.projects.models import Customer, Issue, Project
+
+        # Befintlig kund med annat skiftläge: ska återanvändas, inte dubbleras.
+        existing = Customer.objects.create(name="testkund ab")
+        quote = make_quote(project_title="Ny hemsida")
+        fixed = QuoteLine.objects.create(
+            quote=quote, label="Hemsida", description="Fem sidor", price=50000, order=1
+        )
+        chosen = QuoteLine.objects.create(
+            quote=quote, label="SEO", price=6500, order=2, is_optional=True, is_selected=True
+        )
+        skipped = QuoteLine.objects.create(
+            quote=quote,
+            label="Bokning",
+            price=12000,
+            order=3,
+            is_optional=True,
+            is_selected=False,
+        )
+
+        response = self.staff().post(f"/manage/offerter/{quote.pk}/arenden/", follow=True)
+        self.assertContains(response, "2 ärenden skapade i")
+
+        quote.refresh_from_db()
+        self.assertEqual(Customer.objects.count(), 1)
+        self.assertEqual(quote.customer, existing)
+        project = Project.objects.get()
+        self.assertEqual(quote.project, project)
+        self.assertEqual(project.name, "Ny hemsida")
+        self.assertEqual((project.customer, project.created_by), (existing, self.user))
+
+        for line in (fixed, chosen, skipped):
+            line.refresh_from_db()
+        self.assertIsNone(skipped.issue, "ovalda tillval blir inte ärenden")
+        self.assertEqual(
+            (fixed.issue.title, fixed.issue.description, fixed.issue.project),
+            ("Hemsida", "Fem sidor", project),
+        )
+        self.assertEqual(fixed.issue.column, project.columns.order_by("position").first())
+        self.assertTrue(fixed.issue.is_billable)
+        self.assertEqual(fixed.issue.reporter, self.user)
+        self.assertIn(f"offert #{quote.pk}", fixed.issue.activity.get().text)
+        self.assertEqual(Issue.objects.count(), 2)
+
+        # Andra körningen: inga dubbletter, tydligt besked.
+        response = self.staff().post(f"/manage/offerter/{quote.pk}/arenden/", follow=True)
+        self.assertContains(response, "Alla rader har redan ärenden")
+        self.assertEqual(Issue.objects.count(), 2)
+        self.assertEqual(Project.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 0, "att skapa ärenden mejlar aldrig")
+
+        # Redigeraren visar ärendenyckeln vid raden.
+        html = self.staff().get(f"/manage/offerter/{quote.pk}/").content.decode()
+        self.assertIn(fixed.issue.key, html)
+        self.assertIn(f"/manage/arenden/{fixed.issue.pk}/", html)
+
+    def test_creating_issues_uses_the_linked_project_and_makes_no_customer(self):
+        from apps.projects.models import Customer, Project
+
+        project = Project.objects.create(name="Internt", key="INT")
+        quote = make_quote(project=project)
+        QuoteLine.objects.create(quote=quote, label="Rad", order=1)
+        self.staff().post(f"/manage/offerter/{quote.pk}/arenden/")
+        self.assertEqual(Customer.objects.count(), 0)
+        self.assertEqual(Project.objects.count(), 1)
+        self.assertEqual(project.issues.get().title, "Rad")
+
+    def test_a_new_project_falls_back_to_the_customer_name(self):
+        from apps.projects.models import Project
+
+        quote = make_quote(project_title="")
+        QuoteLine.objects.create(quote=quote, label="Rad", order=1)
+        self.staff().post(f"/manage/offerter/{quote.pk}/arenden/")
+        self.assertEqual(Project.objects.get().name, "Offert Testkund AB")
+
+    def test_accepting_never_creates_issues(self):
+        from apps.projects.models import Issue, Project
+
+        quote = make_quote(status=QuoteStatus.SENT)
+        QuoteLine.objects.create(quote=quote, label="Hemsida", price=50000, order=1)
+        Client().post(f"/offert/{quote.token}/acceptera/")
+        quote.refresh_from_db()
+        self.assertEqual(quote.status, QuoteStatus.ACCEPTED)
+        self.assertEqual((Issue.objects.count(), Project.objects.count()), (0, 0))
+
+    def test_the_list_shows_the_project_key(self):
+        from apps.projects.models import Project
+
+        project = Project.objects.create(name="Nordan Bygg", key="NORD")
+        make_quote(project=project, project_title="Fritext som inte ska visas")
+        make_quote(customer_name="Annan", project_title="Bara fritext")
+        html = self.staff().get("/manage/offerter/").content.decode()
+        self.assertIn("NORD", html)
+        self.assertNotIn("Fritext som inte ska visas", html)
+        self.assertIn("Bara fritext", html)
 
 
 class ProductSeedTests(TestCase):

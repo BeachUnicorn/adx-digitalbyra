@@ -44,7 +44,11 @@
                 <td>
                     <a href="{% url 'manage:offer_edit' quote.pk %}" class="o-table__name">{{ quote.customer_name }}</a>
                 </td>
-                <td class="o-table__muted">{{ quote.project_title|default:"-" }}</td>
+                <td class="o-table__muted">
+                    {% if quote.project %}
+                    <a href="{% url 'manage:project_detail' quote.project.key %}" class="m-badge" title="{{ quote.project.name }}">{{ quote.project.key }}</a>
+                    {% else %}{{ quote.project_title|default:"-" }}{% endif %}
+                </td>
                 {% with totals=quote.totals %}
                 <td class="m-num">{{ totals.one_time }} kr</td>
                 <td class="m-num o-table__muted o-table__recurring">

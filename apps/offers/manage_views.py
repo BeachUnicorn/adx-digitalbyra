@@ -18,11 +18,13 @@ from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count
+from django.db import transaction
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from apps.projects.models import Customer, Issue, Project, ProjectStatus
 from apps.website.models import SiteSettings
 
 from .emails import send_quote_to_customer
@@ -63,16 +65,13 @@ def _locked(quote):
 @login_required
 def offer_list(request):
     status_filter = request.GET.get("status", "")
-    quotes = Quote.objects.prefetch_related("lines")
+    quotes = Quote.objects.select_related("project").prefetch_related("lines")
     if status_filter in QuoteStatus.values:
         quotes = quotes.filter(status=status_filter)
     counts = {
-        row["status"]: row["n"]
-        for row in Quote.objects.values("status").annotate(n=Count("id"))
+        row["status"]: row["n"] for row in Quote.objects.values("status").annotate(n=Count("id"))
     }
-    status_chips = [
-        (value, label, counts.get(value, 0)) for value, label in QuoteStatus.choices
-    ]
+    status_chips = [(value, label, counts.get(value, 0)) for value, label in QuoteStatus.choices]
     return render(
         request,
         "manage/offers/list.html",
@@ -102,13 +101,25 @@ def offer_create(request):
 
 @login_required
 def offer_edit(request, pk):
-    quote = get_object_or_404(Quote.objects.prefetch_related("lines"), pk=pk)
+    quote = get_object_or_404(
+        Quote.objects.select_related("project").prefetch_related("lines__issue__project"),
+        pk=pk,
+    )
+    # Arkiverade projekt göms i väljaren, men offertens EGET projekt måste
+    # alltid finnas med - annars visar select:en "Inget projekt" fast
+    # kopplingen finns, och användaren luras.
+    projects = (
+        Project.objects.select_related("customer")
+        .filter(~Q(status=ProjectStatus.ARCHIVED) | Q(pk=quote.project_id))
+        .order_by("key")
+    )
     return render(
         request,
         "manage/offers/edit.html",
         _ctx(
             quote=quote,
             products=Product.objects.filter(is_active=True),
+            projects=projects,
             periods=PricePeriod,
             totals=quote.totals(),
             statuses=QuoteStatus,
@@ -121,20 +132,33 @@ def offer_edit(request, pk):
 def offer_update(request, pk):
     """Autospar för kunduppgifterna. Tar emot bara de fält som skickas."""
     quote = get_object_or_404(Quote, pk=pk)
-    if _locked(quote):
-        return JsonResponse({"ok": False, "error": "Accepterad offert är låst."}, status=400)
     data = _json_body(request)
-    editable = ("customer_name", "customer_email", "project_title", "intro")
     fields = []
+    # Projektkopplingen är inte offertens innehåll utan byråns bokföring av
+    # den - därför får den ändras även på en accepterad offert, och därför
+    # ligger den utanför låset. Okänt id ignoreras tyst (select:en kan vara
+    # stallastad), tom sträng kopplar loss.
+    if "project" in data:
+        raw = str(data["project"]).strip()
+        if not raw:
+            quote.project = None
+            fields.append("project")
+        elif raw.isdigit() and Project.objects.filter(pk=int(raw)).exists():
+            quote.project_id = int(raw)
+            fields.append("project")
+    content = {key: value for key, value in data.items() if key != "project"}
+    if content and _locked(quote):
+        return JsonResponse({"ok": False, "error": "Accepterad offert är låst."}, status=400)
+    editable = ("customer_name", "customer_email", "project_title", "intro")
     for field in editable:
-        if field in data:
+        if field in content:
             # Trunkera mot fältets faktiska max_length - en platt gräns
             # över modellens tak blir ett DataError i Postgres.
             max_length = Quote._meta.get_field(field).max_length or 5000
-            setattr(quote, field, str(data[field]).strip()[:max_length])
+            setattr(quote, field, str(content[field]).strip()[:max_length])
             fields.append(field)
-    if "valid_until" in data:
-        raw = str(data["valid_until"]).strip()
+    if "valid_until" in content:
+        raw = str(content["valid_until"]).strip()
         try:
             quote.valid_until = date.fromisoformat(raw) if raw else None
             fields.append("valid_until")
@@ -209,6 +233,64 @@ def offer_delete(request, pk):
     quote.delete()
     messages.success(request, "Offerten är borttagen.")
     return redirect("manage:offer_list")
+
+
+def _project_for(quote, user):
+    """
+    Projektet offertens ärenden ska hamna i. Saknas koppling skapas ett
+    projekt - och en kund om namnet inte redan finns. Matchningen på
+    kundnamn är skiftlägesokänslig: "nordan bygg" och "Nordan Bygg" är
+    samma kund, och en dubblett i kundregistret är dyrare än en missad.
+    """
+    if quote.project_id:
+        return quote.project
+    customer = Customer.objects.filter(name__iexact=quote.customer_name.strip()).first()
+    if customer is None:
+        customer = Customer.objects.create(
+            name=quote.customer_name.strip(), email=quote.customer_email
+        )
+    name = quote.project_title.strip() or f"Offert {quote.customer_name.strip()}"
+    project = Project.objects.create(
+        name=name[:200], key=Project.make_key(name), customer=customer, created_by=user
+    )
+    quote.project = project
+    quote.save(update_fields=["project", "updated_at"])
+    return project
+
+
+@login_required
+@require_POST
+def offer_create_issues(request, pk):
+    """
+    Knappen "Skapa ärenden av raderna": varje rad som räknas (fasta rader
+    och VALDA tillval) blir ett ärende i offertens projekt. Körningen är
+    idempotent - rader som redan har ett ärende hoppas över - så knappen
+    kan tryckas igen efter att en rad lagts till. Ingen automatik vid
+    accept och inga mejl: att offerten blir arbete är byråns beslut.
+    """
+    quote = get_object_or_404(Quote.objects.prefetch_related("lines"), pk=pk)
+    with transaction.atomic():
+        project = _project_for(quote, request.user)
+        created = 0
+        for line in quote.lines.all():
+            if (line.is_optional and not line.is_selected) or line.issue_id:
+                continue
+            issue = Issue.objects.create(
+                project=project,
+                title=line.label[:200],
+                description=line.description,
+                reporter=request.user,
+                is_billable=True,
+            )
+            issue.log(request.user, f"skapades från offert #{quote.pk}")
+            line.issue = issue
+            line.save(update_fields=["issue"])
+            created += 1
+    if created:
+        messages.success(request, f"{created} ärenden skapade i {project.key}.")
+    else:
+        messages.info(request, "Alla rader har redan ärenden.")
+    return redirect("manage:offer_edit", pk=pk)
 
 
 # ------------------------------------------------------------------ rader

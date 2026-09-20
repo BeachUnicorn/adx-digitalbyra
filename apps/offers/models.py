@@ -13,6 +13,12 @@ Tre modeller:
 - QuoteLine: en rad. Pristypen (engång/månad/år) sitter på raden, inte på
   offerten, så samma offert kan blanda leveranspris och löpande avtal.
 
+Kopplingen till ärendesystemet (apps/projects) är frivillig och manuell:
+Quote.project pekar på ett projekt, och knappen "Skapa ärenden av raderna"
+gör varje rad till ett Issue (QuoteLine.issue minns vilket). Ingenting
+skapas automatiskt när kunden accepterar - det är byråns beslut när
+offerten blir arbete.
+
 Alla belopp är hela kronor exklusive moms. Momsen är en visningsfråga
 (25 procent på allt ADX säljer), inte en datafråga.
 """
@@ -83,14 +89,24 @@ class Quote(models.Model):
     customer_name = models.CharField("Kund", max_length=200)
     customer_email = models.EmailField("Kundens e-post", blank=True)
     project_title = models.CharField("Projekt", max_length=200, blank=True)
+    # Kopplingen till ärendesystemet. Kunden lagras INTE separat på offerten:
+    # har den ett projekt så är kunden projektets (samma regel som Issue),
+    # annars finns bara fritexten customer_name. SET_NULL: offerten är en
+    # affärshandling och ska överleva att projektet tas bort.
+    project = models.ForeignKey(
+        "projects.Project",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="quotes",
+        verbose_name="Projekt",
+    )
     intro = models.TextField(
         "Hälsning",
         blank=True,
         help_text="Visas överst på kundens offertsida.",
     )
-    status = models.CharField(
-        max_length=10, choices=QuoteStatus.choices, default=QuoteStatus.DRAFT
-    )
+    status = models.CharField(max_length=10, choices=QuoteStatus.choices, default=QuoteStatus.DRAFT)
     valid_until = models.DateField("Giltig till", null=True, blank=True)
 
     sent_at = models.DateTimeField(null=True, blank=True)
@@ -118,6 +134,11 @@ class Quote(models.Model):
 
     def get_public_url(self):
         return f"/offert/{self.token}/"
+
+    @property
+    def customer(self):
+        """Kunden i ärendesystemet - alltid härledd ur projektet, aldrig lagrad här."""
+        return self.project.customer if self.project_id else None
 
     def totals(self):
         """
@@ -173,6 +194,17 @@ class QuoteLine(models.Model):
     is_optional = models.BooleanField("Tillval", default=False)
     is_selected = models.BooleanField("Vald", default=True)
     order = models.PositiveIntegerField(default=0)
+    # Ärendet raden blev när offerten omsattes i arbete. Minnet gör att
+    # "Skapa ärenden" kan köras om utan dubbletter: rader som redan har ett
+    # ärende hoppas över. SET_NULL så att ett raderat ärende kan skapas om.
+    issue = models.ForeignKey(
+        "projects.Issue",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="quote_lines",
+        verbose_name="Ärende",
+    )
 
     class Meta:
         ordering = ["order", "id"]

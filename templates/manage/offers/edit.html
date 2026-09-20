@@ -50,7 +50,8 @@ avsnittet Affär) och går alltid via tokens.
     .o-sumrow { display: flex; justify-content: space-between; }
     #save-state { opacity: 0; transition: opacity .3s; }
     #save-state.is-on, #save-state.is-error { opacity: 1; }
-    .o-side .m-field input, .o-side .m-field textarea { width: 100%; box-sizing: border-box; }
+    .o-side .m-field input, .o-side .m-field textarea, .o-side .m-field select { width: 100%; box-sizing: border-box; }
+    .o-issue-link { margin-left: auto; text-decoration: none; }
 </style>
 {% endblock %}
 
@@ -102,6 +103,10 @@ avsnittet Affär) och går alltid via tokens.
                             aria-pressed="{% if line.is_selected %}true{% else %}false{% endif %}"
                             {% if not line.is_optional %}hidden{% endif %}>Förvald</button>
                     <span class="o-flag-hint" {% if not line.is_optional %}hidden{% endif %}>Kunden väljer med en toggle på offertsidan.</span>
+                    {% if line.issue %}
+                    <a href="{% url 'manage:issue_detail' line.issue.pk %}" class="m-badge o-issue-link"
+                       title="Ärendet som skapades av raden">{{ line.issue.key }}</a>
+                    {% endif %}
                 </div>
             </div>
             {% empty %}
@@ -147,6 +152,18 @@ avsnittet Affär) och går alltid via tokens.
                 <input class="o-meta" data-field="customer_email" type="email" maxlength="254" value="{{ quote.customer_email }}"></div>
             <div class="m-field"><label>Projekt</label>
                 <input class="o-meta" data-field="project_title" maxlength="200" value="{{ quote.project_title }}"></div>
+            {% comment %}
+            Kopplingen till ärendesystemet. Sparas via samma autospar som de
+            andra fälten men står UTANFÖR låset: den får ändras även på en
+            accepterad offert, eftersom den inte är offertens innehåll.
+            {% endcomment %}
+            <div class="m-field"><label>Kopplat projekt</label>
+                <select class="m-select o-meta" data-field="project" aria-label="Kopplat projekt">
+                    <option value="">Inget projekt</option>
+                    {% for project in projects %}
+                    <option value="{{ project.pk }}" {% if quote.project_id == project.pk %}selected{% endif %}>{{ project.key }} - {{ project.name }}{% if project.customer %} ({{ project.customer.name }}){% endif %}</option>
+                    {% endfor %}
+                </select></div>
             <div class="m-field"><label>Hälsning på offertsidan</label>
                 <textarea class="o-meta" data-field="intro" rows="3" placeholder="Hej! Här är vårt förslag...">{{ quote.intro }}</textarea></div>
             <div class="m-field"><label>Giltig till</label>
@@ -164,6 +181,23 @@ avsnittet Affär) och går alltid via tokens.
             <a href="{{ quote.get_public_url }}" target="_blank" rel="noopener" class="m-btn m-btn--small m-btn--ghost o-preview">
                 Visa kundsidan &#8599;
             </a>
+            {% if quote.lines.all %}
+            {% comment %}
+            Offerten blir arbete: raderna blir ärenden i det kopplade
+            projektet (eller i ett nytt, med kund). Idempotent - rader som
+            redan har ett ärende hoppas över. Aldrig automatiskt vid accept.
+            {% endcomment %}
+            <form method="post" action="{% url 'manage:offer_create_issues' quote.pk %}" class="o-send"
+                  onsubmit="return confirm('Skapa ett ärende per rad{% if quote.project %} i {{ quote.project.key }}{% else %} i ett nytt projekt{% endif %}? Rader som redan har ärenden hoppas över.');">
+                {% csrf_token %}
+                <button type="submit" class="m-btn m-btn--small m-btn--ghost">Skapa ärenden av raderna</button>
+            </form>
+            {% endif %}
+            {% if quote.project %}
+            <p class="o-sent-meta">
+                Projekt: <a href="{% url 'manage:project_detail' quote.project.key %}">{{ quote.project.key }} {{ quote.project.name }}</a>
+            </p>
+            {% endif %}
             <div class="o-actions">
                 {% if quote.status != 'accepted' %}
                 <form method="post" action="{% url 'manage:offer_status' quote.pk %}">
@@ -263,9 +297,32 @@ avsnittet Affär) och går alltid via tokens.
         yearly: {{ totals.yearly }}
     });
 
+    // --- Autospar: kunduppgifter ------------------------------------------
+    // Står FÖRE låsblocket: projektkopplingen ([data-field=project]) ska
+    // gå att ändra även på en accepterad offert, så dess lyssnare måste
+    // finnas oavsett. Övriga fält är disabled i låst läge och avfyrar inget.
+    document.querySelectorAll(".o-meta").forEach(function (input) {
+        function save() {
+            return enqueue("meta-" + input.dataset.field, function () {
+                var payload = {};
+                payload[input.dataset.field] = input.value;
+                return post("{% url 'manage:offer_update' quote.pk %}", payload);
+            });
+        }
+        // En select ändras i ett steg - change räcker, och ett extra
+        // input-lyssnande skulle bara skicka samma sparning två gånger.
+        if (input.tagName !== "SELECT") {
+            input.addEventListener("input", function () {
+                clearTimeout(timers[input.dataset.field]);
+                timers[input.dataset.field] = setTimeout(save, 600);
+            });
+        }
+        input.addEventListener("change", save);
+    });
+
     if (locked) {
         // Serversidan vägrar ändå; det här gör låsningen synlig direkt.
-        document.querySelectorAll(".o-line input, .o-line textarea, .o-line select, .o-meta")
+        document.querySelectorAll(".o-line input, .o-line textarea, .o-line select, .o-meta:not([data-field=project])")
             .forEach(function (el) { el.disabled = true; });
         document.querySelectorAll(".o-add, .o-del, .o-handle, .o-flag")
             .forEach(function (el) { el.style.display = "none"; });
@@ -307,22 +364,6 @@ avsnittet Affär) och går alltid via tokens.
                 save();
             });
         });
-    });
-
-    // --- Autospar: kunduppgifter ------------------------------------------
-    document.querySelectorAll(".o-meta").forEach(function (input) {
-        function save() {
-            return enqueue("meta-" + input.dataset.field, function () {
-                var payload = {};
-                payload[input.dataset.field] = input.value;
-                return post("{% url 'manage:offer_update' quote.pk %}", payload);
-            });
-        }
-        input.addEventListener("input", function () {
-            clearTimeout(timers[input.dataset.field]);
-            timers[input.dataset.field] = setTimeout(save, 600);
-        });
-        input.addEventListener("change", save);
     });
 
     // --- Omordning ---------------------------------------------------------
