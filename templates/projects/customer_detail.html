@@ -42,6 +42,50 @@
       </div>
     </div>
 
+    <div class="m-panel tv-panel" id="overvakning">
+      <div class="tv-sec-title">Övervakning</div>
+      <p class="tv-prop__note">Det kunden ser på /kund/status/. Avstängt = varken insamlat eller visat. Larm går bara till dig.</p>
+      <div class="tv-domains">
+        {% for d in monitor_domains %}
+        <div class="tv-domainrow{% if not d.is_active %} is-off{% endif %}">
+          <span class="tv-domainrow__name"><b>{{ d.name }}</b>{% if d.is_primary %} <span class="m-badge">primär</span>{% endif %}{% if d.status_url %} <span class="m-badge m-badge--ai" title="{{ d.status_url }}">plattform</span>{% endif %}{% if not d.is_active %} <span class="m-badge">pausad</span>{% endif %}</span>
+          <form method="post" action="{% url 'manage:monitor_domain_update' d.pk %}" class="tv-domainrow__acts">{% csrf_token %}
+            {% if not d.is_primary %}<button type="submit" name="action" value="primary" class="m-btn m-btn--small m-btn--ghost">Primär</button>{% endif %}
+            <button type="submit" name="action" value="toggle" class="m-btn m-btn--small m-btn--ghost">{% if d.is_active %}Pausa{% else %}Återuppta{% endif %}</button>
+            <button type="submit" name="action" value="delete" class="m-btn m-btn--small m-btn--danger" data-confirm="Sluta övervaka {{ d.name }}? Historiken tas bort.">Ta bort</button>
+          </form>
+          <form method="post" action="{% url 'manage:monitor_domain_update' d.pk %}" class="tv-domainrow__url">{% csrf_token %}<input type="hidden" name="action" value="status_url">
+            <input type="url" name="status_url" value="{{ d.status_url }}" placeholder="Statusendpoint (Pluskund): https://{{ d.name }}/status/adx/" class="tv-input" aria-label="Statusendpoint">
+            <button type="submit" class="m-btn m-btn--small m-btn--ghost">Spara</button>
+          </form>
+        </div>
+        {% empty %}<p class="tv-muted">Inga domäner än.</p>{% endfor %}
+      </div>
+      <form method="post" action="{% url 'manage:monitor_domain_add' customer.pk %}" class="tv-row">{% csrf_token %}
+        <input type="text" name="name" placeholder="Ny domän, t.ex. nordanbygg.se" required class="tv-input" aria-label="Domän">
+        <label class="tv-checklabel"><input type="checkbox" name="platform"> vår plattform (statusendpoint)</label>
+        <button type="submit" class="m-btn m-btn--small">Lägg till</button>
+      </form>
+      <form method="post" action="{% url 'manage:monitor_update' customer.pk %}" class="tv-toggles">{% csrf_token %}
+        <div class="tv-toggles__grid">
+          {% for field in monitor_fields %}<label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="{{ field.name }}"{% if field.value %} checked{% endif %}> {{ field.label }}</label>{% endfor %}
+        </div>
+        <div class="tv-form__pair">
+          <div class="m-field"><label for="mon-sentry">Sentry-projekt (slug i byråns org)</label><input id="mon-sentry" name="sentry_project" value="{{ monitor.sentry_project }}" class="tv-input" placeholder="t.ex. nordanbygg"></div>
+          <div class="m-field"><label for="mon-note">Anteckning från ADX (visas överst för kunden)</label><textarea id="mon-note" name="note" rows="2" class="tv-input tv-input--area" maxlength="1000">{{ monitor.note }}</textarea></div>
+        </div>
+        <div class="tv-logfoot">
+          <button type="submit" class="m-btn m-btn--small">Spara övervakning</button>
+          <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:drift' %}">Driftöversikten</a>
+        </div>
+      </form>
+      <div class="tv-logfoot">
+        <form method="post" action="{% url 'manage:monitor_run' customer.pk %}">{% csrf_token %}<input type="hidden" name="mode" value="quick"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Kör snabbkontroll nu</button></form>
+        <form method="post" action="{% url 'manage:monitor_run' customer.pk %}">{% csrf_token %}<input type="hidden" name="mode" value="daily"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Kör dygnskontroll (utan PageSpeed)</button></form>
+        <form method="post" action="{% url 'manage:monitor_run' customer.pk %}" data-confirm="PageSpeed tar upp till en minut per domän. Fortsätt?">{% csrf_token %}<input type="hidden" name="mode" value="full"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Kör allt inkl. PageSpeed</button></form>
+      </div>
+    </div>
+
     <div class="m-panel tv-panel">
       <div class="tv-sec-title">Portalkontakter</div>
       <p class="tv-prop__note">Kontakterna får ett mejl med lösenordslänk när de bjuds in. De ser bara den här kundens ärenden som är markerade "Synlig för kund".</p>

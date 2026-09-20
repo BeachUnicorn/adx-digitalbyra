@@ -1,0 +1,187 @@
+{% extends "portal/base.html" %}
+{% load monitor_tags %}
+{% block content %}
+<div class="tv-head">
+  <div>
+    <div class="tv-kicker">{{ customer.name }}</div>
+    <h1 class="tv-h1">Övervakning</h1>
+    <div class="tv-sub">Så mår er hemsida just nu, och hur det sett ut de senaste 30 dagarna.</div>
+  </div>
+</div>
+
+{% if monitor.note %}
+<div class="m-panel tv-panel pt-note-box"><div class="tv-sec-title">Från ADX</div><p>{{ monitor.note|linebreaksbr }}</p></div>
+{% endif %}
+
+{% if not bundles %}
+<div class="m-panel tv-panel"><p class="tv-empty tv-empty--inline">Övervakningen är inte uppsatt än. Vi hör av oss när den är igång.</p></div>
+{% endif %}
+
+{% for b in bundles %}
+<section class="pt-domain">
+  <h2 class="pt-domain__name">{{ b.domain.name }}{% if b.domain.is_primary and bundles|length > 1 %} <span class="m-badge">primär</span>{% endif %}</h2>
+
+  {% if monitor.show_uptime or monitor.show_response %}
+  <div class="pt-hero{% if b.open_incident %} is-down{% elif b.now and not b.now.ok %} is-warn{% endif %}">
+    {% if monitor.show_uptime %}
+    <div class="pt-hero__status">
+      <span class="pt-dot"></span>
+      <div>
+        <div class="pt-hero__label">{% if b.open_incident %}Nere{% elif b.now and b.now.ok %}Online{% elif b.now %}Svarar inte{% else %}Ingen mätning än{% endif %}</div>
+        <div class="pt-hero__sub">{% if b.now %}Senast kontrollerad {{ b.now.checked_at|date:"j M H:i" }}{% if b.days_up is not None %} &middot; {{ b.days_up }} dagar utan avbrott{% endif %}{% endif %}</div>
+      </div>
+    </div>
+    <div class="pt-tiles">
+      <div class="pt-tile"><div class="pt-tile__n">{% if b.uptime_30d is not None %}{{ b.uptime_30d }} %{% else %}-{% endif %}</div><div class="pt-tile__l">Drifttid 30 dagar</div></div>
+      <div class="pt-tile"><div class="pt-tile__n">{% if b.uptime_24h is not None %}{{ b.uptime_24h }} %{% else %}-{% endif %}</div><div class="pt-tile__l">Drifttid 24 timmar</div></div>
+      {% if monitor.show_response %}
+      <div class="pt-tile"><div class="pt-tile__n">{% if b.ms_now is not None %}{{ b.ms_now }} ms{% else %}-{% endif %}</div><div class="pt-tile__l">Svarstid nu</div></div>
+      <div class="pt-tile"><div class="pt-tile__n">{% if b.ms_avg_30d is not None %}{{ b.ms_avg_30d }} ms{% else %}-{% endif %}</div><div class="pt-tile__l">Snitt 30 dagar</div></div>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% if monitor.show_response and b.spark_30d|length > 1 %}
+    <div class="pt-chart"><div class="pt-chart__l">Svarstid per dag, 30 dagar</div>{% sparkline b.spark_30d 600 60 %}</div>
+    {% endif %}
+    {% if monitor.show_uptime and b.incidents %}
+    <div class="pt-incidents">
+      <div class="tv-sec-title">Avbrott senaste 30 dagarna</div>
+      {% for i in b.incidents %}<div class="pt-incident"><span>{{ i.started_at|date:"j M H:i" }}</span><span>{{ i.duration_minutes|minutes_text }}{% if not i.ended_at %} och pågår{% endif %}</span></div>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="pt-grid">
+    {% if monitor.show_ssl %}
+    <div class="m-panel tv-panel pt-card{% if b.ssl and not b.ssl.ok %} is-bad{% elif b.ssl and b.ssl.data.warning %} is-warn{% endif %}">
+      <div class="tv-sec-title">HTTPS-certifikat</div>
+      {% if b.ssl and b.ssl.data.days_left is not None %}
+      <div class="pt-big">{{ b.ssl.data.days_left }} dagar kvar</div>
+      <table class="pt-meta__table pt-meta__table--tight"><tbody>
+        <tr><th>Giltigt till</th><td>{{ b.ssl.data.not_after }}</td></tr>
+        {% if b.ssl.data.issuer %}<tr><th>Utfärdare</th><td>{{ b.ssl.data.issuer }}</td></tr>{% endif %}
+      </tbody></table>
+      {% elif b.ssl %}<p class="pt-bad">Kunde inte kontrolleras: {{ b.ssl.data.error }}</p>{% else %}<p class="tv-muted">Ingen mätning än.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if monitor.show_domain %}
+    <div class="m-panel tv-panel pt-card{% if b.reg and not b.reg.ok %} is-warn{% endif %}">
+      <div class="tv-sec-title">Domän</div>
+      {% if b.reg and b.reg.ok is not None and not b.reg.data.error %}
+      <table class="pt-meta__table pt-meta__table--tight"><tbody>
+        <tr><th>Domän</th><td>{{ b.reg.data.apex }}</td></tr>
+        {% if b.reg.data.registrar %}<tr><th>Registrar</th><td>{{ b.reg.data.registrar }}</td></tr>{% endif %}
+        {% if b.reg.data.expires %}<tr><th>Förnyas senast</th><td>{{ b.reg.data.expires }}{% if b.reg.data.days_left is not None %} ({{ b.reg.data.days_left }} dagar){% endif %}</td></tr>{% endif %}
+        {% if b.reg.data.nameservers %}<tr><th>Namnservrar</th><td>{{ b.reg.data.nameservers|join:", " }}</td></tr>{% endif %}
+        <tr><th>Överlåtelselås</th><td>{% if b.reg.data.locked %}På{% else %}Av{% endif %}</td></tr>
+      </tbody></table>
+      {% elif b.reg %}<p class="tv-muted">Registeruppgifter kunde inte hämtas just nu.</p>{% else %}<p class="tv-muted">Ingen mätning än.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if monitor.show_email %}
+    <div class="m-panel tv-panel pt-card{% if b.email and not b.email.ok %} is-warn{% endif %}">
+      <div class="tv-sec-title">E-postens hälsa</div>
+      {% if b.email and b.email.data.rows %}
+      <ul class="pt-rows">{% for r in b.email.data.rows %}<li class="pt-row is-{{ r.status }}"><span class="pt-row__dot"></span><span class="pt-row__t">{{ r.titel }}</span><span class="pt-row__d">{{ r.detalj }}</span></li>{% endfor %}</ul>
+      {% else %}<p class="tv-muted">Ingen mätning än.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if monitor.show_performance %}
+    <div class="m-panel tv-panel pt-card">
+      <div class="tv-sec-title">Prestanda</div>
+      {% if b.performance %}
+      <div class="pt-scores">
+        {% for name, s in b.performance.data.strategies.items %}
+        <div class="pt-score{% if s.score >= 90 %} is-good{% elif s.score >= 50 %} is-warn{% elif s.score %} is-bad{% endif %}">
+          <div class="pt-score__n">{% if s.score is not None %}{{ s.score }}{% else %}-{% endif %}</div>
+          <div class="pt-score__l">{% if name == "mobile" %}Mobil{% else %}Dator{% endif %}</div>
+          {% if s.lcp %}<div class="pt-score__d">Största element {{ s.lcp }} &middot; layoutskift {{ s.cls }}</div>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      <p class="tv-prop__note">Google PageSpeed, 0 till 100. Mätt {{ b.performance.checked_at|date:"j M" }}.</p>
+      {% else %}<p class="tv-muted">Ingen mätning än.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if monitor.show_security %}
+    <div class="m-panel tv-panel pt-card{% if b.security and not b.security.ok %} is-warn{% endif %}">
+      <div class="tv-sec-title">Säkerhet {% if b.security.data.of %}<span>{{ b.security.data.score }} av {{ b.security.data.of }}</span>{% endif %}</div>
+      {% if b.security and b.security.data.rows %}
+      <ul class="pt-rows">{% for r in b.security.data.rows %}<li class="pt-row is-{{ r.status }}"><span class="pt-row__dot"></span><span class="pt-row__t">{{ r.titel }}</span><span class="pt-row__d">{{ r.detalj }}</span></li>{% endfor %}</ul>
+      {% else %}<p class="tv-muted">Ingen mätning än.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if monitor.show_visits %}
+    <div class="m-panel tv-panel pt-card">
+      <div class="tv-sec-title">Besök</div>
+      {% if b.snapshot and b.snapshot.data.visits %}
+      {% with v=b.snapshot.data.visits %}
+      <div class="pt-tiles pt-tiles--in">
+        <div class="pt-tile"><div class="pt-tile__n">{{ v.sessions_7d }}</div><div class="pt-tile__l">Besök 7 dagar</div></div>
+        <div class="pt-tile"><div class="pt-tile__n">{{ v.sessions_30d }}</div><div class="pt-tile__l">Besök 30 dagar</div></div>
+        <div class="pt-tile"><div class="pt-tile__n">{{ v.pageviews_7d }}</div><div class="pt-tile__l">Sidvisningar 7 dagar</div></div>
+      </div>
+      {% if v.top_pages_7d %}<table class="pt-meta__table pt-meta__table--tight"><tbody>{% for p in v.top_pages_7d %}<tr><th>{{ p.path }}</th><td>{{ p.n }}</td></tr>{% endfor %}</tbody></table>{% endif %}
+      {% endwith %}
+      {% else %}<p class="tv-muted">Besöksdata kommer från er sajt och är inte kopplad än.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if monitor.show_server %}
+    <div class="m-panel tv-panel pt-card{% if b.snapshot_failed %} is-warn{% endif %}">
+      <div class="tv-sec-title">Server</div>
+      {% if b.snapshot %}{% with s=b.snapshot.data %}
+      <table class="pt-meta__table pt-meta__table--tight"><tbody>
+        <tr><th>Webbserver</th><td>Svarar ({{ b.snapshot.ms }} ms)</td></tr>
+        <tr><th>Databas</th><td>{% if s.db == "ok" %}Svarar{% else %}Fel{% endif %}</td></tr>
+        {% if s.server.uptime_seconds %}<tr><th>Serverns drifttid</th><td>{{ s.server.uptime_seconds|uptime_text }}</td></tr>{% endif %}
+        {% if s.server.load %}<tr><th>Belastning</th><td>{{ s.server.load.0 }} (av {{ s.server.cpu_count }} kärnor)</td></tr>{% endif %}
+        {% if s.server.mem %}<tr><th>Minne</th><td>{{ s.server.mem.used_pct }} % använt av {{ s.server.mem.total_mb }} MB</td></tr>{% endif %}
+        {% if s.server.disk %}<tr><th>Disk</th><td>{{ s.server.disk.used_pct }} % använt av {{ s.server.disk.total_gb }} GB</td></tr>{% endif %}
+        {% if s.backup.latest_at %}<tr><th>Senaste backup</th><td>{{ s.backup.latest_at|slice:":16" }} ({{ s.backup.size_mb }} MB)</td></tr>{% endif %}
+        {% if s.deploy.rev %}<tr><th>Senast uppdaterad</th><td>{% if s.deploy.at %}{{ s.deploy.at|slice:":10" }} {% endif %}({{ s.deploy.rev }})</td></tr>{% endif %}
+      </tbody></table>
+      <p class="tv-prop__note">Mätt {{ b.snapshot.checked_at|date:"j M H:i" }}.</p>
+      {% endwith %}{% elif b.snapshot_failed %}<p class="pt-bad">Servern rapporterade inte: {{ b.snapshot_failed.data.error }}</p>{% else %}<p class="tv-muted">Ingen mätning än.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if monitor.show_errors %}
+    <div class="m-panel tv-panel pt-card">
+      <div class="tv-sec-title">Fel i sajten</div>
+      {% if b.errors and b.errors.ok %}
+      <div class="pt-tiles pt-tiles--in">
+        <div class="pt-tile"><div class="pt-tile__n">{{ b.errors.data.total_7d }}</div><div class="pt-tile__l">Fel 7 dagar</div></div>
+        <div class="pt-tile"><div class="pt-tile__n">{{ b.errors.data.total_30d }}</div><div class="pt-tile__l">Fel 30 dagar</div></div>
+      </div>
+      {% if b.errors.data.series|length > 1 %}<div class="pt-chart">{% sparkline b.errors.data.series 600 50 %}</div>{% endif %}
+      <p class="tv-prop__note">Fel som sajten rapporterar till vår felbevakning. Vi ser dem och åtgärdar.</p>
+      {% else %}<p class="tv-muted">Felbevakningen är inte kopplad än.</p>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if monitor.show_gbp %}
+    <div class="m-panel tv-panel pt-card"><div class="tv-sec-title">Google Business Profile</div><p class="tv-muted">Kopplas till ert Google-konto i nästa steg. Då visas betyg, recensioner och hur många som hittar er via kartan.</p></div>
+    {% endif %}
+    {% if monitor.show_search %}
+    <div class="m-panel tv-panel pt-card"><div class="tv-sec-title">Sökpositioner</div><p class="tv-muted">Kopplas till Google Search Console i nästa steg. Då visas era viktigaste sökord, position och förändring.</p></div>
+    {% endif %}
+  </div>
+
+  {% if monitor.show_events and b.events %}
+  <div class="m-panel tv-panel pt-timeline">
+    <div class="tv-sec-title">Händelser senaste 30 dagarna</div>
+    {% for when, kind, text in b.events %}
+    <div class="pt-event is-{{ kind }}"><span class="pt-event__when">{{ when|date:"j M H:i" }}</span><span class="pt-event__kind">{{ kind }}</span><span class="pt-event__text">{{ text }}</span></div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}

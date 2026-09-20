@@ -2,6 +2,7 @@ from django.urls import path
 
 from apps.assistant import history_views, oauth_views
 from apps.assistant import views as assistant_views
+from apps.monitor import manage_views as monitor_views
 from apps.offers import manage_views as offer_views
 from apps.projects import manage_views as project_views
 from apps.tools import views as tools_views
@@ -70,6 +71,12 @@ urlpatterns = [
         name="customer_remove_contact",
     ),
     path("tid/", project_views.time_report, name="time_report"),
+    # Övervakning (apps/monitor)
+    path("drift/", monitor_views.drift, name="drift"),
+    path("kunder/<int:pk>/overvakning/", monitor_views.monitor_update, name="monitor_update"),
+    path("kunder/<int:pk>/overvakning/doman/", monitor_views.domain_add, name="monitor_domain_add"),
+    path("kunder/<int:pk>/overvakning/kor/", monitor_views.monitor_run, name="monitor_run"),
+    path("overvakning/doman/<int:pk>/", monitor_views.domain_update, name="monitor_domain_update"),
     # Offertbyggaren (apps/offers)
     path("offerter/", offer_views.offer_list, name="offer_list"),
     path("offerter/ny/", offer_views.offer_create, name="offer_create"),

@@ -8,10 +8,13 @@ from django.urls import include, path
 from apps.core import views as core_views
 from apps.core.sitemap import sitemaps
 from apps.inquiries import views as inquiry_views
+from apps.monitor.status_endpoint import status_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("healthz/", core_views.healthz, name="healthz"),
+    # Plattformens statusrapport för ADX övervakning (apps/monitor), nyckelskyddad.
+    path("status/adx/", status_view, name="adx_status"),
     path("favicon.ico", core_views.favicon, name="favicon"),
     path("sitemap.xml", sitemap, {"sitemaps": sitemaps}, name="sitemap"),
     path("robots.txt", core_views.robots_txt, name="robots"),

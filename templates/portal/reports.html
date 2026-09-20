@@ -1,0 +1,9 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="pt-narrow">
+  <div class="tv-head"><div><div class="tv-kicker">{{ customer.name }}</div><h1 class="tv-h1">Rapporter</h1><div class="tv-sub">En sammanställning per månad: drifttid, svarstid, prestanda och vad vi gjort.</div></div></div>
+  <div class="m-panel tv-panel">
+    {% for m in months %}<p class="tv-line"><a class="tv-link" href="{% url 'portal:report' m.year m.month %}"><b>{{ m|date:"F Y" }}</b></a></p>{% empty %}<p class="tv-empty tv-empty--inline">Inga rapporter än.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

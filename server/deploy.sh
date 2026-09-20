@@ -63,6 +63,9 @@ deploy_one() {
     log "Samlar static..."
     manage collectstatic --no-input --verbosity 0
 
+    # Release-stämpel för /status/adx/ (apps/monitor): revision och tidpunkt.
+    run_as_app sh -c "printf '{\"rev\": \"%s\", \"at\": \"%s\"}\n' '${after:0:8}' \"\$(date -u +%Y-%m-%dT%H:%M:%SZ)\" > ../release.json" || true
+
     if [ "$SEED" -eq 1 ]; then
         # Additiva seeds: skapar det som saknas, rör aldrig kundens ändringar.
         for spec in "seed_sokordssidor" \

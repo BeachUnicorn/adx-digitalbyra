@@ -15,6 +15,7 @@ komponenter ligger i tavla.css; interaktionen i tavla.js.
     <a href="{% url 'manage:project_list' %}" class="m-filter__item{% if active == 'projects' %} is-active{% endif %}">Projekt</a>
     <a href="{% url 'manage:customer_list' %}" class="m-filter__item{% if active == 'customers' %} is-active{% endif %}">Kunder</a>
     <a href="{% url 'manage:time_report' %}" class="m-filter__item{% if active == 'time' %} is-active{% endif %}">Tid</a>
+    <a href="{% url 'manage:drift' %}" class="m-filter__item{% if active == 'drift' %} is-active{% endif %}">Drift</a>
   </nav>
   <div id="tv-timer" class="tv-timer-slot">
     {% if running_timer %}

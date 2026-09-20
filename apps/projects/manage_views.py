@@ -785,6 +785,9 @@ def customer_detail(request, pk):
         .select_related("project", "column")
         .with_logged_seconds()
     )
+    from apps.monitor.models import settings_for as monitor_settings_for
+
+    monitor = monitor_settings_for(customer)
     log_entries = list(customer.log_entries.select_related("digest", "author")[:100])
     return render(
         request,
@@ -800,6 +803,13 @@ def customer_detail(request, pk):
             "time": fmt_hours(customer.total_seconds()),
             "title": customer.name,
             "log_entries": log_entries,
+            "monitor": monitor,
+            "monitor_domains": customer.domains.all(),
+            "monitor_fields": [
+                {"name": f.name, "label": f.verbose_name, "value": getattr(monitor, f.name)}
+                for f in monitor._meta.fields
+                if f.name.startswith("show_")
+            ],
             "unsent_count": customer.log_entries.filter(digest__isnull=True).count(),
             "last_digest": customer.log_digests.first(),
             "today": timezone.localdate().isoformat(),

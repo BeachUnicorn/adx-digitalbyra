@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.tools",
     "apps.offers",
     "apps.projects",
+    "apps.monitor",
     "reversion",
     "apps.assistant",
 ]
@@ -212,6 +213,15 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="info@adx.se")
 INQUIRY_NOTIFICATION_EMAIL = env("INQUIRY_NOTIFICATION_EMAIL", default="info@adx.se")
+
+# Övervakningen (apps/monitor). ADX_STATUS_KEY är den delade nyckeln som
+# /status/adx/ kräver - samma på alla sajter vi driftar, bara vi känner den.
+# Tomt = endpointet finns inte. Sentry-uppgifterna gäller BYRÅNS organisation
+# (API-token med project:read), inte kundens DSN.
+ADX_STATUS_KEY = env("ADX_STATUS_KEY", default="")
+SENTRY_ORG_SLUG = env("SENTRY_ORG_SLUG", default="")
+SENTRY_API_TOKEN = env("SENTRY_API_TOKEN", default="")
+PAGESPEED_API_KEY = env("PAGESPEED_API_KEY", default="")
 # Optional blind-copy recipients for the staff notification (comma-separated).
 INQUIRY_NOTIFICATION_BCC = env("INQUIRY_NOTIFICATION_BCC", default="")
 

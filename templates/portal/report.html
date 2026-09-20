@@ -1,0 +1,30 @@
+{% extends "portal/base.html" %}
+{% load monitor_tags %}
+{% block content %}
+<div class="pt-narrow">
+  <div class="tv-head">
+    <div><div class="tv-kicker">{{ customer.name }}</div><h1 class="tv-h1 tv-h1--plain">{{ start|date:"F Y" }}</h1><div class="tv-sub">Månadsrapport från ADX.</div></div>
+    <a href="{% url 'portal:reports' %}" class="m-btn m-btn--ghost">Alla rapporter</a>
+  </div>
+  {% for s in sections %}
+  <div class="m-panel tv-panel">
+    <div class="tv-sec-title">{{ s.domain.name }}</div>
+    {% if s.checks %}
+    <div class="pt-tiles pt-tiles--in">
+      {% if monitor.show_uptime %}<div class="pt-tile"><div class="pt-tile__n">{{ s.uptime }} %</div><div class="pt-tile__l">Drifttid</div></div>
+      <div class="pt-tile"><div class="pt-tile__n">{{ s.incidents|length }}</div><div class="pt-tile__l">Avbrott ({{ s.downtime_minutes|minutes_text }})</div></div>{% endif %}
+      {% if monitor.show_response and s.avg_ms is not None %}<div class="pt-tile"><div class="pt-tile__n">{{ s.avg_ms }} ms</div><div class="pt-tile__l">Snittsvarstid</div></div>{% endif %}
+      {% if monitor.show_performance and s.performance %}{% with m=s.performance.data.strategies.mobile %}{% if m.score is not None %}<div class="pt-tile"><div class="pt-tile__n">{{ m.score }}</div><div class="pt-tile__l">PageSpeed mobil</div></div>{% endif %}{% endwith %}{% endif %}
+      {% if monitor.show_errors and s.error_total is not None %}<div class="pt-tile"><div class="pt-tile__n">{{ s.error_total }}</div><div class="pt-tile__l">Fel åtgärdade</div></div>{% endif %}
+      {% if monitor.show_visits and s.snapshot and s.snapshot.data.visits %}<div class="pt-tile"><div class="pt-tile__n">{{ s.snapshot.data.visits.sessions_30d }}</div><div class="pt-tile__l">Besök</div></div>{% endif %}
+    </div>
+    {% if monitor.show_ssl and s.ssl and s.ssl.data.days_left is not None %}<p class="tv-prop__note">Certifikatet var giltigt i {{ s.ssl.data.days_left }} dagar till vid månadens slut.</p>{% endif %}
+    {% else %}<p class="tv-muted">Ingen övervakningsdata den här månaden.</p>{% endif %}
+  </div>
+  {% endfor %}
+  <div class="m-panel tv-panel pt-log">
+    <div class="tv-sec-title">Vad vi gjorde</div>
+    {% for e in log_entries %}<div class="pt-log__row"><div class="pt-log__date">{{ e.date|date:"j M" }}</div><div class="pt-log__text">{{ e.text|linebreaksbr }}</div></div>{% empty %}<p class="tv-muted">Inga loggade åtgärder den här månaden.</p>{% endfor %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "projects/base_board.html" %}
+{% block board %}
+<div class="tv-head">
+  <div><h1 class="tv-h1">Drift</h1><div class="tv-sub">Alla kunders domäner. Problem först.{% if not key_configured %} <b>ADX_STATUS_KEY saknas i env: serverdata från Pluskunder kan inte hämtas.</b>{% endif %}</div></div>
+  {% if open_incidents %}<span class="tv-chip hot"><b>{{ open_incidents }}</b> pågående avbrott</span>{% endif %}
+</div>
+<div class="m-panel m-table-wrap">
+  <table class="m-table">
+    <thead><tr><th>Domän</th><th>Kund</th><th>Status</th><th class="m-num">Svarstid</th><th class="m-num">Cert</th><th class="m-num">Domän</th><th>Server</th><th>Senast</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr>
+      <td><a class="tv-link" href="https://{{ r.domain.name }}/" target="_blank" rel="noopener"><b>{{ r.domain.name }}</b></a>{% for p in r.problems %} <span class="m-badge m-badge--alert">{{ p }}</span>{% endfor %}</td>
+      <td><a class="tv-link" href="{% url 'manage:customer_detail' r.domain.customer_id %}#overvakning">{{ r.domain.customer.name }}</a></td>
+      <td>{% if r.incident %}<span class="m-badge m-badge--alert">nere</span>{% elif r.uptime and r.uptime.ok %}<span class="m-badge m-badge--published">online</span>{% elif r.uptime %}<span class="m-badge m-badge--in_progress">fel</span>{% else %}<span class="tv-muted">-</span>{% endif %}</td>
+      <td class="m-num">{% if r.uptime and r.uptime.ms is not None %}{{ r.uptime.ms }} ms{% else %}-{% endif %}</td>
+      <td class="m-num">{% if r.ssl and r.ssl.data.days_left is not None %}{{ r.ssl.data.days_left }} d{% else %}-{% endif %}</td>
+      <td class="m-num">{% if r.reg and r.reg.data.days_left is not None %}{{ r.reg.data.days_left }} d{% else %}-{% endif %}</td>
+      <td class="tv-muted">{% if r.snapshot and r.snapshot.ok %}disk {{ r.snapshot.data.server.disk.used_pct }} %{% elif r.domain.status_url %}svarar inte{% else %}-{% endif %}</td>
+      <td class="tv-muted">{% if r.uptime %}{{ r.uptime.checked_at|date:"j M H:i" }}{% else %}-{% endif %}</td>
+    </tr>
+    {% empty %}<tr><td colspan="8" class="m-empty">Inga domäner övervakas än. Lägg till dem på kundens sida.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
