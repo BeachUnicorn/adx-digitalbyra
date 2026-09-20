@@ -22,12 +22,16 @@
           <div class="comment-head"><b>{% if c.author and c.author.is_staff %}ADX{% else %}{{ c.author.first_name|default:c.author.email|default:"Ni" }}{% endif %}</b> <span>{{ c.created_at|date:"j M Y H:i" }}</span></div>
           <div>{{ c.body|linebreaksbr }}</div>
         </div>
-        {% empty %}<p class="soft">Inga kommentarer än. Skriv till oss här nedanför.</p>{% endfor %}
+        {% empty %}<p class="soft">Inga kommentarer än.{% if not request.viewing_as %} Skriv till oss här nedanför.{% endif %}</p>{% endfor %}
+        {% if request.viewing_as %}
+        <p class="soft">Här skriver kunden sina svar. Du svarar från tavlan i panelen.</p>
+        {% else %}
         <form method="post" enctype="multipart/form-data" class="adx-form compact">{% csrf_token %}
           {% field_row form.description True %}
           {% field_row form.files True %}
           <div class="form-actions"><button type="submit" class="btn">Skicka</button></div>
         </form>
+        {% endif %}
       </div>
     </div>
   </div>

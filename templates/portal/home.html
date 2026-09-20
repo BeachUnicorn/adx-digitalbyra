@@ -3,7 +3,7 @@
 <section class="hero">
   <div class="tavla-head">
     <div><div class="kicker">[ {{ customer.name }} ]</div><h2>Mina ärenden</h2></div>
-    <a class="btn" href="{% url 'portal:issue_create' %}">Nytt ärende</a>
+    {% if not request.viewing_as %}<a class="btn" href="{% url 'portal:issue_create' %}">Nytt ärende</a>{% endif %}
   </div>
   <div id="board" class="portal-board" aria-label="Ärenden">
     {% for col in columns %}

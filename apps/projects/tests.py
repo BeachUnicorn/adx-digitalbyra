@@ -222,6 +222,50 @@ class PortalGateTests(PortalFixtureMixin, TestCase):
         self.assertIn("Disallow: /kund/", Client().get("/robots.txt").content.decode())
 
 
+class ViewAsCustomerTests(PortalFixtureMixin, TestCase):
+    """Byrån tittar på portalen som en kund: ser exakt kundens vy, kan inte skriva."""
+
+    def test_staff_can_view_the_portal_as_a_customer_and_leave(self):
+        client = self.as_staff()
+        r = client.post(f"/manage/kunder/{self.acme.pk}/visa-som/")
+        self.assertEqual(r["Location"], "/kund/tavla/")
+        html = client.get("/kund/tavla/").content.decode()
+        self.assertIn("Du ser portalen som <b>Acme AB</b>", html)
+        self.assertIn("Synligt", html)
+        self.assertNotIn("Internt jobb", html)
+        self.assertNotIn("Annans ärende", html)
+        self.assertNotIn("Logga ut", html)
+        self.assertEqual(client.get(f"/kund/arenden/{self.visible.pk}/").status_code, 200)
+        self.assertEqual(client.get(f"/kund/arenden/{self.hidden.pk}/").status_code, 404)
+        self.assertEqual(client.get("/kund/")["Location"], "/kund/tavla/")
+        r = client.post("/kund/lamna-kundvyn/")
+        self.assertEqual(r["Location"], f"/manage/kunder/{self.acme.pk}/")
+        self.assertEqual(client.get("/kund/tavla/")["Location"], "/manage/tavla/")
+
+    def test_the_customer_view_is_read_only(self):
+        client = self.as_staff()
+        client.post(f"/manage/kunder/{self.acme.pk}/visa-som/")
+        r = client.post("/kund/arenden/nytt/", {"title": "Som kunden"})
+        self.assertEqual(r["Location"], "/kund/tavla/")
+        self.assertFalse(Issue.objects.filter(title="Som kunden").exists())
+        r = client.post(f"/kund/arenden/{self.visible.pk}/", {"description": "Hej"})
+        self.assertEqual(self.visible.comments.count(), 0)
+        html = client.get(f"/kund/arenden/{self.visible.pk}/").content.decode()
+        self.assertNotIn('name="description"', html)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_a_contact_cannot_switch_customer(self):
+        client = self.as_contact()
+        self.assertEqual(client.post(f"/manage/kunder/{self.other.pk}/visa-som/").status_code, 302)
+        html = client.get("/kund/tavla/").content.decode()
+        self.assertNotIn("Annans ärende", html)
+        self.assertNotIn("Du ser portalen som", html)
+
+    def test_the_customer_page_offers_the_button(self):
+        html = self.as_staff().get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        self.assertIn("Visa portalen som kunden", html)
+
+
 class PortalVisibilityTests(PortalFixtureMixin, TestCase):
     def test_the_customer_sees_only_visible_own_issues(self):
         html = self.as_contact().get("/kund/tavla/").content.decode()

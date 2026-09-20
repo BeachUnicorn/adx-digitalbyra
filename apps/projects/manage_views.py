@@ -28,7 +28,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
-from .access import staff_required
+from .access import VIEW_AS_KEY, staff_required
 from .board import (
     STAGES,
     BoardFilter,
@@ -827,6 +827,18 @@ def customer_invite(request, pk):
             f"{email} är kopplad, men mejlet gick inte iväg. Skicka lösenordslänken manuellt.",
         )
     return redirect("manage:customer_detail", pk=pk)
+
+
+@staff_required
+@require_POST
+def customer_view_as(request, pk):
+    """
+    "Visa portalen som kunden": byrån ser exakt det kunden ser, med sitt
+    eget konto inloggat. Skrivskyddat i portalen (access.customer_required).
+    """
+    customer = get_object_or_404(Customer, pk=pk, is_active=True)
+    request.session[VIEW_AS_KEY] = customer.pk
+    return redirect("portal:home")
 
 
 @staff_required

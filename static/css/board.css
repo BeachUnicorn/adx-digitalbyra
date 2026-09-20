@@ -65,6 +65,11 @@
 body.is-dragging-any{cursor:grabbing}
 .portal-board .card{cursor:pointer}
 .portal-board .empty{padding:8px 4px}
+/* Byrån tittar som kunden: bannern ska inte gå att missa. */
+.view-as-banner{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:0 0 20px;padding:12px 18px;border:1px solid #e8930c;border-radius:16px;background:rgba(232,147,12,.12);font-family:var(--mono);font-size:14px;letter-spacing:.02em}
+.view-as-banner .dot{width:10px;height:10px;border-radius:50%;background:#e8930c;box-shadow:0 0 12px #e8930c;flex:none}
+.view-as-banner span:not(.dot){flex:1;min-width:220px}
+.view-as-banner b{color:var(--fg)}
 
 /* Detaljsidor */
 .detail-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;align-items:start}

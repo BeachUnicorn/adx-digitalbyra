@@ -20,8 +20,12 @@
       <a href="{% url 'portal:issue_create' %}"{% if active == 'new' %} class="active"{% endif %}>Nytt ärende</a>
     </nav>
     <div class="nav-right">
+      {% if request.viewing_as %}
+      <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="pill nav-cta">Lämna kundvyn</button></form>
+      {% else %}
       <span class="pill user-pill">{{ user.first_name|default:user.email }}</span>
       <form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}<button type="submit" class="pill nav-cta">Logga ut</button></form>
+      {% endif %}
     </div>
     {% else %}
     <span class="pill nav-links"><a href="{% url 'portal:login' %}" class="active">Kundportal</a></span>
@@ -31,6 +35,13 @@
 </header>
 <main id="main" class="page board-page">
   <div class="wrap">
+    {% if request.viewing_as %}
+    <div class="view-as-banner" role="status">
+      <span class="dot"></span>
+      <span>Du ser portalen som <b>{{ request.customer.name }}</b> - exakt det kunden ser. Skrivskyddat: skapa ärenden och svara från tavlan i panelen.</span>
+      <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="pill">Lämna kundvyn</button></form>
+    </div>
+    {% endif %}
     {% if messages %}<ul class="board-msgs">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
     {% block content %}{% endblock %}
   </div>

@@ -12,8 +12,16 @@ from django.contrib.auth import views as auth_views
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
+from django.views.decorators.http import require_POST
 
-from .access import customer_for, customer_issues, customer_required
+from .access import (
+    VIEW_AS_KEY,
+    customer_for,
+    customer_issues,
+    customer_required,
+    is_agency_user,
+    viewing_customer,
+)
 from .board import STAGES
 from .emails import send_portal_comment_notice, send_portal_issue_notice
 from .forms import MultiFileField, PortalIssueForm
@@ -158,8 +166,17 @@ def attachment_download(request, pk):
 
 def landing(request):
     """/kund/ - inloggad kund till tavlan, annars inloggning."""
-    if customer_for(request.user):
+    if customer_for(request.user) or viewing_customer(request):
         return redirect("portal:home")
     if request.user.is_authenticated and request.user.is_staff:
         return redirect("manage:board")
     return redirect("portal:login")
+
+
+@require_POST
+def leave_view_as(request):
+    """Byrån lämnar kundvyn: tillbaka till kundens sida i panelen."""
+    pk = request.session.pop(VIEW_AS_KEY, None)
+    if pk and is_agency_user(request.user):
+        return redirect("manage:customer_detail", pk=pk)
+    return redirect("manage:board")

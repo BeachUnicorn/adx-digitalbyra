@@ -28,7 +28,7 @@ button.tv-chip.timer:hover{border-color:var(--m-text)}
 .tv-link{text-decoration:none}
 .tv-link:hover{text-decoration:underline}
 .tv-today{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-.tv-head>.m-btn{width:auto;display:inline-flex;align-items:center;flex:none}
+.tv-head>.m-btn,.tv-head>form .m-btn{width:auto;display:inline-flex;align-items:center;flex:none}
 .tv-muted{color:var(--m-text-muted)}
 
 /* ===== Filterrad ===== */

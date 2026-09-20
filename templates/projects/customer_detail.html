@@ -7,6 +7,11 @@
     <h1 class="tv-h1 tv-h1--plain">{{ customer.name }}</h1>
     <div class="tv-sub">{{ time }} loggad tid{% if customer.email %} &middot; {{ customer.email }}{% endif %}{% if customer.phone %} &middot; {{ customer.phone }}{% endif %}</div>
   </div>
+  {% if customer.is_active %}
+  <form method="post" action="{% url 'manage:customer_view_as' customer.pk %}">{% csrf_token %}
+    <button type="submit" class="m-btn m-btn--ghost" title="Öppnar /kund/ med kundens ögon - skrivskyddat">Visa portalen som kunden</button>
+  </form>
+  {% endif %}
 </div>
 <div class="tv-grid">
   <div class="tv-stack">
