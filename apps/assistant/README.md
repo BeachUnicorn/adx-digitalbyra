@@ -46,6 +46,7 @@ inte heller godkänna, eftersom godkännandet bara finns i /manage/.
 | Klass | Exempel | Godkännande |
 |---|---|---|
 | `READ` | `hamta_sida`, `lista_omraden` | Inget - körs direkt |
+| `ACTION` | `skapa_arende`, `logga_tid`, `skapa_offert` | Inget - skriver direkt i byråns ärendesystem (aldrig webbplatsen). Gränsen är verktyg som saknas: inget raderar, ingen timer, inget mejlar, offerter blir alltid utkast |
 | `TEXT` | `uppdatera_block`, `skapa_faq_fraga` | Utkast, får klumpgodkännas |
 | `BUSINESS` | `skapa_tjanst`, `satt_omrade_aktiv`, `skapa_sida` | Utkast, **alltid en i taget** |
 

@@ -22,11 +22,21 @@ from django.utils.translation import gettext_lazy as _
 
 
 class Risk(models.TextChoices):
-    """Riskklass per operation. Styr hur godkännandet ser ut."""
+    """
+    Riskklass per operation. Styr hur godkännandet ser ut.
+
+    ACTION är undantaget från utkastflödet: operationen skriver direkt, som
+    en READ fast med sidoeffekt, och blir aldrig en DraftChange. Klassen
+    finns för byråns interna verktyg (ärenden, tid, offertutkast) där
+    "föreslå och godkänn" bara vore ett extra klick för samma person som
+    ändå sitter med tavlan. Det som skyddar där är i stället vad verktygen
+    INTE kan: radera, mejla kunder eller skicka offerter.
+    """
 
     READ = "read", _("Läsning")
     TEXT = "text", _("Textändring")
     BUSINESS = "business", _("Affärsdata")
+    ACTION = "action", _("Direkt")
 
 
 class AIJob(models.Model):

@@ -4,6 +4,8 @@ Den delade körkärnan: ett verktygsanrop, oavsett varifrån.
 MCP-servern och den inbyggda chatten är två framsidor på samma motor. Det
 här är motorn: verktygslistan byggs ur operationsregistret, läsoperationer
 körs direkt, och skrivoperationer blir utkast som kunden godkänner.
+Undantaget är ACTION-operationerna (ärenden, tid, offertutkast): de körs
+direkt som en läsning men skriver - se Risk i models.py för varför.
 
 Att båda vägarna delar den här filen är hela poängen med registret - en ny
 operation tänds i chatten och i MCP samtidigt, och säkerhetsgränsen kan
@@ -15,6 +17,7 @@ import logging
 
 from django.conf import settings
 from django.core.cache import cache
+from django.db import transaction
 
 from .models import AIJob, DraftChange, Risk
 from .operations import REGISTRY, OperationError
@@ -29,8 +32,9 @@ RATE_LIMIT_PER_HOUR = 300
 MAX_PENDING_PER_JOB = 100
 
 #: Läsverktygen presenteras först, så modellen ser "hämta först"-verktygen
-#: innan skrivverktygen.
-_RISK_ORDER = {Risk.READ: 0, Risk.TEXT: 1, Risk.BUSINESS: 2}
+#: innan skrivverktygen. Direktverktygen (ärenden) ligger före utkasten:
+#: de hör ihop med sina läsverktyg och ska inte blandas in bland förslagen.
+_RISK_ORDER = {Risk.READ: 0, Risk.ACTION: 1, Risk.TEXT: 2, Risk.BUSINESS: 3}
 
 
 def feature_enabled(feature):
@@ -55,7 +59,13 @@ def available_operations():
 
 
 def tool_descriptions():
-    """Operationsregistret som (namn, beskrivning, schema, läsbar) i visningsordning."""
+    """
+    Operationsregistret som (namn, beskrivning, schema, läsbar) i visningsordning.
+
+    ACTION-verktygen får inget suffix: beskrivningen säger själv att de
+    skriver direkt, och ett "skapar ett utkast" vore en lögn modellen skulle
+    föra vidare till användaren.
+    """
     for op in sorted(available_operations(), key=lambda o: (_RISK_ORDER[o.risk], o.name)):
         description = op.description
         if op.risk == Risk.TEXT:
@@ -139,6 +149,14 @@ def run_operation(user, job_getter, name, arguments):
     if op.risk == Risk.READ:
         return json.dumps(op.read(user, **(arguments or {})), ensure_ascii=False, default=str)
 
+    if op.risk == Risk.ACTION:
+        # Skriver direkt, utan jobb och utan utkast. Atomiskt: ett ärende
+        # med etiketter och loggrad ska finnas helt eller inte alls, annars
+        # får modellen ett fel och försöker igen ovanpå en halv rad.
+        with transaction.atomic():
+            result = op.run(user, **(arguments or {}))
+        return json.dumps(result, ensure_ascii=False, default=str)
+
     job = job_getter()
     pending = job.changes.filter(status=DraftChange.Status.PENDING).count()
     if pending >= MAX_PENDING_PER_JOB:
@@ -209,6 +227,26 @@ STEP_LABELS = {
     "hamta_blockkatalog": "Läser blockkatalogen",
     "ordna_block": "Lägger om blockordningen",
     "satt_block_synligt": "Ändrar blockets synlighet",
+    # Ärenden, tid och offerter (direktverktyg).
+    "lista_kunder": "Listar kunder",
+    "lista_projekt": "Listar projekt",
+    "lista_arenden": "Listar ärenden",
+    "hamta_arende": "Läser ärende",
+    "tidrapport": "Sammanställer tid",
+    "skapa_arende": "Skapar ärende",
+    "uppdatera_arende": "Uppdaterar ärende",
+    "flytta_arende": "Flyttar ärende",
+    "kommentera_arende": "Kommenterar ärende",
+    "logga_tid": "Loggar tid",
+    "lagg_till_checklista": "Lägger till delmoment",
+    "bocka_checklista": "Bockar av delmoment",
+    "skapa_projekt": "Skapar projekt",
+    "skapa_kund": "Skapar kund",
+    "lista_offerter": "Listar offerter",
+    "hamta_offert": "Läser offert",
+    "lista_produkter": "Listar produkter",
+    "skapa_offert": "Skapar offertutkast",
+    "lagg_till_offertrad": "Lägger till offertrad",
 }
 
 

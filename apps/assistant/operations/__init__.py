@@ -4,12 +4,17 @@ Operationskatalogen.
 Import av modulerna registrerar dem i REGISTRY. Ordningen här är den ordning
 verktygen presenteras i - läsoperationer och kontext först, så modellen ser
 "hämta först"-verktygen innan skrivverktygen.
+
+arenden_ops och offert_ops är byråns interna ärendesystem (direktverktyg,
+Risk.ACTION) - en annan värld än webbplatsens innehåll ovan.
 """
 
 from . import (
     areas_ops,  # noqa: F401,E402
+    arenden_ops,  # noqa: F401,E402
     context_ops,  # noqa: F401,E402
     faq_ops,  # noqa: F401,E402
+    offert_ops,  # noqa: F401,E402
     pages,  # noqa: F401,E402
     services_ops,  # noqa: F401,E402
 )

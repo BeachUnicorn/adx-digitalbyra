@@ -4,8 +4,11 @@ Operationsregistret - AI:ns enda väg in i systemet.
 En operation är namn + beskrivning + JSON Schema + riskklass + kod. Registret
 är medvetet MCP-format från dag ett: MCP-verktygen genereras 1:1 härifrån.
 
-Tre riskklasser styr flödet:
+Fyra riskklasser styr flödet:
 - READ:     `read(user, **params)` körs direkt och svaret går till modellen.
+- ACTION:   `run(user, **params)` körs direkt OCH skriver. Ingen DraftChange.
+            Bara för byråns interna data (ärenden, tid, offertutkast), där
+            gränsen sätts av vilka verktyg som saknas - inte av godkännande.
 - TEXT:     `prepare(...)` validerar och blir en DraftChange som kan
             klumpgodkännas; `apply(...)` körs först vid godkännande.
 - BUSINESS: som TEXT men godkänns alltid per ändring (priser, synlighet,
@@ -57,6 +60,7 @@ class Operation:
     #: ännu inte godkänts. Signaturen blir då prepare(job, user, **params).
     wants_job: bool = False
     read: Callable | None = None  # READ: (user, **params) -> dict
+    run: Callable | None = None  # ACTION: (user, **params) -> dict, skriver direkt
     prepare: Callable | None = None  # TEXT/BUSINESS: (user, **params) -> Prepared
     apply: Callable | None = None  # TEXT/BUSINESS: (user, payload, target) -> obj
 
@@ -69,6 +73,8 @@ def register(op: Operation) -> Operation:
         raise RuntimeError(f"Operationen {op.name} är redan registrerad.")
     if op.risk == Risk.READ:
         assert op.read is not None, op.name
+    elif op.risk == Risk.ACTION:
+        assert op.run is not None, op.name
     else:
         assert op.prepare is not None and op.apply is not None, op.name
     REGISTRY[op.name] = op

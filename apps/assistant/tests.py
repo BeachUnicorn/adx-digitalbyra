@@ -79,6 +79,8 @@ class RegistryTests(BaseCase):
                 self.assertTrue(op.description.strip())
                 if op.risk == Risk.READ:
                     self.assertIsNotNone(op.read)
+                elif op.risk == Risk.ACTION:
+                    self.assertIsNotNone(op.run)
                 else:
                     self.assertIsNotNone(op.prepare)
                     self.assertIsNotNone(op.apply)
@@ -373,11 +375,20 @@ class OperationCoverageTests(BaseCase):
     """Varje läsoperation ska svara utan att krascha på en tom-ish databas."""
 
     def test_read_operations_run(self):
+        from apps.offers.models import Quote
+        from apps.projects.models import Issue, Project
+
         FAQSection.objects.create(title="Vanliga frågor")
+        # Ärendesystemets läsverktyg kräver byrån - self.user är superuser
+        # och räknas som byrå enligt is_agency_user.
+        issue = Issue.objects.create(project=Project.objects.create(name="P", key="P"), title="x")
+        quote = Quote.objects.create(customer_name="Kund")
         arguments = {
             "hamta_tjanst": {"slug": self.service.slug},
             "hamta_omrade": {"slug": self.area.slug},
             "hamta_sida": {"slug": self.page.slug},
+            "hamta_arende": {"nyckel_eller_id": issue.key},
+            "hamta_offert": {"id": quote.pk},
         }
         for op in REGISTRY.values():
             if op.risk != Risk.READ:
@@ -860,10 +871,13 @@ class SilentLossTests(BaseCase):
             "meta_description",
             "rubrik",
         }
+        # Direktverktygen (ärenden) går inte via propose och skriver ren text
+        # utan HTML-sanering - där finns ingen struktur att tyst förlora.
         expected = {
             op.name
             for op in REGISTRY.values()
-            if op.risk != Risk.READ and text_keys & set(op.input_schema.get("properties", {}))
+            if op.risk not in (Risk.READ, Risk.ACTION)
+            and text_keys & set(op.input_schema.get("properties", {}))
         }
         self.assertEqual(expected - set(poisoned), set(), "Nya operationer saknas i tabellen")
 
@@ -3169,3 +3183,397 @@ class BlockPagePreviewTests(TestCase):
         )
         self.assertContains(response, "Ny rubrik")
         self.assertNotContains(response, "Gammal rubrik")
+
+
+class ArendeMcpTests(TestCase):
+    """
+    Ärendesystemet via MCP: direktverktyg utan utkast.
+
+    Det som testas är gränsen, inte funktionerna: att det skrivs direkt (och
+    aldrig som DraftChange), att inget verktyg raderar, timrar eller mejlar,
+    och att kundkontakter inte kommer in alls.
+    """
+
+    def setUp(self):
+        from apps.projects.models import Customer, Issue, Project
+
+        User = get_user_model()
+        self.user = User.objects.create_user(
+            "byra", "b@t.local", "x", is_staff=True, first_name="Giovanni"
+        )
+        self.customer = Customer.objects.create(name="Nordan Bygg AB")
+        self.project = Project.objects.create(
+            name="Ny hemsida", key="NORD", customer=self.customer, created_by=self.user
+        )
+        self.issue = Issue.objects.create(
+            project=self.project, title="Byt logotyp", reporter=self.user
+        )
+
+    @staticmethod
+    def _no_job():
+        raise AssertionError("Ett direktverktyg ska aldrig behöva ett jobb.")
+
+    def _run(self, name, **params):
+        import json
+
+        from apps.assistant.runtime import run_operation
+
+        return json.loads(run_operation(self.user, self._no_job, name, params))
+
+    def test_no_forbidden_tools_exist(self):
+        """Gränsen är frånvaro av verktyg - inte en instruktion modellen kan glömma."""
+        for name in REGISTRY:
+            for forbidden in ("ta_bort", "radera", "starta_timer", "stoppa_timer", "skicka_offert"):
+                self.assertNotIn(forbidden, name)
+
+    def test_skapa_arende_writes_directly_without_a_draft(self):
+        from apps.projects.models import Issue
+
+        result = self._run("skapa_arende", rubrik="Ny startsida", projekt="nord")
+        self.assertEqual(result["status"], "skapat")
+        self.assertEqual(result["nyckel"], "NORD-2")
+        self.assertIn("/manage/arenden/", result["lank"])
+
+        issue = Issue.objects.get(pk=result["id"])
+        self.assertEqual(issue.reporter, self.user)
+        self.assertEqual(issue.column.title, "Att göra")
+        self.assertFalse(issue.visible_to_customer)
+        self.assertEqual(DraftChange.objects.count(), 0)
+        self.assertEqual(AIJob.objects.count(), 0)
+        self.assertTrue(issue.activity.filter(text__startswith="skapade").exists())
+
+    def test_skapa_arende_refuses_unknown_labels_instead_of_creating_them(self):
+        from apps.projects.models import Label
+
+        Label.objects.create(name="bugg")
+        before = Label.objects.count()  # standardetiketterna från migrationen + bugg
+        with self.assertRaises(OperationError) as ctx:
+            self._run("skapa_arende", rubrik="x", projekt="NORD", etiketter=["finns-ej"])
+        self.assertIn("bugg", str(ctx.exception))
+        self.assertEqual(Label.objects.count(), before)
+        self.assertFalse(Label.objects.filter(name="finns-ej").exists())
+
+    def test_skapa_arende_needs_a_real_project_or_customer(self):
+        with self.assertRaises(OperationError):
+            self._run("skapa_arende", rubrik="Lös i luften")
+        with self.assertRaises(OperationError) as ctx:
+            self._run("skapa_arende", rubrik="x", projekt="HITTEPA")
+        self.assertIn("NORD", str(ctx.exception))
+
+    def test_flytta_arende_to_done_closes_the_issue(self):
+        result = self._run("flytta_arende", nyckel_eller_id="NORD-1", steg="done")
+        self.issue.refresh_from_db()
+        self.assertIsNotNone(self.issue.closed_at)
+        self.assertTrue(self.issue.column.is_done)
+        self.assertTrue(result["stangt"])
+        self.assertTrue(self.issue.activity.filter(text="flyttade till Klart").exists())
+
+    def test_flytta_arende_by_column_title_and_unknown_column_lists_columns(self):
+        self._run("flytta_arende", nyckel_eller_id=str(self.issue.pk), kolumn="pågår")
+        self.issue.refresh_from_db()
+        self.assertEqual(self.issue.stage, "active")
+        with self.assertRaises(OperationError) as ctx:
+            self._run("flytta_arende", nyckel_eller_id="NORD-1", kolumn="Granskas")
+        self.assertIn("Att göra", str(ctx.exception))
+        with self.assertRaises(OperationError):
+            self._run("flytta_arende", nyckel_eller_id="NORD-1")
+
+    def test_logga_tid_creates_a_finished_entry_on_the_given_day(self):
+        from apps.projects.models import TimeEntry
+
+        day = timezone.localdate() - timedelta(days=3)
+        result = self._run(
+            "logga_tid",
+            nyckel_eller_id="NORD-1",
+            minuter=45,
+            datum=day.isoformat(),
+            anteckning="Möte",
+        )
+        entry = TimeEntry.objects.get(pk=result["tidspost_id"])
+        self.assertFalse(entry.is_running)
+        self.assertEqual(entry.seconds, 45 * 60)
+        self.assertEqual(entry.user, self.user)
+        self.assertEqual(timezone.localtime(entry.ended_at).date(), day)
+        self.assertEqual(entry.note, "Möte")
+        self.assertTrue(self.issue.activity.filter(text="loggade 45 min").exists())
+        self.assertEqual(TimeEntry.objects.running().count(), 0)
+
+    def test_logga_tid_refuses_future_dates_and_zero_minutes(self):
+        from apps.projects.models import TimeEntry
+
+        tomorrow = (timezone.localdate() + timedelta(days=1)).isoformat()
+        with self.assertRaises(OperationError):
+            self._run("logga_tid", nyckel_eller_id="NORD-1", minuter=10, datum=tomorrow)
+        with self.assertRaises(OperationError):
+            self._run("logga_tid", nyckel_eller_id="NORD-1", minuter=0)
+        self.assertEqual(TimeEntry.objects.count(), 0)
+
+    def test_kommentera_is_internal_by_default_and_never_mails(self):
+        from django.core import mail
+
+        from apps.projects.models import Comment
+
+        result = self._run("kommentera_arende", nyckel_eller_id="NORD-1", text="Intern notis")
+        comment = Comment.objects.get(pk=result["kommentar_id"])
+        self.assertTrue(comment.is_internal)
+        self.assertEqual(comment.author, self.user)
+        self.assertIn("Inget mejl", result["not"])
+
+        result = self._run(
+            "kommentera_arende", nyckel_eller_id="NORD-1", text="Till kunden", intern=False
+        )
+        self.assertFalse(Comment.objects.get(pk=result["kommentar_id"]).is_internal)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_uppdatera_arende_only_touches_sent_fields(self):
+        from apps.projects.models import IssuePriority
+
+        self.issue.visible_to_customer = True
+        self.issue.description = "Ursprunglig"
+        self.issue.save()
+
+        self._run(
+            "uppdatera_arende", nyckel_eller_id="NORD-1", prioritet="hog", ansvarig="Giovanni"
+        )
+        self.issue.refresh_from_db()
+        self.assertEqual(self.issue.priority, IssuePriority.HIGH)
+        self.assertEqual(self.issue.assignee, self.user)
+        self.assertEqual(self.issue.title, "Byt logotyp")
+        self.assertEqual(self.issue.description, "Ursprunglig")
+        self.assertTrue(self.issue.visible_to_customer, "synlighet rörs inte utan parameter")
+        self.assertTrue(self.issue.activity.filter(text="prioritet: Hög").exists())
+        self.assertTrue(self.issue.activity.filter(text="satte ansvarig: Giovanni").exists())
+
+        self._run("uppdatera_arende", nyckel_eller_id="NORD-1", synlig_for_kund=False, forfaller="")
+        self.issue.refresh_from_db()
+        self.assertFalse(self.issue.visible_to_customer)
+        self.assertIsNone(self.issue.due_on)
+
+        with self.assertRaises(OperationError):
+            self._run("uppdatera_arende", nyckel_eller_id="NORD-1")
+
+    def test_checklist_add_and_tick(self):
+        result = self._run(
+            "lagg_till_checklista", nyckel_eller_id="NORD-1", punkter=["Skiss", "Godkännande"]
+        )
+        self.assertEqual(result["checklista"], "0/2")
+        self.assertEqual([p["text"] for p in result["punkter"]], ["Skiss", "Godkännande"])
+
+        ticked = self._run("bocka_checklista", punkt_id=result["punkter"][0]["id"])
+        self.assertEqual(ticked["checklista"], "1/2")
+        full = REGISTRY["hamta_arende"].read(self.user, nyckel_eller_id="NORD-1")
+        self.assertEqual([c["klar"] for c in full["checklista"]], [True, False])
+
+    def test_lista_and_hamta_tolerate_key_forms(self):
+        rows = REGISTRY["lista_arenden"].read(self.user)["arenden"]
+        self.assertEqual([r["nyckel"] for r in rows], ["NORD-1"])
+        self.assertEqual(rows[0]["kund"], "Nordan Bygg AB")
+        for ref in ("NORD-1", "nord-1", str(self.issue.pk), f"#{self.issue.pk}"):
+            with self.subTest(ref=ref):
+                data = REGISTRY["hamta_arende"].read(self.user, nyckel_eller_id=ref)
+                self.assertEqual(data["id"], self.issue.pk)
+        self.assertEqual(REGISTRY["lista_arenden"].read(self.user, status="klara")["arenden"], [])
+        with self.assertRaises(OperationError):
+            REGISTRY["lista_arenden"].read(self.user, status="hittepa")
+
+    def test_tidrapport_sums_per_customer(self):
+        self._run("logga_tid", nyckel_eller_id="NORD-1", minuter=30)
+        self._run("logga_tid", nyckel_eller_id="NORD-1", minuter=15, fakturerbart=False)
+        report = REGISTRY["tidrapport"].read(self.user)
+        self.assertEqual(report["totalt_minuter"], 45)
+        self.assertEqual(report["totalt_fakturerbara_minuter"], 30)
+        self.assertEqual(report["kunder"][0]["kund"], "Nordan Bygg AB")
+        self.assertEqual(report["kunder"][0]["arenden"][0]["poster"], 2)
+
+    def test_skapa_kund_and_projekt(self):
+        from apps.projects.models import Project
+
+        kund = self._run("skapa_kund", namn="Ny Kund AB", epost="info@nykund.se")
+        self.assertEqual(kund["status"], "skapat")
+        with self.assertRaises(OperationError):
+            self._run("skapa_kund", namn="ny kund ab")
+
+        projekt = self._run("skapa_projekt", namn="Kampanj", kund="Ny Kund AB")
+        project = Project.objects.get(key=projekt["key"])
+        self.assertEqual(project.customer.name, "Ny Kund AB")
+        self.assertEqual(project.created_by, self.user)
+        self.assertEqual(project.columns.count(), 3)
+
+    def test_customer_contact_is_refused_everywhere(self):
+        contact = get_user_model().objects.create_user("kontakt", "k@t.local", "x")
+        self.customer.users.add(contact)
+        for name in ("lista_arenden", "lista_kunder", "hamta_arende", "tidrapport"):
+            with self.subTest(op=name):
+                with self.assertRaises(OperationError):
+                    REGISTRY[name].read(
+                        contact, **({"nyckel_eller_id": "NORD-1"} if name == "hamta_arende" else {})
+                    )
+        from apps.assistant.runtime import run_operation
+
+        with self.assertRaises(OperationError):
+            run_operation(contact, self._no_job, "skapa_arende", {"rubrik": "x", "projekt": "NORD"})
+        self.assertEqual(self.project.issues.count(), 1)
+
+    def test_action_tools_have_no_draft_suffix_and_write_hints(self):
+        from apps.assistant.mcp_server import _tool_list
+        from apps.assistant.runtime import tool_descriptions
+
+        rows = list(tool_descriptions())
+        described = {name: (description, readonly) for name, description, _s, readonly in rows}
+        tools = {t.name: t for t in _tool_list()}
+        actions = [op.name for op in REGISTRY.values() if op.risk == Risk.ACTION]
+        self.assertTrue(actions)
+        for name in actions:
+            with self.subTest(op=name):
+                description, readonly = described[name]
+                self.assertNotIn("Skapar ett utkast", description)
+                self.assertNotIn("Påverkar affärsdata", description)
+                self.assertFalse(readonly)
+                self.assertFalse(tools[name].annotations.read_only_hint)
+                self.assertFalse(tools[name].annotations.destructive_hint)
+                self.assertFalse(tools[name].annotations.idempotent_hint)
+        self.assertTrue(tools["lista_arenden"].annotations.read_only_hint)
+
+        # Ordningen: läsning, direkt, sedan utkasten.
+        order = [name for name, *_ in rows]
+        last_read = max(i for i, n in enumerate(order) if REGISTRY[n].risk == Risk.READ)
+        first_action = min(i for i, n in enumerate(order) if REGISTRY[n].risk == Risk.ACTION)
+        last_action = max(i for i, n in enumerate(order) if REGISTRY[n].risk == Risk.ACTION)
+        first_draft = min(i for i, n in enumerate(order) if REGISTRY[n].risk == Risk.TEXT)
+        self.assertLess(last_read, first_action)
+        self.assertLess(last_action, first_draft)
+
+    def test_action_cannot_be_proposed_as_a_draft(self):
+        """Direktverktyg har ingen prepare - utkastvägen ska inte kunna gå fel tyst."""
+        job = AIJob.objects.create(user=self.user, title="x")
+        with self.assertRaises((OperationError, TypeError)):
+            draft.propose(job, "skapa_arende", {"rubrik": "x", "projekt": "NORD"})
+
+
+class OffertMcpTests(TestCase):
+    """Offerter via MCP: alltid utkast, aldrig skickade, accepterade är låsta."""
+
+    def setUp(self):
+        from apps.offers.models import PricePeriod, Product
+
+        self.user = get_user_model().objects.create_user("byra2", "b2@t.local", "x", is_staff=True)
+        self.product = Product.objects.create(
+            name="Hemsida bas",
+            description="Fem sidor",
+            default_price=25000,
+            default_period=PricePeriod.ONE_TIME,
+        )
+
+    def _run(self, name, **params):
+        import json
+
+        from apps.assistant.runtime import run_operation
+
+        return json.loads(run_operation(self.user, lambda: self.fail("inget jobb"), name, params))
+
+    def test_skapa_offert_can_be_linked_to_a_project(self):
+        from apps.offers.models import Quote
+        from apps.projects.models import Customer, Project
+
+        customer = Customer.objects.create(name="Nordan Bygg AB")
+        project = Project.objects.create(name="Ny hemsida", key="NORD", customer=customer)
+        result = self._run(
+            "skapa_offert",
+            kund_namn="Nordan Bygg AB",
+            projekt="nord",
+            rader=[{"rad": "Hemsida", "pris": 1000}],
+        )
+        quote = Quote.objects.get(pk=result["offert_id"])
+        self.assertEqual(quote.project, project)
+        self.assertEqual(quote.customer, customer)
+        self.assertEqual(result["projekt"], "NORD")
+
+    def test_skapa_offert_is_a_draft_with_product_lines_and_no_mail(self):
+        from django.core import mail
+
+        from apps.offers.models import Quote, QuoteStatus
+
+        result = self._run(
+            "skapa_offert",
+            kund_namn="Nordan Bygg AB",
+            kund_epost="info@nordan.se",
+            rader=[
+                {"produkt_id": self.product.pk},
+                {"rad": "Drift", "pris": 500, "period": "monthly", "tillval": True},
+            ],
+        )
+        self.assertEqual(result["status"], "utkast")
+        self.assertIn("INTE skickad", result["not"])
+        self.assertIn("/manage/offerter/", result["redigera"])
+
+        quote = Quote.objects.get(pk=result["offert_id"])
+        self.assertEqual(quote.status, QuoteStatus.DRAFT)
+        self.assertIsNone(quote.sent_at)
+        self.assertEqual(quote.created_by, self.user)
+        self.assertEqual(quote.valid_until, timezone.localdate() + timedelta(days=30))
+
+        first, second = quote.lines.all()
+        self.assertEqual(
+            (first.label, first.description, first.price), ("Hemsida bas", "Fem sidor", 25000)
+        )
+        self.assertEqual(first.product, self.product)
+        self.assertEqual((second.price, second.period, second.is_optional), (500, "monthly", True))
+        self.assertEqual(result["summor"], {"one_time": 25000, "monthly": 500, "yearly": 0})
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_skapa_offert_validates_lines(self):
+        from apps.offers.models import Quote
+
+        with self.assertRaises(OperationError) as ctx:
+            self._run("skapa_offert", kund_namn="X", rader=[{"produkt_id": 9999}])
+        self.assertIn("Hemsida bas", str(ctx.exception))
+        with self.assertRaises(OperationError):
+            self._run("skapa_offert", kund_namn="X", rader=[{"rad": "Utan pris"}])
+        with self.assertRaises(OperationError):
+            self._run("skapa_offert", kund_namn="X", kund_epost="inte-en-adress")
+        self.assertEqual(Quote.objects.count(), 0)
+
+    def test_accepted_quote_is_locked(self):
+        from apps.offers.models import Quote, QuoteStatus
+
+        quote = Quote.objects.create(customer_name="X", status=QuoteStatus.ACCEPTED)
+        with self.assertRaises(OperationError) as ctx:
+            self._run("lagg_till_offertrad", offert_id=quote.pk, rad="Extra", pris=100)
+        self.assertIn("låst", str(ctx.exception))
+        self.assertEqual(quote.lines.count(), 0)
+
+    def test_lagg_till_offertrad_appends_last_and_keeps_status(self):
+        from apps.offers.models import Quote, QuoteLine, QuoteStatus
+
+        quote = Quote.objects.create(customer_name="X", status=QuoteStatus.SENT)
+        QuoteLine.objects.create(quote=quote, label="Först", price=1, order=1)
+        result = self._run("lagg_till_offertrad", offert_id=quote.pk, produkt_id=self.product.pk)
+        line = QuoteLine.objects.get(pk=result["rad_id"])
+        self.assertEqual((line.order, line.label, line.price), (2, "Hemsida bas", 25000))
+        quote.refresh_from_db()
+        self.assertEqual(quote.status, QuoteStatus.SENT)
+
+    def test_lista_and_hamta(self):
+        from apps.offers.models import Quote, QuoteLine
+
+        quote = Quote.objects.create(customer_name="Listad")
+        QuoteLine.objects.create(quote=quote, label="Rad", price=1000, order=1)
+        rows = REGISTRY["lista_offerter"].read(self.user, status="draft")["offerter"]
+        self.assertEqual([r["kund"] for r in rows], ["Listad"])
+        self.assertEqual(rows[0]["summa_engang"], 1000)
+        self.assertIn(f"/offert/{quote.token}/", rows[0]["lank"])
+        data = REGISTRY["hamta_offert"].read(self.user, id=quote.pk)
+        self.assertEqual(data["rader"][0]["rad"], "Rad")
+        self.assertFalse(data["last"])
+        products = REGISTRY["lista_produkter"].read(self.user)["produkter"]
+        self.assertEqual(products[0]["namn"], "Hemsida bas")
+
+    def test_customer_contact_is_refused(self):
+        from apps.projects.models import Customer
+
+        contact = get_user_model().objects.create_user("kontakt2", "k2@t.local", "x")
+        Customer.objects.create(name="K").users.add(contact)
+        with self.assertRaises(OperationError):
+            REGISTRY["lista_offerter"].read(contact)
+        with self.assertRaises(OperationError):
+            REGISTRY["skapa_offert"].run(contact, kund_namn="X")
