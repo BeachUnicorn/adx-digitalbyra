@@ -21,6 +21,7 @@ här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
             <li><a href="{% url 'portal:landing' %}" class="m-nav__link pt-brand"><img src="{% static 'images/adx-logo.png' %}" alt="ADX" class="pt-logo"></a></li>
             {% if request.customer %}
             <li><a href="{% url 'portal:home' %}" class="m-nav__link{% if active == 'home' %} is-active{% endif %}">Mina ärenden</a></li>
+            <li><a href="{% url 'portal:log' %}" class="m-nav__link{% if active == 'log' %} is-active{% endif %}">Logg</a></li>
             {% if not request.viewing_as %}<li><a href="{% url 'portal:issue_create' %}" class="m-nav__link{% if active == 'new' %} is-active{% endif %}">Nytt ärende</a></li>{% endif %}
             {% endif %}
         </ul>

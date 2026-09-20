@@ -1,0 +1,25 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="pt-narrow">
+  <div class="tv-head">
+    <div>
+      <div class="tv-kicker">{{ customer.name }}</div>
+      <h1 class="tv-h1">Logg</h1>
+      <div class="tv-sub">Vad vi gjort för er, datum för datum. En sammanställning kommer på mejl när det hänt något under månaden.</div>
+    </div>
+  </div>
+  {% if entries %}
+  <div class="m-panel tv-panel pt-log">
+    {% for e in entries %}
+    {% ifchanged e.date|date:"F Y" %}<div class="pt-log__month">{{ e.date|date:"F Y" }}</div>{% endifchanged %}
+    <div class="pt-log__row">
+      <div class="pt-log__date">{{ e.date|date:"j M" }}</div>
+      <div class="pt-log__text">{{ e.text|linebreaksbr }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="m-panel tv-panel"><p class="tv-empty tv-empty--inline">Inget loggat än.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

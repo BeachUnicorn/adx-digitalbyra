@@ -708,6 +708,59 @@ class Activity(models.Model):
         return self.user.first_name or self.user.get_username()
 
 
+class LogDigest(models.Model):
+    """En skickad månadssammanställning av kundloggen - vem, när, vad."""
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="log_digests")
+    period_label = models.CharField(max_length=60)
+    body = models.TextField()
+    sent_to = models.CharField(max_length=500)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-sent_at"]
+        verbose_name = "Loggsammanställning"
+        verbose_name_plural = "Loggsammanställningar"
+
+    def __str__(self):
+        return f"{self.customer}: {self.period_label}"
+
+
+class CustomerLogEntry(models.Model):
+    """
+    Kundloggen: datum och två-tre meningar om vad byrån gjorde.
+    Syns i kundens portal direkt. Sammanställningen per månad mejlas BARA
+    när byrån trycker på knappen (manage_views.customer_log_send) - aldrig
+    automatiskt. En daglig cron påminner byrån en vecka före månadsskiftet.
+    """
+
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name="log_entries")
+    date = models.DateField("Datum", default=timezone.localdate)
+    text = models.TextField("Text", max_length=1000)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    digest = models.ForeignKey(
+        LogDigest, null=True, blank=True, on_delete=models.SET_NULL, related_name="entries"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-date", "-id"]
+        verbose_name = "Loggpost"
+        verbose_name_plural = "Loggposter"
+
+    def __str__(self):
+        return f"{self.date}: {self.text[:40]}"
+
+    @property
+    def is_sent(self):
+        return self.digest_id is not None
+
+
 class LoginCode(models.Model):
     """
     Engångskod för lösenordsfri inloggning i portalen (apps/projects/auth.py).

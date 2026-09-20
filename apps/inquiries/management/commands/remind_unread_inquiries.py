@@ -38,10 +38,7 @@ class Command(BaseCommand):
         for inquiry in unread:
             hours = int((now - inquiry.created_at).total_seconds() // 3600)
             source = f" | källa: {inquiry.traffic_source}" if inquiry.traffic_source else ""
-            lines.append(
-                f"- {inquiry.reference} {inquiry.name}"
-                f" ({hours} h gammal{source})"
-            )
+            lines.append(f"- {inquiry.reference} {inquiry.name} ({hours} h gammal{source})")
             lines.append(f"  {base}{inquiry.get_absolute_url()}")
         lines += ["", "Snabbast svar vinner affären."]
 

@@ -18,9 +18,7 @@ def section_detail(request, slug):
     section = get_object_or_404(FAQSection, slug=slug, is_active=True)
     items = section.items.filter(is_active=True)
     context = _get_site_context()
-    context.update(
-        {"section": section, "faq_items": items, "owner_links": _owner_links(section)}
-    )
+    context.update({"section": section, "faq_items": items, "owner_links": _owner_links(section)})
     return render(request, "faq/section_detail.html", context)
 
 

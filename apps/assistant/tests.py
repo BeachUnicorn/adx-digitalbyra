@@ -376,9 +376,10 @@ class OperationCoverageTests(BaseCase):
 
     def test_read_operations_run(self):
         from apps.offers.models import Quote
-        from apps.projects.models import Issue, Project
+        from apps.projects.models import Customer, Issue, Project
 
         FAQSection.objects.create(title="Vanliga frågor")
+        customer = Customer.objects.create(name="Loggkund")
         # Ärendesystemets läsverktyg kräver byrån - self.user är superuser
         # och räknas som byrå enligt is_agency_user.
         issue = Issue.objects.create(project=Project.objects.create(name="P", key="P"), title="x")
@@ -389,6 +390,7 @@ class OperationCoverageTests(BaseCase):
             "hamta_sida": {"slug": self.page.slug},
             "hamta_arende": {"nyckel_eller_id": issue.key},
             "hamta_offert": {"id": quote.pk},
+            "hamta_kundlogg": {"kund": str(customer.pk)},
         }
         for op in REGISTRY.values():
             if op.risk != Risk.READ:

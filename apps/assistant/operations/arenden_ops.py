@@ -38,6 +38,7 @@ from apps.projects.models import (
     ChecklistItem,
     Comment,
     Customer,
+    CustomerLogEntry,
     Issue,
     IssuePriority,
     IssueType,
@@ -834,6 +835,48 @@ def _skapa_kund(user, namn, epost="", telefon="", org_nummer="", webbplats=""):
     }
 
 
+def _hamta_kundlogg(user, kund, antal=30):
+    require_agency(user)
+    customer = _customer(kund)
+    limit = max(1, min(int(antal or 30), 200))
+    rows = [
+        {
+            "id": e.pk,
+            "datum": e.date.isoformat(),
+            "text": e.text,
+            "skickad_till_kund": e.digest_id is not None,
+        }
+        for e in customer.log_entries.all()[:limit]
+    ]
+    return {
+        "kund": customer.name,
+        "poster": rows,
+        "osanda": customer.log_entries.filter(digest__isnull=True).count(),
+    }
+
+
+def _skriv_kundlogg(user, kund, text, datum=None):
+    require_agency(user)
+    customer = _customer(kund)
+    body = clean_text(text, "text", 1000, multiline=True)
+    if not body:
+        raise OperationError("text får inte vara tom.")
+    on_date = parse_date(datum, "datum") or timezone.localdate()
+    if on_date > timezone.localdate():
+        raise OperationError("datum kan inte ligga i framtiden.")
+    entry = CustomerLogEntry.objects.create(customer=customer, date=on_date, text=body, author=user)
+    return {
+        "status": "skapat",
+        "id": entry.pk,
+        "kund": customer.name,
+        "datum": entry.date.isoformat(),
+        "not": (
+            "Loggraden syns i kundens portal direkt. Månadssammanställningen mejlas "
+            "bara när Giovanni trycker på knappen på kundens sida - inget mejl har gått."
+        ),
+    }
+
+
 # --- Registrering -----------------------------------------------------------
 
 _S = {"type": "string"}
@@ -1107,5 +1150,29 @@ register(
         ),
         risk=Risk.ACTION,
         run=_skapa_kund,
+    )
+)
+register(
+    Operation(
+        name="hamta_kundlogg",
+        description=(
+            "Kundloggen: vad byrån gjort för kunden, datum för datum, senaste först. "
+            "Visar också hur många rader som inte skickats i en sammanställning än."
+        ),
+        input_schema=_schema({"kund": _S, "antal": _I}, ["kund"]),
+        risk=Risk.READ,
+        read=_hamta_kundlogg,
+    )
+)
+register(
+    Operation(
+        name="skriv_kundlogg",
+        description=(
+            "Skriv en rad i kundloggen DIREKT: datum (ISO, default i dag) och två-tre "
+            "meningar om vad som gjordes. Syns i kundens portal. Mejlar aldrig."
+        ),
+        input_schema=_schema({"kund": _S, "text": _S, "datum": _S}, ["kund", "text"]),
+        risk=Risk.ACTION,
+        run=_skriv_kundlogg,
     )
 )

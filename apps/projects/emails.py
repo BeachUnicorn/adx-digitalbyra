@@ -116,6 +116,72 @@ def send_issue_update_to_customer(issue, comment):
     )
 
 
+def log_period_label(entries):
+    """'september 2026' om alla poster är i samma månad, annars 'augusti till september 2026'."""
+    from django.utils.formats import date_format
+
+    dates = sorted(e.date for e in entries)
+    first, last = dates[0], dates[-1]
+    if (first.year, first.month) == (last.year, last.month):
+        return date_format(first, "F Y")
+    if first.year == last.year:
+        return f"{date_format(first, 'F')} till {date_format(last, 'F Y')}"
+    return f"{date_format(first, 'F Y')} till {date_format(last, 'F Y')}"
+
+
+def log_digest_body(customer, entries, period_label):
+    from django.utils.formats import date_format
+
+    lines = [
+        "Hej,",
+        "",
+        f"här är en sammanställning av vad vi gjort för {customer.name} ({period_label}):",
+        "",
+    ]
+    for entry in sorted(entries, key=lambda e: (e.date, e.pk)):
+        lines.append(f"- {date_format(entry.date, 'j F')}: {entry.text.strip()}")
+    lines += [
+        "",
+        f"Hela historiken finns i portalen: {_base_url()}/kund/logg/",
+        "",
+        "Vänliga hälsningar",
+        "ADX",
+    ]
+    return "\n".join(lines)
+
+
+def send_log_digest(customer, entries, period_label):
+    """
+    Månadssammanställningen till kunden. Anropas BARA av
+    manage_views.customer_log_send - knappen. Returnerar (skickat, mottagare, brödtext).
+    """
+    to = customer_recipients(customer)
+    body = log_digest_body(customer, entries, period_label)
+    if not to:
+        return False, to, body
+    sent = _send(
+        f"Vad vi gjort för {customer.name}: {period_label}",
+        body,
+        to,
+        reply_to=_as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
+    )
+    return sent, to, body
+
+
+def send_log_reminder(rows):
+    """Till byrån: kunder med osända loggposter, en vecka före månadsskiftet."""
+    lines = ["Om en vecka är månaden slut. Osända loggposter:", ""]
+    for customer, count in rows:
+        lines.append(f"- {customer.name}: {count} post{'' if count == 1 else 'er'}")
+        lines.append(f"  {_base_url()}/manage/kunder/{customer.pk}/#logg")
+    lines += ["", "Sammanställningen skickas bara när du trycker på knappen på kundens sida."]
+    return _send(
+        f"Påminnelse: skicka loggen till {len(rows)} kund{'' if len(rows) == 1 else 'er'}",
+        "\n".join(lines),
+        _as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
+    )
+
+
 def send_portal_comment_notice(comment, customer):
     body = (
         f"{customer.name} kommenterade {comment.issue.key} {comment.issue.title}:\n\n"

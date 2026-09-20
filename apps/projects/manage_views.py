@@ -43,7 +43,7 @@ from .board import (
     renumber,
     with_time,
 )
-from .emails import send_invite, send_issue_update_to_customer
+from .emails import log_period_label, send_invite, send_issue_update_to_customer, send_log_digest
 from .forms import (
     ColumnForm,
     CommentForm,
@@ -58,10 +58,12 @@ from .models import (
     Column,
     Comment,
     Customer,
+    CustomerLogEntry,
     Issue,
     IssuePriority,
     IssueType,
     Label,
+    LogDigest,
     Project,
     ProjectStatus,
     TimeEntry,
@@ -783,6 +785,7 @@ def customer_detail(request, pk):
         .select_related("project", "column")
         .with_logged_seconds()
     )
+    log_entries = list(customer.log_entries.select_related("digest", "author")[:100])
     return render(
         request,
         "projects/customer_detail.html",
@@ -796,8 +799,81 @@ def customer_detail(request, pk):
             "contacts": customer.users.all(),
             "time": fmt_hours(customer.total_seconds()),
             "title": customer.name,
+            "log_entries": log_entries,
+            "unsent_count": customer.log_entries.filter(digest__isnull=True).count(),
+            "last_digest": customer.log_digests.first(),
+            "today": timezone.localdate().isoformat(),
         },
     )
+
+
+@staff_required
+@require_POST
+def customer_log_add(request, pk):
+    """En loggrad: datum + två-tre meningar. Syns i portalen direkt, mejlas inte."""
+    customer = get_object_or_404(Customer, pk=pk)
+    text = request.POST.get("text", "").strip()[:1000]
+    raw = request.POST.get("date", "").strip()
+    try:
+        on_date = date.fromisoformat(raw) if raw else timezone.localdate()
+    except ValueError:
+        on_date = timezone.localdate()
+    if not text:
+        messages.error(request, "Skriv vad du gjorde.")
+    else:
+        CustomerLogEntry.objects.create(
+            customer=customer, date=on_date, text=text, author=request.user
+        )
+        messages.success(request, "Loggraden är sparad. Den syns i kundens portal.")
+    return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
+
+
+@staff_required
+@require_POST
+def customer_log_delete(request, pk):
+    entry = get_object_or_404(CustomerLogEntry.objects.select_related("customer"), pk=pk)
+    if entry.is_sent:
+        messages.error(request, "Raden är redan skickad till kunden och kan inte tas bort.")
+    else:
+        entry.delete()
+        messages.success(request, "Loggraden är borttagen.")
+    return redirect(reverse("manage:customer_detail", args=[entry.customer_id]) + "#logg")
+
+
+@staff_required
+@require_POST
+def customer_log_send(request, pk):
+    """
+    DEN manuella knappen för loggen: mejlar alla osända rader som en
+    sammanställning och märker dem som skickade. Inget skickas annars.
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    entries = list(customer.log_entries.filter(digest__isnull=True))
+    if not entries:
+        messages.error(request, "Inga osända loggrader.")
+        return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
+    period = log_period_label(entries)
+    sent, to, body = send_log_digest(customer, entries, period)
+    if not sent:
+        messages.error(
+            request,
+            "Sammanställningen gick inte iväg: kunden saknar e-post eller e-posten är inte "
+            "konfigurerad. Inget är märkt som skickat.",
+        )
+        return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
+    digest = LogDigest.objects.create(
+        customer=customer,
+        period_label=period,
+        body=body,
+        sent_to=", ".join(to)[:500],
+        sent_by=request.user,
+    )
+    CustomerLogEntry.objects.filter(pk__in=[e.pk for e in entries]).update(digest=digest)
+    messages.success(
+        request,
+        f"Sammanställningen ({len(entries)} rader, {period}) är mejlad till {', '.join(to)}.",
+    )
+    return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
 
 
 @staff_required

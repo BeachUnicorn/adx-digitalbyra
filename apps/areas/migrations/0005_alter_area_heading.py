@@ -4,15 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('areas', '0004_alter_area_heading_alter_areaservice_has_own_page'),
+        ("areas", "0004_alter_area_heading_alter_areaservice_has_own_page"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='area',
-            name='heading',
-            field=models.CharField(blank=True, help_text="Lämna tomt för 'Webbyrå i {namn}'.", max_length=200, verbose_name='Rubrik (H1)'),
+            model_name="area",
+            name="heading",
+            field=models.CharField(
+                blank=True,
+                help_text="Lämna tomt för 'Webbyrå i {namn}'.",
+                max_length=200,
+                verbose_name="Rubrik (H1)",
+            ),
         ),
     ]

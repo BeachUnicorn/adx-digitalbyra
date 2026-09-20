@@ -226,6 +226,8 @@ STEP_LABELS = {
     "satt_grannomraden": "Sätter grannområden",
     "hamta_blockkatalog": "Läser blockkatalogen",
     "ordna_block": "Lägger om blockordningen",
+    "hamta_kundlogg": "Läser kundloggen",
+    "skriv_kundlogg": "Skriver i kundloggen",
     "satt_block_synligt": "Ändrar blockets synlighet",
     # Ärenden, tid och offerter (direktverktyg).
     "lista_kunder": "Listar kunder",

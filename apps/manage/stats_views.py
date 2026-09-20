@@ -733,8 +733,7 @@ def _recent_inquiries(inquiries, limit=8):
                 "created_at": inquiry.created_at,
                 "first_label": first_label,
                 "first_detail": first_detail,
-                "last_label": labels.get(inquiry.traffic_source, inquiry.traffic_source)
-                or "-",
+                "last_label": labels.get(inquiry.traffic_source, inquiry.traffic_source) or "-",
                 "last_detail": inquiry.traffic_source_detail,
                 "journey": journey,
                 "visits_before": visits_before,

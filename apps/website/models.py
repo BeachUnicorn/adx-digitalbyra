@@ -91,9 +91,7 @@ class BlockPage(models.Model):
         ("guide", "Guide"),
         ("case", "Case"),
     ]
-    category = models.CharField(
-        max_length=20, blank=True, default="", choices=CATEGORY_CHOICES
-    )
+    category = models.CharField(max_length=20, blank=True, default="", choices=CATEGORY_CHOICES)
     is_published = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=100)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -345,3 +345,40 @@ body.is-dragging-any{cursor:grabbing}
 .pt-body .tv-flag{font-size:12px}
 .pt-body .tv-lab{color:var(--m-text)}
 .pt-body .m-message--success{color:var(--s-ok)}
+
+/* ===== Kundloggen ===== */
+.tv-logform{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 14px}
+.tv-input--date{flex:0 0 150px;min-width:0}
+.tv-loglist{display:flex;flex-direction:column}
+.tv-logrow{display:grid;grid-template-columns:96px 1fr auto 24px;gap:10px;align-items:start;padding:9px 0;border-top:1px solid var(--m-border);font-size:14.5px}
+.tv-logrow__date{font-family:var(--s-mono);font-size:12.5px;color:var(--m-text-muted);padding-top:2px}
+.tv-logrow__text{overflow-wrap:anywhere}
+.tv-logrow form{margin:0}
+.tv-logfoot{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--m-border);font-size:13.5px}
+.tv-logfoot .m-btn{width:auto}
+.pt-log{padding:8px 24px 16px}
+.pt-log__month{font-family:var(--s-mono);font-size:13px;letter-spacing:.12em;text-transform:uppercase;font-weight:500;padding:18px 0 8px;color:var(--m-text)}
+.pt-log__row{display:grid;grid-template-columns:80px 1fr;gap:16px;padding:12px 0;border-top:1px solid var(--m-border);font-size:17px;line-height:1.55}
+.pt-log__date{font-family:var(--s-mono);font-size:14px;font-weight:500;padding-top:3px;white-space:nowrap}
+
+/* ===== Portalen i mobilbredd ===== */
+@media (max-width:760px){
+  .pt-nav .m-nav__inner{flex-wrap:wrap;height:auto;padding:8px 12px;gap:6px}
+  .pt-nav .m-nav__links{padding:4px;gap:0}
+  .pt-nav .m-nav__link{padding:8px 9px;font-size:11px;letter-spacing:.03em}
+  .pt-brand{padding:6px 8px}
+  .pt-logo{height:16px}
+  .pt-user{display:none}
+  .pt-nav .m-nav__view-site,.pt-nav button.m-nav__view-site{padding:9px 12px;font-size:11px}
+  .pt-body .tv-h1{font-size:30px}
+  .pt-login{padding:32px 22px 28px}
+  .pt-log__row{grid-template-columns:64px 1fr;gap:10px}
+  .pt-meta{padding:4px 16px}
+  .pt-meta__table th{width:110px;padding-right:10px}
+  .tv-logrow{grid-template-columns:88px 1fr auto 24px}
+}
+@media (max-width:760px){
+  /* Menyn får växa på höjden när länkarna radbryter - manage.css låser den till en rad. */
+  .pt-nav,.pt-nav .m-nav__inner{height:auto;min-height:var(--m-nav-height)}
+  .pt-nav .m-nav__right{margin-left:auto}
+}

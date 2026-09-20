@@ -149,8 +149,7 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"Klart. {created_pages} sidor skapade ({skipped_pages} fanns redan), "
                 f"{created_blocks} block, {created_sections} FAQ-sektioner, "
-                f"{created_items} frågor"
-                + (", sidfotskolumn tillagd." if created_menu else ".")
+                f"{created_items} frågor" + (", sidfotskolumn tillagd." if created_menu else ".")
             )
         )
 
@@ -240,9 +239,7 @@ class Command(BaseCommand):
             parent = BlockPage.objects.filter(slug=parent_slug).first()
             if parent is None:
                 continue
-            block = (
-                parent.blocks.filter(block_type="related", data__title=spec["rubrik"]).first()
-            )
+            block = parent.blocks.filter(block_type="related", data__title=spec["rubrik"]).first()
             if block is None:
                 bar = parent.blocks.filter(block_type="bar").order_by("-order").first()
                 if bar is not None:
@@ -323,9 +320,7 @@ class Command(BaseCommand):
                 continue
             needle = card_spec["titel_innehaller"].lower()
             target = BlockPage.objects.filter(slug=card_spec["lanka_till"]).first()
-            for block in Block.objects.filter(
-                block_type="folio", page__slug=card_spec["sida"]
-            ):
+            for block in Block.objects.filter(block_type="folio", page__slug=card_spec["sida"]):
                 cards = block.data.get("cards") or []
                 changed = False
                 for card in cards:

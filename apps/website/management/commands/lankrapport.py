@@ -52,8 +52,7 @@ class Command(BaseCommand):
             raise CommandError(f"sitemap.xml svarade {response.status_code}")
 
         paths = [
-            re.sub(r"https?://[^/]+", "", url)
-            for url in LOC_RE.findall(response.content.decode())
+            re.sub(r"https?://[^/]+", "", url) for url in LOC_RE.findall(response.content.decode())
         ]
         inbound = Counter()
         broken = []

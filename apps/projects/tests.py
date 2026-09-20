@@ -828,3 +828,112 @@ class DrawerTests(PortalFixtureMixin, TestCase):
     def test_customer_contact_cannot_reach_the_panel(self):
         r = self.as_contact().get(f"/manage/arenden/{self.visible.pk}/panel/")
         self.assertEqual(r.status_code, 302)
+
+
+@override_settings(**EMAIL)
+class CustomerLogTests(PortalFixtureMixin, TestCase):
+    """Kundloggen: rader syns i portalen direkt, sammanställningen mejlas bara via knappen."""
+
+    def test_entries_are_added_and_visible_only_to_that_customer(self):
+        client = self.as_staff()
+        r = client.post(
+            f"/manage/kunder/{self.acme.pk}/logg/",
+            {"date": "2026-09-19", "text": "Åtgärdade ett fel i Sentry."},
+        )
+        self.assertEqual(r["Location"], f"/manage/kunder/{self.acme.pk}/#logg")
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "Uppdaterade SSL-certet."})
+        self.assertEqual(self.acme.log_entries.count(), 2)
+        self.assertEqual(len(mail.outbox), 0, "ingen rad mejlas")
+        html = self.as_contact().get("/kund/logg/").content.decode()
+        self.assertIn("Åtgärdade ett fel i Sentry.", html)
+        self.assertIn("Uppdaterade SSL-certet.", html)
+        self.assertIn(">Logg<", html)
+        stranger = Client()
+        stranger.force_login(self.stranger)
+        self.assertNotIn("Sentry", stranger.get("/kund/logg/").content.decode())
+        panel = client.get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        self.assertIn("2 osända", panel)
+
+    def test_the_digest_goes_only_when_the_button_is_pressed(self):
+        client = self.as_staff()
+        client.post(
+            f"/manage/kunder/{self.acme.pk}/logg/", {"date": "2026-09-19", "text": "Sentry."}
+        )
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"date": "2026-09-20", "text": "SSL."})
+        self.assertEqual(len(mail.outbox), 0)
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/skicka/")
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ["anna@acme.se"])
+        self.assertIn("september 2026", message.subject)
+        self.assertIn("- 19 september: Sentry.", message.body)
+        self.assertIn("- 20 september: SSL.", message.body)
+        self.assertIn("/kund/logg/", message.body)
+        self.assertEqual(self.acme.log_entries.filter(digest__isnull=True).count(), 0)
+        digest = self.acme.log_digests.get()
+        self.assertEqual(digest.entries.count(), 2)
+        # Inget osänt -> inget mejl.
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/skicka/")
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_sent_rows_cannot_be_deleted_but_unsent_can(self):
+        client = self.as_staff()
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "A"})
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "B"})
+        a = self.acme.log_entries.get(text="A")
+        client.post(f"/manage/logg/{a.pk}/ta-bort/")
+        self.assertEqual(self.acme.log_entries.count(), 1)
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/skicka/")
+        b = self.acme.log_entries.get(text="B")
+        client.post(f"/manage/logg/{b.pk}/ta-bort/")
+        self.assertEqual(self.acme.log_entries.count(), 1, "skickad rad ligger kvar")
+
+    def test_no_recipient_means_nothing_is_marked_sent(self):
+        client = self.as_staff()
+        self.other.users.clear()
+        client.post(f"/manage/kunder/{self.other.pk}/logg/", {"text": "X"})
+        client.post(f"/manage/kunder/{self.other.pk}/logg/skicka/")
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertTrue(self.other.log_entries.filter(digest__isnull=True).exists())
+        self.assertEqual(self.other.log_digests.count(), 0)
+
+    def test_reminder_command_mails_staff_one_week_before_month_end(self):
+        from datetime import date
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from .management.commands.remind_log_digest import is_reminder_day
+
+        self.assertTrue(is_reminder_day(date(2026, 9, 23)))
+        self.assertTrue(is_reminder_day(date(2026, 2, 21)))
+        self.assertFalse(is_reminder_day(date(2026, 9, 30)))
+        self.as_staff().post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "A"})
+        out = StringIO()
+        call_command("remind_log_digest", "--force", stdout=out)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["staff@example.com"])
+        self.assertIn("Acme AB: 1 post", mail.outbox[0].body)
+        self.assertIn(f"/manage/kunder/{self.acme.pk}/#logg", mail.outbox[0].body)
+
+    def test_mcp_can_read_and_write_the_log_but_never_mails(self):
+        import json
+
+        from apps.assistant.runtime import run_operation
+
+        result = json.loads(
+            run_operation(
+                self.staff,
+                lambda: self.fail("inget jobb"),
+                "skriv_kundlogg",
+                {"kund": "Acme AB", "text": "Bytte DNS-leverantör.", "datum": "2026-09-18"},
+            )
+        )
+        self.assertEqual(result["status"], "skapat")
+        self.assertIn("inget mejl", result["not"])
+        self.assertEqual(len(mail.outbox), 0)
+        data = json.loads(
+            run_operation(self.staff, lambda: None, "hamta_kundlogg", {"kund": str(self.acme.pk)})
+        )
+        self.assertEqual(data["poster"][0]["text"], "Bytte DNS-leverantör.")
+        self.assertEqual(data["osanda"], 1)

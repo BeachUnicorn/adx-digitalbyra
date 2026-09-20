@@ -16,6 +16,32 @@
 </div>
 <div class="tv-grid">
   <div class="tv-stack">
+    <div class="m-panel tv-panel" id="logg">
+      <div class="tv-sec-title">Logg{% if unsent_count %} <span>{{ unsent_count }} osänd{{ unsent_count|pluralize:"a" }}</span>{% endif %}</div>
+      <p class="tv-prop__note">Datum och två-tre meningar om vad du gjorde. Syns i kundens portal direkt. Sammanställningen mejlas bara när du trycker på knappen.</p>
+      <form method="post" action="{% url 'manage:customer_log_add' customer.pk %}" class="tv-logform">{% csrf_token %}
+        <input type="date" name="date" value="{{ today }}" max="{{ today }}" class="tv-input tv-input--date" aria-label="Datum">
+        <input type="text" name="text" class="tv-input" placeholder="Uppdaterade utgånget SSL-cert." maxlength="1000" required aria-label="Text">
+        <button type="submit" class="m-btn m-btn--small">Lägg till</button>
+      </form>
+      <div class="tv-loglist">
+        {% for e in log_entries %}
+        <div class="tv-logrow{% if not e.is_sent %} is-unsent{% endif %}">
+          <span class="tv-logrow__date">{{ e.date|date:"Y-m-d" }}</span>
+          <span class="tv-logrow__text">{{ e.text }}</span>
+          <span class="tv-logrow__state">{% if e.is_sent %}<span class="m-badge m-badge--published" title="Skickad {{ e.digest.sent_at|date:'j M' }}">skickad</span>{% else %}<span class="m-badge">osänd</span>{% endif %}</span>
+          {% if not e.is_sent %}<form method="post" action="{% url 'manage:customer_log_delete' e.pk %}" data-confirm="Ta bort loggraden?">{% csrf_token %}<button type="submit" class="tv-x" aria-label="Ta bort">&times;</button></form>{% else %}<span></span>{% endif %}
+        </div>
+        {% empty %}<p class="tv-muted">Inget loggat än.</p>{% endfor %}
+      </div>
+      <div class="tv-logfoot">
+        <form method="post" action="{% url 'manage:customer_log_send' customer.pk %}" data-confirm="Mejla en sammanställning med {{ unsent_count }} rad{{ unsent_count|pluralize:"er" }} till kunden? Det är det enda mejl som går.">{% csrf_token %}
+          <button type="submit" class="m-btn m-btn--small"{% if not unsent_count %} disabled{% endif %}>Skicka sammanställning till kunden{% if unsent_count %} ({{ unsent_count }}){% endif %}</button>
+        </form>
+        {% if last_digest %}<span class="tv-muted">Senast skickad {{ last_digest.sent_at|date:"j M Y" }} till {{ last_digest.sent_to }}</span>{% endif %}
+      </div>
+    </div>
+
     <div class="m-panel tv-panel">
       <div class="tv-sec-title">Portalkontakter</div>
       <p class="tv-prop__note">Kontakterna får ett mejl med lösenordslänk när de bjuds in. De ser bara den här kundens ärenden som är markerade "Synlig för kund".</p>

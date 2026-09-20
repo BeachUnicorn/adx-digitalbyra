@@ -10,6 +10,7 @@ urlpatterns = [
     path("kod/", v.code_view, name="code"),
     path("logga-ut/", v.PortalLogoutView.as_view(), name="logout"),
     path("tavla/", v.home, name="home"),
+    path("logg/", v.log, name="log"),
     path("lamna-kundvyn/", v.leave_view_as, name="leave_view_as"),
     path("arenden/nytt/", v.issue_create, name="issue_create"),
     path("arenden/<int:pk>/", v.issue_detail, name="issue_detail"),

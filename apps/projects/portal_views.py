@@ -133,6 +133,17 @@ def home(request):
 
 
 @customer_required
+def log(request):
+    """Vad byrån gjort för kunden, datum för datum. Bara läsning."""
+    entries = list(request.customer.log_entries.all()[:500])
+    return render(
+        request,
+        "portal/log.html",
+        {"customer": request.customer, "entries": entries, "title": "Logg", "active": "log"},
+    )
+
+
+@customer_required
 def issue_create(request):
     form = PortalIssueForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
