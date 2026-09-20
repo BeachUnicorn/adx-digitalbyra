@@ -36,7 +36,6 @@ from .models import (
     Issue,
     IssuePriority,
     IssueType,
-    RequestKind,
     Urgency,
 )
 
@@ -147,7 +146,6 @@ def issue_create(request):
             reporter=request.user,
             visible_to_customer=True,
             created_in_portal=True,
-            request_kind=data["request_kind"] or RequestKind.BUILD,
             urgency=data["urgency"] or Urgency.NONE,
             page_url=data["page_url"],
             due_on=data["due_on"],

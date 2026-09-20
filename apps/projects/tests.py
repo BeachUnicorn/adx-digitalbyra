@@ -334,7 +334,6 @@ class PortalRequestTests(PortalFixtureMixin, TestCase):
             "/kund/arenden/nytt/",
             {
                 "title": "Formuläret är trasigt",
-                "request_kind": "build",
                 "description": "Felmeddelande vid Skicka.",
                 "page_url": "acme.se/kontakt/",
                 "urgency": "critical",
@@ -343,15 +342,15 @@ class PortalRequestTests(PortalFixtureMixin, TestCase):
         )
         issue = Issue.objects.get(title="Formuläret är trasigt")
         self.assertEqual(r["Location"], f"/kund/arenden/{issue.pk}/")
-        self.assertEqual(issue.request_kind, "build")
+        self.assertEqual(issue.request_kind, "", "frågan ställs inte längre")
         self.assertEqual(issue.urgency, "critical")
         self.assertEqual(issue.priority, 40, "akut hos kunden = akut på tavlan")
         self.assertEqual(issue.page_url, "https://acme.se/kontakt/")
         self.assertEqual(str(issue.due_on), "2030-01-02")
         html = client.get(f"/kund/arenden/{issue.pk}/").content.decode()
-        expected = ("Ni bad om", "Genomför det som beskrivs", "Akut", "acme.se/kontakt/", "Skickat")
-        for text in expected:
+        for text in ("Brådska", "Akut", "acme.se/kontakt/", "Skickat"):
             self.assertIn(text, html)
+        self.assertNotIn("Ni bad om", html)
         self.assertNotIn("[ ", html)
         panel = self.as_staff().get(f"/manage/arenden/{issue.pk}/panel/").json()["panel"]
         self.assertIn("Kundens uppgifter", panel)
@@ -362,7 +361,8 @@ class PortalRequestTests(PortalFixtureMixin, TestCase):
         self.assertIn("Visa exempel", html)
         self.assertIn("Använd som mall", html)
         self.assertIn("adx-logo.png", html)
-        self.assertIn('name="request_kind"', html)
+        self.assertNotIn('name="request_kind"', html)
+        self.assertIn('name="urgency"', html)
 
     def test_no_brackets_anywhere(self):
         client = self.as_contact()

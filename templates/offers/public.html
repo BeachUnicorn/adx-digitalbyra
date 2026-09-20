@@ -1,7 +1,9 @@
-{% comment %}
+{% load static %}{% comment %}
 Kundens offertsida. Fristående mall (ingen sajtnav) - en offert ska läsas
-och besvaras, inte bläddras bort ifrån. Formspråket kommer från den
-godkända mockupen: ljust, luftigt, stor text, guldaccent.
+och besvaras, inte bläddras bort ifrån. Samma skinn som panelen och
+kundportalen (Is: himlen, typsnitten, tokens), men själva offerten är ett
+VITT dokument med svart text: det är en affärshandling och ska läsas som en.
+Ingen text under 16 px.
 {% endcomment %}<!DOCTYPE html>
 <html lang="sv">
 <head>
@@ -9,121 +11,146 @@ godkända mockupen: ljust, luftigt, stor text, guldaccent.
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="robots" content="noindex, nofollow">
 <title>Offert från {{ site_settings.name|default:"ADX" }}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Schibsted+Grotesk:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="{% static 'css/manage.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/manage-skin.css' %}?v={{ static_version }}">
 <style>
-    /* Medvetet EN palett: en offert är ett dokument och ska se likadan ut
-       för varje kund, oavsett om mottagarens dator står i mörkt läge.
-       Formspråket är den godkända mockupens ljusa. */
-    :root {
-        /* color-scheme: light gör att även webbläsarens egna delar
-           (formulärfält, rullister) ritas ljusa i mörkt systemläge. */
-        color-scheme: light;
-        --paper: #faf8f3; --card: #ffffff; --ink: #1d1a16; --muted: #6e6659;
-        --line: #e8e2d6; --accent: #e8930c; --accent-deep: #965d00;
-        --ok: #3d8b5f; --shadow: 0 1px 2px rgba(29,26,22,.04), 0 8px 28px rgba(29,26,22,.06);
-    }
-    * { box-sizing: border-box; }
-    body {
-        margin: 0; background: var(--paper); color: var(--ink);
-        font-family: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
-        font-size: 18px; line-height: 1.55; -webkit-font-smoothing: antialiased;
-    }
-    .shell { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
-    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 20px;
-             box-shadow: var(--shadow); padding: 44px 48px; }
-    @media (max-width: 560px) { .panel { padding: 28px 22px; } }
-    .wordmark { font-family: "Bricolage Grotesque", Georgia, serif; font-weight: 700; font-size: 20px; }
-    h1 { font-family: "Bricolage Grotesque", Georgia, serif; font-weight: 700;
-         font-size: clamp(26px, 5vw, 34px); line-height: 1.1; letter-spacing: -.01em;
-         margin: 22px 0 0; text-wrap: balance; }
-    .intro { color: var(--muted); margin: 12px 0 30px; }
-    table { width: 100%; border-collapse: collapse; font-size: 17px; }
-    td { padding: 13px 0; border-top: 1px solid var(--line); vertical-align: top; }
-    td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    td .d { display: block; font-size: 14px; color: var(--muted); margin-top: 2px; }
-    tr.total td { border-top: 2px solid var(--ink); font-weight: 700; font-size: 19px; }
-    .valid { font-size: 15px; color: var(--muted); margin: 22px 0 30px; }
-    .banner { border: 1px solid var(--line); border-radius: 14px; padding: 16px 20px;
-              font-weight: 700; margin: 0 0 26px; }
-    .banner--ok { color: var(--ok); }
-    .actions { display: grid; gap: 12px; }
-    .btn-accept {
-        font: inherit; font-size: 20px; font-weight: 700; color: #241a08;
-        background: linear-gradient(180deg, #f7b13a, var(--accent));
-        border: 0; border-radius: 16px; padding: 20px; cursor: pointer;
-        box-shadow: 0 8px 24px rgba(232,147,12,.35); width: 100%;
-    }
-    .btn-accept:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
-    details { border: 1px solid var(--line); border-radius: 16px; }
-    details summary { font-size: 16px; font-weight: 700; padding: 14px; cursor: pointer;
-                      text-align: center; list-style: none; }
-    details .q { padding: 0 14px 14px; display: grid; gap: 10px; }
-    details textarea { font: inherit; font-size: 16px; padding: 12px; border: 1px solid var(--line);
-                       border-radius: 10px; background: var(--paper); color: var(--ink);
-                       min-height: 90px; resize: vertical; }
-    details button { font: inherit; font-size: 16px; font-weight: 700; color: var(--ink);
-                     background: none; border: 1px solid var(--line); border-radius: 10px;
-                     padding: 12px; cursor: pointer; }
-    .legal { font-size: 13px; color: var(--muted); text-align: center; margin: 4px 0 0; }
-    /* Tillval: hela raden är en klickbar toggle, precis som i mockupen. */
-    .opts { margin-top: 26px; border-top: 1px solid var(--line); }
-    .opts-kicker { font-size: 13px; font-weight: 700; letter-spacing: .14em;
-                   text-transform: uppercase; color: var(--accent-deep); margin: 22px 0 2px; }
-    .opts-lead { font-size: 15px; color: var(--muted); margin: 0 0 8px; }
-    .opt { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 16px;
-           align-items: center; padding: 16px 0; border-top: 1px solid var(--line);
-           cursor: pointer; }
-    .opt:first-of-type { border-top: 0; }
-    .opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
-    .opt .switch { grid-row: span 2; width: 58px; height: 34px; border-radius: 999px;
-                   position: relative; background: var(--line); transition: background .18s ease; }
-    .opt .switch::after { content: ""; position: absolute; top: 4px; left: 4px;
-                          width: 26px; height: 26px; border-radius: 50%; background: var(--card);
-                          box-shadow: 0 1px 3px rgba(29,26,22,.25); transition: transform .18s ease; }
-    .opt:has(input:checked) .switch { background: var(--accent); }
-    .opt:has(input:checked) .switch::after { transform: translateX(24px); }
-    .opt:has(input:focus-visible) .switch { outline: 2px solid var(--accent-deep); outline-offset: 2px; }
-    .opt-name { font-size: 18px; font-weight: 700; display: block; }
-    .opt-desc { font-size: 14px; color: var(--muted); display: block; }
-    .opt-price { font-size: 17px; font-variant-numeric: tabular-nums; white-space: nowrap;
-                 opacity: .5; transition: opacity .18s ease; }
-    .opt:has(input:checked) .opt-price { opacity: 1; }
-    @media (prefers-reduced-motion: reduce) { .opt .switch, .opt .switch::after, .opt-price { transition: none; } }
+    /* color-scheme: light gör att även webbläsarens egna delar (formulärfält,
+       rullister) ritas ljusa i mörkt systemläge - dokumentet ser likadant ut
+       för varje mottagare. */
+    :root { color-scheme: light; }
+    body.m-body { font-size: 18px; line-height: 1.6; }
+    .of-shell { max-width: 820px; margin: 0 auto; padding: 40px 20px 72px; }
+    .of-doc { background: var(--s-solid); color: var(--m-text); border: 1px solid var(--m-border);
+              border-radius: 28px; box-shadow: var(--m-shadow); padding: 56px 60px 52px; }
+    .of-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+    .of-logo { height: 26px; width: auto; display: block; }
+    .of-kicker { font-family: var(--s-mono); font-size: 16px; letter-spacing: .14em; text-transform: uppercase;
+                 color: var(--m-text-muted); margin: 0; }
+    .of-kicker b { color: var(--m-text); font-weight: 600; }
+    h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; letter-spacing: -.01em;
+         font-size: clamp(34px, 5.5vw, 48px); line-height: 1; margin: 26px 0 0; text-wrap: balance; }
+    .of-intro { font-size: 19px; line-height: 1.6; margin: 20px 0 30px; max-width: 62ch; }
+    .of-meta { width: 100%; border-collapse: collapse; margin: 0 0 34px; font-size: 17px; }
+    .of-meta th { font-family: var(--s-mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+                  font-weight: 500; color: var(--m-text-muted); text-align: left; padding: 12px 18px 12px 0;
+                  width: 200px; border-top: 1px solid var(--m-border); vertical-align: top; }
+    .of-meta td { padding: 12px 0; border-top: 1px solid var(--m-border); }
+    .of-meta tr:last-child th, .of-meta tr:last-child td { border-bottom: 1px solid var(--m-border); }
+    .of-banner { border: 1px solid var(--m-border); border-radius: 16px; padding: 16px 20px;
+                 font-size: 18px; font-weight: 600; margin: 0 0 26px; }
+    .of-banner--ok { border-color: var(--s-ok-line); background: var(--s-ok-soft); color: var(--s-ok); }
+    .of-banner--warn { border-color: var(--s-danger-soft); background: var(--s-danger-bg); color: var(--s-danger); }
+    .of-banner a { color: inherit; }
+    .of-section { font-family: var(--s-mono); font-size: 16px; letter-spacing: .14em; text-transform: uppercase;
+                  font-weight: 500; color: var(--m-text-muted); margin: 0 0 10px; }
+    .of-lines { width: 100%; border-collapse: collapse; font-size: 18px; }
+    .of-lines td { padding: 16px 0; border-top: 1px solid var(--m-border); vertical-align: top; }
+    .of-lines td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+                              padding-left: 24px; font-weight: 600; }
+    .of-lines .d { display: block; font-size: 17px; color: var(--m-text-muted); margin-top: 3px; line-height: 1.5; }
+    /* Tillval: hela raden är en klickbar toggle. */
+    .of-opts { margin-top: 30px; }
+    .of-lead { font-size: 17px; color: var(--m-text-muted); margin: 0 0 8px; }
+    .of-opt { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 18px; align-items: center;
+              padding: 16px 0; border-top: 1px solid var(--m-border); cursor: pointer; }
+    .of-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+    .of-opt .switch { grid-row: span 2; width: 58px; height: 34px; border-radius: 999px; position: relative;
+                      background: var(--m-border); transition: background .18s ease; }
+    .of-opt .switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 26px; height: 26px;
+                             border-radius: 50%; background: var(--s-solid);
+                             box-shadow: 0 1px 3px rgba(16,18,20,.3); transition: transform .18s ease; }
+    .of-opt:has(input:checked) .switch { background: var(--m-accent); }
+    .of-opt:has(input:checked) .switch::after { transform: translateX(24px); }
+    .of-opt:has(input:focus-visible) .switch { outline: 2px solid var(--m-text); outline-offset: 2px; }
+    .of-opt-name { font-size: 18px; font-weight: 600; display: block; }
+    .of-opt-desc { font-size: 17px; color: var(--m-text-muted); display: block; line-height: 1.5; }
+    .of-opt-price { font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; opacity: .45;
+                    transition: opacity .18s ease; font-weight: 600; }
+    .of-opt:has(input:checked) .of-opt-price { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) { .of-opt .switch, .of-opt .switch::after, .of-opt-price { transition: none; } }
 
-    .totals { border-top: 2px solid var(--ink); margin-top: 22px; padding-top: 12px; }
-    .trow { display: flex; justify-content: space-between; gap: 16px; padding: 4px 0;
-            font-size: 16px; color: var(--muted); }
-    .trow b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .trow--main { font-size: 19px; color: var(--ink); font-weight: 700; }
-    .trow--main b { font-size: 22px; }
+    .of-totals { border-top: 2px solid var(--m-text); margin-top: 26px; padding-top: 14px; }
+    .of-trow { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; font-size: 18px;
+               color: var(--m-text-muted); }
+    .of-trow b { color: var(--m-text); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .of-trow--main { font-size: 20px; color: var(--m-text); font-weight: 600; }
+    .of-trow--main b { font-size: 26px; font-weight: 700; }
+    .of-valid { font-size: 17px; color: var(--m-text-muted); margin: 22px 0 30px; }
 
-    .trail { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 26px; }
-    .trail span { font-size: 13px; font-weight: 700; color: var(--muted);
-                  border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
-    .trail span.done { color: var(--ok); }
-    .foot { text-align: center; font-size: 13px; color: var(--muted); margin-top: 26px; }
-    .foot a { color: var(--accent-deep); }
+    .of-actions { display: grid; gap: 14px; }
+    .of-accept { font-family: var(--s-mono); font-size: 17px; letter-spacing: .1em; text-transform: uppercase;
+                 font-weight: 600; color: var(--m-accent-text); background: var(--m-accent); border: 0;
+                 border-radius: 999px; padding: 22px 24px; cursor: pointer; width: 100%;
+                 transition: transform .15s ease; }
+    .of-accept:hover { transform: translateY(-1px); }
+    .of-accept:focus-visible { outline: 2px solid var(--m-text); outline-offset: 3px; }
+    .of-legal { font-size: 17px; color: var(--m-text-muted); text-align: center; margin: 2px 0 0; line-height: 1.5; }
+    .of-ask { border: 1px solid var(--m-border); border-radius: 18px; margin-top: 18px; }
+    .of-ask summary { font-family: var(--s-mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+                      font-weight: 500; padding: 18px; cursor: pointer; text-align: center; list-style: none; }
+    .of-ask summary::-webkit-details-marker { display: none; }
+    .of-ask .q { padding: 0 18px 18px; display: grid; gap: 12px; }
+    .of-ask textarea { font: inherit; font-size: 18px; padding: 14px 16px; border: 1px solid var(--m-border);
+                       border-radius: 14px; background: var(--s-field); color: var(--m-text); min-height: 110px;
+                       resize: vertical; }
+    .of-ask textarea:focus { outline: 2px solid var(--m-text); outline-offset: 1px; }
+    .of-ask button { font-family: var(--s-mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+                     font-weight: 500; color: var(--m-text); background: transparent; border: 1px solid var(--m-border);
+                     border-radius: 999px; padding: 14px; cursor: pointer; }
+    .of-ask button:hover { background: var(--m-accent); color: var(--m-accent-text); border-color: transparent; }
+
+    .of-trail { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 34px; }
+    .of-trail span { font-family: var(--s-mono); font-size: 16px; letter-spacing: .06em; text-transform: uppercase;
+                     color: var(--m-text-muted); border: 1px solid var(--m-border); border-radius: 999px; padding: 8px 16px; }
+    .of-trail span.done { color: var(--s-ok); border-color: var(--s-ok-line); background: var(--s-ok-soft); }
+    .of-foot { text-align: center; font-size: 17px; color: var(--m-text-muted); margin-top: 28px; }
+    .of-foot a { color: var(--m-text); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+    @media (max-width: 640px) {
+        .of-shell { padding: 20px 14px 56px; }
+        .of-doc { padding: 34px 24px 32px; border-radius: 22px; }
+        .of-meta th { width: 130px; }
+        .of-lines td:last-child { padding-left: 12px; }
+    }
+    @media print {
+        body.m-body { background: #fff; }
+        .of-doc { box-shadow: none; border: 0; padding: 0; }
+        .of-ask, .of-foot { display: none; }
+    }
 </style>
 </head>
-<body>
-<div class="shell">
-    <div class="panel">
-        <div class="wordmark">{{ site_settings.name|default:"ADX" }}</div>
-        <h1>Offert{% if quote.project_title %}: {{ quote.project_title }}{% endif %}</h1>
-        <p class="intro">
+<body class="m-body">
+<div class="of-shell">
+    <div class="of-doc">
+        <div class="of-head">
+            <img src="{% static 'images/adx-logo.png' %}" alt="{{ site_settings.name|default:'ADX' }}" class="of-logo">
+            <p class="of-kicker">Offert <b>{{ quote.pk }}</b></p>
+        </div>
+        <h1>{% if quote.project_title %}{{ quote.project_title }}{% else %}Offert{% endif %}</h1>
+        <p class="of-intro">
             {% if quote.intro %}{{ quote.intro|linebreaksbr }}{% else %}Hej {{ quote.customer_name }}. Här är vårt förslag, rad för rad. Tryck på Acceptera när ni är redo, eller ställ en fråga direkt härifrån.{% endif %}
         </p>
 
+        <table class="of-meta">
+            <tbody>
+                <tr><th>Till</th><td>{{ quote.customer_name }}{% if quote.customer_email %}<br>{{ quote.customer_email }}{% endif %}</td></tr>
+                <tr><th>Från</th><td>{{ site_settings.name|default:"ADX" }}{% if site_settings.email %}<br>{{ site_settings.email }}{% endif %}</td></tr>
+                <tr><th>Datum</th><td>{{ quote.sent_at|default:quote.created_at|date:"j F Y" }}</td></tr>
+                {% if quote.valid_until %}<tr><th>Giltig till</th><td>{{ quote.valid_until|date:"j F Y" }}</td></tr>{% endif %}
+                <tr><th>Priser</th><td>Alla priser i svenska kronor, exklusive moms</td></tr>
+            </tbody>
+        </table>
+
         {% if quote.status == 'accepted' %}
-        <p class="banner banner--ok">Offerten är accepterad{% if quote.accepted_at %} {{ quote.accepted_at|date:"j F Y" }}{% endif %}. Tack! Vi hör av oss om nästa steg.</p>
+        <p class="of-banner of-banner--ok">Offerten är accepterad{% if quote.accepted_at %} {{ quote.accepted_at|date:"j F Y" }}{% endif %}. Tack! Vi hör av oss om nästa steg.</p>
         {% elif question_sent %}
-        <p class="banner">Frågan är skickad. Vi svarar så fort vi kan, oftast samma dag.</p>
+        <p class="of-banner">Frågan är skickad. Vi svarar så fort vi kan, oftast samma dag.</p>
         {% elif question_failed %}
-        <p class="banner" style="color:#b3341a;">Frågan kunde inte skickas just nu. Mejla oss direkt{% if site_settings.email %} på <a href="mailto:{{ site_settings.email }}" style="color:inherit;">{{ site_settings.email }}</a>{% endif %} så svarar vi där.</p>
+        <p class="of-banner of-banner--warn">Frågan kunde inte skickas just nu. Mejla oss direkt{% if site_settings.email %} på <a href="mailto:{{ site_settings.email }}">{{ site_settings.email }}</a>{% endif %} så svarar vi där.</p>
         {% endif %}
 
-        <table>
+        <p class="of-section">{% if quote.is_answerable and optional_lines %}Ingår{% else %}Omfattning{% endif %}</p>
+        <table class="of-lines">
             <tbody>
                 {% for line in table_lines %}
                 <tr>
@@ -138,20 +165,20 @@ godkända mockupen: ljust, luftigt, stor text, guldaccent.
         <form method="post" action="{% url 'offers:accept' quote.token %}">
             {% csrf_token %}
             {% if optional_lines %}
-            <div class="opts">
-                <p class="opts-kicker">Tillval</p>
-                <p class="opts-lead">Välj till det ni vill ha - summan räknas om direkt.</p>
+            <div class="of-opts">
+                <p class="of-section">Tillval</p>
+                <p class="of-lead">Välj till det ni vill ha. Summan räknas om direkt.</p>
                 {% for line in optional_lines %}
-                <label class="opt">
+                <label class="of-opt">
                     <input type="checkbox" name="tillval" value="{{ line.pk }}"
                            data-price="{{ line.price }}" data-period="{{ line.period }}"
                            {% if line.is_selected %}checked{% endif %}>
                     <span class="switch" aria-hidden="true"></span>
-                    <span class="opt-body">
-                        <span class="opt-name">{{ line.label }}</span>
-                        {% if line.description %}<span class="opt-desc">{{ line.description }}</span>{% endif %}
+                    <span class="of-opt-body">
+                        <span class="of-opt-name">{{ line.label }}</span>
+                        {% if line.description %}<span class="of-opt-desc">{{ line.description }}</span>{% endif %}
                     </span>
-                    <span class="opt-price">{{ line.price_display }}</span>
+                    <span class="of-opt-price">{{ line.price_display }}</span>
                 </label>
                 {% endfor %}
             </div>
@@ -159,17 +186,17 @@ godkända mockupen: ljust, luftigt, stor text, guldaccent.
 
             {% include "offers/_totals.html" %}
 
-            <p class="valid">
+            <p class="of-valid">
                 Alla priser exklusive moms.
                 {% if quote.valid_until %}Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}
             </p>
 
-            <div class="actions">
-                <button type="submit" class="btn-accept">Acceptera offerten</button>
-                <p class="legal">Ett tryck på Acceptera är en beställning enligt raderna ovan{% if optional_lines %}, med de tillval ni valt{% endif %}.</p>
+            <div class="of-actions">
+                <button type="submit" class="of-accept">Acceptera offerten</button>
+                <p class="of-legal">Ett tryck på Acceptera är en beställning enligt raderna ovan{% if optional_lines %}, med de tillval ni valt{% endif %}.</p>
             </div>
         </form>
-        <details>
+        <details class="of-ask">
             <summary>Ställ en fråga</summary>
             <form method="post" action="{% url 'offers:question' quote.token %}" class="q">
                 {% csrf_token %}
@@ -179,21 +206,21 @@ godkända mockupen: ljust, luftigt, stor text, guldaccent.
         </details>
         {% else %}
         {% include "offers/_totals.html" %}
-        <p class="valid">
+        <p class="of-valid">
             Alla priser exklusive moms.
             {% if quote.valid_until %}Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}
         </p>
         {% endif %}
 
         {% if quote.sent_at %}
-        <div class="trail" aria-label="Offertens status">
+        <div class="of-trail" aria-label="Offertens status">
             <span class="done">Skickad {{ quote.sent_at|date:"j M" }}</span>
             {% if quote.opened_at %}<span class="done">Öppnad {{ quote.opened_at|date:"j M" }}</span>{% else %}<span>Öppnad</span>{% endif %}
             {% if quote.accepted_at %}<span class="done">Accepterad {{ quote.accepted_at|date:"j M" }}</span>{% else %}<span>Accepterad</span>{% endif %}
         </div>
         {% endif %}
     </div>
-    <p class="foot">
+    <p class="of-foot">
         {{ site_settings.name|default:"ADX" }}{% if site_settings.email %} &middot; <a href="mailto:{{ site_settings.email }}">{{ site_settings.email }}</a>{% endif %}
         &middot; <a href="/">adx.se</a>
     </p>
@@ -201,7 +228,7 @@ godkända mockupen: ljust, luftigt, stor text, guldaccent.
 <script>
 (function () {
     "use strict";
-    var totals = document.querySelector(".totals[data-base-one]");
+    var totals = document.querySelector(".of-totals[data-base-one]");
     var boxes = document.querySelectorAll('input[name="tillval"]');
     if (!totals || !boxes.length) { return; }
     function kr(n) { return n.toLocaleString("sv-SE"); }

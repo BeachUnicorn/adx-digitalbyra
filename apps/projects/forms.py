@@ -6,7 +6,6 @@ from .models import (
     Customer,
     Issue,
     Project,
-    RequestKind,
     Urgency,
     validate_attachment,
 )
@@ -68,18 +67,11 @@ class IssueForm(forms.ModelForm):
 
 class PortalIssueForm(forms.Form):
     """
-    Kundens ärendeformulär. Frågorna är kundens språk, inte byråns: vad
-    de vill ha, hur bråttom, vilken sida. Svaren bär ärendet in i panelen.
+    Kundens ärendeformulär. Frågorna är kundens språk, inte byråns: hur
+    bråttom, vilken sida, när. Svaren bär ärendet in i panelen.
     """
 
     title = forms.CharField(label="Vad gäller det?", max_length=200)
-    request_kind = forms.ChoiceField(
-        label="Vad vill ni att vi gör?",
-        choices=RequestKind.choices,
-        initial=RequestKind.BUILD,
-        required=False,
-        widget=forms.RadioSelect,
-    )
     description = forms.CharField(
         label="Beskrivning",
         widget=forms.Textarea(attrs={"rows": 8}),

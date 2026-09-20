@@ -18,8 +18,6 @@
     var text = btn.closest(".pt-example").querySelector("[data-example-text]").textContent.trim();
     var desc = document.querySelector('textarea[name="description"]');
     if (desc && (!desc.value.trim() || window.confirm("Ersätta det du redan skrivit med exemplet?"))) desc.value = text;
-    var kind = document.querySelector('input[name="request_kind"][value="' + btn.getAttribute("data-kind") + '"]');
-    if (kind) kind.checked = true;
     var urgency = btn.getAttribute("data-urgency");
     if (urgency) { var u = document.querySelector('input[name="urgency"][value="' + urgency + '"]'); if (u) u.checked = true; }
     if (desc) { desc.focus(); desc.scrollIntoView({ behavior: "smooth", block: "center" }); }

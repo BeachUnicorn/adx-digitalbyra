@@ -21,7 +21,7 @@ Rubrik: Takservice i Stockholm
 Innehåll: vad vi gör (läckagesökning, omläggning, snöskottning), varför man ska välja oss (20 år i branschen, fast pris), och en knapp för att boka besiktning.
 
 Bilder bifogar vi. Sidan ska ligga i menyn under Tjänster och länkas från startsidan.</p>
-        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use data-kind="build">Använd som mall</button>
+        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use>Använd som mall</button>
       </article>
       <article class="pt-example">
         <h3>Vi vill ha er input</h3>
@@ -30,26 +30,20 @@ Bilder bifogar vi. Sidan ska ligga i menyn under Tjänster och länkas från sta
 Kan ni titta på startsidan och kontaktsidan och föreslå vad vi kan ändra för att fler ska höra av sig? Vi är öppna för förslag om både text, bilder och layout.
 
 Målgruppen är villaägare i Stockholm.</p>
-        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use data-kind="advice">Använd som mall</button>
+        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use>Använd som mall</button>
       </article>
       <article class="pt-example">
         <h3>Något är fel</h3>
         <p data-example-text>Kontaktformuläret ger ett felmeddelande när man trycker Skicka.
 
 Testat i Chrome på dator och i Safari på iPhone, samma sak. Skärmdump bifogad. Vi märkte det i går förmiddag, innan dess fungerade det.</p>
-        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use data-kind="build" data-urgency="asap">Använd som mall</button>
+        <button type="button" class="m-btn m-btn--small m-btn--ghost" data-example-use data-urgency="asap">Använd som mall</button>
       </article>
     </div>
   </div>
 
   <form method="post" enctype="multipart/form-data" class="m-panel tv-form pt-form">{% csrf_token %}
     {% m_field form.title %}
-
-    <fieldset class="pt-choice">
-      <legend>{{ form.request_kind.label }}</legend>
-      {% for radio in form.request_kind %}<label class="pt-radio">{{ radio.tag }}<span>{{ radio.choice_label }}</span></label>{% endfor %}
-      {{ form.request_kind.errors }}
-    </fieldset>
 
     {% m_field form.description %}
     {% m_field form.page_url %}
