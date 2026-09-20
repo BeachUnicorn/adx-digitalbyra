@@ -144,7 +144,7 @@ Ingen text under 16 px.
         {% if quote.status == 'accepted' %}
         <p class="of-banner of-banner--ok">Offerten är accepterad{% if quote.accepted_at %} {{ quote.accepted_at|date:"j F Y" }}{% endif %}. Tack! Vi hör av oss om nästa steg.</p>
         {% elif question_sent %}
-        <p class="of-banner">Frågan är skickad. Vi svarar så fort vi kan, oftast samma dag.</p>
+        <p class="of-banner">Frågan är skickad. Vi återkommer till er.</p>
         {% elif question_failed %}
         <p class="of-banner of-banner--warn">Frågan kunde inte skickas just nu. Mejla oss direkt{% if site_settings.email %} på <a href="mailto:{{ site_settings.email }}">{{ site_settings.email }}</a>{% endif %} så svarar vi där.</p>
         {% endif %}

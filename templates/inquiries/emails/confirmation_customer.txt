@@ -5,7 +5,7 @@ Tack för din förfrågan till {{ site_name }}!
 Referensnummer: {{ inquiry.reference }}
 
 SÅ HÄR GÅR DET TILL:
-1. Vi läser din förfrågan och återkommer inom en arbetsdag.
+1. Vi läser din förfrågan och återkommer till dig.
 2. Vi bokar ett kort samtal - det kostar ingenting.
 3. Du får ett konkret förslag med pris och tidplan.
 

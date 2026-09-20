@@ -192,7 +192,7 @@
         "type": "bar",
         "data": {
           "label": "Vill ni veta mer?",
-          "note": "Vi svarar samma dag",
+          "note": "Första mötet kostar ingenting",
           "link": {
             "label": "Skicka förfrågan",
             "url": "/kontakt/"
@@ -1325,7 +1325,7 @@
         "data": {
           "kicker": "Förfrågan",
           "title": "Berätta vad ni behöver",
-          "intro": "Fyll i formuläret så återkommer vi senast nästa vardag. Ju mer ni berättar, desto bättre förslag kan vi ge direkt."
+          "intro": "Fyll i formuläret så återkommer vi. Ju mer ni berättar, desto bättre förslag kan vi ge direkt."
         }
       },
       {

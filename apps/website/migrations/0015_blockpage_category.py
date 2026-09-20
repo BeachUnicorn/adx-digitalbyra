@@ -4,15 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('website', '0014_remove_sitesettings_reco_widget_url_and_more'),
+        ("website", "0014_remove_sitesettings_reco_widget_url_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='blockpage',
-            name='category',
-            field=models.CharField(blank=True, choices=[('bransch', 'Bransch'), ('guide', 'Guide'), ('case', 'Case')], default='', max_length=20),
+            model_name="blockpage",
+            name="category",
+            field=models.CharField(
+                blank=True,
+                choices=[("bransch", "Bransch"), ("guide", "Guide"), ("case", "Case")],
+                default="",
+                max_length=20,
+            ),
         ),
     ]

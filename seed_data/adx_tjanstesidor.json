@@ -127,7 +127,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vilket namn ni vill ha",
-      "intro": "Skriv vilket eller vilka namn ni funderar på och vad domänen ska användas till, så kontrollerar vi tillgängligheten och återkommer med ett fast pris för registrering och uppsättning. Svar inom en arbetsdag."
+      "intro": "Skriv vilket eller vilka namn ni funderar på och vad domänen ska användas till, så kontrollerar vi tillgängligheten och återkommer med ett fast pris för registrering och uppsättning."
      }
     },
     {
@@ -267,7 +267,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta om domänen som ska byta innehavare",
-      "intro": "Ange domännamnet, vem som står som innehavare i dag och vem som ska ta över, så återkommer vi med hur överlåtelsen går till för just den toppdomänen och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Ange domännamnet, vem som står som innehavare i dag och vem som ska ta över, så återkommer vi med hur överlåtelsen går till för just den toppdomänen och ett fast pris."
      }
     },
     {
@@ -407,7 +407,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vilken domän som ska flyttas",
-      "intro": "Ange domännamnet, var det ligger i dag och om DNS och e-post ska följa med, så återkommer vi med en plan för flytten och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Ange domännamnet, var det ligger i dag och om DNS och e-post ska följa med, så återkommer vi med en plan för flytten och ett fast pris."
      }
     },
     {
@@ -546,7 +546,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta om era domäner",
-      "intro": "Skriv hur många domäner ni har, ungefär var de ligger och vad ni brukar behöva hjälp med, så återkommer vi med en genomgång och ett fast årspris. Svar inom en arbetsdag."
+      "intro": "Skriv hur många domäner ni har, ungefär var de ligger och vad ni brukar behöva hjälp med, så återkommer vi med en genomgång och ett fast årspris."
      }
     },
     {
@@ -685,7 +685,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vilket namn som ska bevakas",
-      "intro": "Ange ert domännamn och varumärke och om ni redan sett snarlika domäner, så återkommer vi med ett förslag på vilka varianter vi bör bevaka och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Ange ert domännamn och varumärke och om ni redan sett snarlika domäner, så återkommer vi med ett förslag på vilka varianter vi bör bevaka och ett fast pris."
      }
     },
     {
@@ -825,7 +825,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vilket namn ni väntar på",
-      "intro": "Ange domännamnet ni vill ha och varför, så undersöker vi domänens status och återkommer med vår bedömning, hur bevakningen skulle gå till och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Ange domännamnet ni vill ha och varför, så undersöker vi domänens status och återkommer med vår bedömning, hur bevakningen skulle gå till och ett fast pris."
      }
     },
     {
@@ -965,7 +965,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vilket namn ni vill köpa",
-      "intro": "Ange domännamnet och varför ni vill ha det, så gör vi en första bedömning av innehavare och prisbild och återkommer med ett fast pris för vårt arbete. Svar inom en arbetsdag."
+      "intro": "Ange domännamnet och varför ni vill ha det, så gör vi en första bedömning av innehavare och prisbild och återkommer med ett fast pris för vårt arbete."
      }
     },
     {
@@ -1105,7 +1105,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vad ni vet om era domäner",
-      "intro": "Skriv vilka domäner ni känner till och hos vilka leverantörer de ligger, även om listan är ofullständig. Vi återkommer med ett fast pris för genomgången. Svar inom en arbetsdag."
+      "intro": "Skriv vilka domäner ni känner till och hos vilka leverantörer de ligger, även om listan är ofullständig. Vi återkommer med ett fast pris för genomgången."
      }
     },
     {
@@ -1244,7 +1244,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta var era domäner ligger",
-      "intro": "Lista de domäner och leverantörer ni känner till, så återkommer vi med en plan för flytten och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Lista de domäner och leverantörer ni känner till, så återkommer vi med en plan för flytten och ett fast pris."
      }
     },
     {
@@ -1383,7 +1383,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta om ert varumärke och era marknader",
-      "intro": "Beskriv verksamheten, vilka namn ni använder och var ni verkar eller planerar att verka. Vi återkommer med upplägg och fast pris för strategin. Svar inom en arbetsdag."
+      "intro": "Beskriv verksamheten, vilka namn ni använder och var ni verkar eller planerar att verka. Vi återkommer med upplägg och fast pris för strategin."
      }
     },
     {
@@ -1522,7 +1522,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vad som ska ändras eller städas",
-      "intro": "Beskriv domänen och vad ni behöver: en enskild ändring, en genomgång av alla poster eller löpande hantering. Vi återkommer med fast pris. Svar inom en arbetsdag."
+      "intro": "Beskriv domänen och vad ni behöver: en enskild ändring, en genomgång av alla poster eller löpande hantering. Vi återkommer med fast pris."
      }
     },
     {
@@ -1662,7 +1662,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta var domänen och DNS ligger",
-      "intro": "Ange vilken domän det gäller och, om ni vet, hos vilken registrar och DNS-leverantör den ligger. Vi kontrollerar förutsättningarna och återkommer med fast pris. Svar inom en arbetsdag."
+      "intro": "Ange vilken domän det gäller och, om ni vet, hos vilken registrar och DNS-leverantör den ligger. Vi kontrollerar förutsättningarna och återkommer med fast pris."
      }
     },
     {
@@ -1802,7 +1802,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vilken domän som ska pekas om",
-      "intro": "Ange gammal och ny domän och ungefär hur stor sajten är. Vi återkommer med upplägg för mappningen och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Ange gammal och ny domän och ungefär hur stor sajten är. Vi återkommer med upplägg för mappningen och ett fast pris."
      }
     },
     {
@@ -1941,7 +1941,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta hur ni vill ha er e-post",
-      "intro": "Ange domän, ungefär hur många användare ni är och om ni har e-post någonstans i dag. Vi återkommer med en rekommendation och fast pris för uppsättningen. Svar inom en arbetsdag."
+      "intro": "Ange domän, ungefär hur många användare ni är och om ni har e-post någonstans i dag. Vi återkommer med en rekommendation och fast pris för uppsättningen."
      }
     },
     {
@@ -2081,7 +2081,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta var ni har e-posten i dag",
-      "intro": "Ange nuvarande leverantör, vart ni vill flytta och ungefär hur många brevlådor det gäller. Vi återkommer med en plan för flytten och fast pris. Svar inom en arbetsdag."
+      "intro": "Ange nuvarande leverantör, vart ni vill flytta och ungefär hur många brevlådor det gäller. Vi återkommer med en plan för flytten och fast pris."
      }
     },
     {
@@ -2220,7 +2220,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta hur ni skickar mejl",
-      "intro": "Skriv vilken domän det gäller och vilka system ni skickar mejl från, så återkommer vi med en genomgång och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Skriv vilken domän det gäller och vilka system ni skickar mejl från, så återkommer vi med en genomgång och ett fast pris."
      }
     },
     {
@@ -2360,7 +2360,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta om er domän",
-      "intro": "Skriv vilken domän det gäller, om ni har DMARC idag och vilka system som skickar mejl, så återkommer vi med ett upplägg och ett fast månadspris. Svar inom en arbetsdag."
+      "intro": "Skriv vilken domän det gäller, om ni har DMARC idag och vilka system som skickar mejl, så återkommer vi med ett upplägg och ett fast månadspris."
      }
     },
     {
@@ -2499,7 +2499,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta om sajten ni vill drifta",
-      "intro": "Skriv vilken plattform sajten är byggd på, var den ligger idag och ungefär hur mycket trafik den har, så återkommer vi med ett upplägg och ett fast månadspris. Svar inom en arbetsdag."
+      "intro": "Skriv vilken plattform sajten är byggd på, var den ligger idag och ungefär hur mycket trafik den har, så återkommer vi med ett upplägg och ett fast månadspris."
      }
     },
     {
@@ -2639,7 +2639,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vad som inte får gå ner",
-      "intro": "Skriv vilken sajt det gäller, var den ligger och vilka funktioner som är viktigast, så återkommer vi med ett upplägg för övervakningen och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Skriv vilken sajt det gäller, var den ligger och vilka funktioner som är viktigast, så återkommer vi med ett upplägg för övervakningen och ett fast pris."
      }
     },
     {
@@ -2779,7 +2779,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vad ni vill ha granskat",
-      "intro": "Skriv vilken sajt och domän det gäller, vilken plattform sajten är byggd på och om något särskilt oroar er, så återkommer vi med ett upplägg och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Skriv vilken sajt och domän det gäller, vilken plattform sajten är byggd på och om något särskilt oroar er, så återkommer vi med ett upplägg och ett fast pris."
      }
     },
     {
@@ -2918,7 +2918,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta om era inloggningar",
-      "intro": "Skriv vilken plattform sajten är byggd på och ungefär hur många som loggar in, så återkommer vi med ett upplägg och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Skriv vilken plattform sajten är byggd på och ungefär hur många som loggar in, så återkommer vi med ett upplägg och ett fast pris."
      }
     },
     {
@@ -3058,7 +3058,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta om er hemsida",
-      "intro": "Skriv vilken sajt det gäller, vilken plattform den är byggd på och om ni vet när någon senast gick igenom den, så återkommer vi med ett upplägg och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Skriv vilken sajt det gäller, vilken plattform den är byggd på och om ni vet när någon senast gick igenom den, så återkommer vi med ett upplägg och ett fast pris."
      }
     },
     {
@@ -3198,7 +3198,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vilka system som ska kopplas ihop",
-      "intro": "Skriv vilka system ni använder, vilken data som ska flyttas och åt vilket håll, så återkommer vi med en kartläggning och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Skriv vilka system ni använder, vilken data som ska flyttas och åt vilket håll, så återkommer vi med en kartläggning och ett fast pris."
      }
     },
     {
@@ -3338,7 +3338,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vad era kunder frågar om",
-      "intro": "Beskriv er verksamhet och vilka frågor ni oftast får, så återkommer vi med ett förslag på ämnesplan och pris. Svar inom en arbetsdag."
+      "intro": "Beskriv er verksamhet och vilka frågor ni oftast får, så återkommer vi med ett förslag på ämnesplan och pris."
      }
     },
     {
@@ -3477,7 +3477,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Vilka sidor behöver ny text?",
-      "intro": "Skicka en länk till er hemsida och berätta vilka sidor det gäller, så återkommer vi med ett fast pris per sida. Svar inom en arbetsdag."
+      "intro": "Skicka en länk till er hemsida och berätta vilka sidor det gäller, så återkommer vi med ett fast pris per sida."
      }
     },
     {
@@ -3617,7 +3617,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Vad ska bilderna visa?",
-      "intro": "Berätta om er verksamhet, var ni finns och vilka sidor bilderna ska sitta på, så återkommer vi med ett upplägg och fast pris. Svar inom en arbetsdag."
+      "intro": "Berätta om er verksamhet, var ni finns och vilka sidor bilderna ska sitta på, så återkommer vi med ett upplägg och fast pris."
      }
     },
     {
@@ -3756,7 +3756,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Ny logotyp eller uppfräschning?",
-      "intro": "Berätta vad ni har idag och vad som ska tas fram, gärna med en länk till er hemsida, så återkommer vi med ett upplägg och fast pris. Svar inom en arbetsdag."
+      "intro": "Berätta vad ni har idag och vad som ska tas fram, gärna med en länk till er hemsida, så återkommer vi med ett upplägg och fast pris."
      }
     },
     {
@@ -3896,7 +3896,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta vad ni vill hittas på",
-      "intro": "Skicka en länk till er hemsida och beskriv vilka kunder ni vill nå, så återkommer vi med en första bedömning och ett förslag på månadsupplägg. Svar inom en arbetsdag."
+      "intro": "Skicka en länk till er hemsida och beskriv vilka kunder ni vill nå, så återkommer vi med en första bedömning och ett förslag på månadsupplägg."
      }
     },
     {
@@ -4035,7 +4035,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Hur ser er profil ut idag?",
-      "intro": "Berätta om ni har en profil, vem som har inloggningen och vad som är fel eller saknas, så återkommer vi med ett upplägg och fast pris. Svar inom en arbetsdag."
+      "intro": "Berätta om ni har en profil, vem som har inloggningen och vad som är fel eller saknas, så återkommer vi med ett upplägg och fast pris."
      }
     },
     {
@@ -4175,7 +4175,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Vad vill ni veta om er hemsida?",
-      "intro": "Berätta vad ni har för mätning idag, om ni vet, och vilka frågor ni vill ha svar på. Vi återkommer med ett upplägg och fast pris för uppsättningen. Svar inom en arbetsdag."
+      "intro": "Berätta vad ni har för mätning idag, om ni vet, och vilka frågor ni vill ha svar på. Vi återkommer med ett upplägg och fast pris för uppsättningen."
      }
     },
     {
@@ -4314,7 +4314,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Vad ska kampanjen leda till?",
-      "intro": "Berätta vad ni ska annonsera, vem som ska klicka och vad besökaren ska göra på sidan, så återkommer vi med ett upplägg och fast pris. Svar inom en arbetsdag."
+      "intro": "Berätta vad ni ska annonsera, vem som ska klicka och vad besökaren ska göra på sidan, så återkommer vi med ett upplägg och fast pris."
      }
     },
     {
@@ -4453,7 +4453,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Vilka språk behöver ni?",
-      "intro": "Berätta vilka språk som ska finnas, om ni har översatta texter idag och om sajten finns eller ska byggas, så återkommer vi med ett upplägg och fast pris. Svar inom en arbetsdag."
+      "intro": "Berätta vilka språk som ska finnas, om ni har översatta texter idag och om sajten finns eller ska byggas, så återkommer vi med ett upplägg och fast pris."
      }
     },
     {
@@ -4593,7 +4593,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Vad vill ni kunna göra själva?",
-      "intro": "Berätta vilken sajt det gäller, vilka som ska delta och vilka ändringar ni vill kunna göra, så återkommer vi med ett upplägg och fast pris. Svar inom en arbetsdag."
+      "intro": "Berätta vilken sajt det gäller, vilka som ska delta och vilka ändringar ni vill kunna göra, så återkommer vi med ett upplägg och fast pris."
      }
     },
     {

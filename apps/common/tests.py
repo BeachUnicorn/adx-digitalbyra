@@ -227,3 +227,49 @@ class MultilineFieldTests(TestCase):
         from apps.common.security import sanitize_multiline_text
 
         self.assertEqual(sanitize_multiline_text("A — B\nC"), "A - B\nC")
+
+
+class PromiseGuardTests(TestCase):
+    """
+    Inga svarstidslöften i kod eller mallar.
+
+    "Vi svarar inom en arbetsdag" är ett löfte Giovanni ger, inte något
+    en mall eller ett seedskript hittar på (2026-09-20 fanns det på sex
+    ställen plus hundra formulärblock). Vill han lova en svarstid skriver
+    han den själv i innehållet - koden ska inte bära den.
+    """
+
+    PHRASES = (
+        "inom en arbetsdag",
+        "svarar samma dag",
+        "svarar inom",
+        "oftast samma dag",
+        "inom 24 timmar",
+        "återkommer inom",
+        "nästa vardag",
+        "inom två arbetsdagar",
+        "arbetsdagar",
+    )
+
+    def test_no_response_time_promises_in_code_or_templates(self):
+        import pathlib
+
+        from django.conf import settings
+
+        base = pathlib.Path(settings.BASE_DIR)
+        hits = []
+        scan = (
+            ("templates", ("*.html", "*.txt")),
+            ("apps", ("*.py",)),
+            ("seed_data", ("*.json",)),
+        )
+        for folder, patterns in scan:
+            for pattern in patterns:
+                for path in (base / folder).rglob(pattern):
+                    if path.name == "tests.py" or "migrations" in path.parts:
+                        continue
+                    text = path.read_text(encoding="utf-8").lower()
+                    for phrase in self.PHRASES:
+                        if phrase in text:
+                            hits.append(f"{path.relative_to(base)}: {phrase}")
+        self.assertEqual(hits, [], "Svarstidslöften hör inte hemma i koden:\n" + "\n".join(hits))

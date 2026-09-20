@@ -8098,7 +8098,7 @@
      },
      {
       "fraga": "Hur snabbt görs en ändring?",
-      "svar": "Normala innehållsändringar görs inom två arbetsdagar. Akuta fel, som att sajten ligger nere, tar vi direkt."
+      "svar": "Innehållsändringar görs löpande. Akuta fel, som att sajten ligger nere, går alltid först."
      },
      {
       "fraga": "Vi har ett paket via Atlas Holly - behöver vi förvaltning?",
@@ -8146,7 +8146,7 @@
      "typ": "prose",
      "falt": {
       "title": "Så fungerar förvaltningsavtalet",
-      "body": "<p>Vi börjar med en teknisk genomgång av er sajt: plattform, prestanda, säkerhet och vad som behöver rättas från start. Sedan tar vi över ansvaret - uppdateringar, daglig backup, säkerhetsövervakning och certifikat sköts löpande utan att ni behöver tänka på det.</p><p>I avtalet ingår också en pott timmar varje månad för ändringar. Ny personal på teamsidan, ändrade priser, en ny undersida - ni mejlar, vi gör. Normala ändringar levereras inom två arbetsdagar, akuta fel tas direkt.</p><p>Priset är fast per månad och sätts efter genomgången, utifrån sajtens storlek och hur mycket löpande hjälp ni vill ha. Inga rörliga debiteringar, inga överraskningar på fakturan.</p><p>Kör ni ett av våra färdiga paket via Atlas Holly behöver ni inget förvaltningsavtal - där ingår drift, säkerhet och backup redan i månadspriset från 495 kronor.</p>"
+      "body": "<p>Vi börjar med en teknisk genomgång av er sajt: plattform, prestanda, säkerhet och vad som behöver rättas från start. Sedan tar vi över ansvaret - uppdateringar, daglig backup, säkerhetsövervakning och certifikat sköts löpande utan att ni behöver tänka på det.</p><p>I avtalet ingår också en pott timmar varje månad för ändringar. Ny personal på teamsidan, ändrade priser, en ny undersida - ni mejlar, vi gör. Akuta fel går alltid först.</p><p>Priset är fast per månad och sätts efter genomgången, utifrån sajtens storlek och hur mycket löpande hjälp ni vill ha. Inga rörliga debiteringar, inga överraskningar på fakturan.</p><p>Kör ni ett av våra färdiga paket via Atlas Holly behöver ni inget förvaltningsavtal - där ingår drift, säkerhet och backup redan i månadspriset från 495 kronor.</p>"
      }
     },
     {
@@ -8212,7 +8212,7 @@
      "falt": {
       "kicker": "Förfrågan",
       "title": "Berätta om er hemsida",
-      "intro": "Beskriv sajten och vad ni vill ha hjälp med, så återkommer vi med en genomgång och ett fast pris. Svar inom en arbetsdag."
+      "intro": "Beskriv sajten och vad ni vill ha hjälp med, så återkommer vi med en genomgång och ett fast pris."
      }
     },
     {

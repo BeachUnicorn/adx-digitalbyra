@@ -200,7 +200,7 @@
   },
   {
    "namn": "DNS-hantering",
-   "beskrivning": "Vi sköter alla DNS-poster: sajt, e-post, verifieringar och underdomäner. Ändringar samma dag.",
+   "beskrivning": "Vi sköter alla DNS-poster: sajt, e-post, verifieringar och underdomäner.",
    "riktpris": 0,
    "pristyp": "yearly"
   },

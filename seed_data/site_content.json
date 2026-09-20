@@ -453,7 +453,7 @@
           },
           "label": "Skicka förfrågan"
         },
-        "note": "Vi svarar samma dag",
+        "note": "Första mötet kostar ingenting",
         "label": "Vill ni veta mer?"
       },
       "order": 2,
@@ -2088,7 +2088,7 @@
       "page": 11,
       "block_type": "inquiry_form",
       "data": {
-        "intro": "Fyll i formuläret så återkommer vi senast nästa vardag. Ju mer ni berättar, desto bättre förslag kan vi ge direkt.",
+        "intro": "Fyll i formuläret så återkommer vi. Ju mer ni berättar, desto bättre förslag kan vi ge direkt.",
         "title": "Berätta vad ni behöver",
         "kicker": "Förfrågan"
       },

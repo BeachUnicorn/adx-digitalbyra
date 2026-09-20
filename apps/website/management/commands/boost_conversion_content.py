@@ -33,7 +33,7 @@ SEED_FILE = Path(django_settings.BASE_DIR) / "seed_data" / "adx_sokordssidor.jso
 FORM_FALT = {
     "kicker": "Förfrågan",
     "title": "Berätta vad ni behöver",
-    "intro": "Svar inom en arbetsdag. Första mötet kostar ingenting.",
+    "intro": "Första mötet kostar ingenting.",
 }
 
 
