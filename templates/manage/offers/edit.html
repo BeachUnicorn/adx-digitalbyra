@@ -66,7 +66,7 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
 {% block content %}
 <form id="csrf" style="display:none;">{% csrf_token %}</form>
 
-<p class="m-crumb-row"><a href="{% url 'manage:offer_list' %}">Offerter</a> /</p>
+<p class="m-crumb-row"><a href="{% url 'manage:offer_list' %}">Offerter</a> /{% if quote.copied_from %} <span class="o-copy-of">Kopia av <a href="{% url 'manage:offer_edit' quote.copied_from.pk %}">offert #{{ quote.copied_from.pk }}</a> ({{ quote.copied_from.customer_name }})</span>{% endif %}</p>
 <div class="o-top">
     <h1 class="o-top__title">{{ quote.customer_name }}</h1>
     <span class="o-top__state">
@@ -241,6 +241,7 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
                     <button type="submit" class="m-btn m-btn--small m-btn--ghost">Markera förlorad</button>
                 </form>
                 {% endif %}
+                <a href="{% url 'manage:offer_list' %}" class="m-btn m-btn--small m-btn--ghost" data-copy="{% url 'manage:offer_duplicate' quote.pk %}">Kopiera till annan kund</a>
                 <form method="post" action="{% url 'manage:offer_delete' quote.pk %}"
                       onsubmit="return confirm('Ta bort hela offerten?');">
                     {% csrf_token %}
@@ -490,4 +491,5 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
     });
 })();
 </script>
+{% include "manage/offers/_copy_dialog.html" %}
 {% endblock %}

@@ -137,6 +137,11 @@ class Quote(models.Model):
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
     )
+    # Spårbarhet när samma offert går till flera företag: varje företag får
+    # en egen offert (eget avtal, egen accept), kopian minns originalet.
+    copied_from = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="copies"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -176,6 +181,49 @@ class Quote(models.Model):
     def is_answerable(self):
         """Kan kunden fortfarande agera på offerten?"""
         return self.status in (QuoteStatus.SENT, QuoteStatus.OPENED)
+
+    def duplicate(self, *, customer_name, customer_email="", project_title=None, user=None):
+        """
+        En exakt kopia som utkast, med ny länk, till ett annat företag.
+
+        Rader (med tillval och förval), hälsning och bilagor följer med.
+        Status, accept, beställare, projektkoppling och radernas ärenden
+        gör det inte - det hör till originalets affär, inte kopians.
+        """
+        from django.core.files.base import ContentFile
+
+        copy = Quote.objects.create(
+            customer_name=customer_name.strip()[:200],
+            customer_email=customer_email.strip()[:254],
+            project_title=(self.project_title if project_title is None else project_title)[:200],
+            intro=self.intro,
+            valid_until=timezone.localdate() + timezone.timedelta(days=30),
+            created_by=user,
+            copied_from=self,
+        )
+        for line in self.lines.all():
+            QuoteLine.objects.create(
+                quote=copy,
+                product=line.product,
+                label=line.label,
+                description=line.description,
+                price=line.price,
+                period=line.period,
+                is_optional=line.is_optional,
+                is_selected=line.is_selected,
+                order=line.order,
+            )
+        for attachment in self.attachments.all():
+            with attachment.file.open("rb") as source:
+                content = ContentFile(source.read(), name=attachment.original_name)
+            QuoteAttachment.objects.create(
+                quote=copy,
+                file=content,
+                original_name=attachment.original_name,
+                content_type=attachment.content_type,
+                size=attachment.size,
+            )
+        return copy
 
     @property
     def accepted_by(self):

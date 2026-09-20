@@ -1635,3 +1635,15 @@ ul.m-steps{list-style:square}
    offers/edit.html har sitt rutnät i ett stilblock, och Granska-knappen i
    tools/hemsidekollen.html har m-btn--inline i stället för en klass som inte
    fanns (se kommentaren överst i mallen). */
+
+/* Kopiera-dialogen (offerter): panelens yta i en modal, allt via tokens. */
+.o-dialog{border:1px solid var(--m-border);border-radius:var(--m-radius);padding:0;background:var(--s-solid);color:var(--m-text);box-shadow:var(--s-float);width:min(440px,calc(100vw - 32px))}
+.o-dialog::backdrop{background:rgba(16,18,20,.28);backdrop-filter:blur(3px)}
+.o-dialog__form{padding:26px 28px 24px;display:flex;flex-direction:column;gap:14px}
+.o-dialog__form .m-field{margin:0}
+.o-dialog__form .m-field input{width:100%;box-sizing:border-box}
+.o-dialog__actions{display:flex;justify-content:flex-end;gap:8px;margin-top:6px}
+.o-table__act{text-align:right;white-space:nowrap}
+.o-table__act .m-btn{width:auto}
+.o-copy-of{font-family:var(--s-mono);font-size:12px;letter-spacing:.04em;color:var(--m-text-muted);margin-left:8px}
+.o-copy-of a{color:var(--m-text)}

@@ -1,0 +1,41 @@
+{% comment %}
+Kopiera offerten till ett annat företag. EN dialog per sida; knapparna
+[data-copy] bär offertens adress och projekttitel, skriptet fyller i och
+öppnar. Utan JS faller knappen tillbaka på att öppna offerten.
+{% endcomment %}
+<dialog class="o-dialog" id="copy-dialog" aria-labelledby="copy-title-h">
+    <form method="post" class="o-dialog__form" id="copy-form">
+        {% csrf_token %}
+        <h2 class="o-card__title" id="copy-title-h">Kopiera offerten</h2>
+        <p class="af-hero__desc">En exakt kopia som utkast med ny länk. Rader, tillval, hälsning och bilagor följer med. Status, accept och projekt gör det inte.</p>
+        <div class="m-field"><label for="copy-name">Till kund</label>
+            <input id="copy-name" name="customer_name" required maxlength="200" placeholder="Företagets namn"></div>
+        <div class="m-field"><label for="copy-email">Kundens e-post</label>
+            <input id="copy-email" name="customer_email" type="email" maxlength="254"></div>
+        <div class="m-field"><label for="copy-project">Projekt</label>
+            <input id="copy-project" name="project_title" maxlength="200" placeholder="Tomt = samma som originalet"></div>
+        <div class="o-dialog__actions">
+            <button type="button" class="m-btn m-btn--small m-btn--ghost" data-close>Avbryt</button>
+            <button type="submit" class="m-btn m-btn--small">Skapa kopia</button>
+        </div>
+    </form>
+</dialog>
+<script>
+(function () {
+    var dialog = document.getElementById("copy-dialog"), form = document.getElementById("copy-form");
+    if (!dialog || !form || !dialog.showModal) { return; }
+    document.querySelectorAll("[data-copy]").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            e.preventDefault();
+            form.action = btn.getAttribute("data-copy");
+            document.getElementById("copy-project").value = "";
+            document.getElementById("copy-name").value = "";
+            document.getElementById("copy-email").value = "";
+            dialog.showModal();
+            document.getElementById("copy-name").focus();
+        });
+    });
+    dialog.querySelector("[data-close]").addEventListener("click", function () { dialog.close(); });
+    dialog.addEventListener("click", function (e) { if (e.target === dialog) { dialog.close(); } });
+})();
+</script>

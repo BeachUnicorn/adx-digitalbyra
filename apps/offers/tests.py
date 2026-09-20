@@ -13,7 +13,7 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.test import Client, TestCase, override_settings
 
-from .models import PricePeriod, Product, Quote, QuoteLine, QuoteStatus
+from .models import PricePeriod, Product, Quote, QuoteAttachment, QuoteLine, QuoteStatus
 
 EMAIL_SETTINGS = {
     "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend",
@@ -882,3 +882,101 @@ class AttachmentAndIpTests(TestCase):
             META = {"HTTP_X_FORWARDED_FOR": "not-an-ip", "REMOTE_ADDR": "198.51.100.7"}
 
         self.assertEqual(client_ip(R()), "198.51.100.7")
+
+
+class DuplicateTests(TestCase):
+    """Samma offert till ett annat företag = en egen offert med egen länk."""
+
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        from apps.projects.models import Issue, Project
+
+        self.staff = get_user_model().objects.create_user("g", password="x", is_staff=True)
+        self.client_staff = Client()
+        self.client_staff.force_login(self.staff)
+        self.project = Project.objects.create(name="P", key="P")
+        self.original = Quote.objects.create(
+            customer_name="Nordan Bygg AB",
+            customer_email="nina@nordan.se",
+            project_title="Ny hemsida",
+            intro="Hej Nina.",
+            status=QuoteStatus.ACCEPTED,
+            project=self.project,
+            accept_first_name="Nina",
+        )
+        issue = Issue.objects.create(project=self.project, title="Hemsida")
+        QuoteLine.objects.create(
+            quote=self.original, label="Hemsida", price=50000, order=1, issue=issue
+        )
+        QuoteLine.objects.create(
+            quote=self.original,
+            label="Foto",
+            price=9500,
+            is_optional=True,
+            is_selected=False,
+            order=2,
+        )
+        QuoteAttachment.objects.create(
+            quote=self.original,
+            file=SimpleUploadedFile("info.pdf", b"%PDF-1.4", content_type="application/pdf"),
+            original_name="info.pdf",
+            content_type="application/pdf",
+            size=8,
+        )
+
+    def test_copy_is_a_fresh_draft_with_everything_but_the_deal(self):
+        r = self.client_staff.post(
+            f"/manage/offerter/{self.original.pk}/kopiera/",
+            {"customer_name": "Sydan Bygg AB", "customer_email": "info@sydan.se"},
+        )
+        copy = Quote.objects.exclude(pk=self.original.pk).get()
+        self.assertEqual(r["Location"], f"/manage/offerter/{copy.pk}/")
+        self.assertEqual(copy.status, QuoteStatus.DRAFT)
+        self.assertNotEqual(copy.token, self.original.token)
+        self.assertEqual(copy.customer_name, "Sydan Bygg AB")
+        self.assertEqual(copy.customer_email, "info@sydan.se")
+        self.assertEqual(copy.project_title, "Ny hemsida")
+        self.assertEqual(copy.intro, "Hej Nina.")
+        self.assertEqual(copy.copied_from, self.original)
+        self.assertIsNone(copy.project)
+        self.assertEqual(copy.accept_first_name, "")
+        self.assertIsNone(copy.accepted_at)
+        lines = list(
+            copy.lines.values_list("label", "price", "is_optional", "is_selected", "order")
+        )
+        self.assertEqual(
+            lines, [("Hemsida", 50000, False, True, 1), ("Foto", 9500, True, False, 2)]
+        )
+        self.assertTrue(all(line.issue_id is None for line in copy.lines.all()))
+        attachment = copy.attachments.get()
+        self.assertEqual(attachment.original_name, "info.pdf")
+        self.assertNotEqual(attachment.file.name, self.original.attachments.get().file.name)
+        # Originalet är orört.
+        self.original.refresh_from_db()
+        self.assertEqual(self.original.status, QuoteStatus.ACCEPTED)
+        self.assertEqual(self.original.lines.count(), 2)
+
+    def test_copy_needs_a_customer_name_and_can_change_the_title(self):
+        self.client_staff.post(f"/manage/offerter/{self.original.pk}/kopiera/", {})
+        self.assertEqual(Quote.objects.count(), 1)
+        self.client_staff.post(
+            f"/manage/offerter/{self.original.pk}/kopiera/",
+            {"customer_name": "Annan", "project_title": "Annat namn"},
+        )
+        self.assertEqual(
+            Quote.objects.exclude(pk=self.original.pk).get().project_title, "Annat namn"
+        )
+
+    def test_list_and_editor_offer_the_copy_button(self):
+        html = self.client_staff.get("/manage/offerter/").content.decode()
+        self.assertIn(f"/manage/offerter/{self.original.pk}/kopiera/", html)
+        self.assertIn("copy-dialog", html)
+        editor = self.client_staff.get(f"/manage/offerter/{self.original.pk}/").content.decode()
+        self.assertIn("Kopiera till annan kund", editor)
+        self.client_staff.post(
+            f"/manage/offerter/{self.original.pk}/kopiera/", {"customer_name": "Annan"}
+        )
+        copy = Quote.objects.exclude(pk=self.original.pk).get()
+        editor = self.client_staff.get(f"/manage/offerter/{copy.pk}/").content.decode()
+        self.assertIn(f'Kopia av <a href="/manage/offerter/{self.original.pk}/">', editor)

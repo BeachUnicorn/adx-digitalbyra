@@ -311,6 +311,31 @@ def offer_create_issues(request, pk):
     return redirect("manage:offer_edit", pk=pk)
 
 
+@login_required
+@require_POST
+def offer_duplicate(request, pk):
+    """Kopiera offerten till ett annat företag - ett nytt utkast med egen länk."""
+    original = get_object_or_404(Quote.objects.prefetch_related("lines", "attachments"), pk=pk)
+    name = request.POST.get("customer_name", "").strip()
+    if not name:
+        messages.error(request, "Skriv kundens namn för kopian.")
+        return redirect("manage:offer_edit", pk=pk)
+    # Tomt projektfält = behåll originalets titel; den går att ändra i byggaren.
+    title = request.POST.get("project_title", "").strip() or None
+    copy = original.duplicate(
+        customer_name=name,
+        customer_email=request.POST.get("customer_email", ""),
+        project_title=title,
+        user=request.user,
+    )
+    messages.success(
+        request,
+        f"Kopia av offert #{original.pk} skapad som utkast. Kontrollera hälsningen "
+        f"innan du skickar - den är kopierad ordagrant.",
+    )
+    return redirect("manage:offer_edit", pk=copy.pk)
+
+
 # ------------------------------------------------------------------ bilagor
 
 

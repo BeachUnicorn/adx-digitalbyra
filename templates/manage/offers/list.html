@@ -36,6 +36,7 @@
                 <th class="m-num">Löpande</th>
                 <th>Status</th>
                 <th>Uppdaterad</th>
+                <th></th>
             </tr>
         </thead>
         <tbody>
@@ -59,11 +60,13 @@
                 {% endwith %}
                 <td><span class="o-status o-status--{{ quote.status }}">{{ quote.get_status_display }}</span></td>
                 <td class="o-table__muted af-mono">{{ quote.updated_at|date:"j M H:i" }}</td>
+                <td class="o-table__act"><a href="{% url 'manage:offer_edit' quote.pk %}" class="m-btn m-btn--small m-btn--ghost" data-copy="{% url 'manage:offer_duplicate' quote.pk %}" title="Kopiera till ett annat företag">Kopiera</a></td>
             </tr>
             {% empty %}
-            <tr><td colspan="6" class="m-empty">Inga offerter än. Skapa den första ovan.</td></tr>
+            <tr><td colspan="7" class="m-empty">Inga offerter än. Skapa den första ovan.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </div>
+{% include "manage/offers/_copy_dialog.html" %}
 {% endblock %}
