@@ -23,6 +23,19 @@ EMAIL_SETTINGS = {
 }
 
 
+#: Beställarens uppgifter - obligatoriska sedan acceptsidan (2026-09-20).
+ACCEPT = {
+    "first_name": "Nina",
+    "last_name": "Nordan",
+    "email": "nina@nordan.se",
+    "phone": "070-123 45 67",
+    "company": "Nordan Bygg AB",
+    "org_number": "556712-3456",
+    "billing_address": "Byggvägen 1, 123 45 Stockholm",
+    "confirm": "on",
+}
+
+
 def make_quote(**kwargs):
     defaults = {"customer_name": "Testkund AB", "customer_email": "kund@example.com"}
     defaults.update(kwargs)
@@ -263,7 +276,9 @@ class OptionalLineTests(TestCase):
         self.assertEqual(toggles.get(str(self.booking.pk)), "")
 
     def test_accepting_with_choices_persists_the_customers_selection(self):
-        Client().post(f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(self.booking.pk)]})
+        Client().post(
+            f"/offert/{self.quote.token}/acceptera/", {**ACCEPT, "tillval": [str(self.booking.pk)]}
+        )
         self.seo.refresh_from_db()
         self.booking.refresh_from_db()
         self.quote.refresh_from_db()
@@ -283,14 +298,18 @@ class OptionalLineTests(TestCase):
             is_optional=True,
             is_selected=False,
         )
-        Client().post(f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(foreign.pk)]})
+        Client().post(
+            f"/offert/{self.quote.token}/acceptera/", {**ACCEPT, "tillval": [str(foreign.pk)]}
+        )
         foreign.refresh_from_db()
         self.base.refresh_from_db()
         self.assertFalse(foreign.is_selected, "annan offerts rad får inte påverkas")
         self.assertTrue(self.base.is_selected, "fasta rader rörs aldrig av valet")
 
     def test_after_accept_the_page_shows_chosen_options_without_toggles(self):
-        Client().post(f"/offert/{self.quote.token}/acceptera/", {"tillval": [str(self.seo.pk)]})
+        Client().post(
+            f"/offert/{self.quote.token}/acceptera/", {**ACCEPT, "tillval": [str(self.seo.pk)]}
+        )
         html = Client().get(self.quote.get_public_url()).content.decode()
         self.assertNotIn('type="checkbox" name="tillval"', html)
         self.assertIn("SEO", html)
@@ -301,7 +320,7 @@ class OptionalLineTests(TestCase):
 class AcceptFlowTests(TestCase):
     def test_accepting_sets_status_evidence_and_emails_staff(self):
         quote = make_quote(status=QuoteStatus.OPENED)
-        response = Client().post(f"/offert/{quote.token}/acceptera/")
+        response = Client().post(f"/offert/{quote.token}/acceptera/", ACCEPT)
         self.assertEqual(response.status_code, 302)
         quote.refresh_from_db()
         self.assertEqual(quote.status, QuoteStatus.ACCEPTED)
@@ -313,16 +332,16 @@ class AcceptFlowTests(TestCase):
     def test_accepting_twice_does_not_double_anything(self):
         quote = make_quote(status=QuoteStatus.SENT)
         client = Client()
-        client.post(f"/offert/{quote.token}/acceptera/")
+        client.post(f"/offert/{quote.token}/acceptera/", ACCEPT)
         first = Quote.objects.get(pk=quote.pk).accepted_at
-        client.post(f"/offert/{quote.token}/acceptera/")
+        client.post(f"/offert/{quote.token}/acceptera/", ACCEPT)
         quote.refresh_from_db()
         self.assertEqual(quote.accepted_at, first)
         self.assertEqual(len(mail.outbox), 1)
 
     def test_a_draft_cannot_be_accepted(self):
         quote = make_quote(status=QuoteStatus.DRAFT)
-        Client().post(f"/offert/{quote.token}/acceptera/")
+        Client().post(f"/offert/{quote.token}/acceptera/", ACCEPT)
         quote.refresh_from_db()
         self.assertEqual(quote.status, QuoteStatus.DRAFT)
         self.assertEqual(len(mail.outbox), 0)
@@ -476,7 +495,7 @@ class ReviewRegressionTests(StaffClientMixin, TestCase):
         # Simulera att en annan request hann före: statusen är redan
         # accepterad när den här requestens UPDATE körs.
         QuoteModel.objects.filter(pk=quote.pk).update(status=QuoteStatus.ACCEPTED)
-        Client().post(f"/offert/{quote.token}/acceptera/")
+        Client().post(f"/offert/{quote.token}/acceptera/", ACCEPT)
         self.assertEqual(len(mail.outbox), 0)
         self.assertIsNotNone(public_views)  # håll importen ärlig
 
@@ -639,7 +658,7 @@ class ProjectLinkTests(StaffClientMixin, TestCase):
 
         quote = make_quote(status=QuoteStatus.SENT)
         QuoteLine.objects.create(quote=quote, label="Hemsida", price=50000, order=1)
-        Client().post(f"/offert/{quote.token}/acceptera/")
+        Client().post(f"/offert/{quote.token}/acceptera/", ACCEPT)
         quote.refresh_from_db()
         self.assertEqual(quote.status, QuoteStatus.ACCEPTED)
         self.assertEqual((Issue.objects.count(), Project.objects.count()), (0, 0))
@@ -676,3 +695,103 @@ class ProductSeedTests(TestCase):
         call_command("seed_produkter", verbosity=0)
         priced = set(Product.objects.exclude(default_price=0).values_list("name", flat=True))
         self.assertEqual(priced, {"Skräddarsydd hemsida", "Hemsida via Atlas Holly"})
+
+
+@override_settings(**EMAIL_SETTINGS)
+class AcceptPageTests(TestCase):
+    """Accepten är två steg: välj tillval -> beställarens uppgifter -> kvitto."""
+
+    def setUp(self):
+        self.quote = Quote.objects.create(
+            customer_name="Nordan Bygg AB",
+            customer_email="info@nordan.se",
+            project_title="Ny hemsida",
+            status=QuoteStatus.SENT,
+        )
+        QuoteLine.objects.create(quote=self.quote, label="Hemsida", price=50000, order=1)
+        self.foto = QuoteLine.objects.create(
+            quote=self.quote, label="Foto", price=9500, is_optional=True, is_selected=False, order=2
+        )
+        self.url = f"/offert/{self.quote.token}/acceptera/"
+
+    def test_step_one_leads_to_the_accept_page_with_the_chosen_options(self):
+        page = Client().get(f"/offert/{self.quote.token}/").content.decode()
+        self.assertIn('method="get" action="' + self.url, page)
+        r = Client().get(self.url, {"tillval": [self.foto.pk]})
+        html = r.content.decode()
+        self.assertContains(r, "Bekräfta beställningen")
+        self.assertIn("Foto (tillval)", html)
+        self.assertIn("59 500 kr", html)
+        self.assertIn(f'name="tillval" value="{self.foto.pk}"', html)
+        self.assertIn('value="info@nordan.se"', html)
+        self.assertIn('value="Nordan Bygg AB"', html)
+        self.quote.refresh_from_db()
+        self.assertNotEqual(self.quote.status, QuoteStatus.ACCEPTED, "att titta accepterar inte")
+
+    def test_missing_details_do_not_accept(self):
+        r = Client().post(self.url, {"tillval": [self.foto.pk], "first_name": "Nina"})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Något saknas")
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.SENT)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_org_number_is_validated_and_normalised(self):
+        bad = dict(ACCEPT, org_number="123")
+        r = Client().post(self.url, bad)
+        self.assertContains(r, "tio siffror")
+        Client().post(self.url, dict(ACCEPT, org_number="5567 12 3456"))
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.accept_org_number, "556712-3456")
+
+    def test_accepting_stores_the_buyer_and_shows_the_receipt(self):
+        r = Client().post(self.url, {**ACCEPT, "tillval": [self.foto.pk], "reference": "PO-77"})
+        self.assertEqual(r["Location"], f"/offert/{self.quote.token}/")
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.ACCEPTED)
+        self.assertEqual(self.quote.accepted_by, "Nina Nordan, Nordan Bygg AB")
+        self.assertEqual(self.quote.accept_reference, "PO-77")
+        self.foto.refresh_from_db()
+        self.assertTrue(self.foto.is_selected)
+        html = Client().get(f"/offert/{self.quote.token}/").content.decode()
+        self.assertIn("av Nina Nordan, Nordan Bygg AB", html)
+        # Ett mejl, till byrån, med uppgifterna. Inget till kunden.
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["staff@example.com"])
+        self.assertIn("556712-3456", mail.outbox[0].body)
+        self.assertIn("PO-77", mail.outbox[0].body)
+
+    def test_unknown_confirm_box_blocks_the_order(self):
+        data = dict(ACCEPT)
+        data.pop("confirm")
+        r = Client().post(self.url, data)
+        self.assertContains(r, "Bekräfta att ni godkänner")
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.SENT)
+
+    def test_an_accepted_offer_sends_the_accept_page_back_to_the_receipt(self):
+        Client().post(self.url, ACCEPT)
+        self.assertEqual(Client().get(self.url)["Location"], f"/offert/{self.quote.token}/")
+
+    def test_the_editor_shows_who_accepted(self):
+        Client().post(self.url, dict(ACCEPT, message="Ring gärna på måndag."))
+        user = get_user_model().objects.create_user("g", password="x", is_staff=True)
+        client = Client()
+        client.force_login(user)
+        html = client.get(f"/manage/offerter/{self.quote.pk}/").content.decode()
+        self.assertIn("Accepterad av", html)
+        self.assertIn("556712-3456", html)
+        self.assertIn("Ring gärna på måndag.", html)
+
+    def test_creating_the_project_carries_the_buyer_details_to_the_customer(self):
+        from apps.projects.models import Customer
+
+        Client().post(self.url, ACCEPT)
+        user = get_user_model().objects.create_user("g2", password="x", is_staff=True)
+        client = Client()
+        client.force_login(user)
+        client.post(f"/manage/offerter/{self.quote.pk}/arenden/")
+        customer = Customer.objects.get(name="Nordan Bygg AB")
+        self.assertEqual(customer.org_number, "556712-3456")
+        self.assertEqual(customer.email, "nina@nordan.se")
+        self.assertEqual(customer.phone, "070-123 45 67")

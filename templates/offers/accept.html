@@ -1,0 +1,90 @@
+{% load static %}{% comment %}
+Acceptsidan: steg två. Kunden ser exakt vad som beställs (fasta rader plus
+valda tillval, med summa) och fyller i beställarens uppgifter. Tillvalen
+åker med som dolda fält så att accepten skriver samma val som visades.
+{% endcomment %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Acceptera offert från {{ site_settings.name|default:"ADX" }}</title>
+<link rel="stylesheet" href="{% static 'css/manage.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/manage-skin.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/offert.css' %}?v={{ static_version }}">
+</head>
+<body class="m-body">
+<div class="of-shell">
+    <div class="of-doc">
+        <div class="of-head">
+            <img src="{% static 'images/adx-logo.png' %}" alt="{{ site_settings.name|default:'ADX' }}" class="of-logo">
+            <p class="of-kicker">Offert <b>{{ quote.pk }}</b></p>
+        </div>
+        <h1>Bekräfta beställningen</h1>
+        <p class="of-intro">Det här beställer ni. Fyll i era uppgifter så vi kan sätta igång och fakturera rätt.</p>
+
+        <div class="of-summary">
+            <p class="of-section">Ingår i beställningen</p>
+            <table class="of-lines">
+                <tbody>
+                    {% for line in included %}
+                    <tr>
+                        <td>{{ line.label }}{% if line.is_optional %} (tillval){% endif %}{% if line.description %}<span class="d">{{ line.description }}</span>{% endif %}</td>
+                        <td>{{ line.price_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <div class="of-totals">
+                <div class="of-trow of-trow--main"><span>Att betala vid leverans</span><b>{{ sums.one_time }} kr</b></div>
+                {% if raw_sums.monthly %}<div class="of-trow"><span>Löpande per månad</span><b>{{ sums.monthly }} kr/mån</b></div>{% endif %}
+                {% if raw_sums.yearly %}<div class="of-trow"><span>Löpande per år</span><b>{{ sums.yearly }} kr/år</b></div>{% endif %}
+            </div>
+            <p class="of-valid">Alla priser exklusive moms.{% if quote.valid_until %} Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}</p>
+        </div>
+
+        {% if form.errors %}<p class="of-errors">Något saknas i formuläret. Kontrollera fälten nedan.</p>{% endif %}
+
+        <form method="post" action="{% url 'offers:accept' quote.token %}" class="of-form" novalidate>
+            {% csrf_token %}
+            {% for pk in chosen %}<input type="hidden" name="tillval" value="{{ pk }}">{% endfor %}
+
+            <p class="of-section">Beställare</p>
+            <div class="pair">
+                <div class="of-field{% if form.first_name.errors %} is-invalid{% endif %}"><label for="{{ form.first_name.id_for_label }}">Förnamn</label>{{ form.first_name }}{{ form.first_name.errors }}</div>
+                <div class="of-field{% if form.last_name.errors %} is-invalid{% endif %}"><label for="{{ form.last_name.id_for_label }}">Efternamn</label>{{ form.last_name }}{{ form.last_name.errors }}</div>
+            </div>
+            <div class="pair">
+                <div class="of-field{% if form.email.errors %} is-invalid{% endif %}"><label for="{{ form.email.id_for_label }}">E-post</label>{{ form.email }}{{ form.email.errors }}</div>
+                <div class="of-field{% if form.phone.errors %} is-invalid{% endif %}"><label for="{{ form.phone.id_for_label }}">Telefon</label>{{ form.phone }}{{ form.phone.errors }}</div>
+            </div>
+
+            <p class="of-section">Företag</p>
+            <div class="pair">
+                <div class="of-field{% if form.company.errors %} is-invalid{% endif %}"><label for="{{ form.company.id_for_label }}">Företagsnamn</label>{{ form.company }}{{ form.company.errors }}</div>
+                <div class="of-field{% if form.org_number.errors %} is-invalid{% endif %}"><label for="{{ form.org_number.id_for_label }}">Organisationsnummer</label>{{ form.org_number }}{{ form.org_number.errors }}</div>
+            </div>
+            <div class="of-field{% if form.billing_address.errors %} is-invalid{% endif %}"><label for="{{ form.billing_address.id_for_label }}">Fakturaadress</label>{{ form.billing_address }}<p class="of-help">{{ form.billing_address.help_text }}</p>{{ form.billing_address.errors }}</div>
+            <div class="pair">
+                <div class="of-field{% if form.billing_email.errors %} is-invalid{% endif %}"><label for="{{ form.billing_email.id_for_label }}">Faktura-e-post (valfritt)</label>{{ form.billing_email }}<p class="of-help">{{ form.billing_email.help_text }}</p>{{ form.billing_email.errors }}</div>
+                <div class="of-field{% if form.reference.errors %} is-invalid{% endif %}"><label for="{{ form.reference.id_for_label }}">Er referens (valfritt)</label>{{ form.reference }}<p class="of-help">{{ form.reference.help_text }}</p>{{ form.reference.errors }}</div>
+            </div>
+            <div class="of-field{% if form.message.errors %} is-invalid{% endif %}"><label for="{{ form.message.id_for_label }}">Meddelande till oss (valfritt)</label>{{ form.message }}{{ form.message.errors }}</div>
+
+            <label class="of-confirm{% if form.confirm.errors %} is-invalid{% endif %}">{{ form.confirm }}<span>{{ form.confirm.label }}</span></label>
+            {% if form.confirm.errors %}<div class="of-field">{{ form.confirm.errors }}</div>{% endif %}
+
+            <div class="of-actions">
+                <button type="submit" class="of-accept">Godkänn och beställ</button>
+                <p class="of-legal">Ett tryck på Godkänn och beställ är en bindande beställning enligt raderna ovan.</p>
+            </div>
+        </form>
+        <p class="of-back"><a href="{% url 'offers:public' quote.token %}">Tillbaka till offerten</a></p>
+    </div>
+    <p class="of-foot">
+        {{ site_settings.name|default:"ADX" }}{% if site_settings.email %} &middot; <a href="mailto:{{ site_settings.email }}">{{ site_settings.email }}</a>{% endif %}
+        &middot; <a href="/">adx.se</a>
+    </p>
+</div>
+</body>
+</html>

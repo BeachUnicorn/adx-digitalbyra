@@ -4,20 +4,19 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('offers', '0001_initial'),
+        ("offers", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='quoteline',
-            name='is_optional',
-            field=models.BooleanField(default=False, verbose_name='Tillval'),
+            model_name="quoteline",
+            name="is_optional",
+            field=models.BooleanField(default=False, verbose_name="Tillval"),
         ),
         migrations.AddField(
-            model_name='quoteline',
-            name='is_selected',
-            field=models.BooleanField(default=True, verbose_name='Vald'),
+            model_name="quoteline",
+            name="is_selected",
+            field=models.BooleanField(default=True, verbose_name="Vald"),
         ),
     ]

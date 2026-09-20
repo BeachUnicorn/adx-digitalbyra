@@ -1,0 +1,132 @@
+/* Kundens offertsidor (/offert/<token>/ och acceptsidan): ett vitt dokument
+   på panelens ishimmel. Bygger på tokens i manage-skin.css. Prefix of-.
+   Ingen text under 16 px - det är en affärshandling. */
+
+/* color-scheme: light gör att även webbläsarens egna delar (formulärfält,
+   rullister) ritas ljusa i mörkt systemläge - dokumentet ser likadant ut
+   för varje mottagare. */
+:root { color-scheme: light; }
+body.m-body { font-size: 18px; line-height: 1.6; }
+.of-shell { max-width: 820px; margin: 0 auto; padding: 40px 20px 72px; }
+.of-doc { background: var(--s-solid); color: var(--m-text); border: 1px solid var(--m-border);
+          border-radius: 28px; box-shadow: var(--m-shadow); padding: 56px 60px 52px; }
+.of-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; flex-wrap: wrap; }
+.of-logo { height: 26px; width: auto; display: block; }
+.of-kicker { font-family: var(--s-mono); font-size: 16px; letter-spacing: .14em; text-transform: uppercase;
+             color: var(--m-text-muted); margin: 0; }
+.of-kicker b { color: var(--m-text); font-weight: 600; }
+h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; letter-spacing: -.01em;
+     font-size: clamp(34px, 5.5vw, 48px); line-height: 1; margin: 26px 0 0; text-wrap: balance; }
+.of-intro { font-size: 19px; line-height: 1.6; margin: 20px 0 30px; max-width: 62ch; }
+.of-meta { width: 100%; border-collapse: collapse; margin: 0 0 34px; font-size: 17px; }
+.of-meta th { font-family: var(--s-mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+              font-weight: 500; color: var(--m-text-muted); text-align: left; padding: 12px 18px 12px 0;
+              width: 200px; border-top: 1px solid var(--m-border); vertical-align: top; }
+.of-meta td { padding: 12px 0; border-top: 1px solid var(--m-border); }
+.of-meta tr:last-child th, .of-meta tr:last-child td { border-bottom: 1px solid var(--m-border); }
+.of-banner { border: 1px solid var(--m-border); border-radius: 16px; padding: 16px 20px;
+             font-size: 18px; font-weight: 600; margin: 0 0 26px; }
+.of-banner--ok { border-color: var(--s-ok-line); background: var(--s-ok-soft); color: var(--s-ok); }
+.of-banner--warn { border-color: var(--s-danger-soft); background: var(--s-danger-bg); color: var(--s-danger); }
+.of-banner a { color: inherit; }
+.of-section { font-family: var(--s-mono); font-size: 16px; letter-spacing: .14em; text-transform: uppercase;
+              font-weight: 500; color: var(--m-text-muted); margin: 0 0 10px; }
+.of-lines { width: 100%; border-collapse: collapse; font-size: 18px; }
+.of-lines td { padding: 16px 0; border-top: 1px solid var(--m-border); vertical-align: top; }
+.of-lines td:last-child { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+                          padding-left: 24px; font-weight: 600; }
+.of-lines .d { display: block; font-size: 17px; color: var(--m-text-muted); margin-top: 3px; line-height: 1.5; }
+/* Tillval: hela raden är en klickbar toggle. */
+.of-opts { margin-top: 30px; }
+.of-lead { font-size: 17px; color: var(--m-text-muted); margin: 0 0 8px; }
+.of-opt { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 18px; align-items: center;
+          padding: 16px 0; border-top: 1px solid var(--m-border); cursor: pointer; }
+.of-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.of-opt .switch { grid-row: span 2; width: 58px; height: 34px; border-radius: 999px; position: relative;
+                  background: var(--m-border); transition: background .18s ease; }
+.of-opt .switch::after { content: ""; position: absolute; top: 4px; left: 4px; width: 26px; height: 26px;
+                         border-radius: 50%; background: var(--s-solid);
+                         box-shadow: 0 1px 3px rgba(16,18,20,.3); transition: transform .18s ease; }
+.of-opt:has(input:checked) .switch { background: var(--m-accent); }
+.of-opt:has(input:checked) .switch::after { transform: translateX(24px); }
+.of-opt:has(input:focus-visible) .switch { outline: 2px solid var(--m-text); outline-offset: 2px; }
+.of-opt-name { font-size: 18px; font-weight: 600; display: block; }
+.of-opt-desc { font-size: 17px; color: var(--m-text-muted); display: block; line-height: 1.5; }
+.of-opt-price { font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; opacity: .45;
+                transition: opacity .18s ease; font-weight: 600; }
+.of-opt:has(input:checked) .of-opt-price { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .of-opt .switch, .of-opt .switch::after, .of-opt-price { transition: none; } }
+
+.of-totals { border-top: 2px solid var(--m-text); margin-top: 26px; padding-top: 14px; }
+.of-trow { display: flex; justify-content: space-between; gap: 16px; padding: 6px 0; font-size: 18px;
+           color: var(--m-text-muted); }
+.of-trow b { color: var(--m-text); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.of-trow--main { font-size: 20px; color: var(--m-text); font-weight: 600; }
+.of-trow--main b { font-size: 26px; font-weight: 700; }
+.of-valid { font-size: 17px; color: var(--m-text-muted); margin: 22px 0 30px; }
+
+.of-actions { display: grid; gap: 14px; }
+.of-accept { font-family: var(--s-mono); font-size: 17px; letter-spacing: .1em; text-transform: uppercase;
+             font-weight: 600; color: var(--m-accent-text); background: var(--m-accent); border: 0;
+             border-radius: 999px; padding: 22px 24px; cursor: pointer; width: 100%;
+             transition: transform .15s ease; }
+.of-accept:hover { transform: translateY(-1px); }
+.of-accept:focus-visible { outline: 2px solid var(--m-text); outline-offset: 3px; }
+.of-legal { font-size: 17px; color: var(--m-text-muted); text-align: center; margin: 2px 0 0; line-height: 1.5; }
+.of-ask { border: 1px solid var(--m-border); border-radius: 18px; margin-top: 18px; }
+.of-ask summary { font-family: var(--s-mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+                  font-weight: 500; padding: 18px; cursor: pointer; text-align: center; list-style: none; }
+.of-ask summary::-webkit-details-marker { display: none; }
+.of-ask .q { padding: 0 18px 18px; display: grid; gap: 12px; }
+.of-ask textarea { font: inherit; font-size: 18px; padding: 14px 16px; border: 1px solid var(--m-border);
+                   border-radius: 14px; background: var(--s-field); color: var(--m-text); min-height: 110px;
+                   resize: vertical; }
+.of-ask textarea:focus { outline: 2px solid var(--m-text); outline-offset: 1px; }
+.of-ask button { font-family: var(--s-mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+                 font-weight: 500; color: var(--m-text); background: transparent; border: 1px solid var(--m-border);
+                 border-radius: 999px; padding: 14px; cursor: pointer; }
+.of-ask button:hover { background: var(--m-accent); color: var(--m-accent-text); border-color: transparent; }
+
+.of-trail { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 34px; }
+.of-trail span { font-family: var(--s-mono); font-size: 16px; letter-spacing: .06em; text-transform: uppercase;
+                 color: var(--m-text-muted); border: 1px solid var(--m-border); border-radius: 999px; padding: 8px 16px; }
+.of-trail span.done { color: var(--s-ok); border-color: var(--s-ok-line); background: var(--s-ok-soft); }
+.of-foot { text-align: center; font-size: 17px; color: var(--m-text-muted); margin-top: 28px; }
+.of-foot a { color: var(--m-text); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+
+@media (max-width: 640px) {
+    .of-shell { padding: 20px 14px 56px; }
+    .of-doc { padding: 34px 24px 32px; border-radius: 22px; }
+    .of-meta th { width: 130px; }
+    .of-lines td:last-child { padding-left: 12px; }
+}
+@media print {
+    body.m-body { background: #fff; }
+    .of-doc { box-shadow: none; border: 0; padding: 0; }
+    .of-ask, .of-foot { display: none; }
+}
+
+/* ===== Acceptsidan: beställarens uppgifter ===== */
+.of-summary { margin: 0 0 30px; }
+.of-summary .of-lines td { padding: 12px 0; }
+.of-form { display: grid; gap: 18px; margin-top: 8px; }
+.of-form .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.of-field label { display: block; font-family: var(--s-mono); font-size: 16px; letter-spacing: .1em;
+                  text-transform: uppercase; font-weight: 500; color: var(--m-text-muted); margin-bottom: 8px; }
+.of-field input, .of-field textarea { width: 100%; box-sizing: border-box; font: inherit; font-size: 18px;
+                                      padding: 14px 16px; border: 1px solid var(--m-border); border-radius: 14px;
+                                      background: var(--s-field); color: var(--m-text); }
+.of-field input:focus, .of-field textarea:focus { outline: 2px solid var(--m-text); outline-offset: 1px; }
+.of-field textarea { resize: vertical; min-height: 96px; }
+.of-help { font-size: 16px; color: var(--m-text-muted); margin: 8px 0 0; line-height: 1.5; }
+.of-field .errorlist { list-style: none; margin: 8px 0 0; padding: 0; font-size: 16px; color: var(--s-danger); }
+.of-field.is-invalid input, .of-field.is-invalid textarea { border-color: var(--s-danger); }
+.of-confirm { display: flex; gap: 14px; align-items: flex-start; padding: 18px 20px; border: 1px solid var(--m-border);
+              border-radius: 16px; background: var(--s-field); font-size: 18px; cursor: pointer; line-height: 1.5; }
+.of-confirm input { width: 22px; height: 22px; margin: 3px 0 0; accent-color: var(--m-accent); flex: none; }
+.of-confirm.is-invalid { border-color: var(--s-danger); }
+.of-back { text-align: center; margin-top: 18px; font-size: 17px; }
+.of-back a { color: var(--m-text); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.of-errors { border: 1px solid var(--s-danger-soft); background: var(--s-danger-bg); color: var(--s-danger);
+             border-radius: 16px; padding: 16px 20px; font-size: 18px; font-weight: 600; margin: 0 0 22px; }
+@media (max-width: 640px) { .of-form .pair { grid-template-columns: 1fr; } }

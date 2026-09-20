@@ -72,7 +72,7 @@ def _css_mtime():
     # av någon av dem ger ny URL.
     css_dir = Path(settings.BASE_DIR) / "static" / "css"
     stamps = []
-    for name in ("manage.css", "manage-skin.css", "tavla.css"):
+    for name in ("manage.css", "manage-skin.css", "tavla.css", "offert.css"):
         try:
             stamps.append(int((css_dir / name).stat().st_mtime))
         except OSError:

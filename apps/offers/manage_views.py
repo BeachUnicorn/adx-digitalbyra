@@ -247,8 +247,25 @@ def _project_for(quote, user):
     customer = Customer.objects.filter(name__iexact=quote.customer_name.strip()).first()
     if customer is None:
         customer = Customer.objects.create(
-            name=quote.customer_name.strip(), email=quote.customer_email
+            name=quote.customer_name.strip(),
+            email=quote.accept_email or quote.customer_email,
+            phone=quote.accept_phone,
+            org_number=quote.accept_org_number,
         )
+    else:
+        # Beställarens uppgifter från accepten fyller luckor - skriver
+        # aldrig över det som redan står på kunden.
+        fields = []
+        for attr, value in (
+            ("email", quote.accept_email),
+            ("phone", quote.accept_phone),
+            ("org_number", quote.accept_org_number),
+        ):
+            if value and not getattr(customer, attr):
+                setattr(customer, attr, value)
+                fields.append(attr)
+        if fields:
+            customer.save(update_fields=fields + ["updated_at"])
     name = quote.project_title.strip() or f"Offert {quote.customer_name.strip()}"
     project = Project.objects.create(
         name=name[:200], key=Project.make_key(name), customer=customer, created_by=user

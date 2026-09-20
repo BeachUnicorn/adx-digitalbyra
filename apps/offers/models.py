@@ -117,6 +117,19 @@ class Quote(models.Model):
     # bara vad webbservern ändå ser.
     accepted_ip = models.GenericIPAddressField(null=True, blank=True)
     accepted_user_agent = models.CharField(max_length=300, blank=True)
+    # Beställarens uppgifter, ifyllda på acceptsidan. Skrivs i samma
+    # villkorade UPDATE som statusövergången, så de hör ihop med accepten
+    # och kan aldrig komma från en förlorad dubbelrequest.
+    accept_first_name = models.CharField("Förnamn", max_length=80, blank=True)
+    accept_last_name = models.CharField("Efternamn", max_length=80, blank=True)
+    accept_email = models.EmailField("E-post", blank=True)
+    accept_phone = models.CharField("Telefon", max_length=40, blank=True)
+    accept_company = models.CharField("Företag", max_length=200, blank=True)
+    accept_org_number = models.CharField("Organisationsnummer", max_length=20, blank=True)
+    accept_billing_address = models.TextField("Fakturaadress", blank=True)
+    accept_billing_email = models.EmailField("Faktura-e-post", blank=True)
+    accept_reference = models.CharField("Er referens", max_length=100, blank=True)
+    accept_message = models.TextField("Meddelande", blank=True)
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL
@@ -160,6 +173,14 @@ class Quote(models.Model):
     def is_answerable(self):
         """Kan kunden fortfarande agera på offerten?"""
         return self.status in (QuoteStatus.SENT, QuoteStatus.OPENED)
+
+    @property
+    def accepted_by(self):
+        """'Nina Nordan, Nordan Bygg AB' - tomt om accepten gjordes manuellt i panelen."""
+        name = f"{self.accept_first_name} {self.accept_last_name}".strip()
+        if not name:
+            return ""
+        return f"{name}, {self.accept_company}" if self.accept_company else name
 
     def mark_opened(self):
         """

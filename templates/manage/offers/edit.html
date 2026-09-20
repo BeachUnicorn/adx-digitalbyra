@@ -1,4 +1,5 @@
 {% extends "manage/base.html" %}
+{% load static %}
 {% comment %}
 Offertbyggaren. Rader och kunduppgifter autosparas via fetch; ordningen
 sätts med dra-och-släpp i handtaget. Strukturella ändringar (lägg till,
@@ -10,8 +11,10 @@ ta bort, skicka) är vanliga POST + redirect.
 {% comment %}
 Bara STRUKTUR här: rutnät, kolumner, brytpunkter och de lägen som skriptet
 växlar. Färg, form och typografi ligger i skinnet (static/css/manage-skin.css,
-avsnittet Affär) och går alltid via tokens.
+avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
+"Accepterad av" (.tv-facts).
 {% endcomment %}
+<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}">
 <style>
     .o-wrap { display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; }
     /* Två kolumner först när radlistan får plats: under 1080 px klämdes
@@ -221,6 +224,21 @@ avsnittet Affär) och går alltid via tokens.
             <p class="o-sent-meta">
                 Skickad {{ quote.sent_at|date:"j M H:i" }}{% if quote.opened_at %} &middot; Öppnad {{ quote.opened_at|date:"j M H:i" }}{% endif %}{% if quote.accepted_at %} &middot; Accepterad {{ quote.accepted_at|date:"j M H:i" }}{% endif %}
             </p>
+            {% endif %}
+            {% if quote.accepted_by %}
+            <div class="o-accepted-by">
+                <div class="o-card__title">Accepterad av</div>
+                <dl class="tv-facts">
+                    <dt>Namn</dt><dd>{{ quote.accept_first_name }} {{ quote.accept_last_name }}</dd>
+                    <dt>E-post</dt><dd><a href="mailto:{{ quote.accept_email }}">{{ quote.accept_email }}</a></dd>
+                    <dt>Telefon</dt><dd>{{ quote.accept_phone }}</dd>
+                    <dt>Företag</dt><dd>{{ quote.accept_company }}</dd>
+                    <dt>Org.nr</dt><dd>{{ quote.accept_org_number }}</dd>
+                    <dt>Faktura</dt><dd>{{ quote.accept_billing_address|linebreaksbr }}{% if quote.accept_billing_email %}<br>{{ quote.accept_billing_email }}{% endif %}</dd>
+                    {% if quote.accept_reference %}<dt>Referens</dt><dd>{{ quote.accept_reference }}</dd>{% endif %}
+                    {% if quote.accept_message %}<dt>Meddelande</dt><dd>{{ quote.accept_message|linebreaksbr }}</dd>{% endif %}
+                </dl>
+            </div>
             {% endif %}
         </div>
     </div>
