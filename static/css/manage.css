@@ -266,10 +266,16 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
     .m-stats { grid-template-columns: repeat(2, 1fr); }
     .m-cards { grid-template-columns: 1fr 1fr; }
 }
-@media (max-width: 680px) {
+/* Hamburgarens brytpunkt. Skinnets pillerrad är bredare än den gamla
+   menyraden: under 760 px ryms superanvändarens tio länkar bara som
+   oläsligt små versaler, så desktopmenyn göms redan här. Övriga
+   smalskärmsregler ligger kvar vid 680 px. */
+@media (max-width: 760px) {
     .m-nav__links,
     .m-nav__right { display: none; }
     .m-nav__hamburger { display: flex; }
+}
+@media (max-width: 680px) {
     .m-cards { grid-template-columns: 1fr; }
 
     .m-list__row {
@@ -291,7 +297,7 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
 
 /* Desktop: never show the mobile panel, even if JS left `is-open` on it when
    the viewport was widened past the hamburger breakpoint. */
-@media (min-width: 681px) {
+@media (min-width: 761px) {
     .m-nav__mobile,
     .m-nav__mobile.is-open { display: none; }
 }
@@ -1688,12 +1694,22 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
     isolation: isolate;
     vertical-align: -5px;
 }
+/* Orbens tre kulörer och det vita i glansen är skinnets prisma-tokens
+   (token-blocket i manage-skin.css); reservvärdena här är samma kulörer.
+   Genomskinligheten blandas fram per lager med color-mix, så paletten ligger
+   på ETT ställe. Masken är bara en alfamask - dess svarta är ingen färg. */
+.m-orb {
+    --orb-a: var(--s-prisma-1, #7c5cff);
+    --orb-b: var(--s-prisma-2, #22d3ee);
+    --orb-c: var(--s-prisma-3, #f472b6);
+    --orb-white: var(--s-solid, #ffffff);
+}
 /* Glöden: fyller lådan och dör före kanten - kan aldrig klippas. */
 .m-orb::after {
     content: ""; position: absolute; inset: 0; z-index: -1;
     background: radial-gradient(circle,
-        rgba(124, 92, 255, 0.34) 28%,
-        rgba(34, 211, 238, 0.16) 52%,
+        color-mix(in srgb, var(--orb-a) 34%, transparent) 28%,
+        color-mix(in srgb, var(--orb-b) 16%, transparent) 52%,
         transparent 72%);
 }
 /* Färgringen: roterande conic-gradient, maskad till en ring som tonar ut
@@ -1701,8 +1717,10 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
 .m-orb::before {
     content: ""; position: absolute; inset: 14%; border-radius: 50%;
     background: conic-gradient(from 0deg,
-        rgba(124, 92, 255, 0.95), rgba(34, 211, 238, 0.9),
-        rgba(244, 114, 182, 0.85), rgba(124, 92, 255, 0.95));
+        color-mix(in srgb, var(--orb-a) 95%, transparent),
+        color-mix(in srgb, var(--orb-b) 90%, transparent),
+        color-mix(in srgb, var(--orb-c) 85%, transparent),
+        color-mix(in srgb, var(--orb-a) 95%, transparent));
     -webkit-mask: radial-gradient(farthest-side, transparent 42%, #000 62%, #000 80%, transparent 98%);
     mask: radial-gradient(farthest-side, transparent 42%, #000 62%, #000 80%, transparent 98%);
     filter: saturate(1.4);
@@ -1715,13 +1733,13 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
     opacity: 0.55;
     will-change: transform;
 }
-.m-orb__cloud--a { background: radial-gradient(circle at 30% 30%, rgba(124,92,255,0.7), transparent 55%); animation: m-orb-spin 9s linear infinite; }
-.m-orb__cloud--b { background: radial-gradient(circle at 68% 62%, rgba(34,211,238,0.6), transparent 52%); animation: m-orb-spin 13s linear infinite reverse; }
+.m-orb__cloud--a { background: radial-gradient(circle at 30% 30%, color-mix(in srgb, var(--orb-a) 70%, transparent), transparent 55%); animation: m-orb-spin 9s linear infinite; }
+.m-orb__cloud--b { background: radial-gradient(circle at 68% 62%, color-mix(in srgb, var(--orb-b) 60%, transparent), transparent 52%); animation: m-orb-spin 13s linear infinite reverse; }
 .m-orb__cloud--c { display: none; }
 .m-orb__gloss {
     position: absolute; inset: 14%; border-radius: 50%;
-    background: radial-gradient(circle at 32% 24%, rgba(255,255,255,0.55), transparent 40%);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    background: radial-gradient(circle at 32% 24%, color-mix(in srgb, var(--orb-white) 55%, transparent), transparent 40%);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orb-white) 35%, transparent);
 }
 @keyframes m-orb-spin { to { transform: rotate(360deg); } }
 
@@ -1730,7 +1748,7 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
 .m-orb--lg { width: 68px; height: 68px; vertical-align: 0; }
 .m-orb--lg .m-orb__cloud { filter: blur(6px) saturate(1.3); }
 .m-orb--lg::before { filter: blur(2px) saturate(1.4); }
-.m-orb--lg .m-orb__gloss { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4); }
+.m-orb--lg .m-orb__gloss { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orb-white) 40%, transparent); }
 
 /* Snabbare puls medan en tur pågår - orben blir statusindikatorn. */
 .m-orb.is-thinking::before { animation-duration: 1.6s; }

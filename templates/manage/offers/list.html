@@ -18,7 +18,7 @@
     </form>
 </div>
 
-<div class="m-filter af-filter">
+<div class="m-filter">
     <a href="{% url 'manage:offer_list' %}" class="m-filter__item {% if not status_filter %}is-active{% endif %}">Alla</a>
     {% for value, name, count in status_chips %}
     <a href="?status={{ value }}" class="m-filter__item {% if status_filter == value %}is-active{% endif %}">

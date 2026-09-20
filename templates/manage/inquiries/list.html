@@ -13,7 +13,7 @@
 </div>
 
 <!-- Statusfilter -->
-<div class="m-filter af-filter">
+<div class="m-filter">
     <a href="{% url 'manage:inquiry_list' %}" class="m-filter__item {% if not status_filter %}is-active{% endif %}">Alla</a>
     {% for value, label in status_choices %}
     <a href="{% url 'manage:inquiry_list' %}?status={{ value }}" class="m-filter__item {% if status_filter == value %}is-active{% endif %}">{{ label }}</a>

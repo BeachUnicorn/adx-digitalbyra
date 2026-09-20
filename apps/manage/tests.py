@@ -156,7 +156,7 @@ class StatsPageTests(TestCase):
         self.assertIn("annons-a", body)  # utm_content (fix 17)
         self.assertIn("Fast knapp", body)  # placement label (fix 15)
         self.assertIn("1m 35s", body)  # engaged time 95s (fix 13)
-        self.assertIn("360\u2013430 px", body)  # viewport bucket (fix 19)
+        self.assertIn("360-430 px", body)  # viewport bucket (fix 19)
 
     def test_style_attributes_use_dot_decimals(self):
         """

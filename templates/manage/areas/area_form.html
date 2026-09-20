@@ -8,7 +8,7 @@
 {% block content %}
 <div class="m-page-head m-page-head--split">
     <div>
-        <p class="m-page-head__back"><a href="{% url 'manage:areas_overview' %}">&larr; Städer</a></p>
+        <p class="m-crumb-row"><a href="{% url 'manage:areas_overview' %}">Städer</a> /</p>
         <h1 class="m-page-head__title">
             {% if instance %}{{ instance.name }}{% else %}Ny stad{% endif %}
             {% if instance %}
@@ -109,7 +109,7 @@
             </div>
             {% endfor %}
         </div>
-        <button type="button" class="m-btn m-btn--ghost m-btn--small" data-add-row="children-list" data-template="child-template">Lägg till {{ child_singular }}</button>
+        <button type="button" class="m-btn m-btn--ghost m-btn--small m-btn--add" data-add-row="children-list" data-template="child-template">Lägg till {{ child_singular }}</button>
     </div>
     {% endif %}
 
@@ -138,7 +138,7 @@
             </div>
             {% endfor %}
         </div>
-        <button type="button" class="m-btn m-btn--ghost m-btn--small" data-add-row="faq-list" data-template="faq-template">Lägg till fråga</button>
+        <button type="button" class="m-btn m-btn--ghost m-btn--small m-btn--add" data-add-row="faq-list" data-template="faq-template">Lägg till fråga</button>
         <div class="m-field m-field--after-rows">
             <label for="{{ form.faq_section.id_for_label }}">{{ form.faq_section.label }}</label>
             {{ form.faq_section }}

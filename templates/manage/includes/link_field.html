@@ -10,5 +10,6 @@ Stilar bor i link_modal.html (laddas en gång av manage/base.html).
     <input type="hidden" name="{{ name }}" id="{{ input_id }}" value="{{ value }}" data-lnkf-input>
     <span class="lnkf__label{% if not label %} lnkf__label--empty{% endif %}" data-lnkf-label>{% if label %}{{ label }}{% else %}Ingen länk{% endif %}</span>
     <button type="button" class="lnkf__btn" data-lnkf-open>{% if label %}Byt länk{% else %}Välj länk{% endif %}</button>
-    <button type="button" class="lnkf__btn lnkf__btn--remove" data-lnkf-clear{% if not label %} hidden{% endif %}>Ta bort</button>
+    {# Heter "Rensa", inte "Ta bort": radkortets egen Ta bort-knapp tar bort hela raden, den här tömmer bara fältet. #}
+    <button type="button" class="lnkf__btn lnkf__btn--remove" data-lnkf-clear{% if not label %} hidden{% endif %}>Rensa</button>
 </div>

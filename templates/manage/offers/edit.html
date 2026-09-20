@@ -9,12 +9,14 @@ ta bort, skicka) är vanliga POST + redirect.
 {% block extra_head %}
 {% comment %}
 Bara STRUKTUR här: rutnät, kolumner, brytpunkter och de lägen som skriptet
-växlar. Färg, form och typografi ligger i skinnets delfil "affar"
-(static/css/skin-parts/affar.css) och går alltid via tokens.
+växlar. Färg, form och typografi ligger i skinnet (static/css/manage-skin.css,
+avsnittet Affär) och går alltid via tokens.
 {% endcomment %}
 <style>
     .o-wrap { display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; }
-    @media (max-width: 900px) { .o-wrap { grid-template-columns: 1fr; } }
+    /* Två kolumner först när radlistan får plats: under 1080 px klämdes
+       produktväljaren till sin minsta bredd och Lägg till bröts på två rader. */
+    @media (max-width: 1080px) { .o-wrap { grid-template-columns: 1fr; } }
 
     .o-head-row, .o-line { display: grid; grid-template-columns: 28px 1fr 130px 120px 28px; }
     .o-head-row { gap: 10px; padding: 14px 20px; }
@@ -55,11 +57,9 @@ växlar. Färg, form och typografi ligger i skinnets delfil "affar"
 {% block content %}
 <form id="csrf" style="display:none;">{% csrf_token %}</form>
 
+<p class="m-crumb-row"><a href="{% url 'manage:offer_list' %}">Offerter</a> /</p>
 <div class="o-top">
-    <h1 class="o-top__title">
-        <a href="{% url 'manage:offer_list' %}" class="o-top__crumb">Offerter /</a>
-        {{ quote.customer_name }}
-    </h1>
+    <h1 class="o-top__title">{{ quote.customer_name }}</h1>
     <span class="o-top__state">
         <span class="o-status o-status--{{ quote.status }}">{{ quote.get_status_display }}</span>
         <span id="save-state" role="status" aria-live="polite">Sparat</span>

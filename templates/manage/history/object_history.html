@@ -4,8 +4,8 @@
 
 {% block content %}
 <div class="m-page-head">
+    <p class="m-crumb-row"><a href="{{ back_url }}">{{ model_label }}</a> /</p>
     <h1 class="m-page-head__title">Historik: {{ object }}</h1>
-    <p class="m-page-head__subtitle">{{ model_label }} &middot; <a href="{{ back_url }}" class="m-btn m-btn--ghost m-btn--small">&larr; Tillbaka</a></p>
 </div>
 
 {% if not rows %}

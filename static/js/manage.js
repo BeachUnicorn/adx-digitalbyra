@@ -12,7 +12,8 @@
     });
 
     // Reset the panel when the viewport grows past the hamburger breakpoint.
-    const NAV_BREAKPOINT = 680;
+    // Samma värde som hamburgarens brytpunkt i manage.css.
+    const NAV_BREAKPOINT = 760;
     let resizeRaf = null;
     window.addEventListener("resize", () => {
         if (resizeRaf) return;
