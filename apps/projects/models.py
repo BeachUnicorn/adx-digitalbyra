@@ -7,7 +7,10 @@ Hierarkin:
       └── Project (projekt, har egna kolumner = sitt eget arbetsflöde)
             └── Issue (ärende)
                   ├── TimeEntry (tidsposter - timern ÄR en öppen tidspost)
-                  └── Comment
+                  ├── Comment
+                  ├── ChecklistItem (delmoment)
+                  ├── Attachment (bilaga, privat lagring)
+                  └── Activity (logg: vem gjorde vad, när)
 
 Tre designbeslut som bär allt annat:
 
@@ -31,10 +34,17 @@ Tre designbeslut som bär allt annat:
 Nycklar: ärenden i ett projekt numreras löpande per projekt (NORD-12)
 via en räknare på projektet som låses vid tilldelning. Ärenden utan
 projekt visas som #<id>.
+
+Kundmejl: INGET här skickar mejl till en kund. Att flytta ett ärende till
+Klart, svara i portalen eller ändra något får aldrig trigga ett kundmejl -
+kunden skulle tro att saker är helt färdiga som kanske bara flyttats
+internt. Kundmejl skickas bara av en vy bakom en tydlig knapp
+(manage_views.issue_email_customer). Notiser TILL byrån är fria.
 """
 
 import re
 import secrets
+from datetime import datetime, timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -425,6 +435,27 @@ class Issue(models.Model):
         return self.closed_at is not None
 
     @property
+    def is_late(self):
+        return bool(self.due_on and not self.closed_at and self.due_on < timezone.localdate())
+
+    @property
+    def is_due_soon(self):
+        """Förfaller inom en vecka (men inte redan försenat)."""
+        if not self.due_on or self.closed_at:
+            return False
+        today = timezone.localdate()
+        return today <= self.due_on <= today + timedelta(days=7)
+
+    def checklist_progress(self):
+        """(klara, totalt) för delmomenten - läser prefetchade rader om de finns."""
+        items = list(self.checklist.all())
+        return sum(1 for i in items if i.is_done), len(items)
+
+    def log(self, user, text):
+        """En rad i aktivitetsloggen. Aldrig ett mejl."""
+        return Activity.objects.create(issue=self, user=user, text=text[:300])
+
+    @property
     def stage(self):
         """
         Grov status oberoende av projektets kolumnnamn: new / active / done.
@@ -553,6 +584,41 @@ class TimeEntry(models.Model):
         self.seconds = max(0, int((self.ended_at - self.started_at).total_seconds()))
         self.save(update_fields=["ended_at", "seconds"])
 
+    @classmethod
+    def log(cls, issue, user, minutes, on_date=None, note="", is_billable=None):
+        """
+        Tid i efterhand: "45 min i går på NORD-3". En AVSLUTAD post som
+        slutar kl 17 den dagen (eller nu, om det är i dag) - samma tabell
+        som timern, så rapporter och summor behöver inte veta skillnaden.
+        """
+        minutes = int(minutes)
+        if minutes <= 0:
+            raise ValueError("Minuter måste vara större än noll.")
+        on_date = on_date or timezone.localdate()
+        if on_date == timezone.localdate():
+            ended = timezone.now()
+        else:
+            five_pm = datetime.min.time().replace(hour=17)
+            ended = timezone.make_aware(datetime.combine(on_date, five_pm))
+        seconds = min(minutes, 24 * 60) * 60
+        return cls.objects.create(
+            issue=issue,
+            user=user,
+            started_at=ended - timedelta(seconds=seconds),
+            ended_at=ended,
+            seconds=seconds,
+            note=note[:300],
+            is_billable=issue.is_billable if is_billable is None else is_billable,
+        )
+
+    def set_minutes(self, minutes):
+        """Ändra längden på en avslutad post; starttiden flyttas, sluttiden ligger kvar."""
+        minutes = int(minutes)
+        if minutes <= 0 or self.is_running:
+            raise ValueError("Minuter måste vara större än noll.")
+        self.seconds = min(minutes, 24 * 60) * 60
+        self.started_at = self.ended_at - timedelta(seconds=self.seconds)
+
 
 class Comment(models.Model):
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name="comments")
@@ -571,6 +637,53 @@ class Comment(models.Model):
 
     def __str__(self):
         return f"{self.issue.key}: {self.body[:40]}"
+
+
+class ChecklistItem(models.Model):
+    """Ett delmoment på ett ärende. Kortet visar klara/totalt."""
+
+    issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name="checklist")
+    text = models.CharField("Punkt", max_length=200)
+    is_done = models.BooleanField(default=False)
+    position = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["position", "id"]
+        verbose_name = "Delmoment"
+        verbose_name_plural = "Delmoment"
+
+    def __str__(self):
+        return self.text
+
+
+class Activity(models.Model):
+    """
+    Aktivitetsloggen: "Giovanni flyttade till Pågår", "Nina kommenterade i
+    portalen". Skrivs av vyerna, aldrig av signaler - bara handlingar som
+    betyder något för en människa hamnar här, inte varje fältändring.
+    """
+
+    issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name="activity")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    text = models.CharField(max_length=300)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "Aktivitet"
+        verbose_name_plural = "Aktivitet"
+
+    def __str__(self):
+        return f"{self.issue.key}: {self.text}"
+
+    @property
+    def who(self):
+        if self.user is None:
+            return "Systemet"
+        return self.user.first_name or self.user.get_username()
 
 
 class Attachment(models.Model):
