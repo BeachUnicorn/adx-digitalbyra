@@ -1,19 +1,24 @@
 {% extends "portal/base.html" %}
 {% block content %}
-<section class="hero">
-  <div class="tavla-head">
-    <div><div class="kicker">[ {{ customer.name }} ]</div><h2>Mina ärenden</h2></div>
-    {% if not request.viewing_as %}<a class="btn" href="{% url 'portal:issue_create' %}">Nytt ärende</a>{% endif %}
+<div class="tv-head">
+  <div>
+    <div class="tv-kicker">{{ customer.name }}</div>
+    <h1 class="tv-h1">Mina ärenden</h1>
+    <div class="tv-sub">Här ser ni vad som är på gång hos oss. Klicka på ett ärende för att läsa och svara.</div>
   </div>
-  <div id="board" class="portal-board" aria-label="Ärenden">
-    {% for col in columns %}
-    <section class="col panel" data-col="{{ col.key }}">
-      <header class="col-head"><h3 class="col-title">{{ col.title }}</h3><span class="col-count">{{ col.issues|length }}</span></header>
-      <div class="col-body">
-        {% for issue in col.issues %}{% include "portal/_card.html" %}{% empty %}<p class="soft empty">Inget här just nu.</p>{% endfor %}
-      </div>
-    </section>
-    {% endfor %}
-  </div>
-</section>
+  {% if not request.viewing_as %}<a class="m-btn" href="{% url 'portal:issue_create' %}">Nytt ärende</a>{% endif %}
+</div>
+<div class="tv-board pt-board" aria-label="Ärenden">
+  {% for col in columns %}
+  <section class="tv-col" data-col="{{ col.key }}">
+    <header class="tv-col-head">
+      <h2 class="tv-col-title">{{ col.title }}</h2>
+      <span class="tv-col-count">{{ col.issues|length }}</span>
+    </header>
+    <div class="tv-col-body">
+      {% for issue in col.issues %}{% include "portal/_card.html" %}{% empty %}<div class="tv-empty">[ inget här just nu ]</div>{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
 {% endblock %}

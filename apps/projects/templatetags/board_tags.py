@@ -28,31 +28,6 @@ def minutes_as_hours(minutes):
 
 
 @register.simple_tag
-def field_row(field, full=False):
-    """En formulärrad i sajtens .adx-form-stil - kundportalen (/kund/)."""
-    css = "field full" if full or field.field.widget.input_type in ("textarea", "file") else "field"
-    if getattr(field.field.widget, "input_type", "") == "checkbox":
-        return format_html(
-            '<div class="{}"><label class="check">{} <span>{}</span></label>{}</div>',
-            css,
-            field,
-            field.label,
-            field.errors,
-        )
-    return format_html(
-        '<div class="{}"><label for="{}">{}</label>{}{}{}</div>',
-        css,
-        field.id_for_label,
-        field.label,
-        field,
-        format_html('<small class="form-note">{}</small>', field.help_text)
-        if field.help_text
-        else "",
-        field.errors,
-    )
-
-
-@register.simple_tag
 def m_field(field, wide=False):
     """En formulärrad i panelens .m-form-stil (label över fält, hjälptext, fel)."""
     widget = field.field.widget

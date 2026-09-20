@@ -44,7 +44,14 @@ from .board import (
     with_time,
 )
 from .emails import send_invite, send_issue_update_to_customer
-from .forms import ColumnForm, CommentForm, CustomerForm, InviteForm, ProjectForm
+from .forms import (
+    ColumnForm,
+    CommentForm,
+    CustomerCreateForm,
+    CustomerForm,
+    InviteForm,
+    ProjectForm,
+)
 from .models import (
     Attachment,
     ChecklistItem,
@@ -741,7 +748,7 @@ def column_update(request, pk):
 
 @staff_required
 def customer_list(request):
-    form = CustomerForm(request.POST or None)
+    form = CustomerCreateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         customer = form.save()
         messages.success(request, f"{customer.name} är skapad.")

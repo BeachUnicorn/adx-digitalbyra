@@ -222,6 +222,108 @@ class PortalGateTests(PortalFixtureMixin, TestCase):
         self.assertIn("Disallow: /kund/", Client().get("/robots.txt").content.decode())
 
 
+@override_settings(**EMAIL)
+class PasswordlessLoginTests(PortalFixtureMixin, TestCase):
+    """E-post -> engångskod på mejl -> inloggad. Aldrig ett lösenord."""
+
+    def _code_from_mail(self):
+        import re
+
+        return re.search(r"\b(\d{6})\b", mail.outbox[-1].body).group(1)
+
+    def test_contact_logs_in_with_a_mailed_code(self):
+        client = Client()
+        r = client.post("/kund/logga-in/", {"email": "Anna@Acme.se"})
+        self.assertEqual(r["Location"], "/kund/kod/")
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["anna@acme.se"])
+        code = self._code_from_mail()
+        self.assertIn(code, mail.outbox[0].subject)
+        r = client.post("/kund/kod/", {"code": code})
+        self.assertEqual(r["Location"], "/kund/tavla/")
+        self.assertContains(client.get("/kund/tavla/"), "Synligt")
+        # Koden är förbrukad.
+        client2 = Client()
+        client2.post("/kund/logga-in/", {"email": "anna@acme.se"})
+        self.assertEqual(client2.post("/kund/kod/", {"code": code}).status_code, 200)
+
+    def test_unknown_staff_and_inactive_customer_addresses_get_the_same_answer_and_no_mail(self):
+        self.staff.email = "byra@adx.se"
+        self.staff.save()
+        self.acme.is_active = False
+        self.acme.save()
+        for email in ("finns@inte.se", "byra@adx.se", "anna@acme.se"):
+            r = Client().post("/kund/logga-in/", {"email": email})
+            self.assertEqual(r["Location"], "/kund/kod/")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_wrong_expired_and_overused_codes_fail(self):
+        from .auth import MAX_ATTEMPTS, issue_code, verify_code
+        from .models import LoginCode
+
+        client = Client()
+        client.post("/kund/logga-in/", {"email": "anna@acme.se"})
+        r = client.post("/kund/kod/", {"code": "000000"})
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, "Fel eller utgången kod")
+        self.assertFalse(r.wsgi_request.user.is_authenticated)
+        # Utgången.
+        code = self._code_from_mail()
+        LoginCode.objects.update(expires_at=timezone.now() - timezone.timedelta(minutes=1))
+        self.assertFalse(verify_code(self.contact, code))
+        # För många försök på en färsk kod.
+        code = issue_code(self.contact)
+        for _ in range(MAX_ATTEMPTS):
+            self.assertFalse(verify_code(self.contact, "111111"))
+        self.assertFalse(verify_code(self.contact, code), "spärrad efter för många försök")
+
+    def test_a_new_code_replaces_the_old_and_requests_are_rate_limited(self):
+        from .auth import MAX_CODES_PER_HOUR, issue_code, verify_code
+
+        first = issue_code(self.contact)
+        second = issue_code(self.contact)
+        self.assertFalse(verify_code(self.contact, first))
+        self.assertTrue(verify_code(self.contact, second))
+        for _ in range(MAX_CODES_PER_HOUR):
+            issue_code(self.contact)
+        self.assertIsNone(issue_code(self.contact))
+
+    def test_codes_are_stored_hashed(self):
+        from .auth import issue_code
+        from .models import LoginCode
+
+        code = issue_code(self.contact)
+        self.assertNotIn(code, LoginCode.objects.get(user=self.contact).code_hash)
+
+    def test_next_is_kept_through_the_code_step(self):
+        client = Client()
+        client.post("/kund/logga-in/", {"email": "anna@acme.se", "next": "/kund/arenden/nytt/"})
+        r = client.post("/kund/kod/", {"code": self._code_from_mail()})
+        self.assertEqual(r["Location"], "/kund/arenden/nytt/")
+        client.post("/kund/logga-in/", {"email": "anna@acme.se", "next": "https://ond.se/"})
+
+    def test_code_page_without_pending_email_goes_back_to_login(self):
+        self.assertEqual(Client().get("/kund/kod/")["Location"], "/kund/logga-in/")
+
+    def test_the_portal_wears_the_panel_skin(self):
+        html = Client().get("/kund/logga-in/").content.decode()
+        self.assertIn("manage-skin.css", html)
+        self.assertNotIn("site.css", html)
+        self.assertNotIn("lösenord", html.lower().replace("inget lösenord", ""))
+
+
+class CustomerCreateTests(PortalFixtureMixin, TestCase):
+    def test_a_new_customer_is_active(self):
+        self.as_staff().post("/manage/kunder/", {"name": "Nya AB"})
+        self.assertTrue(Customer.objects.get(name="Nya AB").is_active)
+
+    def test_an_inactive_customer_is_flagged_on_its_page(self):
+        self.acme.is_active = False
+        self.acme.save()
+        html = self.as_staff().get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        self.assertIn("inaktiv", html)
+
+
 class ViewAsCustomerTests(PortalFixtureMixin, TestCase):
     """Byrån tittar på portalen som en kund: ser exakt kundens vy, kan inte skriva."""
 
@@ -372,7 +474,7 @@ class PortalCreateTests(PortalFixtureMixin, TestCase):
 
 @override_settings(**EMAIL)
 class InviteTests(PortalFixtureMixin, TestCase):
-    def test_invite_creates_a_portal_user_and_mails_a_set_password_link(self):
+    def test_invite_creates_a_portal_user_and_mails_how_to_log_in(self):
         self.as_staff().post(
             f"/manage/kunder/{self.acme.pk}/bjud-in/", {"email": "Ny@Acme.se", "first_name": "Ny"}
         )
@@ -381,7 +483,9 @@ class InviteTests(PortalFixtureMixin, TestCase):
         self.assertFalse(user.has_usable_password())
         self.assertIn(user, self.acme.users.all())
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("/kund/aterstall/", mail.outbox[0].body)
+        self.assertIn("/kund/", mail.outbox[0].body)
+        self.assertIn("engångskod", mail.outbox[0].body)
+        self.assertNotIn("lösenord här", mail.outbox[0].body)
 
     def test_a_staff_address_cannot_be_invited_as_contact(self):
         self.as_staff().post(

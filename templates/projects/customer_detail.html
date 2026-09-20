@@ -4,7 +4,8 @@
 <div class="tv-head">
   <div>
     <div class="tv-kicker">Kund</div>
-    <h1 class="tv-h1 tv-h1--plain">{{ customer.name }}</h1>
+    <h1 class="tv-h1 tv-h1--plain">{{ customer.name }}{% if not customer.is_active %} <span class="m-badge">inaktiv</span>{% endif %}</h1>
+    {% if not customer.is_active %}<div class="tv-sub">Kunden är inaktiv: kontakterna kan inte logga in i portalen förrän du bockar i Aktiv i formuläret.</div>{% endif %}
     <div class="tv-sub">{{ time }} loggad tid{% if customer.email %} &middot; {{ customer.email }}{% endif %}{% if customer.phone %} &middot; {{ customer.phone }}{% endif %}</div>
   </div>
   {% if customer.is_active %}

@@ -5,13 +5,17 @@ Grundregeln sitter i access.customer_issues: kundens ärenden (direkt
 eller via projekt) OCH bara de med visible_to_customer. Tid, timers,
 interna anteckningar och andra kunder finns inte här - inte dolda med
 CSS utan aldrig hämtade.
+
+Inloggningen är lösenordsfri (auth.py): e-post -> engångskod på mejl.
 """
 
 from django.contrib import messages
+from django.contrib.auth import login
 from django.contrib.auth import views as auth_views
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from .access import (
@@ -22,44 +26,67 @@ from .access import (
     is_agency_user,
     viewing_customer,
 )
+from .auth import contact_for_email, issue_code, verify_code
 from .board import STAGES
-from .emails import send_portal_comment_notice, send_portal_issue_notice
+from .emails import send_login_code, send_portal_comment_notice, send_portal_issue_notice
 from .forms import MultiFileField, PortalIssueForm
 from .models import Attachment, Comment, Issue, IssueType
 
+#: Sessionsnycklar mellan e-poststeget och kodsteget.
+_PENDING_EMAIL = "portal_login_email"
+_PENDING_NEXT = "portal_login_next"
 
-class PortalLoginView(auth_views.LoginView):
-    template_name = "portal/login.html"
-    redirect_authenticated_user = True
 
-    def get_success_url(self):
-        if self.request.user.is_staff:
-            return reverse("manage:board")
-        return self.get_redirect_url() or reverse("portal:home")
+def _safe_next(request, raw):
+    if raw and url_has_allowed_host_and_scheme(raw, allowed_hosts={request.get_host()}):
+        return raw
+    return ""
+
+
+def login_view(request):
+    """Steg 1: e-post. Samma svar oavsett om adressen finns - ingen uppräkning."""
+    if customer_for(request.user):
+        return redirect("portal:home")
+    if request.user.is_authenticated and is_agency_user(request.user):
+        return redirect("manage:board")
+    if request.method == "POST":
+        email = request.POST.get("email", "").strip().lower()[:254]
+        if not email or "@" not in email:
+            messages.error(request, "Skriv din e-postadress.")
+            return redirect("portal:login")
+        user = contact_for_email(email)
+        if user is not None:
+            code = issue_code(user)
+            if code:
+                send_login_code(user, code)
+        request.session[_PENDING_EMAIL] = email
+        request.session[_PENDING_NEXT] = _safe_next(request, request.POST.get("next"))
+        return redirect("portal:code")
+    return render(
+        request,
+        "portal/login.html",
+        {"title": "Logga in", "next": _safe_next(request, request.GET.get("next"))},
+    )
+
+
+def code_view(request):
+    """Steg 2: koden ur mejlet."""
+    email = request.session.get(_PENDING_EMAIL)
+    if not email:
+        return redirect("portal:login")
+    if request.method == "POST":
+        user = contact_for_email(email)
+        if user is not None and verify_code(user, request.POST.get("code", "")):
+            login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+            request.session.pop(_PENDING_EMAIL, None)
+            target = request.session.pop(_PENDING_NEXT, "") or reverse_lazy("portal:home")
+            return redirect(target)
+        messages.error(request, "Fel eller utgången kod. Kontrollera mejlet, eller begär en ny.")
+    return render(request, "portal/code.html", {"title": "Ange koden", "email": email})
 
 
 class PortalLogoutView(auth_views.LogoutView):
     next_page = reverse_lazy("portal:login")
-
-
-class PortalPasswordResetView(auth_views.PasswordResetView):
-    template_name = "portal/password_reset_form.html"
-    email_template_name = "portal/emails/reset_body.txt"
-    subject_template_name = "portal/emails/reset_subject.txt"
-    success_url = reverse_lazy("portal:password_reset_done")
-
-
-class PortalPasswordResetDoneView(auth_views.PasswordResetDoneView):
-    template_name = "portal/password_reset_done.html"
-
-
-class PortalPasswordResetConfirmView(auth_views.PasswordResetConfirmView):
-    template_name = "portal/password_reset_confirm.html"
-    success_url = reverse_lazy("portal:password_reset_complete")
-
-
-class PortalPasswordResetCompleteView(auth_views.PasswordResetCompleteView):
-    template_name = "portal/password_reset_complete.html"
 
 
 def _save_files(issue, files, user):
@@ -84,7 +111,12 @@ def home(request):
     return render(
         request,
         "portal/home.html",
-        {"customer": request.customer, "columns": columns, "title": "Mina ärenden"},
+        {
+            "customer": request.customer,
+            "columns": columns,
+            "title": "Mina ärenden",
+            "active": "home",
+        },
     )
 
 
@@ -103,10 +135,13 @@ def issue_create(request):
             created_in_portal=True,
         )
         _save_files(issue, form.cleaned_data["files"], request.user)
+        issue.log(request.user, "skapade ärendet i portalen")
         send_portal_issue_notice(issue, request.customer)
         messages.success(request, f"Ärendet {issue.key} är skapat. Vi hör av oss.")
         return redirect("portal:issue_detail", pk=issue.pk)
-    return render(request, "portal/issue_form.html", {"form": form, "title": "Nytt ärende"})
+    return render(
+        request, "portal/issue_form.html", {"form": form, "title": "Nytt ärende", "active": "new"}
+    )
 
 
 class PortalCommentForm(PortalIssueForm):
@@ -135,6 +170,7 @@ def issue_detail(request, pk):
             is_internal=False,
         )
         _save_files(issue, form.cleaned_data["files"], request.user)
+        issue.log(request.user, "kommenterade i portalen")
         send_portal_comment_notice(comment, request.customer)
         messages.success(request, "Kommentaren är skickad.")
         return redirect("portal:issue_detail", pk=pk)
@@ -148,6 +184,7 @@ def issue_detail(request, pk):
             "attachments": issue.attachments.all(),
             "form": form,
             "title": issue.title,
+            "active": "home",
         },
     )
 

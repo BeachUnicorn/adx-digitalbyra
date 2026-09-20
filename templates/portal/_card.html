@@ -1,5 +1,8 @@
-<a class="card portal-card" href="{% url 'portal:issue_detail' issue.pk %}">
-  <div class="card-top"><span class="key"><b>{{ issue.key }}</b></span><span class="flags">{% if issue.attachments.exists %}<span class="flag">{{ issue.attachments.count }} bilag{{ issue.attachments.count|pluralize:"a,or" }}</span>{% endif %}</span></div>
-  <h3 class="card-title">{{ issue.title }}</h3>
-  <div class="meta"><span>{{ issue.get_issue_type_display }}</span><span>{{ issue.updated_at|date:"j M" }}</span>{% if issue.due_on %}<span>klart {{ issue.due_on|date:"j M" }}</span>{% endif %}</div>
+<a class="tv-card pt-card" href="{% url 'portal:issue_detail' issue.pk %}">
+  <div class="tv-card-top">
+    <span class="tv-key"><b>{{ issue.key }}</b></span>
+    <span class="tv-flags">{% with n=issue.attachments.count %}{% if n %}<span class="tv-flag">{{ n }} bilag{{ n|pluralize:"a,or" }}</span>{% endif %}{% endwith %}</span>
+  </div>
+  <h3 class="tv-title">{{ issue.title }}</h3>
+  <div class="tv-meta"><span>{{ issue.get_issue_type_display }}</span><span>{{ issue.updated_at|date:"j M" }}</span>{% if issue.due_on %}<span>klart {{ issue.due_on|date:"j M" }}</span>{% endif %}</div>
 </a>

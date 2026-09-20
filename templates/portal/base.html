@@ -1,52 +1,58 @@
-{% load static theme_tags %}<!DOCTYPE html>
+{% load static %}<!DOCTYPE html>
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex, nofollow">
     <title>{{ title|default:"Kundportal" }} - ADX</title>
-    <link rel="stylesheet" href="{% static 'css/site.css' %}?v={{ site_css_version }}">
-    <link rel="stylesheet" href="{% static 'css/board.css' %}?v={{ static_version }}">
+    <link rel="stylesheet" href="{% static 'css/manage.css' %}?v={{ static_version }}">
+    <link rel="stylesheet" href="{% static 'css/manage-skin.css' %}?v={{ static_version }}">
+    <link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}">
 </head>
-<body {% body_theme "#2f6f4f" %}>
-<canvas id="gradient-canvas"></canvas>
-<div class="page-root">
-<header>
-  <div class="wrap nav">
-    <a class="pill logo-pill" href="{% url 'portal:landing' %}"><img src="{% static 'images/adx-logo.png' %}" alt="ADX"></a>
-    {% if user.is_authenticated %}
-    <nav class="pill nav-links" aria-label="Kundportal">
-      <a href="{% url 'portal:home' %}"{% if active == 'home' %} class="active"{% endif %}>Mina ärenden</a>
-      <a href="{% url 'portal:issue_create' %}"{% if active == 'new' %} class="active"{% endif %}>Nytt ärende</a>
-    </nav>
-    <div class="nav-right">
-      {% if request.viewing_as %}
-      <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="pill nav-cta">Lämna kundvyn</button></form>
-      {% else %}
-      <span class="pill user-pill">{{ user.first_name|default:user.email }}</span>
-      <form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}<button type="submit" class="pill nav-cta">Logga ut</button></form>
-      {% endif %}
+<body class="m-body">
+{% comment %}
+Kundportalen i samma skinn som panelen: samma tokens, samma kort. Ingen
+hamburgare - två länkar får plats på alla skärmar. Det som INTE finns
+här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
+{% endcomment %}
+<nav class="m-nav pt-nav" aria-label="Kundportal">
+    <div class="m-container m-nav__inner">
+        <ul class="m-nav__links">
+            <li><a href="{% url 'portal:landing' %}" class="m-nav__link pt-brand">ADX</a></li>
+            {% if request.customer %}
+            <li><a href="{% url 'portal:home' %}" class="m-nav__link{% if active == 'home' %} is-active{% endif %}">Mina ärenden</a></li>
+            {% if not request.viewing_as %}<li><a href="{% url 'portal:issue_create' %}" class="m-nav__link{% if active == 'new' %} is-active{% endif %}">Nytt ärende</a></li>{% endif %}
+            {% endif %}
+        </ul>
+        <div class="m-nav__right">
+            {% if request.viewing_as %}
+            <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="m-nav__view-site">Lämna kundvyn</button></form>
+            {% elif request.customer %}
+            <span class="pt-user">{{ user.first_name|default:user.email }}</span>
+            <form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}<button type="submit" class="m-nav__view-site">Logga ut</button></form>
+            {% else %}
+            <a href="/" class="m-nav__view-site">adx.se ↗</a>
+            {% endif %}
+        </div>
     </div>
-    {% else %}
-    <span class="pill nav-links"><a href="{% url 'portal:login' %}" class="active">Kundportal</a></span>
-    <a class="pill nav-cta" href="/">adx.se</a>
-    {% endif %}
-  </div>
-</header>
-<main id="main" class="page board-page">
-  <div class="wrap">
-    {% if request.viewing_as %}
-    <div class="view-as-banner" role="status">
-      <span class="dot"></span>
-      <span>Du ser portalen som <b>{{ request.customer.name }}</b> - exakt det kunden ser. Skrivskyddat: skapa ärenden och svara från tavlan i panelen.</span>
-      <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="pill">Lämna kundvyn</button></form>
+</nav>
+
+<main class="m-main">
+    <div class="m-container pt-container">
+        {% if request.viewing_as %}
+        <div class="pt-banner" role="status">
+            <span class="dot"></span>
+            <span>Du ser portalen som <b>{{ request.customer.name }}</b> - exakt det kunden ser. Skrivskyddat: skapa ärenden och svara från tavlan i panelen.</span>
+            <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="m-btn m-btn--small m-btn--ghost">Lämna kundvyn</button></form>
+        </div>
+        {% endif %}
+        {% if messages %}
+        <ul class="m-messages">
+            {% for message in messages %}<li class="m-message m-message--{{ message.tags }}">{{ message }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        {% block content %}{% endblock %}
     </div>
-    {% endif %}
-    {% if messages %}<ul class="board-msgs">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
-    {% block content %}{% endblock %}
-  </div>
 </main>
-</div>
-<script src="{% static 'js/gradient.js' %}?v={{ site_css_version }}" defer></script>
 </body>
 </html>

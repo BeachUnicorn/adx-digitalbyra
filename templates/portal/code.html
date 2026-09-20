@@ -1,0 +1,17 @@
+{% extends "portal/base.html" %}
+{% block content %}
+<div class="pt-center">
+  <form class="m-panel pt-login" method="post" action="{% url 'portal:code' %}">
+    {% csrf_token %}
+    <h1 class="m-login__title">Ange koden</h1>
+    <p class="m-login__subtitle">Kundportal</p>
+    <p class="pt-lead">Om <b>{{ email }}</b> har en kundportal hos oss har vi mejlat en sexsiffrig kod. Den gäller i tio minuter.</p>
+    <div class="m-field">
+      <label for="id_code">Kod</label>
+      <input type="text" name="code" id="id_code" inputmode="numeric" pattern="[0-9 ]*" autocomplete="one-time-code" maxlength="7" required autofocus placeholder="123456" class="pt-code">
+    </div>
+    <button type="submit" class="m-btn">Logga in</button>
+    <p class="pt-note">Fick du ingen kod? Kontrollera skräpposten, eller <a href="{% url 'portal:login' %}">begär en ny</a>.</p>
+  </form>
+</div>
+{% endblock %}

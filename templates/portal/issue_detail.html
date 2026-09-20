@@ -1,39 +1,44 @@
 {% extends "portal/base.html" %}
 {% load board_tags %}
 {% block content %}
-<section class="hero detail">
-  <div class="tavla-head">
-    <div><div class="kicker">[ {{ issue.key }} &middot; {{ stage_label }} ]</div><h2 style="text-transform:none;font-size:clamp(26px,3.5vw,42px)">{{ issue.title }}</h2>
-      <p class="lead" style="margin-top:10px">Skapat {{ issue.created_at|date:"j F Y" }}{% if issue.due_on %} &middot; planerat klart {{ issue.due_on|date:"j F" }}{% endif %}</p></div>
-    <a href="{% url 'portal:home' %}" class="pill">Till mina ärenden</a>
-  </div>
-  <div class="detail-grid single">
-    <div class="detail-main">
-      {% if issue.description %}<div class="panel prose-panel">{{ issue.description|linebreaks }}</div>{% endif %}
-      {% if attachments %}
-      <div class="panel sub"><div class="kicker">[ Bilagor ]</div>
-        <ul class="files">{% for a in attachments %}<li><a href="{% url 'portal:attachment' a.pk %}"{% if not a.is_image %} download{% endif %}>{{ a.original_name }}</a> <small>{{ a.size_display }}</small></li>{% endfor %}</ul>
-      </div>
-      {% endif %}
-      <div class="panel sub">
-        <div class="kicker">[ Konversation ]</div>
-        {% for c in comments %}
-        <div class="comment{% if c.author and c.author.is_staff %} is-staff{% endif %}">
-          <div class="comment-head"><b>{% if c.author and c.author.is_staff %}ADX{% else %}{{ c.author.first_name|default:c.author.email|default:"Ni" }}{% endif %}</b> <span>{{ c.created_at|date:"j M Y H:i" }}</span></div>
-          <div>{{ c.body|linebreaksbr }}</div>
-        </div>
-        {% empty %}<p class="soft">Inga kommentarer än.{% if not request.viewing_as %} Skriv till oss här nedanför.{% endif %}</p>{% endfor %}
-        {% if request.viewing_as %}
-        <p class="soft">Här skriver kunden sina svar. Du svarar från tavlan i panelen.</p>
-        {% else %}
-        <form method="post" enctype="multipart/form-data" class="adx-form compact">{% csrf_token %}
-          {% field_row form.description True %}
-          {% field_row form.files True %}
-          <div class="form-actions"><button type="submit" class="btn">Skicka</button></div>
-        </form>
-        {% endif %}
-      </div>
+<div class="pt-narrow">
+  <div class="tv-head">
+    <div>
+      <div class="tv-kicker">{{ issue.key }} &middot; {{ stage_label }}</div>
+      <h1 class="tv-h1 tv-h1--plain">{{ issue.title }}</h1>
+      <div class="tv-sub">Skapat {{ issue.created_at|date:"j F Y" }}{% if issue.due_on %} &middot; planerat klart {{ issue.due_on|date:"j F" }}{% endif %}</div>
     </div>
+    <a href="{% url 'portal:home' %}" class="m-btn m-btn--ghost">Till mina ärenden</a>
   </div>
-</section>
+
+  {% if issue.description %}<div class="m-panel tv-panel pt-prose">{{ issue.description|linebreaks }}</div>{% endif %}
+
+  {% if attachments %}
+  <div class="m-panel tv-panel">
+    <div class="tv-sec-title">Bilagor</div>
+    <ul class="tv-files">{% for a in attachments %}<li><a href="{% url 'portal:attachment' a.pk %}"{% if not a.is_image %} download{% endif %}>{{ a.original_name }}</a> <small>{{ a.size_display }}</small></li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  <div class="m-panel tv-panel">
+    <div class="tv-sec-title">Konversation</div>
+    <div class="tv-thread">
+      {% for c in comments %}
+      <div class="tv-msg{% if c.author and c.author.is_staff %} is-staff{% else %} is-customer{% endif %}">
+        <div class="tv-msg__head">{% if c.author and c.author.is_staff %}ADX{% else %}{{ c.author.first_name|default:c.author.email|default:"Ni" }}{% endif %} &middot; {{ c.created_at|date:"j M Y H:i" }}</div>
+        <div class="tv-msg__body">{{ c.body|linebreaksbr }}</div>
+      </div>
+      {% empty %}<div class="tv-empty tv-empty--inline">Inga kommentarer än.{% if not request.viewing_as %} Skriv till oss här nedanför.{% endif %}</div>{% endfor %}
+    </div>
+    {% if request.viewing_as %}
+    <p class="tv-prop__note pt-note">Här skriver kunden sina svar. Du svarar från tavlan i panelen.</p>
+    {% else %}
+    <form method="post" enctype="multipart/form-data" class="tv-form pt-reply">{% csrf_token %}
+      {% m_field form.description %}
+      {% m_field form.files %}
+      <div class="tv-form__actions"><button type="submit" class="m-btn">Skicka</button></div>
+    </form>
+    {% endif %}
+  </div>
+</div>
 {% endblock %}

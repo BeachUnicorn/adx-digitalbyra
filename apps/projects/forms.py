@@ -132,6 +132,17 @@ class CustomerForm(forms.ModelForm):
         widgets = {"notes": forms.Textarea(attrs={"rows": 3})}
 
 
+class CustomerCreateForm(CustomerForm):
+    """
+    "Ny kund" utan Aktiv-rutan. En kryssruta som finns i formulärklassen
+    men inte renderas i mallen läses som avbockad - så skapades kunder
+    inaktiva (2026-09-20), och deras kontakter kunde inte logga in.
+    """
+
+    class Meta(CustomerForm.Meta):
+        fields = ["name", "org_number", "email", "phone", "website", "notes"]
+
+
 class InviteForm(forms.Form):
     email = forms.EmailField(label="E-post")
     first_name = forms.CharField(label="Förnamn", max_length=80, required=False)

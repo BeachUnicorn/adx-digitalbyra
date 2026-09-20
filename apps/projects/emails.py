@@ -7,10 +7,7 @@ kundmejl, send_issue_update_to_customer, som bara vyn bakom knappen
 import logging
 
 from django.conf import settings
-from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import EmailMultiAlternatives
-from django.utils.encoding import force_bytes
-from django.utils.http import urlsafe_base64_encode
 
 from apps.inquiries.emails import _as_list, _email_configured
 
@@ -39,19 +36,14 @@ def _send(subject, body, to, reply_to=None):
         return False
 
 
-def set_password_link(user):
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = default_token_generator.make_token(user)
-    return f"{_base_url()}/kund/aterstall/{uid}/{token}/"
-
-
 def send_invite(user, customer):
+    """Inbjudan: inget lösenord att sätta - man loggar in med sin e-post."""
     body = (
         f"Hej{(' ' + user.first_name) if user.first_name else ''},\n\n"
         f"ni har fått en kundportal hos ADX för {customer.name}. Där skapar ni ärenden, "
         f"bifogar skärmdumpar och dokument, och följer vad som pågår.\n\n"
-        f"Välj ditt lösenord här (länken gäller i tre dagar):\n{set_password_link(user)}\n\n"
-        f"Därefter loggar du in på {_base_url()}/kund/ med {user.email}.\n\n"
+        f"Logga in på {_base_url()}/kund/ med den här e-postadressen ({user.email}). "
+        f"Inget lösenord behövs: du får en engångskod på mejl varje gång.\n\n"
         f"Vänliga hälsningar\nADX"
     )
     return _send(
@@ -60,6 +52,15 @@ def send_invite(user, customer):
         [user.email],
         reply_to=_as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
     )
+
+
+def send_login_code(user, code):
+    body = (
+        f"Hej,\n\ndin inloggningskod till ADX kundportal är:\n\n{code}\n\n"
+        f"Koden gäller i tio minuter. Skriv in den på {_base_url()}/kund/kod/\n\n"
+        f"Bad du inte om en kod kan du bortse från det här mejlet.\n\nADX"
+    )
+    return _send(f"Din inloggningskod: {code}", body, [user.email])
 
 
 def send_portal_issue_notice(issue, customer):

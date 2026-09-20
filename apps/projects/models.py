@@ -686,6 +686,33 @@ class Activity(models.Model):
         return self.user.first_name or self.user.get_username()
 
 
+class LoginCode(models.Model):
+    """
+    Engångskod för lösenordsfri inloggning i portalen (apps/projects/auth.py).
+
+    Koden lagras bara som hash (saltad med SECRET_KEY), så en databasdump
+    ger ingen inloggning. Tio minuters giltighet, fem försök, en kod i
+    taget - en ny kod ogiltigförklarar den gamla.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="login_codes"
+    )
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Inloggningskod"
+        verbose_name_plural = "Inloggningskoder"
+
+    def __str__(self):
+        return f"{self.user_id}: {self.created_at:%Y-%m-%d %H:%M}"
+
+
 class Attachment(models.Model):
     """Bilaga på ett ärende: skärmdump, dokument. Privat lagring, gated utlämning."""
 

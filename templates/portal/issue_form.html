@@ -1,14 +1,19 @@
 {% extends "portal/base.html" %}
 {% load board_tags %}
 {% block content %}
-<section class="hero narrow">
-  <div class="kicker">[ Nytt ärende ]</div>
-  <h2>Vad vill ni ha gjort?</h2>
-  <form method="post" enctype="multipart/form-data" class="adx-form compact panel" style="margin-top:28px">{% csrf_token %}
-    {% field_row form.title True %}
-    {% field_row form.description True %}
-    {% field_row form.files True %}
-    <div class="form-actions"><button type="submit" class="btn">Skicka ärendet</button><span class="form-note">Vi svarar inom en arbetsdag.</span></div>
+<div class="pt-narrow">
+  <div class="tv-head">
+    <div>
+      <div class="tv-kicker">Nytt ärende</div>
+      <h1 class="tv-h1 tv-h1--plain">Vad vill ni ha gjort?</h1>
+      <div class="tv-sub">Var gärna konkret: vilken sida, vad som ska ändras, och när. Bifoga skärmdumpar om det hjälper.</div>
+    </div>
+  </div>
+  <form method="post" enctype="multipart/form-data" class="m-panel tv-form">{% csrf_token %}
+    {% m_field form.title %}
+    {% m_field form.description %}
+    {% m_field form.files %}
+    <div class="tv-form__actions pt-actions"><button type="submit" class="m-btn">Skicka ärendet</button><span class="tv-prop__note">Vi svarar inom en arbetsdag.</span></div>
   </form>
-</section>
+</div>
 {% endblock %}
