@@ -55,6 +55,11 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
     #save-state.is-on, #save-state.is-error { opacity: 1; }
     .o-side .m-field input, .o-side .m-field textarea, .o-side .m-field select { width: 100%; box-sizing: border-box; }
     .o-issue-link { margin-left: auto; text-decoration: none; }
+    .o-attach-row { display: flex; gap: 10px; align-items: center; padding: 8px 0; }
+    .o-attach-row a { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+    .o-attach-row__meta { font-family: var(--s-mono); font-size: 12px; color: var(--m-text-muted); }
+    .o-attach-form { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+    .o-attach-form input[type=file] { flex: 1; min-width: 0; font-size: 13px; }
 </style>
 {% endblock %}
 
@@ -171,6 +176,28 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
                 <textarea class="o-meta" data-field="intro" rows="3" placeholder="Hej! Här är vårt förslag...">{{ quote.intro }}</textarea></div>
             <div class="m-field"><label>Giltig till</label>
                 <input class="o-meta" data-field="valid_until" type="date" value="{{ quote.valid_until|date:'Y-m-d' }}"></div>
+        </div>
+
+        <div class="m-panel o-card">
+            <h2 class="o-card__title">Bilagor</h2>
+            <p class="af-hero__desc">Visas som knappar på kundens offertsida, bara om det finns några. Typiskt en PDF med mer information.</p>
+            {% for a in quote.attachments.all %}
+            <form method="post" action="{% url 'manage:offer_attachment_delete' a.pk %}" class="o-attach-row" onsubmit="return confirm('Ta bort bilagan {{ a.original_name }}?');">
+                {% csrf_token %}
+                <a href="{% url 'offers:attachment' quote.token a.pk %}" target="_blank" rel="noopener">{{ a.original_name }}</a>
+                <span class="o-attach-row__meta">{{ a.size_display }}</span>
+                {% if quote.status != 'accepted' %}<button type="submit" class="o-del" title="Ta bort bilagan" aria-label="Ta bort bilagan">&times;</button>{% endif %}
+            </form>
+            {% empty %}
+            <p class="af-empty">Inga bilagor.</p>
+            {% endfor %}
+            {% if quote.status != 'accepted' %}
+            <form method="post" action="{% url 'manage:offer_attach' quote.pk %}" enctype="multipart/form-data" class="o-attach-form">
+                {% csrf_token %}
+                <input type="file" name="files" multiple accept=".pdf,.png,.jpg,.jpeg,.docx,.xlsx,.pptx" aria-label="Välj filer">
+                <button type="submit" class="m-btn m-btn--small m-btn--ghost">Ladda upp</button>
+            </form>
+            {% endif %}
         </div>
 
         <div class="m-panel o-card">

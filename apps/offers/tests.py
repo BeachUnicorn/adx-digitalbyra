@@ -795,3 +795,90 @@ class AcceptPageTests(TestCase):
         self.assertEqual(customer.org_number, "556712-3456")
         self.assertEqual(customer.email, "nina@nordan.se")
         self.assertEqual(customer.phone, "070-123 45 67")
+
+
+@override_settings(**EMAIL_SETTINGS)
+class AttachmentAndIpTests(TestCase):
+    """Bilagor visas bara om de finns och hämtas mot token; IP:t syns vid bekräftelsen."""
+
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        self.staff = get_user_model().objects.create_user("g", password="x", is_staff=True)
+        self.client_staff = Client()
+        self.client_staff.force_login(self.staff)
+        self.quote = Quote.objects.create(customer_name="Kund AB", status=QuoteStatus.SENT)
+        QuoteLine.objects.create(quote=self.quote, label="Hemsida", price=1000, order=1)
+        self.pdf = SimpleUploadedFile("info.pdf", b"%PDF-1.4 test", content_type="application/pdf")
+
+    def test_no_attachments_means_no_section(self):
+        html = Client().get(self.quote.get_public_url()).content.decode()
+        self.assertNotIn("of-attachments", html)
+
+    def test_upload_shows_a_button_on_the_offer_and_downloads_by_token(self):
+        self.client_staff.post(f"/manage/offerter/{self.quote.pk}/bilaga/", {"files": self.pdf})
+        attachment = self.quote.attachments.get()
+        self.assertEqual(attachment.original_name, "info.pdf")
+        html = Client().get(self.quote.get_public_url()).content.decode()
+        self.assertIn("of-attachments", html)
+        self.assertIn("info.pdf", html)
+        url = f"/offert/{self.quote.token}/bilaga/{attachment.pk}/"
+        r = Client().get(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertIn("info.pdf", r["Content-Disposition"])
+        self.assertNotIn("attachment", r["Content-Disposition"], "PDF öppnas i webbläsaren")
+        other = Quote.objects.create(customer_name="Annan", status=QuoteStatus.SENT)
+        self.assertEqual(
+            Client().get(f"/offert/{other.token}/bilaga/{attachment.pk}/").status_code, 404
+        )
+        from django.conf import settings
+
+        self.assertTrue(
+            str(attachment.file.path).startswith(str(settings.PRIVATE_MEDIA_ROOT)),
+            "bilagan ligger utanför /media/",
+        )
+
+    def test_disallowed_types_are_refused(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        bad = SimpleUploadedFile("virus.exe", b"x", content_type="application/octet-stream")
+        self.client_staff.post(f"/manage/offerter/{self.quote.pk}/bilaga/", {"files": bad})
+        self.assertEqual(self.quote.attachments.count(), 0)
+
+    def test_delete_and_lock_after_accept(self):
+        self.client_staff.post(f"/manage/offerter/{self.quote.pk}/bilaga/", {"files": self.pdf})
+        attachment = self.quote.attachments.get()
+        Client().post(f"/offert/{self.quote.token}/acceptera/", ACCEPT)
+        self.client_staff.post(f"/manage/offerter/bilaga/{attachment.pk}/ta-bort/")
+        self.assertEqual(self.quote.attachments.count(), 1, "låst efter accept")
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        more = SimpleUploadedFile("mer.pdf", b"%PDF", content_type="application/pdf")
+        self.client_staff.post(f"/manage/offerter/{self.quote.pk}/bilaga/", {"files": more})
+        self.assertEqual(self.quote.attachments.count(), 1)
+        html = Client().get(self.quote.get_public_url()).content.decode()
+        self.assertIn("info.pdf", html, "bilagan följer med kvittot")
+
+    def test_delete_before_accept(self):
+        self.client_staff.post(f"/manage/offerter/{self.quote.pk}/bilaga/", {"files": self.pdf})
+        attachment = self.quote.attachments.get()
+        self.client_staff.post(f"/manage/offerter/bilaga/{attachment.pk}/ta-bort/")
+        self.assertEqual(self.quote.attachments.count(), 0)
+
+    def test_the_customers_ip_is_shown_stored_and_receipted(self):
+        url = f"/offert/{self.quote.token}/acceptera/"
+        html = Client().get(url, HTTP_X_FORWARDED_FOR="203.0.113.5, 10.0.0.1").content.decode()
+        self.assertIn("203.0.113.5", html)
+        Client().post(url, ACCEPT, HTTP_X_FORWARDED_FOR="203.0.113.5")
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.accepted_ip, "203.0.113.5")
+        receipt = Client().get(self.quote.get_public_url()).content.decode()
+        self.assertIn("(IP 203.0.113.5)", receipt)
+
+    def test_garbage_forwarded_header_falls_back_to_remote_addr(self):
+        from .public_views import client_ip
+
+        class R:
+            META = {"HTTP_X_FORWARDED_FOR": "not-an-ip", "REMOTE_ADDR": "198.51.100.7"}
+
+        self.assertEqual(client_ip(R()), "198.51.100.7")

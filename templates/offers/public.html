@@ -38,11 +38,23 @@ Ingen text under 16 px.
         </table>
 
         {% if quote.status == 'accepted' %}
-        <p class="of-banner of-banner--ok">Offerten är accepterad{% if quote.accepted_at %} {{ quote.accepted_at|date:"j F Y" }}{% endif %}{% if quote.accepted_by %} av {{ quote.accepted_by }}{% endif %}. Tack! Vi hör av oss om nästa steg.</p>
+        <p class="of-banner of-banner--ok">Offerten är accepterad{% if quote.accepted_at %} {{ quote.accepted_at|date:"j F Y" }}{% endif %}{% if quote.accepted_by %} av {{ quote.accepted_by }}{% endif %}{% if quote.accepted_ip %} (IP {{ quote.accepted_ip }}){% endif %}. Tack! Vi hör av oss om nästa steg.</p>
         {% elif question_sent %}
         <p class="of-banner">Frågan är skickad. Vi återkommer till er.</p>
         {% elif question_failed %}
         <p class="of-banner of-banner--warn">Frågan kunde inte skickas just nu. Mejla oss direkt{% if site_settings.email %} på <a href="mailto:{{ site_settings.email }}">{{ site_settings.email }}</a>{% endif %} så svarar vi där.</p>
+        {% endif %}
+
+        {% if attachments %}
+        <div class="of-attachments">
+            <p class="of-section">Bilagor</p>
+            {% for a in attachments %}
+            <a class="of-attach" href="{% url 'offers:attachment' quote.token a.pk %}" target="_blank" rel="noopener">
+                <span class="of-attach__name">{{ a.original_name }}</span>
+                <span class="of-attach__meta">{{ a.size_display }} &middot; öppna</span>
+            </a>
+            {% endfor %}
+        </div>
         {% endif %}
 
         <p class="of-section">{% if quote.is_answerable and optional_lines %}Ingår{% else %}Omfattning{% endif %}</p>

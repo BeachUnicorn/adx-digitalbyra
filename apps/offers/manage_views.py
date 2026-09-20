@@ -28,7 +28,8 @@ from apps.projects.models import Customer, Issue, Project, ProjectStatus
 from apps.website.models import SiteSettings
 
 from .emails import send_quote_to_customer
-from .models import PricePeriod, Product, Quote, QuoteLine, QuoteStatus
+from .forms import AttachForm
+from .models import PricePeriod, Product, Quote, QuoteAttachment, QuoteLine, QuoteStatus
 
 
 def _ctx(**extra):
@@ -308,6 +309,51 @@ def offer_create_issues(request, pk):
     else:
         messages.info(request, "Alla rader har redan ärenden.")
     return redirect("manage:offer_edit", pk=pk)
+
+
+# ------------------------------------------------------------------ bilagor
+
+
+@login_required
+@require_POST
+def offer_attach(request, pk):
+    """Bilaga (typiskt PDF) till offerten. Låst när offerten är accepterad."""
+    quote = get_object_or_404(Quote, pk=pk)
+    if _locked(quote):
+        messages.error(request, "Accepterad offert är låst - bilagorna är en del av avtalet.")
+        return redirect("manage:offer_edit", pk=pk)
+    form = AttachForm(request.POST, request.FILES)
+    if form.is_valid():
+        for uploaded in form.cleaned_data["files"]:
+            QuoteAttachment.objects.create(
+                quote=quote,
+                file=uploaded,
+                original_name=uploaded.name[:255],
+                content_type=getattr(uploaded, "content_type", "") or "",
+                size=uploaded.size,
+            )
+        n = len(form.cleaned_data["files"])
+        messages.success(
+            request,
+            f"{n} bilaga" + ("" if n == 1 else "or") + " uppladdad" + ("" if n == 1 else "e") + ".",
+        )
+    else:
+        messages.error(request, "; ".join(", ".join(v) for v in form.errors.values()))
+    return redirect("manage:offer_edit", pk=pk)
+
+
+@login_required
+@require_POST
+def offer_attachment_delete(request, pk):
+    attachment = get_object_or_404(QuoteAttachment.objects.select_related("quote"), pk=pk)
+    quote = attachment.quote
+    if _locked(quote):
+        messages.error(request, "Accepterad offert är låst - bilagorna är en del av avtalet.")
+    else:
+        attachment.file.delete(save=False)
+        attachment.delete()
+        messages.success(request, "Bilagan är borttagen.")
+    return redirect("manage:offer_edit", pk=quote.pk)
 
 
 # ------------------------------------------------------------------ rader

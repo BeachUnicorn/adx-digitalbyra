@@ -28,6 +28,9 @@ import secrets
 from django.conf import settings
 from django.db import models
 from django.utils import timezone
+from django.utils.text import slugify
+
+from apps.projects.models import private_storage
 
 
 def _generate_token():
@@ -195,6 +198,43 @@ class Quote(models.Model):
             opened_at=timezone.now(),
             updated_at=timezone.now(),
         )
+
+
+def quote_attachment_path(instance, filename):
+    # Slumpad katalog per fil, som ärendenas bilagor: ingen kan räkna upp
+    # andra offerters filer även med tillgång till lagringen.
+    safe = slugify(filename.rsplit(".", 1)[0])[:60] or "bilaga"
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "bin"
+    return f"offerter/{secrets.token_urlsafe(12)}/{safe}.{ext}"
+
+
+class QuoteAttachment(models.Model):
+    """
+    Bilaga på offerten - typiskt en PDF med mer information. Privat
+    lagring (utanför /media/); kundens offerttoken är behörigheten att
+    hämta den, precis som för offerten själv.
+    """
+
+    quote = models.ForeignKey(Quote, related_name="attachments", on_delete=models.CASCADE)
+    file = models.FileField(upload_to=quote_attachment_path, storage=private_storage)
+    original_name = models.CharField(max_length=255)
+    content_type = models.CharField(max_length=120, blank=True)
+    size = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        verbose_name = "Offertbilaga"
+        verbose_name_plural = "Offertbilagor"
+
+    def __str__(self):
+        return self.original_name
+
+    @property
+    def size_display(self):
+        if self.size >= 1024 * 1024:
+            return f"{self.size / (1024 * 1024):.1f} MB"
+        return f"{max(1, self.size // 1024)} kB"
 
 
 class QuoteLine(models.Model):

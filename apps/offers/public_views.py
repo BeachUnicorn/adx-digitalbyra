@@ -14,8 +14,11 @@ uppgifter, bekräfta) -> kvitto på offertsidan. Tillvalen följer med som
 query-parametrar mellan stegen, så acceptsidan går att ladda om.
 """
 
+import ipaddress
+
 from django.contrib import messages
 from django.db import transaction
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -23,11 +26,28 @@ from apps.website.models import SiteSettings
 
 from .emails import send_accepted_notification, send_question_to_staff
 from .forms import AcceptForm
-from .models import PricePeriod, Quote, QuoteLine, QuoteStatus
+from .models import PricePeriod, Quote, QuoteAttachment, QuoteLine, QuoteStatus
 
 
 def _get_quote(token):
     return get_object_or_404(Quote.objects.prefetch_related("lines"), token=token)
+
+
+def client_ip(request):
+    """
+    Kundens IP bakom nginx: första hoppet i X-Forwarded-For (nginx sätter
+    den, och nginx är enda vägen in), annars REMOTE_ADDR. Bara giltiga
+    adresser släpps igenom - fältet är ett GenericIPAddressField.
+    """
+    forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
+    candidates = [part.strip() for part in forwarded.split(",") if part.strip()]
+    candidates.append(request.META.get("REMOTE_ADDR", ""))
+    for candidate in candidates:
+        try:
+            return str(ipaddress.ip_address(candidate))
+        except ValueError:
+            continue
+    return None
 
 
 def _chosen_ids(request):
@@ -67,6 +87,7 @@ def offer_public(request, token):
             "base": _base_totals(lines),
             "table_lines": table_lines,
             "optional_lines": [ln for ln in lines if ln.is_optional] if answerable else [],
+            "attachments": list(quote.attachments.all()),
             "question_sent": request.GET.get("fraga") == "tack",
             "question_failed": request.GET.get("fraga") == "fel",
         },
@@ -93,6 +114,7 @@ def _render_accept(request, quote, form, chosen):
             "chosen": sorted(chosen),
             "sums": {key: format_kr(value) for key, value in sums.items()},
             "raw_sums": sums,
+            "client_ip": client_ip(request),
         },
     )
 
@@ -125,7 +147,7 @@ def offer_accept(request, token):
         ).update(
             status=QuoteStatus.ACCEPTED,
             accepted_at=timezone.now(),
-            accepted_ip=request.META.get("REMOTE_ADDR"),
+            accepted_ip=client_ip(request),
             accepted_user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],
             updated_at=timezone.now(),
             **form.as_quote_fields(),
@@ -153,3 +175,13 @@ def offer_question(request, token):
     # Mejlet gick inte iväg - säg det ärligt i stället för att kvittera
     # en fråga som aldrig kom fram.
     return redirect(quote.get_public_url() + "?fraga=fel")
+
+
+def offer_attachment(request, token, pk):
+    """Bilagan lämnas ut mot offertens token - ingen annan adress finns."""
+    quote = _get_quote(token)
+    attachment = get_object_or_404(QuoteAttachment, pk=pk, quote=quote)
+    inline = attachment.content_type == "application/pdf"
+    return FileResponse(
+        attachment.file.open("rb"), as_attachment=not inline, filename=attachment.original_name
+    )

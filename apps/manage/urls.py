@@ -80,6 +80,12 @@ urlpatterns = [
         offer_views.offer_create_issues,
         name="offer_create_issues",
     ),
+    path("offerter/<int:pk>/bilaga/", offer_views.offer_attach, name="offer_attach"),
+    path(
+        "offerter/bilaga/<int:pk>/ta-bort/",
+        offer_views.offer_attachment_delete,
+        name="offer_attachment_delete",
+    ),
     path("offerter/<int:pk>/rader/ny/", offer_views.line_add, name="offer_line_add"),
     path("offerter/<int:pk>/rader/ordna/", offer_views.lines_reorder, name="offer_lines_reorder"),
     path("offerter/rad/<int:pk>/uppdatera/", offer_views.line_update, name="offer_line_update"),

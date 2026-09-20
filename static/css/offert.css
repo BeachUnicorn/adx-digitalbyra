@@ -130,3 +130,17 @@ h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; le
 .of-errors { border: 1px solid var(--s-danger-soft); background: var(--s-danger-bg); color: var(--s-danger);
              border-radius: 16px; padding: 16px 20px; font-size: 18px; font-weight: 600; margin: 0 0 22px; }
 @media (max-width: 640px) { .of-form .pair { grid-template-columns: 1fr; } }
+
+/* ===== Bilagor och IP-notisen ===== */
+.of-attachments { margin: 0 0 30px; display: grid; gap: 10px; }
+.of-attach { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 16px 20px;
+             border: 1px solid var(--m-border); border-radius: 16px; background: var(--s-field); color: var(--m-text);
+             text-decoration: none; font-size: 18px; font-weight: 600; transition: border-color .15s ease; }
+.of-attach:hover { border-color: var(--m-text); }
+.of-attach__name { overflow-wrap: anywhere; }
+.of-attach__meta { font-family: var(--s-mono); font-size: 16px; letter-spacing: .06em; text-transform: uppercase;
+                   color: var(--m-text-muted); font-weight: 500; white-space: nowrap; }
+/* IP-raden syns först när rutan är ikryssad: det är då den betyder något. */
+.of-ip { display: none; font-size: 17px; color: var(--m-text-muted); margin: -6px 0 0; padding: 0 20px; line-height: 1.5; }
+.of-ip b { color: var(--m-text); font-family: var(--s-mono); font-weight: 600; }
+.of-confirm:has(input:checked) + .of-ip { display: block; }

@@ -72,6 +72,7 @@ valda tillval, med summa) och fyller i beställarens uppgifter. Tillvalen
             <div class="of-field{% if form.message.errors %} is-invalid{% endif %}"><label for="{{ form.message.id_for_label }}">Meddelande till oss (valfritt)</label>{{ form.message }}{{ form.message.errors }}</div>
 
             <label class="of-confirm{% if form.confirm.errors %} is-invalid{% endif %}">{{ form.confirm }}<span>{{ form.confirm.label }}</span></label>
+            {% if client_ip %}<p class="of-ip">Beställningen registreras från IP-adress <b>{{ client_ip }}</b> med tidpunkt, som en del av avtalet.</p>{% endif %}
             {% if form.confirm.errors %}<div class="of-field">{{ form.confirm.errors }}</div>{% endif %}
 
             <div class="of-actions">

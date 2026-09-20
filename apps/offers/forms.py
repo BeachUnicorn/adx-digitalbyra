@@ -8,6 +8,14 @@ för att de annars måste jagas innan första fakturan.
 
 from django import forms
 
+from apps.projects.forms import MultiFileField
+
+
+class AttachForm(forms.Form):
+    """Bilagor till offerten. Samma filregler som ärendenas bilagor (15 MB, vitlista)."""
+
+    files = MultiFileField(label="Bilagor")
+
 
 def normalize_org_number(raw):
     """
