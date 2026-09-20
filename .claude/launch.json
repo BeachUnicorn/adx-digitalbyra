@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "adx",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "uvicorn", "config.asgi:application", "--port", "8770", "--reload"],
+      "port": 8770
+    },
+    {
       "name": "repro-static",
       "runtimeExecutable": "python3",
       "runtimeArgs": ["-m", "http.server", "8737", "--directory", "/private/tmp/claude-501/-Users-giovanni-dev-atlas-holly-clients-adx-digitalbyra/b3227282-5fa6-44b0-ae28-c8e5124d81e3/scratchpad/repro"],
