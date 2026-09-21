@@ -835,6 +835,44 @@ def _skapa_kund(user, namn, epost="", telefon="", org_nummer="", webbplats=""):
     }
 
 
+def _lista_aws_konton(user, kund=None):
+    """Byråns bild av kundernas AWS-konton: kostnad, varningar och fakturor."""
+    require_agency(user)
+    from apps.cloud.models import AwsAccount
+
+    accounts = AwsAccount.objects.select_related("customer")
+    if kund:
+        accounts = accounts.filter(customer=_customer(kund))
+    rows = []
+    for account in accounts:
+        cost = (account.snapshot or {}).get("cost") or {}
+        rows.append(
+            {
+                "kund": account.customer.name,
+                "konto": account.account_id,
+                "namn": account.label,
+                "hamtat": account.last_ok_at.isoformat() if account.last_ok_at else None,
+                "fel": account.last_error or None,
+                "kostnad_per_manad": cost.get("months", []),
+                "prognos": cost.get("forecast"),
+                "storsta_tjanster": cost.get("services", []),
+                "varningar": account.warnings,
+                "fakturor": [
+                    {
+                        "period": f"{i.period_year}-{i.period_month:02d}",
+                        "nummer": i.invoice_id,
+                        "belopp": str(i.total) if i.total is not None else None,
+                        "moms": str(i.tax) if i.tax is not None else None,
+                        "valuta": i.currency,
+                        "har_pdf": bool(i.pdf),
+                    }
+                    for i in account.invoices.all()[:13]
+                ],
+            }
+        )
+    return {"konton": rows}
+
+
 def _hamta_kundlogg(user, kund, antal=30):
     require_agency(user)
     customer = _customer(kund)
@@ -1150,6 +1188,19 @@ register(
         ),
         risk=Risk.ACTION,
         run=_skapa_kund,
+    )
+)
+register(
+    Operation(
+        name="lista_aws_konton",
+        description=(
+            "Kundernas AWS-konton: kostnad per månad, prognos, största tjänster, varningar "
+            "(säkerhet, domäner, backup) och de senaste fakturorna. Utan kund: alla konton. "
+            "Bara läsning - inget verktyg ändrar något i AWS."
+        ),
+        input_schema=_schema({"kund": _S}, []),
+        risk=Risk.READ,
+        read=_lista_aws_konton,
     )
 )
 register(

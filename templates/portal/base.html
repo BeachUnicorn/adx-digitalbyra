@@ -1,4 +1,4 @@
-{% load static %}<!DOCTYPE html>
+{% load static cloud_tags %}<!DOCTYPE html>
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
@@ -24,6 +24,7 @@ här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
             <li><a href="{% url 'portal:status' %}" class="m-nav__link{% if active == 'status' %} is-active{% endif %}">Övervakning</a></li>
             <li><a href="{% url 'portal:reports' %}" class="m-nav__link{% if active == 'reports' %} is-active{% endif %}">Rapporter</a></li>
             <li><a href="{% url 'portal:log' %}" class="m-nav__link{% if active == 'log' %} is-active{% endif %}">Logg</a></li>
+            {% has_aws_invoices request.customer as show_invoices %}{% if show_invoices %}<li><a href="{% url 'portal:invoices' %}" class="m-nav__link{% if active == 'invoices' %} is-active{% endif %}">Fakturor</a></li>{% endif %}
             {% if not request.viewing_as %}<li><a href="{% url 'portal:issue_create' %}" class="m-nav__link{% if active == 'new' %} is-active{% endif %}">Nytt ärende</a></li>{% endif %}
             {% endif %}
         </ul>

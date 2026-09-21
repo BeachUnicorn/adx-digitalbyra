@@ -1,5 +1,6 @@
 from django.urls import path
 
+from apps.cloud import portal_views as cloud
 from apps.monitor import portal_views as monitor
 
 from . import portal_views as v
@@ -13,6 +14,8 @@ urlpatterns = [
     path("logga-ut/", v.PortalLogoutView.as_view(), name="logout"),
     path("tavla/", v.home, name="home"),
     path("logg/", v.log, name="log"),
+    path("fakturor/", cloud.invoices, name="invoices"),
+    path("fakturor/<int:pk>/pdf/", cloud.invoice_pdf, name="invoice_pdf"),
     path("status/", monitor.status, name="status"),
     path("rapporter/", monitor.reports, name="reports"),
     path("rapport/<int:year>/<int:month>/", monitor.report, name="report"),

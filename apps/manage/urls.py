@@ -3,6 +3,7 @@ from django.urls import path
 from apps.aidocs import manage_views as aidocs_views
 from apps.assistant import history_views, oauth_views
 from apps.assistant import views as assistant_views
+from apps.cloud import manage_views as cloud_views
 from apps.monitor import manage_views as monitor_views
 from apps.offers import manage_views as offer_views
 from apps.projects import manage_views as project_views
@@ -76,6 +77,11 @@ urlpatterns = [
     path("ai-guider/", aidocs_views.codes, name="ai_codes"),
     path("ai-guider/ny/", aidocs_views.code_create, name="ai_code_create"),
     path("ai-guider/<int:pk>/aterkalla/", aidocs_views.code_revoke, name="ai_code_revoke"),
+    # Kundernas AWS-konton (apps/cloud)
+    path("kunder/<int:pk>/aws/", cloud_views.account_add, name="aws_account_add"),
+    path("aws/<int:pk>/", cloud_views.account_update, name="aws_account_update"),
+    path("aws/<int:pk>/lasroll.json", cloud_views.role_file, name="aws_role_file"),
+    path("aws/faktura/<int:pk>/", cloud_views.invoice_pdf, name="aws_invoice_pdf"),
     # Övervakning (apps/monitor)
     path("drift/", monitor_views.drift, name="drift"),
     path("kunder/<int:pk>/overvakning/", monitor_views.monitor_update, name="monitor_update"),

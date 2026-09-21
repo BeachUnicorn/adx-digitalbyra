@@ -1,0 +1,41 @@
+{% extends "portal/base.html" %}
+{% comment %}
+Kundens AWS-fakturor, för bokföringen. Bara fakturorna: kostnadsbilden och
+resurserna är byråns (apps/cloud). Originalen från Amazon, oförändrade.
+{% endcomment %}
+{% block content %}
+<div class="pt-narrow">
+  <div class="tv-head">
+    <div>
+      <div class="tv-kicker">{{ customer.name }}</div>
+      <h1 class="tv-h1">Fakturor</h1>
+      <div class="tv-sub">Era fakturor från Amazon Web Services (AWS), för kontot som er drift körs i. Det är Amazons original, samma som går till kontots e-postadress. Amazon utfärdar dem i början av varje månad, och de hämtas hit en gång per dygn.</div>
+    </div>
+  </div>
+  {% for group in years %}
+  <div class="m-panel tv-panel">
+    <div class="tv-sec-title">{{ group.year }}</div>
+    <div class="m-table-wrap">
+    <table class="m-table pt-invoices">
+      <thead><tr><th>Period</th><th>Fakturanummer</th>{% if several_accounts %}<th>Konto</th>{% endif %}<th>Fakturadatum</th><th class="m-num">Moms</th><th class="m-num">Belopp</th><th></th></tr></thead>
+      <tbody>
+      {% for inv in group.invoices %}
+      <tr>
+        <td>{{ inv.period_year }}-{{ inv.period_month|stringformat:"02d" }}</td>
+        <td><span class="tv-mono">{{ inv.invoice_id }}</span>{% if inv.is_credit %} <span class="m-badge">kreditnota</span>{% endif %}<div class="tv-muted tv-cell-sub">{{ inv.entity }}</div></td>
+        {% if several_accounts %}<td>{{ inv.account.label|default:inv.account.display_id }}</td>{% endif %}
+        <td>{{ inv.issued_on|date:"Y-m-d"|default:"-" }}</td>
+        <td class="m-num">{{ inv.tax|default_if_none:"-" }}</td>
+        <td class="m-num"><b>{{ inv.total|default_if_none:"-" }}</b> {{ inv.currency }}</td>
+        <td class="m-num">{% if inv.pdf %}<a class="m-btn m-btn--small m-btn--ghost" href="{% url 'portal:invoice_pdf' inv.pk %}">PDF</a>{% else %}<span class="tv-muted">PDF på väg</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  {% empty %}
+  <div class="m-panel tv-panel"><p class="tv-empty tv-empty--inline">Inga fakturor än.</p></div>
+  {% endfor %}
+</div>
+{% endblock %}

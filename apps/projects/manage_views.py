@@ -867,6 +867,8 @@ def customer_list(request):
 
 @staff_required
 def customer_detail(request, pk):
+    from apps.cloud.card import aws_card_context
+
     customer = get_object_or_404(Customer, pk=pk)
     form = CustomerForm(request.POST or None, instance=customer)
     if request.method == "POST" and form.is_valid():
@@ -906,6 +908,7 @@ def customer_detail(request, pk):
             "monitor": monitor,
             "quotes": quotes,
             "monitor_domains": customer.domains.all(),
+            **aws_card_context(customer),
             "monitor_fields": [
                 {"name": f.name, "label": f.verbose_name, "value": getattr(monitor, f.name)}
                 for f in monitor._meta.fields

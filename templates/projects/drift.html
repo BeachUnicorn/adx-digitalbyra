@@ -23,4 +23,25 @@
     </tbody>
   </table>
 </div>
+
+{% if aws_accounts %}
+<div class="tv-head" style="margin-top:28px"><div><h2 class="tv-h1" style="font-size:24px">AWS-konton</h2><div class="tv-sub">Kostnad och varningar per kundkonto. Hämtas en gång per dygn. Kunden ser bara fakturorna.</div></div></div>
+<div class="m-panel m-table-wrap">
+  <table class="m-table">
+    <thead><tr><th>Kund</th><th>Konto</th><th class="m-num">Förra månaden</th><th class="m-num">Prognos</th><th>Att titta på</th><th>Hämtat</th></tr></thead>
+    <tbody>
+    {% for r in aws_accounts %}
+    <tr>
+      <td><a class="tv-link" href="{% url 'manage:customer_detail' r.account.customer_id %}#aws"><b>{{ r.account.customer.name }}</b></a></td>
+      <td>{{ r.account.label|default:"-" }} <span class="tv-muted tv-mono">{{ r.account.display_id }}</span></td>
+      <td class="m-num">{% if r.last_month %}{{ r.last_month.amount|floatformat:0 }} {{ r.last_month.currency }}{% else %}-{% endif %}</td>
+      <td class="m-num">{% if r.forecast %}{{ r.forecast|floatformat:0 }}{% else %}-{% endif %}</td>
+      <td>{% if r.account.last_error %}<span class="m-badge m-badge--alert">hämtning misslyckas</span>{% elif r.account.warnings %}{% for w in r.account.warnings|slice:":2" %}<div>{{ w }}</div>{% endfor %}{% if r.account.warnings|length > 2 %}<div class="tv-muted">och {{ r.account.warnings|length|add:"-2" }} till</div>{% endif %}{% else %}<span class="tv-muted">inget</span>{% endif %}</td>
+      <td class="tv-muted">{% if r.account.last_ok_at %}{{ r.account.last_ok_at|date:"j M H:i" }}{% else %}aldrig{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 {% endblock %}

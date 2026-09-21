@@ -460,3 +460,23 @@ body.is-dragging-any{cursor:grabbing}
 }
 .tv-cell-sub{font-family:var(--s-mono);font-size:12px;margin-top:3px}
 .tv-filters .m-btn{width:auto}
+
+/* ---------------------------------------------------------------------------
+   AWS-konton (apps/cloud): kundkortets sektion och portalens fakturor.
+   --------------------------------------------------------------------------- */
+.aw-account{padding:14px 0;border-top:1px solid var(--m-border)}
+.aw-account.is-off{opacity:.6}
+.aw-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.aw-meta{font-size:13.5px;margin-top:3px}
+.aw-bad{color:var(--s-danger,#b42318);font-weight:600}
+.aw-warnings{margin:10px 0 0;padding:10px 14px 10px 30px;border-radius:12px;background:rgba(180,35,24,.07);color:var(--m-text);font-size:14px;line-height:1.5}
+.aw-table{margin-top:10px;font-size:14px}
+.aw-table th{text-align:left;font-weight:600}
+.aw-facts{margin-top:10px;display:flex;flex-direction:column;gap:4px;font-size:14px}
+.aw-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--m-text-muted);margin-right:7px}
+.aw-dot.is-ok{background:var(--s-ok,#1f8a4c)}
+.aw-details{margin-top:10px}
+.aw-details summary{cursor:pointer;font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-text-muted);padding:4px 0}
+.aw-pre{font-family:var(--s-mono);font-size:12px;line-height:1.5;background:rgba(16,18,20,.05);border-radius:10px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 12px}
+.pt-invoices td,.pt-invoices th{font-size:15.5px;color:var(--m-text)}
+@media (max-width:700px){.aw-head{flex-direction:column}.pt-invoices td,.pt-invoices th{font-size:14.5px}}

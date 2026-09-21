@@ -124,6 +124,26 @@ def monitor_run(request, pk):
     return _back(pk)
 
 
+def _aws_rows():
+    """Kundernas AWS-konton (apps/cloud): de med varningar eller fel först."""
+    from apps.cloud.models import AwsAccount
+
+    rows = []
+    for account in AwsAccount.objects.filter(is_active=True).select_related("customer"):
+        months = (account.snapshot.get("cost") or {}).get("months") or []
+        full = [m for m in months if not m.get("partial")]
+        rows.append(
+            {
+                "account": account,
+                "last_month": full[-1] if full else None,
+                "forecast": (account.snapshot.get("cost") or {}).get("forecast"),
+                "problems": len(account.warnings) + bool(account.last_error),
+            }
+        )
+    rows.sort(key=lambda r: (-r["problems"], r["account"].customer.name))
+    return rows
+
+
 @staff_required
 def drift(request):
     """Alla kunders domäner på en skärm - problem först."""
@@ -167,5 +187,6 @@ def drift(request):
             "key_configured": status_key_configured(),
             "now": timezone.now(),
             "title": "Drift",
+            "aws_accounts": _aws_rows(),
         },
     )

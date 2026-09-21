@@ -1,0 +1,80 @@
+{% comment %}
+Kundkortets AWS-sektion (apps/cloud). Byråns bild: kostnad, resurser,
+domäner och varningar visas bara här. Kunden ser enbart fakturorna, och
+bara för konton där rutan är ikryssad.
+{% endcomment %}
+<div class="m-panel tv-panel" id="aws">
+  <div class="tv-sec-title">AWS-konton</div>
+  <p class="tv-prop__note">Inga nycklar sparas. Varje konto får en läsroll som litar på vårt konto ({{ adx_aws_account_id }}). Kunden ser bara fakturorna, på /kund/fakturor/. Hämtas en gång per dygn.</p>
+
+  {% for row in aws_rows %}{% with a=row.account s=row.account.snapshot %}
+  <div class="aw-account{% if not a.is_active %} is-off{% endif %}">
+    <div class="aw-head">
+      <div>
+        <b>{{ a.label|default:"AWS-konto" }}</b> <span class="tv-mono">{{ a.display_id }}</span>
+        {% if not a.is_active %}<span class="m-badge">pausat</span>{% endif %}
+        <div class="tv-muted aw-meta">
+          {% if a.last_error %}<span class="aw-bad">{{ a.last_error }}</span>
+          {% elif a.last_ok_at %}Hämtat {{ a.last_ok_at|date:"j M H:i" }}, {{ row.invoice_count }} faktur{{ row.invoice_count|pluralize:"a,or" }}
+          {% else %}Inte hämtat än. Skapa läsrollen nedan och tryck Hämta nu.{% endif %}
+        </div>
+      </div>
+      <form method="post" action="{% url 'manage:aws_account_update' a.pk %}">{% csrf_token %}<input type="hidden" name="action" value="sync"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Hämta nu</button></form>
+    </div>
+
+    {% if a.warnings %}
+    <ul class="aw-warnings">{% for w in a.warnings %}<li>{{ w }}</li>{% endfor %}</ul>
+    {% endif %}
+
+    {% if s.cost.months %}
+    <table class="m-table aw-table">
+      <tr><th>Kostnad</th>{% for m in s.cost.months %}<td class="m-num">{{ m.month|slice:"5:" }}{% if m.partial %}*{% endif %}<br><b>{{ m.amount|floatformat:0 }}</b></td>{% endfor %}</tr>
+    </table>
+    <div class="tv-muted aw-meta">{{ s.cost.months.0.currency }} efter krediter. * pågående månad{% if s.cost.forecast %}, prognos {{ s.cost.forecast|floatformat:0 }}{% endif %}.{% if s.cost.services %} Störst förra månaden: {% for svc in s.cost.services|slice:":3" %}{{ svc.name }} {{ svc.amount|floatformat:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</div>
+    {% elif s.cost.error %}<div class="tv-muted aw-meta">Kostnad: {{ s.cost.error }}</div>{% endif %}
+
+    {% if s.resources.ec2 or s.resources.rds or s.domains %}
+    <div class="aw-facts">
+      {% for i in s.resources.ec2 %}<div><span class="aw-dot{% if i.state == 'running' %} is-ok{% endif %}"></span>EC2 {{ i.name|default:i.id }} <span class="tv-muted">{{ i.type }}, {{ i.state }}, {{ i.region }}</span></div>{% endfor %}
+      {% for db in s.resources.rds %}<div><span class="aw-dot{% if db.state == 'available' %} is-ok{% endif %}"></span>RDS {{ db.id }} <span class="tv-muted">{{ db.engine }}, {{ db.type }}, backup {{ db.backup_days }} d</span></div>{% endfor %}
+      {% for region, day in s.resources.snapshots.items %}<div class="tv-muted">Senaste EBS-snapshot {{ region }}: {{ day }}</div>{% endfor %}
+      {% for d in s.domains %}{% if d.name %}<div>Domän {{ d.name }} <span class="tv-muted">går ut {{ d.expires }}{% if d.auto_renew %}, förnyas automatiskt{% else %}, förnyas INTE automatiskt{% endif %}</span></div>{% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if row.invoices %}
+    <details class="aw-details">
+      <summary>Fakturor ({{ row.invoice_count }})</summary>
+      <table class="m-table aw-table">
+        {% for inv in row.invoices %}
+        <tr><td>{{ inv.period_year }}-{{ inv.period_month|stringformat:"02d" }}</td><td class="tv-mono">{{ inv.invoice_id }}{% if inv.is_credit %} <span class="m-badge">kredit</span>{% endif %}</td><td class="m-num">{{ inv.total|default_if_none:"-" }} {{ inv.currency }}</td><td class="m-num">{% if inv.pdf %}<a class="tv-link" href="{% url 'manage:aws_invoice_pdf' inv.pk %}">PDF</a>{% else %}<span class="tv-muted">ingen PDF än</span>{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+    </details>
+    {% endif %}
+
+    <details class="aw-details"{% if not a.last_ok_at %} open{% endif %}>
+      <summary>Läsrollen och inställningar</summary>
+      <p class="tv-prop__note">Skapa rollen i kundens konto på ett av två sätt. Rollen ger bara läsning av fakturor, kostnad och resurslistor, aldrig innehåll.</p>
+      <p class="tv-prop__note"><b>Konsolen:</b> <a class="tv-link" href="{% url 'manage:aws_role_file' a.pk %}">ladda ner mallen</a>, logga in i kundens konto, CloudFormation, Create stack, Upload a template file. Kryssa i rutan om IAM-resurser.</p>
+      <p class="tv-prop__note"><b>Terminalen</b> (byt profilnamnet):</p>
+      <pre class="aw-pre">{{ row.cli }}</pre>
+      <form method="post" action="{% url 'manage:aws_account_update' a.pk %}" class="tv-row">{% csrf_token %}
+        <input name="label" value="{{ a.label }}" class="tv-input" placeholder="Namn, t.ex. Produktion" maxlength="80">
+        <label class="tv-checklabel"><input type="checkbox" name="show_invoices"{% if a.show_invoices %} checked{% endif %}> Kunden ser fakturorna</label>
+        <label class="tv-checklabel"><input type="checkbox" name="is_active"{% if a.is_active %} checked{% endif %}> Hämtas dagligen</label>
+        <button type="submit" class="m-btn m-btn--small">Spara</button>
+      </form>
+      <form method="post" action="{% url 'manage:aws_account_update' a.pk %}" data-confirm="Ta bort kontot och de sparade fakturorna härifrån? I AWS ändras ingenting.">{% csrf_token %}<input type="hidden" name="action" value="delete"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Ta bort kontot</button></form>
+    </details>
+  </div>
+  {% endwith %}{% empty %}
+  <p class="tv-empty tv-empty--inline">Inga AWS-konton på den här kunden.</p>
+  {% endfor %}
+
+  <form method="post" action="{% url 'manage:aws_account_add' customer.pk %}" class="tv-row">{% csrf_token %}
+    <input name="account_id" class="tv-input" placeholder="Konto-ID, 12 siffror" inputmode="numeric" required aria-label="Konto-ID">
+    <input name="label" class="tv-input" placeholder="Namn, t.ex. Produktion" maxlength="80" aria-label="Namn">
+    <button type="submit" class="m-btn m-btn--small">Lägg till konto</button>
+  </form>
+</div>

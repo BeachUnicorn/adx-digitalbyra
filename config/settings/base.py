@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     "apps.projects",
     "apps.monitor",
     "apps.aidocs",
+    "apps.cloud",
     "reversion",
     "apps.assistant",
 ]
@@ -152,6 +153,12 @@ ASSISTANT_BEDROCK_REGION = env("ASSISTANT_BEDROCK_REGION", default="eu-central-1
 ASSISTANT_BEDROCK_MODEL = env("ASSISTANT_BEDROCK_MODEL", default="eu.anthropic.claude-sonnet-5")
 # Lokalt: namnet på en profil i ~/.aws. På servern tom - instansrollen gäller.
 ASSISTANT_AWS_PROFILE = env("ASSISTANT_AWS_PROFILE", default="")
+
+# Kundernas AWS-konton (apps/cloud). I drift antar serverns instansroll kundens
+# läsroll; lokalt kan en namngiven profil vara utgångspunkten. Byråns konto-ID
+# är det kundrollerna litar på (mallen på kundkortet).
+ADX_AWS_PROFILE = env("ADX_AWS_PROFILE", default="")
+ADX_AWS_ACCOUNT_ID = env("ADX_AWS_ACCOUNT_ID", default="500841883756")
 # Reservläget.
 ANTHROPIC_API_KEY = env("ANTHROPIC_API_KEY", default="")
 ASSISTANT_MODEL = env("ASSISTANT_MODEL", default="claude-opus-5")
