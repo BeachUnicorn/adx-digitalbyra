@@ -1114,8 +1114,12 @@ class EditOrbTests(TestCase):
 
     def test_the_animation_respects_reduced_motion(self):
         css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
-        reduced = css.split("prefers-reduced-motion")[-1]
-        self.assertIn("animation: none", reduced)
+        # Orbens eget block - inte "det sista i filen", som slutade stämma när
+        # 404-sidan fick sin egen reduced-motion-regel efter orbens.
+        blocks = css.split("prefers-reduced-motion")[1:]
+        orb = [b for b in blocks if ".edit-orb" in b[:120]]
+        self.assertEqual(len(orb), 1)
+        self.assertIn("animation: none", orb[0][:200])
 
 
 class BorderPolicyTests(TestCase):

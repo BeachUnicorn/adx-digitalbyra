@@ -33,6 +33,13 @@ class NotFoundPageTests(TestCase):
         self.assertIn('content="noindex"', html)
         self.assertNotIn("The requested resource", html)
 
+    def test_the_floating_digits_respect_reduced_motion(self):
+        from django.conf import settings
+
+        css = (settings.BASE_DIR / "static" / "css" / "site.css").read_text()
+        blocks = css.split("prefers-reduced-motion")[1:]
+        self.assertTrue(any(".nf-code span{animation:none}" in b[:80] for b in blocks))
+
     def test_suggests_the_page_the_visitor_probably_meant(self):
         response = self.client.get("/webutveckling/")
         self.assertEqual(response.status_code, 404)
