@@ -183,6 +183,35 @@ class StatusEndpointTests(TestCase):
     def test_is_absent_without_a_key(self):
         self.assertEqual(Client().get("/status/adx/").status_code, 404)
 
+    def test_key_in_the_address_is_not_accepted(self):
+        """?key= hamnar i accessloggar och felrapporter - bara headern gäller."""
+        self.assertEqual(Client().get("/status/adx/?key=hemlig").status_code, 403)
+
+    def test_odd_header_values_are_a_plain_403_not_a_crash(self):
+        """compare_digest kastar TypeError på icke-ASCII-strängar; v1 gav 500 här."""
+        for value in ("hemlig\xe5", "\xe5\xe4\xf6", "x" * 5000, ""):
+            response = Client().get("/status/adx/", HTTP_X_ADX_KEY=value)
+            self.assertEqual(response.status_code, 403, repr(value))
+
+    def test_a_broken_section_does_not_take_the_report_down(self):
+        from apps.monitor import status_endpoint
+
+        with mock.patch.object(status_endpoint, "_visits", side_effect=RuntimeError("pang")):
+            data = Client().get("/status/adx/", HTTP_X_ADX_KEY="hemlig").json()
+        self.assertEqual(data["db"], "ok")
+        self.assertIsNone(data["visits"])
+        self.assertEqual(data["errors"], {"visits": "RuntimeError"})
+        self.assertEqual(data["endpoint_version"], 2)
+
+    def test_the_secret_is_never_a_local_in_the_view(self):
+        """Sentry skickar lokala variabler ur ramarna: vyn får inte hålla nyckeln."""
+        from apps.monitor import status_endpoint
+
+        names = status_endpoint.status_view.__wrapped__.__code__.co_varnames
+        self.assertNotIn("key", names)
+        self.assertNotIn("expected", names)
+        self.assertNotIn("given", names)
+
 
 class PortalTests(Fixture):
     def _seed(self):

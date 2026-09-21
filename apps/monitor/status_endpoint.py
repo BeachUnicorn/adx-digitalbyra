@@ -6,9 +6,17 @@ med den delade nyckeln (header X-ADX-Key = ADX_STATUS_KEY i env) och får
 det som inte går att se utifrån: databas, server, backup, deploy, besök.
 Utan nyckel i env finns endpointet inte (404); fel nyckel ger 403.
 
+Version 2 (2026-09-21). Nyckeln tas BARA emot i headern: en nyckel i
+adressen (?key=) hamnar i webbserverns accesslogg och i felrapporteringens
+query_string. Den jämförs i _authorized(), en egen liten funktion, så att
+den aldrig ligger som lokal variabel i en ram som kan kasta - Sentry
+skickar lokala variabler ur stackramarna. Och jämförelsen sker på bytes:
+hmac.compare_digest kastar TypeError på icke-ASCII-strängar, vilket i
+version 1 lät vem som helst framkalla just det undantaget.
+
 Kontraktet (alla fält valfria utom db):
 {
-  "app": "adx-platform", "site": "<SITE_SLUG>", "time": "<ISO>",
+  "app": "adx-platform", "endpoint_version": 2, "site": "<SITE_SLUG>", "time": "<ISO>",
   "db": "ok" | "error: ...",
   "server": {"uptime_seconds", "load": [1, 5, 15], "cpu_count",
              "mem": {"total_mb", "available_mb", "used_pct"},
@@ -16,7 +24,8 @@ Kontraktet (alla fält valfria utom db):
   "deploy": {"rev", "at"},
   "backup": {"latest_at", "size_mb", "age_hours"},
   "visits": {"sessions_7d", "sessions_30d", "pageviews_7d", "top_pages_7d": [{"path", "n"}]},
-  "sentry": {"configured": bool}
+  "sentry": {"configured": bool},
+  "errors": {"<del>": "<undantagets typ>"}   # bara när en del inte gick att ta fram
 }
 """
 
@@ -142,24 +151,46 @@ def _visits():
     }
 
 
+ENDPOINT_VERSION = 2
+
+
+def _authorized(request):
+    """None = ingen nyckel i miljön (endpointet finns inte), annars True/False."""
+    expected = getattr(settings, "ADX_STATUS_KEY", "")
+    if not expected:
+        return None
+    given = request.headers.get("X-ADX-Key", "")
+    return hmac.compare_digest(given.encode(), expected.encode())
+
+
 @never_cache
 def status_view(request):
-    key = getattr(settings, "ADX_STATUS_KEY", "")
-    if not key:
+    allowed = _authorized(request)
+    if allowed is None:
         raise Http404
-    given = request.headers.get("X-ADX-Key", "") or request.GET.get("key", "")
-    if not hmac.compare_digest(given, key):
+    if not allowed:
         return JsonResponse({"error": "forbidden"}, status=403)
+
+    # En trasig del får inte fälla hela rapporten - då syns inte ens att
+    # databasen är nere. Delen blir null och felets typ hamnar i "errors".
+    report, errors = {}, {}
+    sections = {"server": _server, "deploy": _deploy, "backup": _backup, "visits": _visits}
+    for name, build in sections.items():
+        try:
+            report[name] = build()
+        except Exception as exc:  # noqa: BLE001
+            report[name] = None
+            errors[name] = type(exc).__name__
+
     return JsonResponse(
         {
             "app": "adx-platform",
+            "endpoint_version": ENDPOINT_VERSION,
             "site": getattr(settings, "SITE_SLUG", ""),
             "time": timezone.now().isoformat(timespec="seconds"),
             "db": _db(),
-            "server": _server(),
-            "deploy": _deploy(),
-            "backup": _backup(),
-            "visits": _visits(),
+            **report,
             "sentry": {"configured": bool(getattr(settings, "SENTRY_DSN", ""))},
+            **({"errors": errors} if errors else {}),
         }
     )

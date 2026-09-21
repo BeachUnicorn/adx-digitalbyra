@@ -185,16 +185,13 @@ PRIVATE_MEDIA_ROOT = BASE_DIR.parent / "private-uploads"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Error monitoring. No-op when SENTRY_DSN is empty (e.g. in dev).
+# Alla inställningar - och framför allt vad som maskas innan något lämnar
+# servern (offerttoken, AI-koder, statusnyckeln) - bor i apps/common/sentry.py.
 SENTRY_DSN = env("SENTRY_DSN", default="")
 if SENTRY_DSN:
-    import sentry_sdk
+    from apps.common import sentry as _sentry
 
-    sentry_sdk.init(
-        dsn=SENTRY_DSN,
-        environment=SITE_SLUG,
-        traces_sample_rate=0.1,
-        send_default_pii=False,
-    )
+    _sentry.init(SENTRY_DSN, SITE_SLUG, BASE_DIR)
 
 # Structured-ish logging to stdout so journald/CloudWatch can pick it up.
 

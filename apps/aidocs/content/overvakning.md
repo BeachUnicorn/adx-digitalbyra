@@ -6,13 +6,20 @@ adx.se kan visa kunden hur servern mår. Följ stegen i ordning. Ändra
 inte kontraktet (fältnamn, URL, header) - adx.se:s övervakning läser
 exakt det här formatet.
 
+**Version 2 (2026-09-21).** Har projektet redan endpointet från en äldre
+version av guiden (svaret saknar fältet `endpoint_version`): gå till
+avsnittet "Uppgradera från version 1" längst ned.
+
 ## Vad som ska finnas när du är klar
 
 - `GET /status/adx/` svarar med JSON när headern `X-ADX-Key` bär rätt nyckel.
+  Nyckeln tas BARA emot i headern, aldrig i adressen.
 - Fel eller saknad nyckel ger 403. Saknas nyckeln i projektets miljö ger vyn 404
   (endpointet "finns inte" förrän det är konfigurerat).
 - Nyckeln ligger BARA i projektets `.env` (eller motsvarande hemliga miljö).
   Den får aldrig committas, loggas eller skrivas ut i chatten.
+- Projektets felrapportering (Sentry) maskar headern, se steg 4. Nyckeln är
+  densamma på alla sajter ADX driftar, så en läcka i ett projekt gäller alla.
 
 ## Steg 1: skapa filen
 
@@ -34,7 +41,11 @@ Anmärkningar om filen:
   projektmappen är katalogen OVANFÖR `settings.BASE_DIR`. Ligger projektets
   databasdumpar någon annanstans: ändra bara sökvägen i `_backup()`.
 - `_deploy()` läser `<projektmapp>/release.json` och faller annars tillbaka
-  på `git rev-parse`. Se steg 4.
+  på `git rev-parse`. Se steg 5.
+- Nyckeln jämförs i `_authorized()`, en egen funktion, och på bytes. Det är
+  avsiktligt: felrapporteringen skickar lokala variabler ur stackramarna, så
+  nyckeln får aldrig vara en lokal variabel i en ram som kan kasta. Flytta
+  inte in kontrollen i `status_view` och lägg inte till `?key=`.
 - `settings.SITE_SLUG` och `settings.SENTRY_DSN` läses med `getattr` och
   får saknas.
 
@@ -71,10 +82,41 @@ Det är samma nyckel på alla sajter ADX driftar. Kontrollera att `.env`
 står i `.gitignore`. Har projektet en `.env.example`: lägg raden
 `ADX_STATUS_KEY=` där UTAN värde.
 
-Om projektet kör bakom en proxy som tar bort okända headers finns en
-reservväg: `?key=<nyckeln>` i adressen. Använd headern när det går.
+## Steg 4: felrapporteringen får inte se nyckeln
 
-## Steg 4: deploy-stämpel (valfritt men önskat)
+Gäller om projektet använder Sentry (sök efter `sentry_sdk.init`). Annars:
+hoppa över steget, men säg det till Giovanni.
+
+Sentry skickar request-headers med varje felrapport OCH med varje spårad
+request (`traces_sample_rate`), alltså även när inget gått fel. adx.se
+anropar endpointet var femte minut. Sentrys inbyggda skydd känner inte igen
+`X-ADX-Key`, så utan det här steget hamnar den delade nyckeln hos Sentry.
+
+I `settings.py`, utanför eventuellt `if SENTRY_DSN:`-block så att testet
+nedan kan läsa listan:
+
+```python
+from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
+
+SENTRY_DENYLIST = DEFAULT_DENYLIST + ["X-ADX-Key"]
+```
+
+Och i anropet till `sentry_sdk.init(...)`, lägg till:
+
+```python
+    event_scrubber=EventScrubber(denylist=SENTRY_DENYLIST),
+```
+
+Stavningen måste vara exakt `X-ADX-Key`. Scrubbern jämför headernamnet i
+gemener med bindestreck; `x_adx_key` eller `HTTP_X_ADX_KEY` träffar ALDRIG.
+Behåll projektets övriga init-argument som de är. Har projektet redan en
+egen `event_scrubber` eller denylista: lägg till `"X-ADX-Key"` i den.
+
+Headern är det enda stället nyckeln finns i en request, eftersom vyn inte
+tar emot den i adressen och inte håller den i en lokal variabel. Därför
+räcker den här raden; ingen `before_send` behövs för endpointets skull.
+
+## Steg 5: deploy-stämpel (valfritt men önskat)
 
 Låt deployskriptet skriva revision och tidpunkt efter varje lyckad deploy,
 så visar adx.se "senast uppdaterad" för kunden:
@@ -87,7 +129,7 @@ printf '{"rev": "%s", "at": "%s"}\n' "$(git rev-parse --short HEAD)" \
 Körs från projektets kodkatalog, så att filen hamnar i katalogen ovanför
 `BASE_DIR`. Filen ska inte committas.
 
-## Steg 5: testa
+## Steg 6: testa
 
 Lokalt (sätt nyckeln i miljön först):
 
@@ -101,6 +143,7 @@ Förväntat svar (värdena varierar; `db` MÅSTE vara `"ok"`):
 ```json
 {
   "app": "adx-platform",
+  "endpoint_version": 2,
   "site": "kundslug",
   "time": "2026-09-21T08:00:00+00:00",
   "db": "ok",
@@ -133,9 +176,28 @@ class AdxStatusTests(TestCase):
         r = self.client.get("/status/adx/", HTTP_X_ADX_KEY="test")
         self.assertEqual(r.status_code, 200)
         self.assertEqual(r.json()["db"], "ok")
+
+    def test_key_in_the_address_is_refused(self):
+        self.assertEqual(self.client.get("/status/adx/?key=test").status_code, 403)
+
+    def test_odd_header_is_a_403_not_a_crash(self):
+        r = self.client.get("/status/adx/", HTTP_X_ADX_KEY="\xe5\xe4\xf6")
+        self.assertEqual(r.status_code, 403)
+
+    def test_error_reports_never_carry_the_key(self):
+        # Bara om projektet använder Sentry (steg 4).
+        from django.conf import settings
+        from sentry_sdk.scrubber import EventScrubber
+
+        event = {"request": {"headers": {"X-Adx-Key": "hemlig-nyckel"}}}
+        EventScrubber(denylist=settings.SENTRY_DENYLIST).scrub_event(event)
+        self.assertNotIn("hemlig-nyckel", str(event))
 ```
 
-## Steg 6: efter deploy
+Det sista testet är läckvakten: det faller om någon stavar om headern i
+denylistan eller tar bort den.
+
+## Steg 7: efter deploy
 
 Verifiera mot produktionen:
 
@@ -155,10 +217,11 @@ Säg sedan till Giovanni, ordagrant:
 | Symptom | Orsak |
 |---|---|
 | 404 på /status/adx/ | `ADX_STATUS_KEY` saknas i processens miljö (starta om efter .env-ändringen), eller URL:en ligger efter ett catch-all-mönster |
-| 403 med rätt nyckel | Proxyn tar bort headern - prova `?key=`; eller blanksteg/radbrytning i .env-värdet |
+| 403 med rätt nyckel | Blanksteg/radbrytning i .env-värdet, eller en proxy framför Django som tar bort headern (nginx släpper igenom `X-ADX-Key` som standard; lägg annars till den i proxyns lista). Lös det i proxyn - nyckeln får inte flyttas till adressen |
 | `"db": "error: ..."` | Databasen svarar inte - det är ett riktigt fel, inte ett endpointfel |
 | `backup` är `{}` eller `latest_at: null` | Inga `*.sql.gz` i `<projektmapp>/backups/` - peka om sökvägen i `_backup()` |
-| `deploy.at` är `null` | `release.json` skrivs inte - se steg 4 |
+| `deploy.at` är `null` | `release.json` skrivs inte - se steg 5 |
+| En del är `null` och `errors` finns i svaret | Den delen kastade ett undantag; `errors` säger vilken typ. Resten av rapporten gäller ändå |
 
 ## Regler
 
@@ -167,6 +230,8 @@ Säg sedan till Giovanni, ordagrant:
 - Endpointet ska vara billigt: inga tunga frågor, inga externa anrop.
 - Exponera aldrig hemligheter, kunddata eller personuppgifter i svaret.
 - Nyckeln i den här guiden är hemlig. Skriv den i `.env`, ingen annanstans.
+- Nyckeln får inte hamna i loggar eller felrapporter: inte i adressen, inte i
+  `print`/`logger`-rader, inte i en lokal variabel i `status_view`.
 
 ## Sentry (om kunden ska se antal fel)
 
@@ -174,3 +239,21 @@ Inget ändras i kundens projekt. Felen räknas centralt från ADX
 Sentry-organisation. Det enda som behövs är att projektet redan
 rapporterar till ett projekt i den organisationen; säg projektets slug
 till Giovanni så lägger han in den på kundkortet.
+
+## Uppgradera från version 1
+
+Version 1 (före 2026-09-21) tog emot nyckeln även som `?key=` i adressen,
+höll den som lokal variabel i `status_view` och jämförde strängar, vilket
+gav ett 500-fel på en header med icke-ASCII-tecken. Alla tre kunde föra ut
+nyckeln till projektets felrapportering.
+
+1. Ersätt filen med källkoden i steg 1, oförändrad. Har du anpassat
+   `_backup()` eller `_visits()`: för över just de ändringarna igen.
+2. Sök i projektet efter `?key=` och `GET.get("key")` mot endpointet och ta
+   bort dem (skript, dokumentation, cron).
+3. Gör steg 4 (Sentry) och lägg till de tre nya testerna i steg 6.
+4. Verifiera efter deploy med headern, som i steg 7: svaret ska innehålla
+   `"endpoint_version": 2`. Prova INTE den riktiga nyckeln i adressen för att
+   se att den nekas - då står den i accessloggen. Testet i steg 6 bevisar det.
+
+Säg sedan till Giovanni att sajten kör version 2.
