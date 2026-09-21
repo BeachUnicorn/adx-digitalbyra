@@ -20,7 +20,7 @@ from datetime import date, timedelta
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
-from django.db.models import Q
+from django.db.models import Count, Max, Q, Sum
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
@@ -748,27 +748,120 @@ def column_update(request, pk):
 # ------------------------------------------------------------------ kunder
 
 
+def _merge(target, rows, key, field, how="sum"):
+    """
+    Slå ihop en aggregerad queryset till {kund_id: värde}.
+
+    Ett ärende hör till kunden direkt ELLER via sitt projekt, så varje
+    siffra hämtas i två frågor och vägs samman här - i stället för en
+    fråga per kund (listan gjorde 3N frågor innan).
+    """
+    for row in rows:
+        cid, value = row[key], row[field]
+        if not cid or value is None:
+            continue
+        if how == "max":
+            if cid not in target or value > target[cid]:
+                target[cid] = value
+        else:
+            target[cid] = target.get(cid, 0) + value
+    return target
+
+
+def _customer_facts():
+    """Öppna ärenden, loggad tid och senaste aktivitet per kund."""
+    open_counts, last_seen, seconds = {}, {}, {}
+    for key in ("customer", "project__customer"):
+        _merge(
+            open_counts,
+            Issue.objects.open().values(key).annotate(n=Count("id")),
+            key,
+            "n",
+        )
+        _merge(
+            last_seen,
+            Issue.objects.values(key).annotate(t=Max("updated_at")),
+            key,
+            "t",
+            how="max",
+        )
+    for key in ("issue__customer", "issue__project__customer"):
+        _merge(
+            seconds,
+            TimeEntry.objects.filter(ended_at__isnull=False).values(key).annotate(s=Sum("seconds")),
+            key,
+            "s",
+        )
+    return open_counts, last_seen, seconds
+
+
 @staff_required
 def customer_list(request):
+    """Kundregistret: sök, filtrera, skapa. Varje rad leder till kundkortet."""
     form = CustomerCreateForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         customer = form.save()
-        messages.success(request, f"{customer.name} är skapad.")
+        messages.success(
+            request, f"{customer.name} är skapad. Fyll på med projekt, kontakter och övervakning."
+        )
         return redirect("manage:customer_detail", pk=customer.pk)
-    customers = Customer.objects.prefetch_related("projects", "users")
+
+    status = request.GET.get("status", "aktiva")
+    query = request.GET.get("q", "").strip()[:80]
+    base = Customer.objects.prefetch_related("projects", "users", "domains")
+    if status == "inaktiva":
+        base = base.filter(is_active=False)
+    elif status != "alla":
+        status = "aktiva"
+        base = base.filter(is_active=True)
+    if query:
+        base = base.filter(
+            Q(name__icontains=query)
+            | Q(org_number__icontains=query)
+            | Q(email__icontains=query)
+            | Q(phone__icontains=query)
+            | Q(website__icontains=query)
+            | Q(domains__name__icontains=query)
+            | Q(projects__name__icontains=query)
+            | Q(projects__key__icontains=query)
+        ).distinct()
+
+    open_counts, last_seen, seconds = _customer_facts()
     rows = [
         {
             "customer": c,
-            "open": Issue.objects.for_customer(c).open().count(),
-            "time": fmt_hours(c.total_seconds()),
+            "open": open_counts.get(c.pk, 0),
+            "time": fmt_hours(seconds.get(c.pk, 0)),
             "contacts": c.users.count(),
+            "projects": len(c.projects.all()),
+            "domains": [d.name for d in c.domains.all()],
+            "last_seen": last_seen.get(c.pk),
         }
-        for c in customers
+        for c in base
     ]
+    rows.sort(
+        key=lambda r: (
+            r["last_seen"] is None,
+            -(r["last_seen"].timestamp() if r["last_seen"] else 0),
+        )
+    )
+    counts = {
+        "aktiva": Customer.objects.filter(is_active=True).count(),
+        "inaktiva": Customer.objects.filter(is_active=False).count(),
+    }
+    counts["alla"] = counts["aktiva"] + counts["inaktiva"]
     return render(
         request,
         "projects/customers.html",
-        {"active": "customers", "rows": rows, "form": form, "title": "Kunder"},
+        {
+            "active": "customers",
+            "rows": rows,
+            "form": form,
+            "status": status,
+            "query": query,
+            "counts": counts,
+            "title": "Kunder",
+        },
     )
 
 
@@ -788,6 +881,13 @@ def customer_detail(request, pk):
     from apps.monitor.models import settings_for as monitor_settings_for
 
     monitor = monitor_settings_for(customer)
+    # Kundens offerter: kopplade via projekt, eller skrivna på kundens namn
+    # innan kopplingen fanns.
+    from apps.offers.models import Quote
+
+    quotes = Quote.objects.filter(
+        Q(project__customer=customer) | Q(customer_name__iexact=customer.name)
+    ).distinct()[:20]
     log_entries = list(customer.log_entries.select_related("digest", "author")[:100])
     return render(
         request,
@@ -804,6 +904,7 @@ def customer_detail(request, pk):
             "title": customer.name,
             "log_entries": log_entries,
             "monitor": monitor,
+            "quotes": quotes,
             "monitor_domains": customer.domains.all(),
             "monitor_fields": [
                 {"name": f.name, "label": f.verbose_name, "value": getattr(monitor, f.name)}

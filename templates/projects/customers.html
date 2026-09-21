@@ -1,30 +1,69 @@
 {% extends "projects/base_board.html" %}
 {% load board_tags %}
+{% comment %}
+Kundregistret: sök och filtrera till vänster, skapa till höger. Raden är
+ingången till kundkortet, där projekt, kontakter, logg och övervakning bor.
+{% endcomment %}
 {% block board %}
 <div class="tv-head">
-  <div><h1 class="tv-h1">Kunder</h1><div class="tv-sub">Kundens kontakter loggar in på /kund/ och ser bara sina egna ärenden som är markerade "Synlig för kund".</div></div>
+  <div>
+    <h1 class="tv-h1">Kunder</h1>
+    <div class="tv-sub">Allt om en kund på ett ställe: projekt, ärenden, portalkontakter, logg och övervakning. Klicka på en kund för att öppna kortet.</div>
+  </div>
 </div>
+
+<form method="get" class="tv-filters">
+  <a class="tv-pill{% if status == 'aktiva' %} is-on{% endif %}" href="?status=aktiva{% if query %}&q={{ query|urlencode }}{% endif %}">Aktiva ({{ counts.aktiva }})</a>
+  <a class="tv-pill{% if status == 'inaktiva' %} is-on{% endif %}" href="?status=inaktiva{% if query %}&q={{ query|urlencode }}{% endif %}">Inaktiva ({{ counts.inaktiva }})</a>
+  <a class="tv-pill{% if status == 'alla' %} is-on{% endif %}" href="?status=alla{% if query %}&q={{ query|urlencode }}{% endif %}">Alla ({{ counts.alla }})</a>
+  <span class="sep"></span>
+  <input type="hidden" name="status" value="{{ status }}">
+  <input class="tv-search" type="search" name="q" value="{{ query }}" placeholder="Sök namn, org.nr, e-post, domän, projekt..." aria-label="Sök kund">
+  <button type="submit" class="m-btn m-btn--small">Sök</button>
+  {% if query %}<a class="tv-pill tv-pill--clear" href="?status={{ status }}">Rensa</a>{% endif %}
+</form>
+
 <div class="tv-grid">
   <div class="m-panel m-table-wrap">
     <table class="m-table">
-      <thead><tr><th>Kund</th><th class="m-num">Projekt</th><th class="m-num">Öppna ärenden</th><th class="m-num">Kontakter</th><th class="m-num">Tid</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Kund</th>
+          <th>Domäner</th>
+          <th class="m-num">Projekt</th>
+          <th class="m-num">Öppna</th>
+          <th class="m-num">Kontakter</th>
+          <th class="m-num">Tid</th>
+          <th>Senast</th>
+        </tr>
+      </thead>
       <tbody>
       {% for r in rows %}
       <tr>
-        <td><a href="{% url 'manage:customer_detail' r.customer.pk %}" class="tv-link"><b>{{ r.customer.name }}</b></a>{% if not r.customer.is_active %} <span class="m-badge">inaktiv</span>{% endif %}</td>
-        <td class="m-num">{{ r.customer.projects.count }}</td>
+        <td>
+          <a href="{% url 'manage:customer_detail' r.customer.pk %}" class="tv-link"><b>{{ r.customer.name }}</b></a>
+          {% if not r.customer.is_active %} <span class="m-badge">inaktiv</span>{% endif %}
+          {% if r.customer.org_number %}<div class="tv-muted tv-cell-sub">{{ r.customer.org_number }}</div>{% endif %}
+        </td>
+        <td class="tv-muted">{% for d in r.domains %}<a class="tv-link" href="https://{{ d }}/" target="_blank" rel="noopener">{{ d }}</a>{% if not forloop.last %}<br>{% endif %}{% empty %}-{% endfor %}</td>
+        <td class="m-num">{{ r.projects }}</td>
         <td class="m-num">{{ r.open }}</td>
-        <td class="m-num">{{ r.contacts }}</td>
+        <td class="m-num">{% if r.contacts %}{{ r.contacts }}{% else %}<span class="tv-muted">-</span>{% endif %}</td>
         <td class="m-num">{{ r.time }}</td>
+        <td class="tv-muted">{% if r.last_seen %}{{ r.last_seen|date:"j M" }}{% else %}-{% endif %}</td>
       </tr>
-      {% empty %}<tr><td colspan="5" class="m-empty">Inga kunder än. Skapa den första till höger.</td></tr>{% endfor %}
+      {% empty %}
+      <tr><td colspan="7" class="m-empty">{% if query %}Ingen kund matchar "{{ query }}".{% else %}Inga kunder här. Skapa den första till höger.{% endif %}</td></tr>
+      {% endfor %}
       </tbody>
     </table>
   </div>
+
   <form method="post" class="m-panel tv-form">{% csrf_token %}
     <div class="tv-sec-title">Ny kund</div>
+    <p class="tv-prop__note">Bara namnet krävs. Resten fyller du på i kundkortet, där du också bjuder in portalkontakter och sätter upp övervakning.</p>
     {% m_field form.name %}{% m_field form.org_number %}{% m_field form.email %}{% m_field form.phone %}{% m_field form.website %}{% m_field form.notes %}
-    <div class="tv-form__actions"><button type="submit" class="m-btn">Skapa</button></div>
+    <div class="tv-form__actions"><button type="submit" class="m-btn">Skapa kund</button></div>
   </form>
 </div>
 {% endblock %}

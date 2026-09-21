@@ -937,3 +937,68 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
         )
         self.assertEqual(data["poster"][0]["text"], "Bytte DNS-leverantör.")
         self.assertEqual(data["osanda"], 1)
+
+
+class CustomerRegisterTests(PortalFixtureMixin, TestCase):
+    """Kundregistret: sök, filter och siffror per rad."""
+
+    def test_the_list_shows_facts_per_customer(self):
+        from apps.monitor.models import MonitoredDomain
+
+        MonitoredDomain.objects.create(customer=self.acme, name="acme.se", is_primary=True)
+        TimeEntry.log(self.visible, self.staff, 90)
+        html = self.as_staff().get("/manage/kunder/").content.decode()
+        self.assertIn("Acme AB", html)
+        self.assertIn("acme.se", html)
+        self.assertIn("1:30", html, "loggad tid per kund")
+        self.assertIn("Aktiva (2)", html)
+        self.assertIn("Inaktiva (0)", html)
+
+    def test_search_across_name_domain_and_project(self):
+        from apps.monitor.models import MonitoredDomain
+
+        MonitoredDomain.objects.create(customer=self.acme, name="acme-bygg.se")
+        self.acme.org_number = "556712-3456"
+        self.acme.save()
+        client = self.as_staff()
+        for query in ("acme", "556712", "acme-bygg", "ACME"):
+            html = client.get("/manage/kunder/", {"q": query}).content.decode()
+            self.assertIn("Acme AB", html, query)
+            self.assertNotIn("Annan AB", html, query)
+        html = client.get("/manage/kunder/", {"q": "finns-inte"}).content.decode()
+        self.assertIn("Ingen kund matchar", html)
+
+    def test_status_filter(self):
+        self.other.is_active = False
+        self.other.save()
+        client = self.as_staff()
+        active = client.get("/manage/kunder/").content.decode()
+        self.assertIn("Acme AB", active)
+        self.assertNotIn("Annan AB", active)
+        inactive = client.get("/manage/kunder/", {"status": "inaktiva"}).content.decode()
+        self.assertIn("Annan AB", inactive)
+        self.assertNotIn(">Acme AB<", inactive)
+        everyone = client.get("/manage/kunder/", {"status": "alla"}).content.decode()
+        self.assertIn("Acme AB", everyone)
+        self.assertIn("Annan AB", everyone)
+        self.assertIn("Inaktiva (1)", everyone)
+
+    def test_creating_lands_on_the_card(self):
+        r = self.as_staff().post("/manage/kunder/", {"name": "Tredje AB"})
+        customer = Customer.objects.get(name="Tredje AB")
+        self.assertEqual(r["Location"], f"/manage/kunder/{customer.pk}/")
+        self.assertTrue(customer.is_active)
+
+    def test_customers_are_reachable_from_the_main_menu(self):
+        html = self.as_staff().get("/manage/").content.decode()
+        self.assertIn('href="/manage/kunder/"', html)
+        self.assertIn("Kundregistret", html, "kort på översikten")
+
+    def test_the_card_lists_the_customers_offers(self):
+        from apps.offers.models import Quote
+
+        Quote.objects.create(customer_name="acme ab", project_title="Ny hemsida")
+        Quote.objects.create(customer_name="Någon annan", project_title="Inte deras")
+        html = self.as_staff().get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        self.assertIn("Ny hemsida", html)
+        self.assertNotIn("Inte deras", html)

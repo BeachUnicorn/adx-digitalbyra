@@ -108,6 +108,21 @@
       {% for p in projects %}<p class="tv-line"><a href="{% url 'manage:project_detail' p.key %}" class="tv-link"><b>{{ p.key }}</b> {{ p.name }}</a> <span class="m-badge m-badge--{{ p.status }}">{{ p.get_status_display }}</span></p>{% empty %}<p class="tv-muted">Inga projekt. Kundens portalärenden får ett "Support"-projekt automatiskt.</p>{% endfor %}
     </div>
 
+    {% if quotes %}
+    <div class="m-panel m-table-wrap">
+      <div class="tv-panel-head"><div class="tv-sec-title">Offerter</div></div>
+      <table class="m-table">
+        <thead><tr><th>Offert</th><th>Status</th><th class="m-num">Vid leverans</th><th>Uppdaterad</th></tr></thead>
+        <tbody>{% for q in quotes %}<tr>
+          <td><a href="{% url 'manage:offer_edit' q.pk %}" class="tv-link"><b>{{ q.project_title|default:q.customer_name }}</b></a></td>
+          <td><span class="o-status o-status--{{ q.status }}">{{ q.get_status_display }}</span></td>
+          <td class="m-num">{{ q.totals_display.one_time }} kr</td>
+          <td class="tv-muted">{{ q.updated_at|date:"j M" }}</td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% endif %}
+
     <div class="m-panel m-table-wrap">
       <div class="tv-panel-head"><div class="tv-sec-title">Ärenden</div></div>
       <table class="m-table">

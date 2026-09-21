@@ -458,3 +458,5 @@ body.is-dragging-any{cursor:grabbing}
   .tv-domainrow{grid-template-columns:1fr}
   .tv-domainrow__acts{justify-content:flex-start}
 }
+.tv-cell-sub{font-family:var(--s-mono);font-size:12px;margin-top:3px}
+.tv-filters .m-btn{width:auto}

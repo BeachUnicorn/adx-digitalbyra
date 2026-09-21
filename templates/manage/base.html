@@ -18,7 +18,20 @@
             <li><a href="{% url 'manage:inquiry_list' %}" class="m-nav__link {% if active == 'inquiries' %}is-active{% endif %}">Förfrågningar{% if unread_inquiries %} <span class="m-badge m-badge--alert">{{ unread_inquiries }}</span>{% endif %}</a></li>
 
             <li><a href="{% url 'manage:offer_list' %}" class="m-nav__link {% if active == 'offers' %}is-active{% endif %}">Offerter</a></li>
-            <li><a href="{% url 'manage:board' %}" class="m-nav__link {% if active == 'board' or active == 'projects' or active == 'customers' or active == 'time' %}is-active{% endif %}">Tavlan</a></li>
+            {% comment %}
+            Tavlan är kvar som direktlänk (ett klick till tavlan) men har en
+            hovermeny: Kunder och Drift var omöjliga att hitta i undermenyn.
+            {% endcomment %}
+            <li class="m-nav__dropdown">
+                <a href="{% url 'manage:board' %}" class="m-nav__link m-nav__dropdown-toggle {% if active == 'board' or active == 'projects' or active == 'customers' or active == 'time' or active == 'drift' %}is-active{% endif %}">Tavlan ▾</a>
+                <ul class="m-nav__dropdown-menu">
+                    <li><a href="{% url 'manage:board' %}">Tavla</a></li>
+                    <li><a href="{% url 'manage:project_list' %}">Projekt</a></li>
+                    <li><a href="{% url 'manage:customer_list' %}">Kunder</a></li>
+                    <li><a href="{% url 'manage:time_report' %}">Tid</a></li>
+                    <li><a href="{% url 'manage:drift' %}">Drift</a></li>
+                </ul>
+            </li>
 
             {% if user.is_superuser %}{# Dold för kunden tills sidan är godkänd. #}
             <li><a href="{% url 'manage:stats' %}" class="m-nav__link {% if active == 'stats' %}is-active{% endif %}">Statistik</a></li>
@@ -77,6 +90,10 @@
     <a href="{% url 'manage:inquiry_list' %}">Förfrågningar{% if unread_inquiries %} <span class="m-badge m-badge--alert">{{ unread_inquiries }}</span>{% endif %}</a>
     <a href="{% url 'manage:offer_list' %}">Offerter</a>
     <a href="{% url 'manage:board' %}">Tavlan</a>
+    <a href="{% url 'manage:customer_list' %}">Kunder</a>
+    <a href="{% url 'manage:project_list' %}">Projekt</a>
+    <a href="{% url 'manage:time_report' %}">Tid</a>
+    <a href="{% url 'manage:drift' %}">Drift</a>
     {% if user.is_superuser %}<a href="{% url 'manage:stats' %}">Statistik</a>{% endif %}
     <span class="m-nav__mobile-label">Innehåll</span>
     <a href="{% url 'manage:page_list' %}">Blocksidor</a>
