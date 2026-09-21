@@ -55,6 +55,7 @@
                 <ul class="m-nav__dropdown-menu">
                     <li><a href="{% url 'manage:settings' %}">Inställningar</a></li>
                     <li><a href="{% url 'manage:menus_overview' %}">Menyer</a></li>
+                    <li><a href="{% url 'manage:ai_codes' %}">AI-guider</a></li>
                     <li>
                         <form method="post" action="{% url 'logout' %}" class="m-nav__logout-form">
                             {% csrf_token %}
@@ -105,6 +106,7 @@
     <a href="{% url 'manage:media_library' %}">Media</a>
     <a href="{% url 'manage:assistant_chat' %}">AI{% if pending_drafts %} ({{ pending_drafts }}){% endif %}</a>
     <a href="{% url 'manage:settings' %}">Inställningar</a>
+    <a href="{% url 'manage:ai_codes' %}">AI-guider</a>
     {% if user.is_superuser %}
     <span class="m-nav__mobile-label">Superuser</span>
     <a href="{% url 'manage:hemsidekollen' %}">Hemsidekollen</a>

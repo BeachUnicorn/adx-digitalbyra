@@ -36,6 +36,9 @@ urlpatterns = [
     path("kund/", include("apps.projects.portal_urls")),
     # Offertlänkarna till kund. Före sajtens slug-catchall.
     path("", include("apps.offers.urls")),
+    # Integrationsguider för andra AI-assistenter (apps/aidocs) på /aiz/, kodskyddade.
+    # /ai/ lämnas fri för innehåll och sökmotoroptimering.
+    path("", include("apps.aidocs.urls")),
     path("nyhetsbrev/", inquiry_views.newsletter_signup, name="newsletter"),
     path("analytics/", include("apps.analytics.urls")),
     path("faq/", include("apps.faq.urls")),

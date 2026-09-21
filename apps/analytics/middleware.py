@@ -43,6 +43,9 @@ _SKIP_PREFIXES = (
     # annan åtkomst- och backupprofil än en hemlig kapabilitetslänk.
     "/offert/",
     "/kund/",
+    # AI-guiderna bär åtkomstkoden i adressen - den får aldrig hamna i PageView.path.
+    "/aiz/",
+    "/status/",
 )
 
 _TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)

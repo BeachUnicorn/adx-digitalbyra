@@ -1,0 +1,67 @@
+{% extends "manage/base.html" %}
+{% block title %}AI-guider{% endblock %}
+{% block content %}
+<div class="m-panel af-hero">
+    <div class="af-hero__row">
+        <h1 class="af-hero__title">AI-guider</h1>
+        <a href="{{ base_url }}/aiz/" class="af-hero__link" target="_blank" rel="noopener">{{ base_url }}/aiz/</a>
+    </div>
+    <p class="af-hero__desc">
+        Hänvisa en AI i ett kundprojekt till adressen ovan. Den ber dig om en kod; skapa en här och klistra in den.
+        Med koden får den hela guiden, inklusive källkod och den delade nyckeln. Koderna är kortlivade och varje hämtning loggas.
+    </p>
+    <form method="post" action="{% url 'manage:ai_code_create' %}" class="o-create">
+        {% csrf_token %}
+        <input name="note" placeholder="Till vad? T.ex. BD Group, övervakning" maxlength="120">
+        <select name="hours" class="m-select" aria-label="Giltighet">
+            <option value="1">Gäller 1 timme</option>
+            <option value="24">Gäller 24 timmar</option>
+        </select>
+        <button type="submit" class="m-btn m-btn--inline">Ny AI-kod</button>
+    </form>
+</div>
+
+{% if fresh %}
+<div class="m-panel ai-fresh" role="status">
+    <div class="o-card__title">Din nya kod, visas bara nu</div>
+    <div class="ai-fresh__code" id="ai-code">{{ fresh.code }}</div>
+    <p class="af-hero__desc">Gäller i {{ fresh.hours }} timm{{ fresh.hours|pluralize:"e,ar" }}. Säg till AI:n: <span class="af-mono">Läs {{ base_url }}/aiz/ och använd koden {{ fresh.code }}</span></p>
+    <button type="button" class="m-btn m-btn--small m-btn--ghost" data-copy-text="Läs {{ base_url }}/aiz/ och använd koden {{ fresh.code }}">Kopiera meningen</button>
+</div>
+{% endif %}
+
+<p class="m-section-title">Guider</p>
+<div class="m-panel ai-guides">
+    {% for slug, info in guides.items %}
+    <div class="ai-guide"><b>{{ info.0 }}</b><span>{{ info.1 }}</span><span class="af-mono">/aiz/guide/{{ slug }}/</span></div>
+    {% endfor %}
+</div>
+
+<p class="m-section-title">Koder</p>
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Kod</th><th>Till vad</th><th>Status</th><th class="m-num">Hämtningar</th><th>Senast</th><th></th></tr></thead>
+        <tbody>
+        {% for c in rows %}
+        <tr>
+            <td class="af-mono">ADX-&middot;&middot;&middot;&middot;-{{ c.hint }}</td>
+            <td>{{ c.note|default:"-" }}</td>
+            <td>{% if c.revoked_at %}<span class="m-badge">återkallad</span>{% elif c.is_valid %}<span class="m-badge m-badge--published">giltig till {{ c.expires_at|date:"j M H:i" }}</span>{% else %}<span class="m-badge">utgången</span>{% endif %}</td>
+            <td class="m-num">{{ c.uses }}</td>
+            <td class="o-table__muted">{% with last=c.log.all.0 %}{% if last %}{{ last.at|date:"j M H:i" }} &middot; {{ last.guide }} &middot; {{ last.ip|default:"-" }}{% else %}-{% endif %}{% endwith %}</td>
+            <td class="o-table__act">{% if c.is_valid %}<form method="post" action="{% url 'manage:ai_code_revoke' c.pk %}">{% csrf_token %}<button type="submit" class="m-btn m-btn--small m-btn--danger">Återkalla</button></form>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="m-empty">Inga koder än.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<script>
+document.querySelectorAll("[data-copy-text]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+        navigator.clipboard.writeText(btn.getAttribute("data-copy-text")).then(function () { btn.textContent = "Kopierat"; });
+    });
+});
+</script>
+{% endblock %}

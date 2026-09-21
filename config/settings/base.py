@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.offers",
     "apps.projects",
     "apps.monitor",
+    "apps.aidocs",
     "reversion",
     "apps.assistant",
 ]

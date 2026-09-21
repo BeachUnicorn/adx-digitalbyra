@@ -1,5 +1,6 @@
 from django.urls import path
 
+from apps.aidocs import manage_views as aidocs_views
 from apps.assistant import history_views, oauth_views
 from apps.assistant import views as assistant_views
 from apps.monitor import manage_views as monitor_views
@@ -71,6 +72,10 @@ urlpatterns = [
         name="customer_remove_contact",
     ),
     path("tid/", project_views.time_report, name="time_report"),
+    # AI-guider (apps/aidocs): åtkomstkoder till /ai/
+    path("ai-guider/", aidocs_views.codes, name="ai_codes"),
+    path("ai-guider/ny/", aidocs_views.code_create, name="ai_code_create"),
+    path("ai-guider/<int:pk>/aterkalla/", aidocs_views.code_revoke, name="ai_code_revoke"),
     # Övervakning (apps/monitor)
     path("drift/", monitor_views.drift, name="drift"),
     path("kunder/<int:pk>/overvakning/", monitor_views.monitor_update, name="monitor_update"),

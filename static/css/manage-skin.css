@@ -1653,3 +1653,12 @@ ul.m-steps{list-style:square}
 .o-dialog__many summary:hover{color:var(--m-text)}
 .o-dialog__many .o-dialog__form{padding:10px 0 0}
 .o-dialog__many textarea{width:100%;box-sizing:border-box;resize:vertical}
+
+/* AI-guider: den nya koden ska gå att läsa på håll. */
+.ai-fresh{padding:26px 28px;border-color:var(--s-ok-line);background:var(--s-ok-soft);margin-bottom:24px}
+.ai-fresh__code{font-family:var(--s-mono);font-size:34px;font-weight:600;letter-spacing:.08em;margin:10px 0 12px;user-select:all}
+.ai-fresh .m-btn{width:auto}
+.ai-guides{padding:6px 24px}
+.ai-guide{display:grid;grid-template-columns:1fr;gap:4px;padding:14px 0;border-top:1px solid var(--m-border);font-size:15px}
+.ai-guide:first-child{border-top:0}
+.ai-guide span{color:var(--m-text-muted)}
