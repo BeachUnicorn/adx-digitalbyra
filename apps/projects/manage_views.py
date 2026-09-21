@@ -212,12 +212,12 @@ def issue_move(request, pk):
         stage = target
     else:
         return JsonResponse({"ok": False, "error": "okänt mål"}, status=400)
-    was = issue.column_id
+    was = (issue.column_id, issue.stage)
     try:
         move_issue(issue, column=column, stage=stage, after_ids=order)
     except ValueError as exc:
         return JsonResponse({"ok": False, "error": str(exc)}, status=400)
-    if issue.column_id != was:
+    if (issue.column_id, issue.stage) != was:
         where = issue.column.title if issue.column_id else dict(STAGES).get(stage, "")
         issue.log(request.user, f"flyttade till {where}")
     return _respond(request, issue, panel=bool(data.get("panel")))
@@ -399,9 +399,9 @@ def issue_field(request, pk):
             stage = target
         else:
             return JsonResponse({"ok": False, "error": "okänt mål"}, status=400)
-        was = issue.column_id
+        was = (issue.column_id, issue.stage)
         move_issue(issue, column=column, stage=stage)
-        if issue.column_id != was or not issue.project_id:
+        if (issue.column_id, issue.stage) != was:
             where = issue.column.title if issue.column_id else dict(STAGES).get(stage, "")
             issue.log(request.user, f"flyttade till {where}")
     else:
@@ -915,7 +915,8 @@ def customer_detail(request, pk):
                 if f.name.startswith("show_")
             ],
             "unsent_count": customer.log_entries.filter(digest__isnull=True).count(),
-            "last_digest": customer.log_digests.first(),
+            # Tomt sent_to = poster inlagda i efterhand och avbockade utan mejl.
+            "last_digest": customer.log_digests.exclude(sent_to="").first(),
             "today": timezone.localdate().isoformat(),
         },
     )

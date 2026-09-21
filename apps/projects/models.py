@@ -390,6 +390,9 @@ class Issue(models.Model):
     # samma enkla, robusta grepp som offertraderna.
     position = models.PositiveIntegerField(default=0)
     closed_at = models.DateTimeField(null=True, blank=True)
+    #: Bara för ärenden UTAN projekt. De har ingen kolumn, och utan det här
+    #: fältet fanns bara öppet/stängt - kortet gick inte att dra till Pågår.
+    started_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -436,6 +439,8 @@ class Issue(models.Model):
             self.closed_at = self.closed_at or timezone.now()
         elif self.column_id:
             self.closed_at = None
+        if self.column_id:
+            self.started_at = None  # kolumnen bär statusen; fältet är bara för projektlösa
         super().save(*args, **kwargs)
 
     # ---- nycklar och härledda fält -----------------------------------------
@@ -487,6 +492,8 @@ class Issue(models.Model):
         if self.closed_at:
             return "done"
         if self.column_id and self.column.position > 0:
+            return "active"
+        if not self.column_id and self.started_at:
             return "active"
         return "new"
 

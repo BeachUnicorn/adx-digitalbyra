@@ -18,6 +18,7 @@ from django.db import IntegrityError, transaction
 from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
+from .board import move_issue
 from .models import Attachment, Column, Comment, Customer, Issue, Project, TimeEntry
 
 
@@ -567,6 +568,38 @@ class BoardTests(PortalFixtureMixin, TestCase):
         )
         self.visible.refresh_from_db()
         self.assertEqual(self.visible.column.title, "Pågår")
+
+    def test_issue_without_project_can_be_moved_to_active_and_back(self):
+        """Buggen 2026-09-21: utan projekt fanns bara öppet/stängt, kortet föll till Nytt."""
+        loose = Issue.objects.create(title="Löst ärende")
+        client = self.as_staff()
+
+        def move(target):
+            response = client.post(
+                f"/manage/arenden/{loose.pk}/flytta/",
+                json.dumps({"target": target}),
+                content_type="application/json",
+            )
+            loose.refresh_from_db()
+            return response.json()["stage"]
+
+        self.assertEqual(move("active"), "active")
+        self.assertIsNotNone(loose.started_at)
+        self.assertIn("flyttade till Pågår", loose.activity.order_by("-pk").first().text)
+        self.assertEqual(move("done"), "done")
+        self.assertIsNotNone(loose.closed_at)
+        self.assertEqual(move("active"), "active")  # återöppnat hamnar i Pågår, inte i Nytt
+        self.assertIsNone(loose.closed_at)
+        self.assertEqual(move("new"), "new")
+        self.assertIsNone(loose.started_at)
+
+    def test_started_at_is_cleared_when_the_issue_gets_a_project(self):
+        loose = Issue.objects.create(title="Löst ärende")
+        move_issue(loose, stage="active")
+        loose.project = self.project
+        loose.save()
+        self.assertIsNone(loose.started_at)
+        self.assertEqual(loose.stage, "new")  # projektets första kolumn gäller nu
 
     def test_timer_toggle_via_fetch(self):
         client = self.as_staff()

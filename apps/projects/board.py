@@ -46,8 +46,12 @@ def move_issue(issue, *, column=None, stage=None, before=None, after_ids=None):
             raise ValueError("Kolumnen tillhör ett annat projekt.")
         issue.column = column
     elif stage and not issue.project_id:
-        # Fristående ärende: bara stängt/öppet finns att välja på.
-        issue.closed_at = timezone.now() if stage == "done" else None
+        # Fristående ärende: ingen kolumn, så statusen bärs av två tidsstämplar.
+        issue.closed_at = (issue.closed_at or timezone.now()) if stage == "done" else None
+        if stage == "new":
+            issue.started_at = None
+        elif stage == "active":
+            issue.started_at = issue.started_at or timezone.now()
     issue.save()
     if after_ids:
         renumber(after_ids)
