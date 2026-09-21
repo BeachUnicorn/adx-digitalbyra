@@ -6,13 +6,12 @@ med den delade nyckeln (header X-ADX-Key = ADX_STATUS_KEY i env) och får
 det som inte går att se utifrån: databas, server, backup, deploy, besök.
 Utan nyckel i env finns endpointet inte (404); fel nyckel ger 403.
 
-Version 2 (2026-09-21). Nyckeln tas BARA emot i headern: en nyckel i
-adressen (?key=) hamnar i webbserverns accesslogg och i felrapporteringens
-query_string. Den jämförs i _authorized(), en egen liten funktion, så att
-den aldrig ligger som lokal variabel i en ram som kan kasta - Sentry
-skickar lokala variabler ur stackramarna. Och jämförelsen sker på bytes:
-hmac.compare_digest kastar TypeError på icke-ASCII-strängar, vilket i
-version 1 lät vem som helst framkalla just det undantaget.
+Nyckeln tas BARA emot i headern: en nyckel i adressen hamnar i
+webbserverns accesslogg och i felrapporteringens query_string. Den jämförs
+i _authorized(), en egen liten funktion, så att den aldrig ligger som lokal
+variabel i en ram som kan kasta - Sentry skickar lokala variabler ur
+stackramarna. Och jämförelsen sker på bytes: hmac.compare_digest kastar
+TypeError på strängar med icke-ASCII-tecken.
 
 Kontraktet (alla fält valfria utom db):
 {

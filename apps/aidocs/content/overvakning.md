@@ -6,10 +6,6 @@ adx.se kan visa kunden hur servern mår. Följ stegen i ordning. Ändra
 inte kontraktet (fältnamn, URL, header) - adx.se:s övervakning läser
 exakt det här formatet.
 
-**Version 2 (2026-09-21).** Har projektet redan endpointet från en äldre
-version av guiden (svaret saknar fältet `endpoint_version`): gå till
-avsnittet "Uppgradera från version 1" längst ned.
-
 ## Vad som ska finnas när du är klar
 
 - `GET /status/adx/` svarar med JSON när headern `X-ADX-Key` bär rätt nyckel.
@@ -239,21 +235,3 @@ Inget ändras i kundens projekt. Felen räknas centralt från ADX
 Sentry-organisation. Det enda som behövs är att projektet redan
 rapporterar till ett projekt i den organisationen; säg projektets slug
 till Giovanni så lägger han in den på kundkortet.
-
-## Uppgradera från version 1
-
-Version 1 (före 2026-09-21) tog emot nyckeln även som `?key=` i adressen,
-höll den som lokal variabel i `status_view` och jämförde strängar, vilket
-gav ett 500-fel på en header med icke-ASCII-tecken. Alla tre kunde föra ut
-nyckeln till projektets felrapportering.
-
-1. Ersätt filen med källkoden i steg 1, oförändrad. Har du anpassat
-   `_backup()` eller `_visits()`: för över just de ändringarna igen.
-2. Sök i projektet efter `?key=` och `GET.get("key")` mot endpointet och ta
-   bort dem (skript, dokumentation, cron).
-3. Gör steg 4 (Sentry) och lägg till de tre nya testerna i steg 6.
-4. Verifiera efter deploy med headern, som i steg 7: svaret ska innehålla
-   `"endpoint_version": 2`. Prova INTE den riktiga nyckeln i adressen för att
-   se att den nekas - då står den i accessloggen. Testet i steg 6 bevisar det.
-
-Säg sedan till Giovanni att sajten kör version 2.
