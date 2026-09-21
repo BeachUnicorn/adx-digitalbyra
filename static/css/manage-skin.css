@@ -1662,3 +1662,17 @@ ul.m-steps{list-style:square}
 .ai-guide{display:grid;grid-template-columns:1fr;gap:4px;padding:14px 0;border-top:1px solid var(--m-border);font-size:15px}
 .ai-guide:first-child{border-top:0}
 .ai-guide span{color:var(--m-text-muted)}
+
+
+/* ---------------------------------------------------------------------------
+   Felsidan i panelen och kundportalen (templates/errors/404_*.html).
+   --------------------------------------------------------------------------- */
+.err{padding:clamp(28px,5vw,56px);text-align:left}
+.err__code{
+  font-size:clamp(72px,14vw,150px);font-weight:700;line-height:.9;letter-spacing:-.04em;
+  color:var(--m-accent,currentColor);opacity:.9;margin-bottom:18px;
+}
+.err__title{font-size:clamp(24px,3vw,32px);font-weight:700;margin:0 0 12px}
+.err__text{font-size:17px;line-height:1.55;max-width:640px;margin:0 0 26px}
+.err__path{font-family:var(--m-mono,ui-monospace,SFMono-Regular,Menlo,monospace);font-size:.94em;background:rgba(0,0,0,.06);border-radius:6px;padding:1px 8px;overflow-wrap:anywhere}
+.err__actions{display:flex;gap:10px;flex-wrap:wrap}

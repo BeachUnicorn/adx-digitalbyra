@@ -5,6 +5,7 @@ from django.contrib.auth import views as auth_views
 from django.contrib.sitemaps.views import sitemap
 from django.urls import include, path
 
+from apps.core import errors as core_errors
 from apps.core import views as core_views
 from apps.core.sitemap import sitemaps
 from apps.inquiries import views as inquiry_views
@@ -47,5 +48,13 @@ urlpatterns = [
     path("", include("apps.website.urls")),
 ]
 
+# Felsidorna (apps/core/errors.py). 403 och 400 klarar sig på mallarna i
+# templates/ - de har ingen logik att välja mellan.
+handler404 = "apps.core.errors.not_found"
+handler500 = "apps.core.errors.server_error"
+
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    # Med DEBUG på visar Django sin tekniska 404 och felsidorna syns aldrig.
+    # Här går de att titta på: /_fel/404/?path=/webutveckling/ provar förslagen.
+    urlpatterns += [path("_fel/<str:code>/", core_errors.preview)]

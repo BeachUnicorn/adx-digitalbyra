@@ -1,0 +1,80 @@
+{% extends "website/base.html" %}
+{% comment %}
+Sajtens 404 (apps/core/errors.py). Samma ram som alla andra sidor: header,
+gradient, sidfot. Siffrorna är dekor (aria-hidden); rubriken bär budskapet.
+Offertlänkar får egen text: där är det LÄNKEN som är fel, inte en sida som
+flyttat. Länkarna under kommer ur header-menyn och tjänstelistan, alltså
+samma källor som resten av sajten - ingen hårdkodad adress kan dö här.
+{% endcomment %}
+{% block title %}Sidan finns inte - {{ site_settings.name|default:"ADX" }}{% endblock %}
+{% block meta %}<meta name="robots" content="noindex">{% endblock %}
+
+{% block content %}
+<div class="wrap hero nf" data-analytics-position="404">
+    <div class="nf-code" aria-hidden="true"><span>4</span><span>0</span><span>4</span></div>
+    <div class="nf-body">
+    <div class="kicker">Fel 404</div>
+    {% if is_offer %}
+    <h1>Länken<br>fungerar inte</h1>
+    <p class="lead">Offertlänken är ofullständig eller felskriven. Kopiera hela adressen ur mejlet och försök igen. Fungerar det ändå inte, hör av dig till oss.</p>
+    <div class="hero-actions">
+        {% if site_settings.email %}<a class="btn" href="mailto:{{ site_settings.email }}">{{ site_settings.email }}</a>{% endif %}
+        <a class="btn ghost" href="/">Till startsidan</a>
+    </div>
+    {% else %}
+    <h1>Sidan finns<br>inte</h1>
+    <p class="lead">Adressen <span class="nf-path">{{ path|truncatechars:90 }}</span> leder ingenstans. Sidan kan ha flyttat, bytt namn eller aldrig funnits.</p>
+    <div class="hero-actions">
+        <a class="btn" href="/">Till startsidan</a>
+        {% for item in header_menu.items.all %}{% if item.is_visible and item.is_alive and item.is_button %}
+        <a class="btn ghost" href="{{ item.get_url }}">{{ item.label }}</a>
+        {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+    </div>
+</div>
+
+{% if suggestions %}
+<section>
+    <div class="wrap">
+        <div class="sec-head">
+            <div class="kicker">Menade du</div>
+        </div>
+        {% for s in suggestions %}
+        <a class="svc-row panel" href="{{ s.url }}">
+            <div class="num">{{ forloop.counter|stringformat:"02d" }}</div>
+            <div><h3>{{ s.title }}</h3><p class="nf-url">{{ s.url }}</p></div>
+            <span class="tag">{{ s.kind }} &rarr;</span>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if not is_offer %}
+<section>
+    <div class="wrap">
+        <div class="sec-head">
+            <div class="kicker">Hitta rätt</div>
+            <h2>Börja här i stället</h2>
+        </div>
+        <div class="nf-grid">
+            {% for item in header_menu.items.all %}{% if item.is_visible and item.is_alive and item.is_link and not item.is_button and item.get_url != "/" %}
+            <a class="panel nf-card" href="{{ item.get_url }}">
+                <span class="nf-card__label">{{ item.label }}</span>
+                <span class="nf-card__arrow" aria-hidden="true">&rarr;</span>
+            </a>
+            {% endif %}{% endfor %}
+        </div>
+        {% if nav_services %}
+        <div class="sec-head nf-sub">
+            <div class="kicker">Tjänster</div>
+        </div>
+        <div class="related">
+            {% for service in nav_services %}<a href="{{ service.get_absolute_url }}">{{ service.name }} &rarr;</a>{% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

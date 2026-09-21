@@ -1,0 +1,20 @@
+{% extends "portal/base.html" %}
+{% comment %}Portalens 404. Kunden ska hitta tillbaka till sina ärenden, inte till adx.se.{% endcomment %}
+{% block content %}
+<div class="pt-narrow">
+    <div class="m-panel err">
+        <div class="err__code" aria-hidden="true">404</div>
+        <h1 class="err__title">Sidan finns inte</h1>
+        <p class="err__text">Adressen <span class="err__path">{{ path|truncatechars:90 }}</span> finns inte i kundportalen. Länken kan vara gammal eller ofullständig.</p>
+        <div class="err__actions">
+            {% if request.customer %}
+            <a href="{% url 'portal:home' %}" class="m-btn m-btn--inline">Till mina ärenden</a>
+            <a href="{% url 'portal:status' %}" class="m-btn m-btn--inline m-btn--ghost">Övervakning</a>
+            {% else %}
+            <a href="{% url 'portal:login' %}" class="m-btn m-btn--inline">Logga in</a>
+            <a href="/" class="m-btn m-btn--inline m-btn--ghost">Till adx.se</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

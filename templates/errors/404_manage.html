@@ -1,0 +1,16 @@
+{% extends "manage/base.html" %}
+{% comment %}Panelens 404: samma skinn som resten av /manage/, med vägarna tillbaka.{% endcomment %}
+{% block title %}Sidan finns inte{% endblock %}
+{% block content %}
+<div class="m-panel err">
+    <div class="err__code" aria-hidden="true">404</div>
+    <h1 class="err__title">Sidan finns inte</h1>
+    <p class="err__text">Adressen <span class="err__path">{{ path|truncatechars:90 }}</span> finns inte i panelen. Posten kan vara borttagen, eller så är länken gammal.</p>
+    <div class="err__actions">
+        <a href="{% url 'manage:dashboard' %}" class="m-btn m-btn--inline">Till översikten</a>
+        <a href="{% url 'manage:board' %}" class="m-btn m-btn--inline m-btn--ghost">Tavlan</a>
+        <a href="{% url 'manage:customer_list' %}" class="m-btn m-btn--inline m-btn--ghost">Kunder</a>
+        <a href="{% url 'manage:offer_list' %}" class="m-btn m-btn--inline m-btn--ghost">Offerter</a>
+    </div>
+</div>
+{% endblock %}

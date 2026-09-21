@@ -1,0 +1,1 @@
+{% comment %}Renderas utan kontext (apps/core/errors.server_error) - får aldrig bero på databasen.{% endcomment %}{% include "errors/_standalone.html" with code="500" title="Något gick fel hos oss" text="Felet ligger på vår sida, inte hos dig, och det har loggats. Försök igen om en stund." retry=1 %}
