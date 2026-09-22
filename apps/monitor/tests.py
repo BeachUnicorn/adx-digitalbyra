@@ -257,19 +257,54 @@ class PortalTests(Fixture):
         self.assertNotIn("annan.se", html)
         self.assertNotIn("Hemlig CA", html)
         self.assertIn("Online", html)
-        self.assertIn("90,0 %", html)
-        self.assertIn("60 dagar kvar", html)
+        self.assertIn("90 %", html)
+        self.assertIn("60 dagar", html)
         self.assertIn("Loopia AB", html)
-        self.assertNotIn("Server</div>", html, "serverpanelen är av som standard")
+        self.assertNotIn("<b>Server</b>", html, "serverpanelen är av som standard")
         self.assertNotIn("timer", html)
         self.monitor.show_ssl = False
         self.monitor.show_domain = False
         self.monitor.note = "Vi bytte till snabbare disk i helgen."
         self.monitor.save()
         html = self.as_contact().get("/kund/status/").content.decode()
-        self.assertNotIn("60 dagar kvar", html)
+        self.assertNotIn("60 dagar", html)
         self.assertNotIn("Loopia AB", html)
         self.assertIn("snabbare disk", html)
+
+    def test_status_page_has_the_30_day_strip_and_one_row_per_check(self):
+        self._seed()
+        html = self.as_contact().get("/kund/status/").content.decode()
+        self.assertEqual(html.count('class="st-day '), 30)
+        self.assertIn("is-bad", html)  # en av tio kontroller föll i dag: 90 %
+        self.assertEqual(html.count('<details class="st-row'), 2)  # SSL och domän
+        self.assertIn("Enstaka missade kontroller", html)  # ett fel, inget avbrott
+        self.assertIn("st-layout--solo", html)  # ingen sidokolumn utan innehåll
+        self.assertNotIn("<aside", html)
+
+    def test_checks_without_data_are_listed_not_drawn_as_empty_cards(self):
+        self._seed()
+        self.monitor.show_performance = True
+        self.monitor.save()
+        html = self.as_contact().get("/kund/status/").content.decode()
+        self.assertIn("Kopplas in:", html)
+        self.assertIn("Prestanda", html)
+        self.assertNotIn("Ingen mätning än.", html)
+
+    def test_internal_errors_never_reach_the_customer(self):
+        """Saknad nyckel eller timeout mot statusendpointet är byråns sak."""
+        self._seed()
+        self.monitor.show_server = True
+        self.monitor.save()
+        Check.objects.create(
+            domain=self.domain,
+            kind=Kind.SNAPSHOT,
+            ok=False,
+            data={"ok": False, "error": "ADX_STATUS_KEY saknas i env."},
+        )
+        html = self.as_contact().get("/kund/status/").content.decode()
+        self.assertNotIn("ADX_STATUS_KEY", html)
+        self.assertNotIn("saknas i env", html)
+        self.assertIn("Kopplas in:", html)
 
     def test_report_page(self):
         self._seed()

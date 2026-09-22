@@ -17,6 +17,7 @@ from apps.projects.access import customer_required
 from apps.projects.models import CustomerLogEntry
 
 from .models import Check, Kind, settings_for
+from .status_areas import areas_for, daily_uptime
 
 
 def _series(domain, since, until=None):
@@ -99,6 +100,7 @@ def _bundle(domain, monitor):
         "errors": latest[Kind.ERRORS],
         "events": events[:30],
         "days_up": _days_since_incident(domain),
+        "days": daily_uptime(month),
     }
 
 
@@ -123,13 +125,28 @@ def _days_since_incident(domain):
 def status(request):
     monitor = settings_for(request.customer)
     domains = list(request.customer.domains.filter(is_active=True))
+    bundles = []
+    for index, domain in enumerate(domains):
+        bundle = _bundle(domain, monitor)
+        bundle["areas"], bundle["pending"] = areas_for(bundle, monitor)
+        bundle["attention"] = sum(1 for a in bundle["areas"] if a["status"] != "ok")
+        # Missade kontroller som inte blev ett avbrott (ett avbrott kräver två i rad).
+        bundle["blips"] = any(d["state"] in ("warn", "bad") for d in bundle["days"])
+        # Sidokolumnen ritas bara om den har något att visa - annars 340 punkter tomt.
+        bundle["note"] = monitor.note if index == 0 else ""
+        bundle["has_side"] = bool(
+            bundle["note"]
+            or (monitor.show_response and len(bundle["spark_30d"]) > 1)
+            or (monitor.show_events and bundle["events"])
+        )
+        bundles.append(bundle)
     return render(
         request,
         "portal/status.html",
         {
             "customer": request.customer,
             "monitor": monitor,
-            "bundles": [_bundle(d, monitor) for d in domains],
+            "bundles": bundles,
             "title": "Övervakning",
             "active": "status",
         },
