@@ -51,7 +51,8 @@
   </div>
   <div class="m-panel m-table-wrap tv-days">
     <div class="tv-panel-head"><div class="tv-sec-title">Per dag</div></div>
-    <table class="m-table">
+    {# Etikett + värde redan: ska inte bli kort på telefon. #}
+    <table class="m-table m-table--plain">
       <tbody>{% for d, t in day_rows %}<tr><td>{{ d|date:"D j M" }}</td><td class="m-num">{{ t }}</td></tr>{% empty %}<tr><td class="m-empty">Inget än.</td></tr>{% endfor %}</tbody>
     </table>
   </div>

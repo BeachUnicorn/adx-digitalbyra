@@ -79,6 +79,7 @@ def _css_mtime():
         "css/offert.css",
         "css/tiptap.css",
         "js/dist/tiptap-editor.js",
+        "js/manage-tables.js",
     ):
         try:
             stamps.append(int((static / name).stat().st_mtime))

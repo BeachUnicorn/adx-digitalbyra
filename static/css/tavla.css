@@ -364,7 +364,12 @@ body.is-dragging-any{cursor:grabbing}
 /* ===== Portalen i mobilbredd ===== */
 @media (max-width:760px){
   .pt-nav .m-nav__inner{flex-wrap:wrap;height:auto;padding:8px 12px;gap:6px}
-  .pt-nav .m-nav__links{padding:4px;gap:0}
+  /* Portalens meny har fem länkar sedan Fakturor tillkom. Skinnets nowrap
+     (för panelens tio länkar på surfplatta) sköt ut dem utanför skärmen i
+     telefonbredd - Logg och Fakturor gick inte att nå (Giovanni 2026-09-22).
+     Här radbryter raden i stället, och ingen länk får krympa bort. */
+  .pt-nav .m-nav__links{padding:4px;gap:0;flex-wrap:wrap;justify-content:center;max-width:100%}
+  .pt-nav .m-nav__links>li{flex:none}
   .pt-nav .m-nav__link{padding:8px 9px;font-size:11px;letter-spacing:.03em}
   .pt-brand{padding:6px 8px}
   .pt-logo{height:16px}
@@ -480,3 +485,40 @@ body.is-dragging-any{cursor:grabbing}
 .aw-pre{font-family:var(--s-mono);font-size:12px;line-height:1.5;background:rgba(16,18,20,.05);border-radius:10px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;margin:6px 0 12px}
 .pt-invoices td,.pt-invoices th{font-size:15.5px;color:var(--m-text)}
 @media (max-width:700px){.aw-head{flex-direction:column}.pt-invoices td,.pt-invoices th{font-size:14.5px}}
+
+/* ===========================================================================
+   Telefonbredd i panelen (Giovanni 2026-09-22).
+   ---------------------------------------------------------------------------
+   Undermenyn radbröt till två rader och timerchipet la sig på en tredje, och
+   med rubriken tog ramen 280 av 812 punkter innan första kortet syntes. Nu
+   är undermenyn EN rad som går att dra i sidled, timern står kvar till höger
+   och rubrikerna är mindre. Loggraden i kundkortet la texten i en 90 punkter
+   bred kolumn - den staplas i stället.
+   =========================================================================== */
+@media (max-width: 700px) {
+  .tv-subnav{flex-wrap:nowrap;align-items:center;gap:8px;margin:-4px 0 16px}
+  .tv-subnav__links{
+    flex:1 1 auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;
+    scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  }
+  .tv-subnav__links::-webkit-scrollbar{display:none}
+  .tv-subnav__links .m-filter__item{flex:none;padding:8px 13px;font-size:11.5px}
+  .tv-timer-slot{flex:none}
+  .tv-timer-slot .tv-chip{padding:7px 11px;font-size:11px}
+
+  .tv-head{margin-bottom:16px;gap:12px}
+  .tv-h1{font-size:26px}
+  .tv-sub{font-size:14.5px;margin-top:6px}
+
+  /* Loggraden: datum och märke på en rad, texten på hela bredden under. */
+  .tv-logrow{
+    grid-template-columns:1fr auto;
+    gap:2px 10px;
+    padding:11px 0;
+  }
+  .tv-logrow__date{grid-row:1;grid-column:1;align-self:center}
+  .tv-logrow__state{grid-row:1;grid-column:2;justify-self:end}
+  .tv-logrow form{grid-row:1;grid-column:2;justify-self:end;margin-right:-2px}
+  .tv-logrow__state:has(+ form){margin-right:26px}
+  .tv-logrow__text{grid-row:2;grid-column:1/-1;overflow-wrap:anywhere}
+}
