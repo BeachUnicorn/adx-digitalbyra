@@ -535,6 +535,20 @@ class InviteTests(PortalFixtureMixin, TestCase):
         self.assertIn("engångskod", mail.outbox[0].body)
         self.assertNotIn("lösenord här", mail.outbox[0].body)
 
+    def test_invite_is_a_designed_mail_with_the_logo_and_a_capital_start(self):
+        """Giovanni 2026-09-22: såg ut som ren text, första meningen började med gemen."""
+        self.as_staff().post(
+            f"/manage/kunder/{self.acme.pk}/bjud-in/", {"email": "ny@acme.se", "first_name": "Nina"}
+        )
+        message = mail.outbox[0]
+        self.assertTrue(message.body.startswith("Hej Nina!\n\nNi har nu"))
+        html, mime = message.alternatives[0]
+        self.assertEqual(mime, "text/html")
+        self.assertIn("/static/images/adx-logo.png", html)
+        self.assertIn("Välkommen, Nina", html)
+        self.assertIn("/kund/logga-in/", html)
+        self.assertIn("Acme AB", html)
+
     def test_a_staff_address_cannot_be_invited_as_contact(self):
         self.as_staff().post(
             f"/manage/kunder/{self.acme.pk}/bjud-in/", {"email": self.staff.email or "byra@adx.se"}

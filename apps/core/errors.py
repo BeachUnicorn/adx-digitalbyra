@@ -203,3 +203,13 @@ def preview(request, code):
     if code in {"400", "403", "403_csrf"}:
         return _standalone(code, int(code[:3]))
     return not_found(request)
+
+
+def email_preview(request, name):
+    """Bara under DEBUG (config/urls.py): kundmejlens HTML med påhittade uppgifter."""
+    from apps.projects.emails import preview as render_email
+
+    result = render_email(name)
+    if result is None:
+        return not_found(request)
+    return HttpResponse(result[1])

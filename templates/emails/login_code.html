@@ -1,0 +1,7 @@
+{% extends "emails/customer_base.html" %}
+{% block content %}
+<p style="margin:0 0 18px;font-size:17px;line-height:1.6;">Skriv in koden på sidan där du begärde den.</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;width:100%;"><tr><td align="center" style="background:#eef5f9;border-radius:16px;padding:22px 12px;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:36px;font-weight:700;letter-spacing:10px;color:#101214;">{{ code }}</td></tr></table>
+<p style="margin:0 0 12px;font-size:17px;line-height:1.6;">Koden gäller i tio minuter och kan bara användas en gång.</p>
+<p style="margin:0;font-size:16px;line-height:1.6;color:#33373b;">Bad du inte om en kod? Då kan du bortse från det här mejlet. Ingen kommer in utan koden.</p>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "emails/customer_base.html" %}
+{% block content %}
+<p style="margin:0 0 16px;font-size:17px;line-height:1.6;">Ni har nu en kundportal hos ADX för <b>{{ customer.name }}</b>. Där har ni allt som rör er webbplats samlat på ett ställe:</p>
+<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 18px;width:100%;">
+  {% for title, text in features %}
+  <tr>
+    <td valign="top" style="padding:10px 12px 10px 0;width:14px;"><div style="width:10px;height:10px;border-radius:50%;background:#101214;margin-top:6px;"></div></td>
+    <td style="padding:8px 0;border-bottom:1px solid #e7ecef;font-size:16px;line-height:1.5;"><b>{{ title }}</b><br>{{ text }}</td>
+  </tr>
+  {% endfor %}
+</table>
+<p style="margin:0;font-size:17px;line-height:1.6;">Du loggar in med din e-postadress, <b>{{ user.email }}</b>. Inget lösenord behövs: varje gång får du en engångskod på mejl.</p>
+{% include "emails/_button.html" with href=login_url label="Logga in i portalen" %}
+{% endblock %}

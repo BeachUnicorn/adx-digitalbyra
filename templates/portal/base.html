@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="{% static 'css/tiptap.css' %}?v={{ static_version }}">
 </head>
 <body class="m-body pt-body">
+{% has_aws_invoices request.customer as show_invoices %}
 {% comment %}
 Kundportalen i samma skinn som panelen: samma tokens, samma kort. Ingen
 hamburgare - två länkar får plats på alla skärmar. Det som INTE finns
@@ -25,7 +26,7 @@ här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
             <li><a href="{% url 'portal:status' %}" class="m-nav__link{% if active == 'status' %} is-active{% endif %}">Övervakning</a></li>
             <li><a href="{% url 'portal:reports' %}" class="m-nav__link{% if active == 'reports' %} is-active{% endif %}">Rapporter</a></li>
             <li><a href="{% url 'portal:log' %}" class="m-nav__link{% if active == 'log' %} is-active{% endif %}">Logg</a></li>
-            {% has_aws_invoices request.customer as show_invoices %}{% if show_invoices %}<li><a href="{% url 'portal:invoices' %}" class="m-nav__link{% if active == 'invoices' %} is-active{% endif %}">Fakturor</a></li>{% endif %}
+            {% if show_invoices %}<li><a href="{% url 'portal:invoices' %}" class="m-nav__link{% if active == 'invoices' %} is-active{% endif %}">Fakturor</a></li>{% endif %}
             {% if not request.viewing_as %}<li><a href="{% url 'portal:issue_create' %}" class="m-nav__link{% if active == 'new' %} is-active{% endif %}">Nytt ärende</a></li>{% endif %}
             {% endif %}
         </ul>
@@ -39,8 +40,46 @@ här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
             <a href="/" class="m-nav__view-site">adx.se ↗</a>
             {% endif %}
         </div>
+        {% if request.customer %}
+        <button type="button" class="pt-burger" aria-label="Öppna meny" aria-expanded="false" aria-controls="pt-menu" data-pt-menu-open>
+            <span></span><span></span><span></span>
+        </button>
+        {% endif %}
     </div>
 </nav>
+
+{% if request.customer %}
+{% comment %}
+Mobilmenyn: samma länkar som raden ovan, men som en egen skärm med stor
+text - tummen ska träffa, och ögat ska se var man är. Öppnas av
+hamburgaren (portal.js). Stängs med krysset, Esc eller en länk.
+{% endcomment %}
+<div class="pt-menu" id="pt-menu" role="dialog" aria-modal="true" aria-label="Meny" hidden>
+    <div class="pt-menu__head">
+        <a href="{% url 'portal:landing' %}" class="pt-menu__logo"><img src="{% static 'images/adx-logo.png' %}" alt="ADX"></a>
+        <button type="button" class="pt-menu__close" data-pt-menu-close>Stäng</button>
+    </div>
+    <div class="pt-menu__kicker">{{ request.customer.name }}</div>
+    <nav class="pt-menu__links" aria-label="Kundportal">
+        <a href="{% url 'portal:home' %}"{% if active == 'home' %} class="is-active" aria-current="page"{% endif %}>Mina ärenden</a>
+        <a href="{% url 'portal:status' %}"{% if active == 'status' %} class="is-active" aria-current="page"{% endif %}>Övervakning</a>
+        <a href="{% url 'portal:reports' %}"{% if active == 'reports' %} class="is-active" aria-current="page"{% endif %}>Rapporter</a>
+        <a href="{% url 'portal:log' %}"{% if active == 'log' %} class="is-active" aria-current="page"{% endif %}>Logg</a>
+        {% if show_invoices %}<a href="{% url 'portal:invoices' %}"{% if active == 'invoices' %} class="is-active" aria-current="page"{% endif %}>Fakturor</a>{% endif %}
+    </nav>
+    {% if not request.viewing_as %}
+    <a href="{% url 'portal:issue_create' %}" class="pt-menu__cta">Nytt ärende</a>
+    {% endif %}
+    <div class="pt-menu__foot">
+        {% if request.viewing_as %}
+        <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="pt-menu__out">Lämna kundvyn</button></form>
+        {% else %}
+        <span>Inloggad som {{ user.first_name|default:user.email }}</span>
+        <form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}<button type="submit" class="pt-menu__out">Logga ut</button></form>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
 <main class="m-main">
     <div class="m-container pt-container">

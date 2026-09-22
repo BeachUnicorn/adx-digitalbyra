@@ -58,3 +58,5 @@ if settings.DEBUG:
     # Med DEBUG på visar Django sin tekniska 404 och felsidorna syns aldrig.
     # Här går de att titta på: /_fel/404/?path=/webutveckling/ provar förslagen.
     urlpatterns += [path("_fel/<str:code>/", core_errors.preview)]
+    # Kundmejlen som de ser ut: /_mejl/inbjudan/, /_mejl/kod/, /_mejl/arende/, /_mejl/logg/
+    urlpatterns += [path("_mejl/<str:name>/", core_errors.email_preview)]

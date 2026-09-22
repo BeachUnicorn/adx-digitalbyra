@@ -26,3 +26,33 @@
     if (desc) { desc.focus(); desc.scrollIntoView({ behavior: "smooth", block: "center" }); }
   });
 })();
+
+/* Mobilmenyn: hamburgaren öppnar .pt-menu, krysset/Esc/en länk stänger.
+   Fokus flyttas in i menyn och tillbaka till hamburgaren. */
+(function () {
+  "use strict";
+  var menu = document.getElementById("pt-menu");
+  var opener = document.querySelector("[data-pt-menu-open]");
+  if (!menu || !opener) return;
+  var closer = menu.querySelector("[data-pt-menu-close]");
+
+  function open() {
+    menu.hidden = false;
+    opener.setAttribute("aria-expanded", "true");
+    document.body.classList.add("pt-menu-open");
+    if (closer) closer.focus();
+  }
+  function close() {
+    if (menu.hidden) return;
+    menu.hidden = true;
+    opener.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("pt-menu-open");
+    opener.focus();
+  }
+  opener.addEventListener("click", open);
+  if (closer) closer.addEventListener("click", close);
+  menu.addEventListener("click", function (e) { if (e.target.closest("a")) close(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+  // Blir skärmen bred (surfplatta vänds) finns raden igen - menyn ska inte hänga kvar.
+  window.matchMedia("(min-width: 761px)").addEventListener("change", function (m) { if (m.matches) close(); });
+})();

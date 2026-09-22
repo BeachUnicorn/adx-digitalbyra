@@ -1,0 +1,43 @@
+{% comment %}
+Ram för alla mejl till kunder (apps/projects/emails.py). E-postprogram
+ignorerar stilmallar och flexbox, så allt är tabeller och inline-stilar.
+Loggan är en absolut adress: bilden laddas från adx.se när mejlet öppnas.
+Varje mejl har också en textversion - den här är bara det snygga lagret.
+{% endcomment %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<title>{{ subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:#eef5f9;-webkit-text-size-adjust:100%;">
+{% if preheader %}<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#eef5f9;">{{ preheader }}</div>{% endif %}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef5f9;">
+  <tr>
+    <td align="center" style="padding:36px 16px 40px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
+        <tr>
+          <td align="center" style="padding:0 0 26px;">
+            <a href="{{ base_url }}/" style="text-decoration:none;"><img src="{{ base_url }}/static/images/adx-logo.png" width="96" height="33" alt="ADX" style="display:block;border:0;width:96px;height:auto;"></a>
+          </td>
+        </tr>
+        <tr>
+          <td style="background:#ffffff;border:1px solid #dde5ea;border-radius:20px;padding:40px 36px 36px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;color:#101214;">
+            {% if kicker %}<p style="margin:0 0 10px;font-family:'SF Mono',Menlo,Consolas,monospace;font-size:13px;letter-spacing:2px;text-transform:uppercase;color:#101214;">{{ kicker }}</p>{% endif %}
+            <h1 style="margin:0 0 20px;font-size:28px;line-height:1.2;font-weight:700;color:#101214;">{{ heading }}</h1>
+            {% block content %}{% endblock %}
+            <p style="margin:30px 0 0;font-size:17px;line-height:1.6;color:#101214;">Vänliga hälsningar<br><b>ADX</b></p>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding:24px 12px 0;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:14px;line-height:1.6;color:#33373b;">
+            ADX &middot; <a href="{{ base_url }}/" style="color:#33373b;">adx.se</a>{% if reply_hint %}<br>{{ reply_hint }}{% endif %}
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>

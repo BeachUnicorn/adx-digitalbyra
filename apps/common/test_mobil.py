@@ -68,24 +68,30 @@ class NavWrapGuardTests(TestCase):
     Fakturor utanför skärmen i telefonbredd. Portalens meny måste radbryta.
     """
 
-    def test_portal_nav_wraps_on_narrow_screens(self):
+    def test_portal_has_a_hamburger_menu_on_narrow_screens(self):
+        """
+        Portalens länkrad göms i telefonbredd och ersätts av en hamburgare som
+        öppnar en helskärmsmeny. Utan den regeln hamnar länkarna utanför
+        skärmen igen så fort en ny läggs till.
+        """
         css = (CSS / "tavla.css").read_text(encoding="utf-8")
         blocks = re.findall(r"@media[^{]*max-width\s*:\s*(\d+)px[^{]*\{(.*?)\n\}", css, re.S)
-        wraps = [
-            body
-            for width, body in blocks
-            if int(width) <= 780
-            and ".pt-nav .m-nav__links" in body
-            and "flex-wrap:wrap" in body.replace(" ", "")
-        ]
-        self.assertTrue(
-            wraps,
-            "Portalens menyrad måste radbryta i telefonbredd - annars hamnar "
-            "länkarna utanför skärmen när en ny läggs till.",
-        )
+        narrow = "".join(body for width, body in blocks if int(width) <= 780).replace(" ", "")
+        self.assertIn(".pt-burger{display:flex}", narrow)
+        self.assertIn(".pt-nav.m-nav__right{display:none}", narrow)
+        base = (TEMPLATES / "portal/base.html").read_text(encoding="utf-8")
+        self.assertIn('id="pt-menu"', base)
+        self.assertIn("data-pt-menu-open", base)
+        # Varje länk i raden ska också finnas i mobilmenyn.
+        row = base.split('class="m-nav__links"')[1].split("</ul>")[0]
+        menu = base.split('id="pt-menu"')[1]
+        for name in re.findall(r"url 'portal:(\w+)'", row):
+            if name in ("landing", "issue_create"):
+                continue
+            self.assertIn(f"url 'portal:{name}'", menu, name)
 
     def test_portal_nav_link_count_is_still_within_two_rows(self):
-        """Fler än sex länkar ryms inte på två rader ens när de radbryter."""
+        """Fler än sju länkar ryms inte i datorbredd heller."""
         base = (TEMPLATES / "portal/base.html").read_text(encoding="utf-8")
         nav = base.split('class="m-nav__links"')[1].split("</ul>")[0]
         links = re.findall(r"m-nav__link", nav)
