@@ -3341,7 +3341,7 @@ class ArendeMcpTests(TestCase):
         self.assertEqual(self.issue.priority, IssuePriority.HIGH)
         self.assertEqual(self.issue.assignee, self.user)
         self.assertEqual(self.issue.title, "Byt logotyp")
-        self.assertEqual(self.issue.description, "Ursprunglig")
+        self.assertEqual(self.issue.description_text, "Ursprunglig")
         self.assertTrue(self.issue.visible_to_customer, "synlighet rörs inte utan parameter")
         self.assertTrue(self.issue.activity.filter(text="prioritet: Hög").exists())
         self.assertTrue(self.issue.activity.filter(text="satte ansvarig: Giovanni").exists())

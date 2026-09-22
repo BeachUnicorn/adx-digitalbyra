@@ -613,7 +613,7 @@ class ProjectLinkTests(StaffClientMixin, TestCase):
             line.refresh_from_db()
         self.assertIsNone(skipped.issue, "ovalda tillval blir inte ärenden")
         self.assertEqual(
-            (fixed.issue.title, fixed.issue.description, fixed.issue.project),
+            (fixed.issue.title, fixed.issue.description_text, fixed.issue.project),
             ("Hemsida", "Fem sidor", project),
         )
         self.assertEqual(fixed.issue.column, project.columns.order_by("position").first())

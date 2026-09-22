@@ -1,5 +1,5 @@
 """
-Ärendebeskrivningen är HTML (skriven i Tiptap, apps/… data-tiptap="issue").
+Ärendebeskrivningen är HTML (skriven i Tiptap, data-tiptap="issue").
 
 Allt som skrivs till Issue.description går genom sanitize_issue_html, vad
 det än kommer ifrån: portalens formulär, tavlans panel, MCP. Tillåtet är
