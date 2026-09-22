@@ -344,7 +344,9 @@ def _lista_arenden(user, projekt=None, kund=None, status="oppna", mina=False, so
         qs = qs.filter(assignee=user)
     if sok:
         text = str(sok).strip()
-        qs = qs.filter(Q(title__icontains=text) | Q(description__icontains=text))
+        qs = qs.filter(
+            Q(title__icontains=text) | Q(description__icontains=text)
+        )  # HTML, men texten finns i den
     qs = qs.order_by("project__key", "column__position", "position", "id")
 
     # En rad extra avslöjar kapning utan en separat count-fråga.
@@ -371,7 +373,7 @@ def _hamta_arende(user, nyckel_eller_id):
     row = _issue_row(issue)
     row.update(
         {
-            "beskrivning": issue.description,
+            "beskrivning": issue.description_text,
             "typ": issue.get_issue_type_display(),
             "fakturerbart": issue.is_billable,
             "uppskattning_min": issue.estimate_minutes,

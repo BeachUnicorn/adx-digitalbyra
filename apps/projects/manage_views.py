@@ -351,7 +351,9 @@ def issue_field(request, pk):
         issue.title = title
         update = ["title"]
     elif field == "description":
-        issue.description = str(value or "").strip()[:20000]
+        from .richtext import sanitize_issue_html
+
+        issue.description = sanitize_issue_html(value)
         update = ["description"]
     elif field == "priority":
         if int(value or 0) not in IssuePriority.values:

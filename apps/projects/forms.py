@@ -49,7 +49,7 @@ class IssueForm(forms.ModelForm):
             "is_billable",
             "visible_to_customer",
         ]
-        widgets = {"description": forms.Textarea(attrs={"rows": 6})}
+        widgets = {"description": forms.Textarea(attrs={"rows": 6, "data-tiptap": "issue"})}
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -74,7 +74,7 @@ class PortalIssueForm(forms.Form):
     title = forms.CharField(label="Vad gäller det?", max_length=200)
     description = forms.CharField(
         label="Beskrivning",
-        widget=forms.Textarea(attrs={"rows": 8}),
+        widget=forms.Textarea(attrs={"rows": 8, "data-tiptap": "issue"}),
         required=False,
         help_text="Var gärna konkret: vilken sida, vad som ska ändras eller byggas, och varför.",
     )
@@ -99,6 +99,11 @@ class PortalIssueForm(forms.Form):
     files = MultiFileField(
         label="Bilagor", required=False, help_text="Skärmdumpar, dokument. Max 15 MB per fil."
     )
+
+    def clean_description(self):
+        from .richtext import sanitize_issue_html
+
+        return sanitize_issue_html(self.cleaned_data.get("description"))
 
 
 class PortalCommentForm(forms.Form):

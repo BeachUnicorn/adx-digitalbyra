@@ -141,3 +141,53 @@
     border-color: var(--s-info, #1d4f8a);
     box-shadow: 0 0 0 2px var(--s-info-line, rgba(37, 99, 235, 0.3));
 }
+
+/* ===== Ärendebeskrivningen (data-tiptap="issue"): portalen och tavlans panel ===== */
+.tiptap-tb--issue .tiptap-tb__btn:disabled { opacity: .35; cursor: default; }
+.tiptap-tb--table {
+    border-radius: 0;
+    padding: 6px 10px;
+    gap: 2px;
+}
+.tiptap-tb--table[hidden] { display: none; }
+.tiptap-tb__label {
+    font-family: var(--s-mono, monospace);
+    font-size: 11px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--m-text-muted, #6b7280);
+    margin-right: 6px;
+}
+.tiptap-tb__btn--text {
+    width: auto;
+    padding: 0 10px;
+    font-size: 12.5px;
+    border-radius: 999px;
+}
+.tiptap-field--issue .tiptap-editor .tiptap { min-height: 160px; }
+.pt-body .tiptap-field--issue .tiptap-editor .tiptap { font-size: 16px; color: var(--m-text, #101214); }
+
+/* Det som formateringen ger, i editorn OCH i den visade beskrivningen (.tt-prose). */
+.tiptap-editor .tiptap mark, .tt-prose mark { background: #fff1a8; color: inherit; padding: 0 .1em; border-radius: 3px; }
+.tiptap-editor .tiptap s, .tt-prose s { text-decoration: line-through; }
+.tiptap-editor .tiptap table, .tt-prose table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 0 0 .8em;
+    table-layout: fixed;
+    font-size: .95em;
+}
+.tiptap-editor .tiptap td, .tiptap-editor .tiptap th, .tt-prose td, .tt-prose th {
+    border: 1px solid var(--m-border, #d9dee3);
+    padding: 6px 9px;
+    vertical-align: top;
+    text-align: left;
+    min-width: 3em;
+}
+.tiptap-editor .tiptap th, .tt-prose th { background: var(--m-bg, #eef5f9); font-weight: 600; }
+.tiptap-editor .tiptap td > p, .tiptap-editor .tiptap th > p, .tt-prose td > p, .tt-prose th > p { margin: 0; }
+.tiptap-editor .tiptap .selectedCell { background: rgba(16, 18, 20, .07); }
+.tt-prose p { margin: 0 0 .7em; }
+.tt-prose p:last-child { margin-bottom: 0; }
+.tt-prose ul, .tt-prose ol { padding-left: 1.4em; margin: 0 0 .7em; }
+.tt-prose a { text-decoration: underline; text-underline-offset: 2px; }

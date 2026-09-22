@@ -66,7 +66,7 @@ def send_login_code(user, code):
 def send_portal_issue_notice(issue, customer):
     body = (
         f"{customer.name} skapade ett ärende i portalen:\n\n"
-        f"{issue.key}: {issue.title}\n\n{issue.description}\n\n"
+        f"{issue.key}: {issue.title}\n\n{issue.description_text}\n\n"
         f"Bilagor: {issue.attachments.count()}\n\n"
         f"Öppna: {_base_url()}/manage/arenden/{issue.pk}/"
     )

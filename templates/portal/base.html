@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="{% static 'css/manage.css' %}?v={{ static_version }}">
     <link rel="stylesheet" href="{% static 'css/manage-skin.css' %}?v={{ static_version }}">
     <link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}">
+    <link rel="stylesheet" href="{% static 'css/tiptap.css' %}?v={{ static_version }}">
 </head>
 <body class="m-body pt-body">
 {% comment %}
@@ -58,6 +59,7 @@ här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
         {% block content %}{% endblock %}
     </div>
 </main>
+<script src="{% static 'js/dist/tiptap-editor.js' %}?v={{ static_version }}" defer></script>
 <script src="{% static 'js/portal.js' %}?v={{ static_version }}" defer></script>
 </body>
 </html>

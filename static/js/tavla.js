@@ -163,6 +163,7 @@
     drawer.innerHTML = html; drawer.classList.add("is-open"); drawer.classList.remove("is-loading"); drawer.setAttribute("aria-hidden", "false");
     scrim.classList.add("is-open"); drawer.scrollTop = y;
     var live = drawer.querySelector("[data-live]"); if (live) live.setAttribute("data-since", Date.now());
+    if (window.AdxTiptap) window.AdxTiptap.init();  // beskrivningen blir en Tiptap-editor
     tick();
   }
   function open(id) {

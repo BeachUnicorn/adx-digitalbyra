@@ -67,7 +67,7 @@ Knappen "Svar + mejl till kunden" är systemets ENDA väg till ett kundmejl.
 
   <div class="tv-sec">
     <div class="tv-sec-title">Beskrivning</div>
-    <textarea class="tv-desc" data-field="description" rows="3" placeholder="Skriv en beskrivning...">{{ issue.description }}</textarea>
+    <textarea class="tv-desc" data-field="description" data-tiptap="issue" rows="3" placeholder="Skriv en beskrivning...">{{ issue.description }}</textarea>
   </div>
 
   {% with progress=issue.checklist_progress %}

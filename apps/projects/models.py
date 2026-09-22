@@ -441,6 +441,11 @@ class Issue(models.Model):
             self.closed_at = None
         if self.column_id:
             self.started_at = None  # kolumnen bär statusen; fältet är bara för projektlösa
+        # Beskrivningen är HTML från Tiptap och saneras vid VARJE sparning, så
+        # ingen väg in (formulär, panel, MCP, admin) kan lämna något annat.
+        from .richtext import sanitize_issue_html
+
+        self.description = sanitize_issue_html(self.description)
         super().save(*args, **kwargs)
 
     # ---- nycklar och härledda fält -----------------------------------------
@@ -481,6 +486,13 @@ class Issue(models.Model):
     def log(self, user, text):
         """En rad i aktivitetsloggen. Aldrig ett mejl."""
         return Activity.objects.create(issue=self, user=user, text=text[:300])
+
+    @property
+    def description_text(self):
+        """Beskrivningen som ren text: mejl, utdrag, sökning och det AI:n läser."""
+        from .richtext import html_to_text
+
+        return html_to_text(self.description)
 
     @property
     def stage(self):

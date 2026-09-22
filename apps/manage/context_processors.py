@@ -70,11 +70,18 @@ def _css_mtime():
     # Stämpeln täcker alla panelens filer: manage.css (struktur),
     # manage-skin.css (utseende) och tavla.css (tavlan). Senaste ändringen
     # av någon av dem ger ny URL.
-    css_dir = Path(settings.BASE_DIR) / "static" / "css"
+    static = Path(settings.BASE_DIR) / "static"
     stamps = []
-    for name in ("manage.css", "manage-skin.css", "tavla.css", "offert.css"):
+    for name in (
+        "css/manage.css",
+        "css/manage-skin.css",
+        "css/tavla.css",
+        "css/offert.css",
+        "css/tiptap.css",
+        "js/dist/tiptap-editor.js",
+    ):
         try:
-            stamps.append(int((css_dir / name).stat().st_mtime))
+            stamps.append(int((static / name).stat().st_mtime))
         except OSError:
             continue
     return str(max(stamps)) if stamps else "1"

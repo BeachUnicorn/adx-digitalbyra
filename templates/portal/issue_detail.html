@@ -28,7 +28,7 @@
 
   <div class="m-panel tv-panel">
     <div class="tv-sec-title">Beskrivning</div>
-    {% if issue.description %}<div class="pt-prose">{{ issue.description|linebreaks }}</div>{% else %}<p class="tv-muted">Ingen beskrivning.</p>{% endif %}
+    {% if issue.description %}<div class="pt-prose tt-prose">{{ issue.description|issue_html }}</div>{% else %}<p class="tv-muted">Ingen beskrivning.</p>{% endif %}
   </div>
 
   {% if attachments %}

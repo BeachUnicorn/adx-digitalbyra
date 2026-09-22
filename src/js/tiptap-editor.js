@@ -1,5 +1,6 @@
 /**
- * Tiptap rich-text editor for /manage/ forms.
+ * Tiptap rich-text editor for /manage/ forms - and for issue descriptions
+ * (data-tiptap="issue") in the customer portal and the board drawer.
  *
  * Progressive enhancement: every <textarea data-tiptap> is replaced by a
  * Tiptap editor. The editor's HTML (with {{ variable }} tokens restored) is
@@ -16,8 +17,15 @@ import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
+import Highlight from "@tiptap/extension-highlight";
+import Table from "@tiptap/extension-table";
+import TableRow from "@tiptap/extension-table-row";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
 import { VariablePill } from "./extensions/variable-pill.js";
 import { createToolbar } from "./toolbar.js";
+import { createIssueToolbar } from "./issue-toolbar.js";
 
 // Mirrors render_context.AVAILABLE_VARIABLES on the server.
 const CONTEXT_VARIABLES = [
@@ -49,9 +57,74 @@ function tiptapToHtml(html) {
     );
 }
 
+/** Plain text (one paragraph per blank line, <br> per newline) -> HTML. */
+function textToHtml(text) {
+  const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const paragraphs = String(text || "").replace(/\r/g, "").trim().split(/\n{2,}/);
+  return paragraphs.map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("");
+}
+
+/**
+ * Ärendebeskrivningen: ingen variabelmeny, ingen rubrik-/citatnivå, men
+ * tabeller, markering och justering. Sparas som HTML som servern sanerar
+ * (apps/projects/richtext.py). Editorn läggs på textarean som
+ * textarea.tiptapEditor så att portal.js kan fylla i exempeltexter.
+ */
+function enhanceIssue(textarea) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "tiptap-field tiptap-field--issue";
+  textarea.parentNode.insertBefore(wrapper, textarea);
+  textarea.hidden = true;
+  const editorMount = document.createElement("div");
+  editorMount.className = "tiptap-editor";
+
+  const editor = new Editor({
+    element: editorMount,
+    extensions: [
+      StarterKit.configure({
+        heading: false,
+        blockquote: false,
+        codeBlock: false,
+        code: false,
+        horizontalRule: false,
+      }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { rel: "noopener noreferrer", target: "_blank" },
+        validate: (href) => /^(https?:|mailto:|tel:)/i.test(href.trim()),
+      }),
+      Highlight,
+      TextAlign.configure({ types: ["paragraph"], alignments: ["left", "center", "right"] }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      Placeholder.configure({ placeholder: textarea.getAttribute("placeholder") || "Skriv här..." }),
+    ],
+    content: textarea.value || "<p></p>",
+    onUpdate: ({ editor }) => {
+      textarea.value = editor.isEmpty ? "" : editor.getHTML();
+    },
+    // Tavlans panel sparar på focusout av fältet; textarean är dold, så
+    // editorns blur skickas vidare som ett focusout på den.
+    onBlur: () => {
+      textarea.value = editor.isEmpty ? "" : editor.getHTML();
+      textarea.dispatchEvent(new Event("focusout", { bubbles: true }));
+    },
+  });
+  textarea.tiptapEditor = editor;
+  textarea.tiptapSetText = (text) => editor.commands.setContent(textToHtml(text), true);
+
+  createIssueToolbar(editor, wrapper);
+  wrapper.appendChild(editorMount);
+  const form = textarea.closest("form");
+  if (form) form.addEventListener("submit", () => { textarea.value = editor.isEmpty ? "" : editor.getHTML(); });
+}
+
 function enhance(textarea) {
   if (textarea.dataset.tiptapReady === "1") return;
   textarea.dataset.tiptapReady = "1";
+  if (textarea.dataset.tiptap === "issue") return enhanceIssue(textarea);
 
   // "basic" mode restricts formatting to bold/italic/link + variables.
   const basic = textarea.dataset.tiptap === "basic";
@@ -120,4 +193,4 @@ if (document.readyState === "loading") {
   init();
 }
 
-export { init, htmlToTiptap, tiptapToHtml };
+export { init, htmlToTiptap, tiptapToHtml, textToHtml };

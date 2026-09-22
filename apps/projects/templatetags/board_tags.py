@@ -1,5 +1,6 @@
 from django import template
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from apps.projects.board import fmt_hours, fmt_seconds
 
@@ -51,3 +52,11 @@ def m_field(field, wide=False):
         help_text,
         field.errors,
     )
+
+
+@register.filter
+def issue_html(value):
+    """Ärendebeskrivningen som HTML - saneras en gång till vid visning, för säkerhets skull."""
+    from apps.projects.richtext import sanitize_issue_html
+
+    return mark_safe(sanitize_issue_html(value))  # noqa: S308 - nyss sanerat

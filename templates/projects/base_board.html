@@ -6,7 +6,7 @@ Tid) och timerchipet, som följer med på alla fyra sidorna. Tavlans egna
 komponenter ligger i tavla.css; interaktionen i tavla.js.
 {% endcomment %}
 {% block title %}{{ title|default:"Tavlan" }}{% endblock %}
-{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}">{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/tiptap.css' %}?v={{ static_version }}">{% endblock %}
 
 {% block content %}
 <div class="tv-subnav">
@@ -33,5 +33,6 @@ komponenter ligger i tavla.css; interaktionen i tavla.js.
 
 {% block extra_js %}
 <form id="csrf" hidden>{% csrf_token %}</form>
+<script src="{% static 'js/dist/tiptap-editor.js' %}?v={{ static_version }}" defer></script>
 <script src="{% static 'js/tavla.js' %}?v={{ static_version }}" defer></script>
 {% endblock %}
