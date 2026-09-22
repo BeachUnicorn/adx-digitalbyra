@@ -82,8 +82,13 @@ class AwsInvoice(models.Model):
     issued_on = models.DateField(null=True, blank=True)
     due_on = models.DateField(null=True, blank=True)
     currency = models.CharField(max_length=3, blank=True)
-    total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    #: Användningen före krediter, krediterna, momsen och det som faktiskt ska
+    #: betalas. Konton med gratiskrediter har total 0 fast fakturan är full av
+    #: rader - då är subtotal det kunden vill se.
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    credits = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     tax = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    total = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     pdf = models.FileField(upload_to=invoice_pdf_path, storage=private_storage, blank=True)
     fetched_at = models.DateTimeField(auto_now_add=True)
 

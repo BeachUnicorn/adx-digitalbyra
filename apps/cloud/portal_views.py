@@ -39,6 +39,7 @@ def invoices(request):
             "customer": request.customer,
             "years": years,
             "several_accounts": len(accounts) > 1,
+            "has_credits": any(i.credits for i in rows),
         },
     )
 

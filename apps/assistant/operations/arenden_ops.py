@@ -861,8 +861,10 @@ def _lista_aws_konton(user, kund=None):
                     {
                         "period": f"{i.period_year}-{i.period_month:02d}",
                         "nummer": i.invoice_id,
-                        "belopp": str(i.total) if i.total is not None else None,
+                        "anvandning": str(i.subtotal) if i.subtotal is not None else None,
+                        "krediter": str(i.credits) if i.credits is not None else None,
                         "moms": str(i.tax) if i.tax is not None else None,
+                        "att_betala": str(i.total) if i.total is not None else None,
                         "valuta": i.currency,
                         "har_pdf": bool(i.pdf),
                     }

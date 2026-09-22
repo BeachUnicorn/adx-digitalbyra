@@ -14,6 +14,9 @@ def aws_card_context(customer):
                 "account": account,
                 "invoices": invoices[:24],
                 "invoice_count": len(invoices),
+                "has_credits": any(
+                    m.get("credits") for m in (account.snapshot.get("cost") or {}).get("months", [])
+                ),
                 "cli": role_template.cli_commands(account),
             }
         )

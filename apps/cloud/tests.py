@@ -39,9 +39,37 @@ def invoice_row(invoice_id="EUINSE26-1", month=8, total="125.00"):
         "issued_on": date(2026, month + 1, 2),
         "due_on": date(2026, month + 1, 2),
         "currency": "USD",
-        "total": Decimal(total),
+        "subtotal": Decimal(total),
+        "credits": Decimal("0.00"),
         "tax": Decimal("25.00"),
+        "total": Decimal(total),
     }
+
+
+def summary_item(invoice_id="EUINSE26-9", subtotal="13.03", credits="13.03", tax_copy=False):
+    """Ett InvoiceSummary som AWS ger det: krediter täcker allt, att betala 0."""
+    from datetime import datetime
+
+    base = {
+        "TotalAmount": "0.00",
+        "CurrencyCode": "USD",
+        "AmountBreakdown": {
+            "SubTotalAmount": subtotal,
+            "Discounts": {"TotalAmount": credits},
+            "Taxes": {"TotalAmount": "0.00"},
+        },
+    }
+    item = {
+        "InvoiceId": invoice_id,
+        "InvoiceType": "INVOICE",
+        "Entity": {"InvoicingEntity": "Amazon Web Services EMEA SARL"},
+        "BillingPeriod": {"Month": 8, "Year": 2026},
+        "IssuedDate": datetime(2026, 9, 2),
+        "BaseCurrencyAmount": base,
+    }
+    if not tax_copy:
+        item["PaymentCurrencyAmount"] = base
+    return item
 
 
 class Fixture(TestCase):
@@ -104,6 +132,17 @@ class PortalInvoiceTests(Fixture):
         self.assertNotContains(self.client.get("/kund/tavla/"), "/kund/fakturor/")
         self.make_invoice()
         self.assertContains(self.client.get("/kund/tavla/"), "/kund/fakturor/")
+
+    def test_portal_shows_usage_and_credits_beside_the_amount_due(self):
+        invoice = self.make_invoice()
+        AwsInvoice.objects.filter(pk=invoice.pk).update(
+            credits=Decimal("125.00"), total=Decimal("0.00")
+        )
+        self.client.force_login(self.contact)
+        page = self.client.get("/kund/fakturor/").content.decode()
+        self.assertIn("Användning", page)
+        self.assertIn("-125,00", page)  # svensk decimal
+        self.assertIn("krediter från Amazon", page)
 
     def test_the_customer_never_sees_cost_or_warnings(self):
         self.make_invoice()
@@ -305,6 +344,21 @@ class AwsModuleTests(TestCase):
                 with self.assertRaises(aws.AwsError):
                     aws.download_pdf(object(), "A-1")
                 opened.assert_not_called()
+
+    def test_invoice_rows_carry_usage_and_credits_not_only_the_total(self):
+        """Skandi VVS 2026-09-22: krediter täckte allt och kunden såg 0 på varje rad."""
+        client = mock.Mock()
+        client.list_invoice_summaries.return_value = {
+            "InvoiceSummaries": [summary_item(), summary_item("IINSE26-1", tax_copy=True)]
+        }
+        with mock.patch.object(aws, "_client", return_value=client):
+            rows = aws.fetch_invoices(object(), ACME_ID, [(2026, 8)])
+        self.assertEqual(len(rows), 2)
+        for row in rows:
+            self.assertEqual(row["subtotal"], Decimal("13.03"))
+            self.assertEqual(row["credits"], Decimal("13.03"))
+            self.assertEqual(row["total"], Decimal("0.00"))
+            self.assertEqual(row["currency"], "USD")  # även skattekopian utan betalvaluta
 
     def test_months_back_crosses_the_year(self):
         self.assertEqual(aws.months_back(3, date(2026, 2, 10)), [(2026, 2), (2026, 1), (2025, 12)])

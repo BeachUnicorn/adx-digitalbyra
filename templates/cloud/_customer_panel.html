@@ -28,9 +28,10 @@ bara för konton där rutan är ikryssad.
 
     {% if s.cost.months %}
     <table class="m-table aw-table">
-      <tr><th>Kostnad</th>{% for m in s.cost.months %}<td class="m-num">{{ m.month|slice:"5:" }}{% if m.partial %}*{% endif %}<br><b>{{ m.amount|floatformat:0 }}</b></td>{% endfor %}</tr>
+      <tr><th>Användning</th>{% for m in s.cost.months %}<td class="m-num">{{ m.month|slice:"5:" }}{% if m.partial %}*{% endif %}<br><b>{{ m.amount|floatformat:0 }}</b></td>{% endfor %}</tr>
+      {% if row.has_credits %}<tr><th>Krediter</th>{% for m in s.cost.months %}<td class="m-num">{% if m.credits %}-{{ m.credits|floatformat:0 }}{% else %}<span class="tv-muted">0</span>{% endif %}</td>{% endfor %}</tr>{% endif %}
     </table>
-    <div class="tv-muted aw-meta">{{ s.cost.months.0.currency }} efter krediter. * pågående månad{% if s.cost.forecast %}, prognos {{ s.cost.forecast|floatformat:0 }}{% endif %}.{% if s.cost.services %} Störst förra månaden: {% for svc in s.cost.services|slice:":3" %}{{ svc.name }} {{ svc.amount|floatformat:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</div>
+    <div class="tv-muted aw-meta">{{ s.cost.months.0.currency }} före krediter och moms. * pågående månad{% if s.cost.forecast %}, prognos {{ s.cost.forecast|floatformat:0 }}{% endif %}.{% if s.cost.services %} Störst förra månaden: {% for svc in s.cost.services|slice:":3" %}{{ svc.name }} {{ svc.amount|floatformat:0 }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %}</div>
     {% elif s.cost.error %}<div class="tv-muted aw-meta">Kostnad: {{ s.cost.error }}</div>{% endif %}
 
     {% if s.resources.ec2 or s.resources.rds or s.domains %}
@@ -47,7 +48,7 @@ bara för konton där rutan är ikryssad.
       <summary>Fakturor ({{ row.invoice_count }})</summary>
       <table class="m-table aw-table">
         {% for inv in row.invoices %}
-        <tr><td>{{ inv.period_year }}-{{ inv.period_month|stringformat:"02d" }}</td><td class="tv-mono">{{ inv.invoice_id }}{% if inv.is_credit %} <span class="m-badge">kredit</span>{% endif %}</td><td class="m-num">{{ inv.total|default_if_none:"-" }} {{ inv.currency }}</td><td class="m-num">{% if inv.pdf %}<a class="tv-link" href="{% url 'manage:aws_invoice_pdf' inv.pk %}">PDF</a>{% else %}<span class="tv-muted">ingen PDF än</span>{% endif %}</td></tr>
+        <tr><td>{{ inv.period_year }}-{{ inv.period_month|stringformat:"02d" }}</td><td class="tv-mono">{{ inv.invoice_id }}{% if inv.is_credit %} <span class="m-badge">kredit</span>{% endif %}</td><td class="m-num">{{ inv.subtotal|default_if_none:"-" }}{% if inv.credits %} <span class="tv-muted">-{{ inv.credits }}</span>{% endif %}</td><td class="m-num"><b>{{ inv.total|default_if_none:"-" }}</b> {{ inv.currency }}</td><td class="m-num">{% if inv.pdf %}<a class="tv-link" href="{% url 'manage:aws_invoice_pdf' inv.pk %}">PDF</a>{% else %}<span class="tv-muted">ingen PDF än</span>{% endif %}</td></tr>
         {% endfor %}
       </table>
     </details>
