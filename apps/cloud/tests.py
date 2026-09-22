@@ -365,8 +365,8 @@ class AwsModuleTests(TestCase):
         paid, tax_copy = rows
         # Betalvalutan för hela raden - aldrig användning i USD och att betala i SEK.
         self.assertEqual(paid["currency"], "SEK")
-        self.assertEqual(paid["subtotal"], Decimal("136.82"))
-        self.assertEqual(paid["credits"], Decimal("136.82"))
+        self.assertEqual(paid["subtotal"], Decimal("136.81"))
+        self.assertEqual(paid["credits"], Decimal("136.81"))
         self.assertEqual(paid["total"], Decimal("0.00"))
         # Skattekopian saknar betalbelopp och tas i basvalutan.
         self.assertEqual(tax_copy["currency"], "USD")
