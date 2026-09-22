@@ -1,33 +1,3 @@
-// /manage/ - top-nav hamburger toggle (mobile).
-(function () {
-    const hamburger = document.querySelector(".m-nav__hamburger");
-    const mobileNav = document.getElementById("m-mobile-nav");
-    if (!hamburger || !mobileNav) return;
-
-    hamburger.addEventListener("click", () => {
-        const expanded = hamburger.getAttribute("aria-expanded") === "true";
-        hamburger.setAttribute("aria-expanded", String(!expanded));
-        mobileNav.classList.toggle("is-open");
-        mobileNav.setAttribute("aria-hidden", String(expanded));
-    });
-
-    // Reset the panel when the viewport grows past the hamburger breakpoint.
-    // Samma värde som hamburgarens brytpunkt i manage.css.
-    const NAV_BREAKPOINT = 760;
-    let resizeRaf = null;
-    window.addEventListener("resize", () => {
-        if (resizeRaf) return;
-        resizeRaf = requestAnimationFrame(() => {
-            resizeRaf = null;
-            if (window.innerWidth > NAV_BREAKPOINT && mobileNav.classList.contains("is-open")) {
-                mobileNav.classList.remove("is-open");
-                mobileNav.setAttribute("aria-hidden", "true");
-                hamburger.setAttribute("aria-expanded", "false");
-            }
-        });
-    });
-})();
-
 // Tabs component - works on any [data-tabs] container.
 (function () {
     document.querySelectorAll("[data-tabs]").forEach(function (container) {

@@ -77,14 +77,15 @@ class NavWrapGuardTests(TestCase):
         css = (CSS / "tavla.css").read_text(encoding="utf-8")
         blocks = re.findall(r"@media[^{]*max-width\s*:\s*(\d+)px[^{]*\{(.*?)\n\}", css, re.S)
         narrow = "".join(body for width, body in blocks if int(width) <= 780).replace(" ", "")
-        self.assertIn(".pt-burger{display:flex}", narrow)
+        skin = (CSS / "manage-skin.css").read_text(encoding="utf-8").replace(" ", "")
+        self.assertIn(".mob-burger{display:flex}", skin)
         self.assertIn(".pt-nav.m-nav__right{display:none}", narrow)
         base = (TEMPLATES / "portal/base.html").read_text(encoding="utf-8")
-        self.assertIn('id="pt-menu"', base)
-        self.assertIn("data-pt-menu-open", base)
+        self.assertIn('id="mob-menu"', base)
+        self.assertIn("data-menu-open", base)
         # Varje länk i raden ska också finnas i mobilmenyn.
         row = base.split('class="m-nav__links"')[1].split("</ul>")[0]
-        menu = base.split('id="pt-menu"')[1]
+        menu = base.split('id="mob-menu"')[1]
         for name in re.findall(r"url 'portal:(\w+)'", row):
             if name in ("landing", "issue_create"):
                 continue
@@ -115,3 +116,16 @@ class ViewportGuardTests(TestCase):
         ):
             text = (TEMPLATES / base).read_text(encoding="utf-8")
             self.assertIn("width=device-width", text, base)
+
+
+class PanelMenuGuardTests(TestCase):
+    """Panelen har samma helskärmsmeny: varje sida i menyraden ska gå att nå från den."""
+
+    def test_every_panel_link_is_in_the_mobile_menu(self):
+        base = (TEMPLATES / "manage/base.html").read_text(encoding="utf-8")
+        row = base.split('class="m-nav__links"')[1].split('id="mob-menu"')[0]
+        menu = base.split('id="mob-menu"')[1]
+        self.assertIn("data-menu-open", row)
+        for name in set(re.findall(r"url '(manage:\w+)'", row)):
+            self.assertIn(f"url '{name}'", menu, name)
+        self.assertIn("menu.js", base)

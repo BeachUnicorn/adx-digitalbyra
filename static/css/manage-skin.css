@@ -88,7 +88,6 @@ body.m-body{font-size:16px;line-height:1.55;background:
 .m-nav__link:focus-visible,
 .m-nav__dropdown-toggle:focus-visible,
 .m-nav__view-site:focus-visible,
-.m-nav__hamburger:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
 /* Räknare inuti en aktiv (svart) menylänk ska synas: invertera. */
 .m-nav__link .m-badge{padding:2px 8px}
 .m-nav__link.is-active .m-badge{background:var(--m-accent-text);color:var(--m-accent)}
@@ -148,21 +147,7 @@ body.m-body{font-size:16px;line-height:1.55;background:
 }
 
 /* Mobilmenyn. Hamburgaren är en rund glasknapp; öppen vänder den till svart kryss. */
-.m-nav__hamburger{padding:15px 12px;border-radius:999px;background:var(--m-surface);border:1px solid var(--m-border);transition:background .2s ease,border-color .2s ease}
-.m-nav__hamburger span{border-radius:2px;transition:transform .2s ease,opacity .15s ease,background .2s ease}
-.m-nav__hamburger[aria-expanded="true"]{background:var(--m-accent);border-color:var(--m-accent)}
-.m-nav__hamburger[aria-expanded="true"] span{background:var(--m-accent-text)}
-.m-nav__hamburger[aria-expanded="true"] span:nth-child(1){transform:translateY(6px) rotate(45deg)}
-.m-nav__hamburger[aria-expanded="true"] span:nth-child(2){opacity:0}
-.m-nav__hamburger[aria-expanded="true"] span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
-.m-nav__mobile{background:var(--s-menu);border-bottom:1px solid var(--m-border);border-radius:0 0 26px 26px;box-shadow:var(--s-float);padding:6px 22px 26px;gap:0;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-.m-nav__mobile a{font-family:var(--s-mono);font-size:13.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;color:var(--m-text);padding:16px 2px;border-bottom:1px solid var(--m-border)}
-.m-nav__mobile a:active{background:var(--s-hover)}
-.m-nav__mobile a .m-badge{margin-left:8px;vertical-align:1px}
-.m-nav__mobile-label{font-family:var(--s-mono);font-size:11px;letter-spacing:.14em;font-weight:500;color:var(--m-text-muted);padding:26px 2px 6px}
 /* Visa sajt är panelens huvudhandling, precis som den svarta pillern på desktop. */
-.m-nav__mobile a[href="/"]{margin-top:22px;border:0;border-radius:999px;background:var(--m-accent);color:var(--m-accent-text);text-align:center;padding:16px 20px}
-.m-nav__mobile .m-nav__mobile-user{font-family:var(--s-mono);font-size:12px;letter-spacing:.04em;color:var(--m-text-muted);text-align:center;padding:20px 2px 0}
 .m-nav__signout{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;border-radius:999px;border:1px solid var(--s-danger-soft);color:var(--s-danger);padding:13px 20px;transition:background .2s ease,color .2s ease}
 .m-nav__signout:hover{background:var(--s-danger);color:var(--m-accent-text);border-color:transparent}
 .m-nav__signout--block{width:100%;margin-top:10px}
@@ -1522,8 +1507,6 @@ ul.m-steps{list-style:square}
 .m-nav__view-site{white-space:nowrap}
 /* Visa sajt får inte krympa när pillerraden tar plats. */
 .m-nav__right{flex:none}
-/* Mobilpanelen är fast placerad och längre än en liten skärm med superanvändarens länkar: utan egen rullning nås inte Logga ut. */
-.m-nav__mobile{max-height:calc(100vh - var(--m-nav-height));max-height:calc(100dvh - var(--m-nav-height));overflow-y:auto}
 /* Luftigare rullgardin bara där raden har plats; på smalare skärm gäller strukturens 160 px, annars sticker sista menyn ut till höger. */
 @media (min-width:941px){
   .m-nav__dropdown-menu{min-width:210px}
@@ -1739,3 +1722,88 @@ ul.m-steps{list-style:square}
   /* Lådan behöver ingen sidoscroll när raderna är kort. */
   .m-table-wrap:has(.m-table[data-cards]) { overflow-x: visible; }
 }
+
+
+/* ===========================================================================
+   Mobilmenyn - EN för panelen och kundportalen (manage/base.html,
+   portal/base.html, static/js/menu.js). Hamburgaren syns bara under 760 px
+   och öppnar en egen skärm: glas, svart text, rubriktypsnittet i versaler -
+   samma formspråk som sajtens mobilmeny. Huvudlänkarna är stora; panelens
+   grupper (Innehåll, Webbplats) står som ett tvåspaltigt rutnät under.
+   =========================================================================== */
+.mob-burger{
+  display:none;margin-left:auto;flex:none;
+  width:50px;height:50px;border-radius:50%;
+  flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  background:var(--s-pill);border:1px solid var(--m-border);box-shadow:var(--s-ring);cursor:pointer;padding:0;
+}
+.mob-burger span{display:block;width:20px;height:2px;border-radius:2px;background:var(--m-text)}
+.mob-burger:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
+
+.mob-menu{
+  position:fixed;inset:10px;z-index:200;
+  display:flex;flex-direction:column;
+  background:var(--s-menu);border:1px solid var(--m-border);border-radius:26px;
+  box-shadow:var(--s-float);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  padding:18px 22px 24px;overflow-y:auto;
+  animation:mob-menu-in .18s ease-out;
+}
+.mob-menu[hidden]{display:none}
+@keyframes mob-menu-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.mob-menu{animation:none}}
+.mob-menu__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}
+.mob-menu__logo img{height:22px;width:auto;display:block}
+.mob-menu__close{
+  font-family:var(--s-mono);font-size:14px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;
+  color:var(--m-text);background:transparent;border:1px solid var(--m-text);border-radius:999px;padding:11px 20px;cursor:pointer;
+}
+.mob-menu__kicker{font-family:var(--s-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text);margin-bottom:8px}
+.mob-menu__links{display:flex;flex-direction:column}
+.mob-menu__links a{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  font-family:var(--s-grot);font-weight:700;text-transform:uppercase;
+  font-size:clamp(30px,8.4vw,40px);line-height:1.1;letter-spacing:-.005em;
+  color:var(--m-text);text-decoration:none;
+  padding:16px 0;border-top:1px solid var(--m-border);
+}
+.mob-menu__links a:last-child{border-bottom:1px solid var(--m-border)}
+.mob-menu__links a::after{content:"→";font-family:var(--s-mono);font-weight:400;font-size:.55em;opacity:.35}
+.mob-menu__links a.is-active::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--m-text);opacity:1}
+.mob-menu__links a:active{opacity:.6}
+.mob-menu__cta{
+  display:block;margin-top:26px;text-align:center;
+  font-family:var(--s-mono);font-size:15px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
+  background:var(--m-accent);color:var(--m-accent-text);border-radius:999px;padding:18px 20px;text-decoration:none;
+}
+.mob-menu__foot{
+  margin-top:auto;padding-top:28px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  font-size:15px;color:var(--m-text);
+}
+.mob-menu__foot form{margin:0}
+.mob-menu__out{
+  font-family:var(--s-mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;
+  background:transparent;color:var(--m-text);border:1px solid var(--m-border);border-radius:999px;padding:11px 18px;cursor:pointer;
+}
+body.mob-menu-open{overflow:hidden}
+/* Står efter basregeln ovan, annars vinner display:none. */
+@media (max-width:760px){
+  .mob-burger{display:flex}
+}
+@media (min-width:761px){.mob-menu{display:none !important}}
+/* Logga till vänster i toppraden på telefon (panelen har ingen på dator). */
+.mob-brand{display:none;align-items:center;padding:10px 14px;background:var(--s-pill);border-radius:999px;box-shadow:var(--s-ring)}
+.mob-brand img{height:18px;width:auto;display:block}
+.mob-menu__links a .m-badge{font-family:var(--s-mono);font-size:13px;letter-spacing:0;margin-left:10px;vertical-align:middle}
+.mob-menu__links a>span{display:inline-flex;align-items:center}
+.mob-menu__group{margin-top:26px}
+.mob-menu__label{font-family:var(--s-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text);margin-bottom:10px}
+.mob-menu__sub{display:grid;grid-template-columns:1fr 1fr;gap:4px 18px}
+.mob-menu__sub a{font-size:18px;font-weight:600;color:var(--m-text);text-decoration:none;padding:9px 0;border-bottom:1px solid var(--m-border)}
+.mob-menu__sub a.is-active{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:2px}
+/* Står sist, efter basregeln ovan, annars vinner display:none. */
+@media (max-width:760px){
+  .mob-burger{display:flex}
+  .mob-brand{display:flex}
+}
+

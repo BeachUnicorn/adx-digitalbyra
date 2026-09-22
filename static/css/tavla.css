@@ -281,7 +281,6 @@ body.is-dragging-any{cursor:grabbing}
 
 /* ===== Kundportalen (/kund/): samma skinn, färre saker ===== */
 .pt-nav .m-nav__links{display:flex}
-.pt-nav .m-nav__hamburger{display:none}
 .pt-brand{font-family:var(--s-grot);font-weight:700;letter-spacing:.02em;font-size:13px}
 .pt-user{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--m-text-muted);margin-right:10px}
 .pt-nav .m-nav__right{display:flex;align-items:center;gap:4px}
@@ -364,15 +363,13 @@ body.is-dragging-any{cursor:grabbing}
 /* ===== Portalen i mobilbredd ===== */
 @media (max-width:760px){
   /* Telefon: logga till vänster, hamburgare till höger. Länkarna och
-     kontoknappen bor i .pt-menu (Giovanni 2026-09-22: klassisk hamburgare,
+     kontoknappen bor i .mob-menu (Giovanni 2026-09-22: klassisk hamburgare,
      stor text). Tidigare radbröts pillerraden till två rader plus en rad
      för knappen - 150 punkter meny. */
   .pt-nav .m-nav__inner{padding:10px 16px;gap:10px}
   .pt-body .pt-nav .m-nav__links{background:transparent;box-shadow:none;padding:0}
-  .pt-nav .m-nav__links>li:not(:first-child){display:none}
+  .pt-nav .m-nav__links{display:none}
   .pt-nav .m-nav__right{display:none}
-  .pt-brand{padding:10px 14px;background:var(--s-pill);border-radius:999px;box-shadow:var(--s-ring)}
-  .pt-logo{height:18px}
   .pt-body .tv-h1{font-size:30px}
   .pt-login{padding:32px 22px 28px}
   .pt-log__row{grid-template-columns:64px 1fr;gap:10px}
@@ -620,69 +617,4 @@ body.is-dragging-any{cursor:grabbing}
 }
 
 
-/* ===========================================================================
-   Kundportalens mobilmeny (templates/portal/base.html, portal.js).
-   Hamburgaren syns bara under 760 px. Menyn är en egen skärm i portalens
-   skinn: glas, svart text, rubriktypsnittet i versaler - samma formspråk
-   som sajtens mobilmeny, så att kunden känner igen sig.
-   =========================================================================== */
-.pt-burger{
-  display:none;margin-left:auto;flex:none;
-  width:50px;height:50px;border-radius:50%;
-  flex-direction:column;align-items:center;justify-content:center;gap:5px;
-  background:var(--s-pill);border:1px solid var(--m-border);box-shadow:var(--s-ring);cursor:pointer;padding:0;
-}
-.pt-burger span{display:block;width:20px;height:2px;border-radius:2px;background:var(--m-text)}
-.pt-burger:focus-visible{outline:2px solid var(--m-text);outline-offset:2px}
 
-.pt-menu{
-  position:fixed;inset:10px;z-index:200;
-  display:flex;flex-direction:column;
-  background:var(--s-menu);border:1px solid var(--m-border);border-radius:26px;
-  box-shadow:var(--s-float);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  padding:18px 22px 24px;overflow-y:auto;
-  animation:pt-menu-in .18s ease-out;
-}
-.pt-menu[hidden]{display:none}
-@keyframes pt-menu-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.pt-menu{animation:none}}
-.pt-menu__head{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}
-.pt-menu__logo img{height:22px;width:auto;display:block}
-.pt-menu__close{
-  font-family:var(--s-mono);font-size:14px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;
-  color:var(--m-text);background:transparent;border:1px solid var(--m-text);border-radius:999px;padding:11px 20px;cursor:pointer;
-}
-.pt-menu__kicker{font-family:var(--s-mono);font-size:13px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;color:var(--m-text);margin-bottom:8px}
-.pt-menu__links{display:flex;flex-direction:column}
-.pt-menu__links a{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  font-family:var(--s-grot);font-weight:700;text-transform:uppercase;
-  font-size:clamp(30px,8.4vw,40px);line-height:1.1;letter-spacing:-.005em;
-  color:var(--m-text);text-decoration:none;
-  padding:16px 0;border-top:1px solid var(--m-border);
-}
-.pt-menu__links a:last-child{border-bottom:1px solid var(--m-border)}
-.pt-menu__links a::after{content:"→";font-family:var(--s-mono);font-weight:400;font-size:.55em;opacity:.35}
-.pt-menu__links a.is-active::after{content:"";width:12px;height:12px;border-radius:50%;background:var(--m-text);opacity:1}
-.pt-menu__links a:active{opacity:.6}
-.pt-menu__cta{
-  display:block;margin-top:26px;text-align:center;
-  font-family:var(--s-mono);font-size:15px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;
-  background:var(--m-accent);color:var(--m-accent-text);border-radius:999px;padding:18px 20px;text-decoration:none;
-}
-.pt-menu__foot{
-  margin-top:auto;padding-top:28px;
-  display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
-  font-size:15px;color:var(--m-text);
-}
-.pt-menu__foot form{margin:0}
-.pt-menu__out{
-  font-family:var(--s-mono);font-size:13px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;
-  background:transparent;color:var(--m-text);border:1px solid var(--m-border);border-radius:999px;padding:11px 18px;cursor:pointer;
-}
-body.pt-menu-open{overflow:hidden}
-/* Står efter basregeln ovan, annars vinner display:none. */
-@media (max-width:760px){
-  .pt-burger{display:flex}
-}
-@media (min-width:761px){.pt-menu{display:none !important}}

@@ -93,35 +93,6 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
 }
 .m-nav__view-site:hover { opacity: 0.85; }
 
-.m-nav__hamburger {
-    display: none;
-    flex-direction: column; gap: 4px; padding: 10px;
-}
-.m-nav__hamburger span { width: 20px; height: 2px; background: var(--m-text); border-radius: 1px; }
-
-/* ===== MOBILE NAV PANEL ===== */
-.m-nav__mobile {
-    display: none;
-    position: fixed; top: var(--m-nav-height); left: 0; right: 0;
-    background: var(--m-surface);
-    border-bottom: 1px solid var(--m-border);
-    z-index: 49;
-    padding: 12px 20px 20px;
-    flex-direction: column; gap: 2px;
-    box-shadow: var(--m-shadow);
-}
-.m-nav__mobile.is-open { display: flex; }
-.m-nav__mobile a {
-    font-size: 0.95rem; font-weight: 500;
-    color: var(--m-text);
-    padding: 12px 8px;
-    border-bottom: 1px solid var(--m-border);
-}
-.m-nav__mobile a:last-child { border-bottom: none; }
-.m-nav__mobile .m-nav__mobile-user {
-    font-size: 0.82rem; color: var(--m-text-muted);
-    padding: 12px 8px 4px;
-}
 
 /* ===== PAGE LAYOUT ===== */
 .m-main { padding: 32px 0 64px; }
@@ -273,7 +244,6 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
 @media (max-width: 760px) {
     .m-nav__links,
     .m-nav__right { display: none; }
-    .m-nav__hamburger { display: flex; }
 }
 @media (max-width: 680px) {
     .m-cards { grid-template-columns: 1fr; }
@@ -293,13 +263,6 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
 }
 @media (max-width: 460px) {
     .m-stats { grid-template-columns: 1fr; }
-}
-
-/* Desktop: never show the mobile panel, even if JS left `is-open` on it when
-   the viewport was widened past the hamburger breakpoint. */
-@media (min-width: 761px) {
-    .m-nav__mobile,
-    .m-nav__mobile.is-open { display: none; }
 }
 
 /* ===== MESSAGES ===== */
@@ -1105,15 +1068,6 @@ a.m-list__main:hover .m-list__title { text-decoration: underline; }
 }
 
 /* Mobile nav section labels */
-.m-nav__mobile-label {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--m-text-muted);
-    padding: 16px 8px 4px;
-    border-bottom: none;
-}
 
 /* ===== IMAGE OPTIMIZATION ===== */
 .m-media-card__opt-wrap {

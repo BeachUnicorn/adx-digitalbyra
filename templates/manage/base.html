@@ -12,6 +12,7 @@
 
 <nav class="m-nav" aria-label="Kontrollpanel">
     <div class="m-container m-nav__inner">
+        <a href="{% url 'manage:dashboard' %}" class="mob-brand" aria-label="Översikt"><img src="{% static 'images/adx-logo.png' %}" alt="ADX"></a>
         <ul class="m-nav__links">
             <li><a href="{% url 'manage:dashboard' %}" class="m-nav__link {% if active == 'dashboard' %}is-active{% endif %}">Översikt</a></li>
             
@@ -80,47 +81,75 @@
             <a href="/" rel="noopener" class="m-nav__view-site">Visa sajt ↗</a>
         </div>
 
-        <button class="m-nav__hamburger" aria-label="Öppna meny" aria-expanded="false" aria-controls="m-mobile-nav">
+        <button type="button" class="mob-burger" aria-label="Öppna meny" aria-expanded="false" aria-controls="mob-menu" data-menu-open>
             <span></span><span></span><span></span>
         </button>
     </div>
 </nav>
 
-<div class="m-nav__mobile" id="m-mobile-nav" aria-hidden="true">
-    <a href="{% url 'manage:dashboard' %}">Översikt</a>
-    <a href="{% url 'manage:inquiry_list' %}">Förfrågningar{% if unread_inquiries %} <span class="m-badge m-badge--alert">{{ unread_inquiries }}</span>{% endif %}</a>
-    <a href="{% url 'manage:offer_list' %}">Offerter</a>
-    <a href="{% url 'manage:board' %}">Tavlan</a>
-    <a href="{% url 'manage:customer_list' %}">Kunder</a>
-    <a href="{% url 'manage:project_list' %}">Projekt</a>
-    <a href="{% url 'manage:time_report' %}">Tid</a>
-    <a href="{% url 'manage:drift' %}">Drift</a>
-    {% if user.is_superuser %}<a href="{% url 'manage:stats' %}">Statistik</a>{% endif %}
-    <span class="m-nav__mobile-label">Innehåll</span>
-    <a href="{% url 'manage:page_list' %}">Blocksidor</a>
-    <a href="{% url 'manage:services_overview' %}">Tjänster</a>
-    <a href="{% url 'manage:faq_overview' %}">FAQ</a>
-    <a href="{% url 'manage:areas_overview' %}">Städer</a>
-    <span class="m-nav__mobile-label">Webbplats</span>
-    <a href="{% url 'manage:menus_overview' %}">Menyer</a>
-    <a href="{% url 'manage:media_library' %}">Media</a>
-    <a href="{% url 'manage:assistant_chat' %}">AI{% if pending_drafts %} ({{ pending_drafts }}){% endif %}</a>
-    <a href="{% url 'manage:settings' %}">Inställningar</a>
-    <a href="{% url 'manage:ai_codes' %}">AI-guider</a>
+{% comment %}
+Mobilmenyn: samma helskärmsmeny som kundportalen (.mob-menu i
+manage-skin.css, static/js/menu.js). Det man gör varje dag står stort;
+innehåll och inställningar i ett rutnät under.
+{% endcomment %}
+<div class="mob-menu" id="mob-menu" role="dialog" aria-modal="true" aria-label="Meny" hidden>
+    <div class="mob-menu__head">
+        <a href="{% url 'manage:dashboard' %}" class="mob-menu__logo"><img src="{% static 'images/adx-logo.png' %}" alt="ADX"></a>
+        <button type="button" class="mob-menu__close" data-menu-close>Stäng</button>
+    </div>
+    <div class="mob-menu__kicker">Panelen</div>
+    <nav class="mob-menu__links" aria-label="Kontrollpanel">
+        <a href="{% url 'manage:dashboard' %}"{% if active == 'dashboard' %} class="is-active" aria-current="page"{% endif %}>Översikt</a>
+        <a href="{% url 'manage:inquiry_list' %}"{% if active == 'inquiries' %} class="is-active" aria-current="page"{% endif %}><span>Förfrågningar{% if unread_inquiries %}<span class="m-badge m-badge--alert">{{ unread_inquiries }}</span>{% endif %}</span></a>
+        <a href="{% url 'manage:offer_list' %}"{% if active == 'offers' %} class="is-active" aria-current="page"{% endif %}>Offerter</a>
+        <a href="{% url 'manage:board' %}"{% if active == 'board' %} class="is-active" aria-current="page"{% endif %}>Tavlan</a>
+        <a href="{% url 'manage:customer_list' %}"{% if active == 'customers' %} class="is-active" aria-current="page"{% endif %}>Kunder</a>
+        <a href="{% url 'manage:drift' %}"{% if active == 'drift' %} class="is-active" aria-current="page"{% endif %}>Drift</a>
+        <a href="{% url 'manage:assistant_chat' %}"{% if active == 'assistant' %} class="is-active" aria-current="page"{% endif %}><span>AI{% if pending_drafts %}<span class="m-badge m-badge--alert">{{ pending_drafts }}</span>{% endif %}</span></a>
+    </nav>
+
+    <div class="mob-menu__group">
+        <div class="mob-menu__label">Arbete</div>
+        <div class="mob-menu__sub">
+            <a href="{% url 'manage:project_list' %}"{% if active == 'projects' %} class="is-active"{% endif %}>Projekt</a>
+            <a href="{% url 'manage:time_report' %}"{% if active == 'time' %} class="is-active"{% endif %}>Tid</a>
+            {% if user.is_superuser %}<a href="{% url 'manage:stats' %}"{% if active == 'stats' %} class="is-active"{% endif %}>Statistik</a>{% endif %}
+            <a href="{% url 'manage:media_library' %}"{% if active == 'media' %} class="is-active"{% endif %}>Media</a>
+        </div>
+    </div>
+    <div class="mob-menu__group">
+        <div class="mob-menu__label">Innehåll</div>
+        <div class="mob-menu__sub">
+            <a href="{% url 'manage:page_list' %}"{% if active == 'pages' %} class="is-active"{% endif %}>Blocksidor</a>
+            <a href="{% url 'manage:services_overview' %}"{% if active == 'services' %} class="is-active"{% endif %}>Tjänster</a>
+            <a href="{% url 'manage:faq_overview' %}"{% if active == 'faq' %} class="is-active"{% endif %}>FAQ</a>
+            <a href="{% url 'manage:areas_overview' %}"{% if active == 'areas' %} class="is-active"{% endif %}>Städer</a>
+        </div>
+    </div>
+    <div class="mob-menu__group">
+        <div class="mob-menu__label">Inställningar</div>
+        <div class="mob-menu__sub">
+            <a href="{% url 'manage:settings' %}"{% if active == 'settings' %} class="is-active"{% endif %}>Inställningar</a>
+            <a href="{% url 'manage:menus_overview' %}"{% if active == 'menus' %} class="is-active"{% endif %}>Menyer</a>
+            <a href="{% url 'manage:ai_codes' %}">AI-guider</a>
+        </div>
+    </div>
     {% if user.is_superuser %}
-    <span class="m-nav__mobile-label">Superuser</span>
-    <a href="{% url 'manage:hemsidekollen' %}">Hemsidekollen</a>
-    <a href="{% url 'manage:import_view' %}">Import</a>
-    <a href="/admin/" target="_blank" rel="noopener">Django Admin ↗</a>
+    <div class="mob-menu__group">
+        <div class="mob-menu__label">Superuser</div>
+        <div class="mob-menu__sub">
+            <a href="{% url 'manage:hemsidekollen' %}">Hemsidekollen</a>
+            <a href="{% url 'manage:import_view' %}">Import</a>
+            <a href="/admin/" target="_blank" rel="noopener">Django Admin ↗</a>
+        </div>
+    </div>
     {% endif %}
-    <a href="/" rel="noopener">Visa sajt ↗</a>
-    {% if user.is_authenticated %}
-    <div class="m-nav__mobile-user">Inloggad som {{ user.get_username }}</div>
-    <form method="post" action="{% url 'logout' %}">
-        {% csrf_token %}
-        <button type="submit" class="m-nav__signout m-nav__signout--block">Logga ut</button>
-    </form>
-    {% endif %}
+
+    <a href="/" class="mob-menu__cta">Visa sajt ↗</a>
+    <div class="mob-menu__foot">
+        <span>Inloggad som {{ user.get_username }}</span>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="mob-menu__out">Logga ut</button></form>
+    </div>
 </div>
 
 <main class="m-main">
@@ -140,6 +169,7 @@
 {% include "manage/includes/link_modal.html" %}
 
 <script src="{% static 'js/manage-tables.js' %}?v={{ static_version }}" defer></script>
+<script src="{% static 'js/menu.js' %}?v={{ static_version }}" defer></script>
 <script src="{% static 'js/manage.js' %}?v={{ static_version }}" defer></script>
 <script src="{% static 'js/link-modal.js' %}?v={{ static_version }}" defer></script>
 {% block extra_js %}{% endblock %}
