@@ -68,7 +68,16 @@ def summary_item(invoice_id="EUINSE26-9", subtotal="13.03", credits="13.03", tax
         "BaseCurrencyAmount": base,
     }
     if not tax_copy:
-        item["PaymentCurrencyAmount"] = base
+        # Kunden betalar i SEK: alla belopp på raden ska komma härifrån.
+        item["PaymentCurrencyAmount"] = {
+            "TotalAmount": "0.00",
+            "CurrencyCode": "SEK",
+            "AmountBreakdown": {
+                "SubTotalAmount": str(round(float(subtotal) * 10.5, 2)),
+                "Discounts": {"TotalAmount": str(round(float(credits) * 10.5, 2))},
+                "Taxes": {"TotalAmount": "0.00"},
+            },
+        }
     return item
 
 
@@ -353,12 +362,16 @@ class AwsModuleTests(TestCase):
         }
         with mock.patch.object(aws, "_client", return_value=client):
             rows = aws.fetch_invoices(object(), ACME_ID, [(2026, 8)])
-        self.assertEqual(len(rows), 2)
-        for row in rows:
-            self.assertEqual(row["subtotal"], Decimal("13.03"))
-            self.assertEqual(row["credits"], Decimal("13.03"))
-            self.assertEqual(row["total"], Decimal("0.00"))
-            self.assertEqual(row["currency"], "USD")  # även skattekopian utan betalvaluta
+        paid, tax_copy = rows
+        # Betalvalutan för hela raden - aldrig användning i USD och att betala i SEK.
+        self.assertEqual(paid["currency"], "SEK")
+        self.assertEqual(paid["subtotal"], Decimal("136.82"))
+        self.assertEqual(paid["credits"], Decimal("136.82"))
+        self.assertEqual(paid["total"], Decimal("0.00"))
+        # Skattekopian saknar betalbelopp och tas i basvalutan.
+        self.assertEqual(tax_copy["currency"], "USD")
+        self.assertEqual(tax_copy["subtotal"], Decimal("13.03"))
+        self.assertEqual(tax_copy["credits"], Decimal("13.03"))
 
     def test_months_back_crosses_the_year(self):
         self.assertEqual(aws.months_back(3, date(2026, 2, 10)), [(2026, 2), (2026, 1), (2025, 12)])

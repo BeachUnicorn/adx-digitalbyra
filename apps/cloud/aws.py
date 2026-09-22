@@ -128,11 +128,12 @@ def fetch_invoices(session, account_id, months):
             except (ClientError, BotoCoreError) as exc:
                 raise AwsError(_explain(exc)) from exc
             for item in page.get("InvoiceSummaries", []):
-                # Basbeloppet har alltid uppdelningen; betalvalutan saknas på
-                # skattekopior (IINSE-numren) och är ändå samma valuta för oss.
+                # Hela raden i betalvalutan (BD Group betalar i SEK, basen är
+                # USD). Skattekopiorna (IINSE-numren) saknar betalbelopp och
+                # tas i basvalutan - valutan står ändå på raden.
                 base = item.get("BaseCurrencyAmount") or {}
                 amount = item.get("PaymentCurrencyAmount") or base
-                breakdown = base.get("AmountBreakdown") or amount.get("AmountBreakdown") or {}
+                breakdown = amount.get("AmountBreakdown") or {}
                 taxes = breakdown.get("Taxes") or {}
                 discounts = breakdown.get("Discounts") or {}
                 period = item.get("BillingPeriod") or {}
@@ -145,11 +146,11 @@ def fetch_invoices(session, account_id, months):
                         "period_month": period.get("Month", month),
                         "issued_on": _as_date(item.get("IssuedDate")),
                         "due_on": _as_date(item.get("DueDate")),
-                        "currency": amount.get("CurrencyCode") or base.get("CurrencyCode", ""),
+                        "currency": amount.get("CurrencyCode", ""),
                         "subtotal": _money(breakdown.get("SubTotalAmount")),
                         "credits": _money(discounts.get("TotalAmount")),
                         "tax": _money(taxes.get("TotalAmount")),
-                        "total": _money(amount.get("TotalAmount") or base.get("TotalAmount")),
+                        "total": _money(amount.get("TotalAmount")),
                     }
                 )
             if not page.get("NextToken"):
