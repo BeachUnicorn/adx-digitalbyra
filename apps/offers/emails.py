@@ -49,7 +49,7 @@ def send_quote_to_customer(quote):
         template="quote_customer",
         context={"quote": quote},
         to=[quote.customer_email],
-        reply_to=_as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
+        reply_to=_as_list(settings.CUSTOMER_REPLY_TO_EMAIL),
     )
 
 

@@ -93,7 +93,7 @@ def send_invite(user, customer):
         subject,
         body,
         [user.email],
-        reply_to=_as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
+        reply_to=_as_list(settings.CUSTOMER_REPLY_TO_EMAIL),
         html=html,
     )
 
@@ -114,7 +114,9 @@ def send_login_code(user, code):
         preheader=f"Koden är {code}. Den gäller i tio minuter.",
         code=code,
     )
-    return _send(subject, body, [user.email], html=html)
+    return _send(
+        subject, body, [user.email], reply_to=_as_list(settings.CUSTOMER_REPLY_TO_EMAIL), html=html
+    )
 
 
 def send_portal_issue_notice(issue, customer):
@@ -179,7 +181,7 @@ def send_issue_update_to_customer(issue, comment):
         subject,
         body,
         to,
-        reply_to=_as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
+        reply_to=_as_list(settings.CUSTOMER_REPLY_TO_EMAIL),
         html=html,
     )
 
@@ -254,7 +256,7 @@ def send_log_digest(customer, entries, period_label):
         subject,
         body,
         to,
-        reply_to=_as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
+        reply_to=_as_list(settings.CUSTOMER_REPLY_TO_EMAIL),
         html=html,
     )
     return sent, to, body

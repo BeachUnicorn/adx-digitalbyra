@@ -1024,7 +1024,7 @@ def customer_log_preview(request, pk):
             body=body,
             html=html,
             entry_ids=",".join(str(e.pk) for e in entries),
-            reply_to=django_settings.INQUIRY_NOTIFICATION_EMAIL,
+            reply_to=django_settings.CUSTOMER_REPLY_TO_EMAIL,
             email_ready=_email_configured(),
         )
     return render(request, "projects/log_preview.html", context)

@@ -218,6 +218,10 @@ EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="info@adx.se")
 INQUIRY_NOTIFICATION_EMAIL = env("INQUIRY_NOTIFICATION_EMAIL", default="info@adx.se")
+# Svarsadressen på allt som går TILL kunder (inbjudan, kod, ärendesvar,
+# loggsammanställning, offert). Skild från INQUIRY_NOTIFICATION_EMAIL, som är
+# vart byråns egna notiser går - de två ska kunna peka på olika inkorgar.
+CUSTOMER_REPLY_TO_EMAIL = env("CUSTOMER_REPLY_TO_EMAIL", default="giovanni@adx.se")
 
 # Övervakningen (apps/monitor). ADX_STATUS_KEY är den delade nyckeln som
 # /status/adx/ kräver - samma på alla sajter vi driftar, bara vi känner den.
