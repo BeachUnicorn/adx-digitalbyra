@@ -618,3 +618,26 @@ body.is-dragging-any{cursor:grabbing}
 
 
 
+
+/* ===== Förhandsgranskning av loggmejlet (projects/log_preview.html) ===== */
+.lp{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+.lp-mail{min-width:0}
+.lp-toolbar{display:flex;gap:8px;margin-bottom:12px}
+.lp-frame{background:#eef5f9;border:1px solid var(--m-border);border-radius:var(--m-radius);padding:0;overflow:hidden;display:flex;justify-content:center}
+.lp-frame iframe{width:100%;max-width:100%;height:760px;border:0;background:#eef5f9;display:block;transition:width .2s ease}
+.lp-text{margin-top:14px}
+.lp-text summary{cursor:pointer;font-family:var(--s-mono);font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:500;padding:6px 0}
+.lp-text pre{white-space:pre-wrap;font-family:var(--s-mono);font-size:14px;line-height:1.6;background:var(--s-solid);border:1px solid var(--m-border);border-radius:14px;padding:16px 18px;margin:8px 0 0}
+.lp-side{position:sticky;top:calc(var(--m-nav-height) + 16px)}
+.lp-meta{display:grid;grid-template-columns:auto 1fr;gap:8px 14px;margin:6px 0 18px;font-size:15px}
+.lp-meta dt{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-text-muted);padding-top:3px}
+.lp-meta dd{margin:0;overflow-wrap:anywhere}
+.lp-bad{color:var(--s-danger);font-weight:600;font-size:14.5px}
+.lp-side form{margin:0 0 10px}
+.lp-side .m-btn{width:100%;text-align:center}
+.lp-back{display:block;margin-bottom:12px}
+.m-btn.is-disabled{opacity:.45;cursor:default;pointer-events:none}
+@media (max-width:980px){
+  .lp{grid-template-columns:1fr}
+  .lp-side{position:static;order:-1}
+}

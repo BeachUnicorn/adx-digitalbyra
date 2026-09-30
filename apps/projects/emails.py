@@ -218,16 +218,15 @@ def log_digest_body(customer, entries, period_label):
     return "\n".join(lines)
 
 
-def send_log_digest(customer, entries, period_label):
+def log_digest_message(customer, entries, period_label):
     """
-    Månadssammanställningen till kunden. Anropas BARA av
-    manage_views.customer_log_send - knappen. Returnerar (skickat, mottagare, brödtext).
+    Sammanställningen som den blir: (mottagare, ämne, textversion, html).
+    Förhandsgranskningen och utskicket använder BÅDA den här, så det
+    Giovanni ser innan han trycker är exakt det kunden får.
     """
     to = customer_recipients(customer)
-    body = log_digest_body(customer, entries, period_label)
-    if not to:
-        return False, to, body
     subject = f"Vad vi gjort för {customer.name}: {period_label}"
+    body = log_digest_body(customer, entries, period_label)
     html = _html(
         "log_digest",
         subject,
@@ -239,6 +238,18 @@ def send_log_digest(customer, entries, period_label):
         log_url=f"{_base_url()}/kund/logg/",
         reply_hint="Frågor om något av det här? Svara på mejlet.",
     )
+    return to, subject, body, html
+
+
+def send_log_digest(customer, entries, period_label):
+    """
+    Månadssammanställningen till kunden. Anropas BARA av
+    manage_views.customer_log_send - knappen på förhandsgranskningen.
+    Returnerar (skickat, mottagare, brödtext).
+    """
+    to, subject, body, html = log_digest_message(customer, entries, period_label)
+    if not to:
+        return False, to, body
     sent = _send(
         subject,
         body,

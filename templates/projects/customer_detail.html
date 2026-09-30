@@ -35,9 +35,11 @@
         {% empty %}<p class="tv-muted">Inget loggat än.</p>{% endfor %}
       </div>
       <div class="tv-logfoot">
-        <form method="post" action="{% url 'manage:customer_log_send' customer.pk %}" data-confirm="Mejla en sammanställning med {{ unsent_count }} rad{{ unsent_count|pluralize:"er" }} till kunden? Det är det enda mejl som går.">{% csrf_token %}
-          <button type="submit" class="m-btn m-btn--small"{% if not unsent_count %} disabled{% endif %}>Skicka sammanställning till kunden{% if unsent_count %} ({{ unsent_count }}){% endif %}</button>
-        </form>
+        {% if unsent_count %}
+        <a href="{% url 'manage:customer_log_preview' customer.pk %}" class="m-btn m-btn--small">Förhandsgranska sammanställning ({{ unsent_count }})</a>
+        {% else %}
+        <span class="m-btn m-btn--small is-disabled" aria-disabled="true">Inget osänt att skicka</span>
+        {% endif %}
         {% if last_digest %}<span class="tv-muted">Senast skickad {{ last_digest.sent_at|date:"j M Y" }} till {{ last_digest.sent_to }}</span>{% endif %}
       </div>
     </div>

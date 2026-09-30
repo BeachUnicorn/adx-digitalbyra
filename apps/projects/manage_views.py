@@ -961,14 +961,23 @@ def customer_log_delete(request, pk):
 @require_POST
 def customer_log_send(request, pk):
     """
-    DEN manuella knappen för loggen: mejlar alla osända rader som en
-    sammanställning och märker dem som skickade. Inget skickas annars.
+    DEN manuella knappen för loggen, på förhandsgranskningen: mejlar exakt
+    de rader som förhandsgranskades och märker dem som skickade. En rad som
+    lagts till efter förhandsgranskningen följer inte med. Inget skickas annars.
     """
     customer = get_object_or_404(Customer, pk=pk)
-    entries = list(customer.log_entries.filter(digest__isnull=True))
+    back = reverse("manage:customer_detail", args=[pk]) + "#logg"
+    ids = [int(x) for x in request.POST.get("entries", "").split(",") if x.strip().isdigit()]
+    entries = list(customer.log_entries.filter(digest__isnull=True, pk__in=ids))
     if not entries:
-        messages.error(request, "Inga osända loggrader.")
-        return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
+        messages.error(request, "Inga osända loggrader att skicka.")
+        return redirect(back)
+    if len(entries) != len(ids):
+        messages.error(
+            request,
+            "Loggen har ändrats sedan du förhandsgranskade. Inget skickat - granska igen.",
+        )
+        return redirect("manage:customer_log_preview", pk=pk)
     period = log_period_label(entries)
     sent, to, body = send_log_digest(customer, entries, period)
     if not sent:
@@ -977,7 +986,7 @@ def customer_log_send(request, pk):
             "Sammanställningen gick inte iväg: kunden saknar e-post eller e-posten är inte "
             "konfigurerad. Inget är märkt som skickat.",
         )
-        return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
+        return redirect(back)
     digest = LogDigest.objects.create(
         customer=customer,
         period_label=period,
@@ -990,7 +999,35 @@ def customer_log_send(request, pk):
         request,
         f"Sammanställningen ({len(entries)} rader, {period}) är mejlad till {', '.join(to)}.",
     )
-    return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
+    return redirect(back)
+
+
+@staff_required
+def customer_log_preview(request, pk):
+    """Loggmejlet som kunden kommer se det - byggt av samma funktion som skickar det."""
+    from django.conf import settings as django_settings
+
+    from apps.inquiries.emails import _email_configured
+
+    from .emails import log_digest_message
+
+    customer = get_object_or_404(Customer, pk=pk)
+    entries = list(customer.log_entries.filter(digest__isnull=True).order_by("date", "pk"))
+    context = {"customer": customer, "entries": entries, "title": "Förhandsgranska loggmejl"}
+    if entries:
+        period = log_period_label(entries)
+        to, subject, body, html = log_digest_message(customer, entries, period)
+        context.update(
+            period=period,
+            to=to,
+            subject=subject,
+            body=body,
+            html=html,
+            entry_ids=",".join(str(e.pk) for e in entries),
+            reply_to=django_settings.INQUIRY_NOTIFICATION_EMAIL,
+            email_ready=_email_configured(),
+        )
+    return render(request, "projects/log_preview.html", context)
 
 
 @staff_required

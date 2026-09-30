@@ -881,6 +881,14 @@ class DrawerTests(PortalFixtureMixin, TestCase):
 class CustomerLogTests(PortalFixtureMixin, TestCase):
     """Kundloggen: rader syns i portalen direkt, sammanställningen mejlas bara via knappen."""
 
+    def send(self, client, customer):
+        """Som knappen på förhandsgranskningen: skickar de rader som visades där."""
+        ids = ",".join(
+            str(pk)
+            for pk in customer.log_entries.filter(digest__isnull=True).values_list("pk", flat=True)
+        )
+        return client.post(f"/manage/kunder/{customer.pk}/logg/skicka/", {"entries": ids})
+
     def test_entries_are_added_and_visible_only_to_that_customer(self):
         client = self.as_staff()
         r = client.post(
@@ -908,7 +916,7 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
         )
         client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"date": "2026-09-20", "text": "SSL."})
         self.assertEqual(len(mail.outbox), 0)
-        client.post(f"/manage/kunder/{self.acme.pk}/logg/skicka/")
+        self.send(client, self.acme)
         self.assertEqual(len(mail.outbox), 1)
         message = mail.outbox[0]
         self.assertEqual(message.to, ["anna@acme.se"])
@@ -920,8 +928,62 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
         digest = self.acme.log_digests.get()
         self.assertEqual(digest.entries.count(), 2)
         # Inget osänt -> inget mejl.
-        client.post(f"/manage/kunder/{self.acme.pk}/logg/skicka/")
+        self.send(client, self.acme)
         self.assertEqual(len(mail.outbox), 1)
+
+    def test_preview_shows_exactly_the_mail_that_is_sent(self):
+        client = self.as_staff()
+        client.post(
+            f"/manage/kunder/{self.acme.pk}/logg/", {"date": "2026-09-19", "text": "Sentry."}
+        )
+        page = client.get(f"/manage/kunder/{self.acme.pk}/logg/forhandsgranska/")
+        self.assertEqual(page.status_code, 200)
+        html = page.content.decode()
+        self.assertIn("anna@acme.se", html)
+        self.assertIn("Vad vi gjort för Acme AB: september 2026", html)
+        self.assertIn("srcdoc=", html)
+        # Mejlets HTML ska ligga escapad I attributet - ett rått citattecken bryter
+        # iframen (tom ruta) och vore en väg ut ur attributet.
+        self.assertIn('srcdoc="&lt;!DOCTYPE html&gt;', html)
+        self.assertIn("lang=&quot;sv&quot;", html)
+        self.assertIn("adx-logo.png", html)  # mejlets HTML, escapad in i srcdoc
+        self.assertIn("Sentry.", html)
+        self.assertEqual(len(mail.outbox), 0, "förhandsgranskning skickar ingenting")
+        self.send(client, self.acme)
+        self.assertEqual(len(mail.outbox), 1)
+        from html import unescape
+
+        srcdoc = unescape(html.split('srcdoc="')[1].split('" data-lp-frame')[0])
+        self.assertEqual(srcdoc, mail.outbox[0].alternatives[0][0])
+
+    def test_a_row_added_after_the_preview_stops_the_send(self):
+        client = self.as_staff()
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "Granskad."})
+        previewed = ",".join(str(e.pk) for e in self.acme.log_entries.all())
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "Kom till efteråt."})
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/skicka/", {"entries": previewed})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertNotIn("Kom till efteråt.", mail.outbox[0].body)
+        self.assertTrue(
+            self.acme.log_entries.filter(text="Kom till efteråt.", digest=None).exists()
+        )
+
+    def test_changed_log_is_refused_and_sends_nothing(self):
+        client = self.as_staff()
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "A"})
+        stale = ",".join(str(e.pk) for e in self.acme.log_entries.all())
+        self.acme.log_entries.all().delete()
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "B"})
+        r = client.post(f"/manage/kunder/{self.acme.pk}/logg/skicka/", {"entries": stale})
+        self.assertEqual(len(mail.outbox), 0)
+        self.assertEqual(r.status_code, 302)
+
+    def test_the_card_offers_preview_not_a_direct_send(self):
+        client = self.as_staff()
+        client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "A"})
+        panel = client.get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        self.assertIn("/logg/forhandsgranska/", panel)
+        self.assertNotIn("/logg/skicka/", panel)
 
     def test_sent_rows_cannot_be_deleted_but_unsent_can(self):
         client = self.as_staff()
@@ -930,7 +992,7 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
         a = self.acme.log_entries.get(text="A")
         client.post(f"/manage/logg/{a.pk}/ta-bort/")
         self.assertEqual(self.acme.log_entries.count(), 1)
-        client.post(f"/manage/kunder/{self.acme.pk}/logg/skicka/")
+        self.send(client, self.acme)
         b = self.acme.log_entries.get(text="B")
         client.post(f"/manage/logg/{b.pk}/ta-bort/")
         self.assertEqual(self.acme.log_entries.count(), 1, "skickad rad ligger kvar")
@@ -939,7 +1001,7 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
         client = self.as_staff()
         self.other.users.clear()
         client.post(f"/manage/kunder/{self.other.pk}/logg/", {"text": "X"})
-        client.post(f"/manage/kunder/{self.other.pk}/logg/skicka/")
+        self.send(client, self.other)
         self.assertEqual(len(mail.outbox), 0)
         self.assertTrue(self.other.log_entries.filter(digest__isnull=True).exists())
         self.assertEqual(self.other.log_digests.count(), 0)

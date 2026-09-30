@@ -1,0 +1,93 @@
+{% extends "projects/base_board.html" %}
+{% comment %}
+Förhandsgranskning av loggmejlet (manage_views.customer_log_preview).
+Mejlet byggs av samma funktion som skickar det (emails.log_digest_message),
+så det som visas här är exakt det kunden får. Mejlet ritas i en sandlådad
+iframe utan allow-scripts: inget i mejlet kan köras, och dess stilar kan inte
+påverka panelen. allow-same-origin gör att panelen kan läsa mejlets höjd och
+ge iframen den - annars en ruta i rutan som scrollar. Skicka-knappen
+bär id:na på de förhandsgranskade raderna - kommer en ny rad till under
+tiden skickas ingenting.
+{% endcomment %}
+{% block board %}
+<div class="tv-head">
+  <div>
+    <div class="tv-kicker"><a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}#logg">{{ customer.name }}</a></div>
+    <h1 class="tv-h1">Förhandsgranska loggmejl</h1>
+    <div class="tv-sub">Så här ser mejlet ut för kunden. Inget har skickats än.</div>
+  </div>
+</div>
+
+{% if not entries %}
+<div class="m-panel tv-panel"><p class="tv-empty tv-empty--inline">Inga osända loggrader. Det finns inget att skicka.</p>
+  <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:customer_detail' customer.pk %}#logg">Tillbaka till kunden</a></div>
+{% else %}
+<div class="lp">
+  <div class="lp-mail">
+    <div class="lp-toolbar" role="group" aria-label="Visa som">
+      <button type="button" class="tv-pill is-on" data-lp-width="100%">Dator</button>
+      <button type="button" class="tv-pill" data-lp-width="390px">Mobil</button>
+    </div>
+    <div class="lp-frame">
+      <iframe title="Mejlet som kunden ser det" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" srcdoc="{{ html|force_escape }}" data-lp-frame></iframe>
+    </div>
+    <details class="lp-text">
+      <summary>Textversionen (för e-postprogram som inte visar bilder och formatering)</summary>
+      <pre>{{ body }}</pre>
+    </details>
+  </div>
+
+  <aside class="lp-side">
+    <div class="m-panel tv-panel">
+      <div class="tv-sec-title">Utskick</div>
+      <dl class="lp-meta">
+        <dt>Till</dt>
+        <dd>{% if to %}{% for address in to %}{{ address }}{% if not forloop.last %}<br>{% endif %}{% endfor %}{% else %}<span class="lp-bad">Ingen mottagare. Lägg till en portalkontakt eller kundens e-post på kundkortet.</span>{% endif %}</dd>
+        <dt>Ämne</dt><dd>{{ subject }}</dd>
+        <dt>Svar går till</dt><dd>{{ reply_to }}</dd>
+        <dt>Innehåll</dt><dd>{{ entries|length }} loggrad{{ entries|length|pluralize:"er" }}, {{ period }}</dd>
+      </dl>
+      {% if not email_ready %}<p class="lp-bad">E-posten är inte konfigurerad på den här servern. Mejlet går inte iväg.</p>{% endif %}
+      <form method="post" action="{% url 'manage:customer_log_send' customer.pk %}" data-confirm="Mejla sammanställningen till {{ to|join:', ' }}? Raderna märks som skickade.">{% csrf_token %}
+        <input type="hidden" name="entries" value="{{ entry_ids }}">
+        <button type="submit" class="m-btn"{% if not to or not email_ready %} disabled{% endif %}>Skicka till kunden</button>
+      </form>
+      <a class="m-btn m-btn--ghost lp-back" href="{% url 'manage:customer_detail' customer.pk %}#logg">Tillbaka och ändra</a>
+      <p class="tv-prop__note">Ändrar du eller lägger till en rad, öppna förhandsgranskningen igen innan du skickar.</p>
+    </div>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+(function () {
+  var frame = document.querySelector("[data-lp-frame]");
+  if (!frame) return;
+  function fit() {
+    try {
+      var doc = frame.contentDocument;
+      if (doc && doc.body) frame.style.height = doc.body.scrollHeight + "px";
+    } catch (e) { /* utan åtkomst står den fasta höjden kvar */ }
+  }
+  function ready() {
+    fit();
+    // Loggan laddas efter texten och ändrar höjden.
+    var imgs = frame.contentDocument ? frame.contentDocument.images : [];
+    Array.prototype.forEach.call(imgs, function (img) { img.addEventListener("load", fit); });
+  }
+  frame.addEventListener("load", ready);
+  // srcdoc kan hinna ladda innan det här skriptet körs.
+  try { if (frame.contentDocument && frame.contentDocument.readyState === "complete") ready(); } catch (e) {}
+  document.querySelectorAll("[data-lp-width]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll("[data-lp-width]").forEach(function (x) { x.classList.toggle("is-on", x === b); });
+      frame.style.width = b.getAttribute("data-lp-width");
+      setTimeout(fit, 250);
+    });
+  });
+})();
+</script>
+{% endblock %}

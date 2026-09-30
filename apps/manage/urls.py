@@ -66,6 +66,11 @@ urlpatterns = [
     path("kunder/<int:pk>/visa-som/", project_views.customer_view_as, name="customer_view_as"),
     path("kunder/<int:pk>/logg/", project_views.customer_log_add, name="customer_log_add"),
     path("kunder/<int:pk>/logg/skicka/", project_views.customer_log_send, name="customer_log_send"),
+    path(
+        "kunder/<int:pk>/logg/forhandsgranska/",
+        project_views.customer_log_preview,
+        name="customer_log_preview",
+    ),
     path("logg/<int:pk>/ta-bort/", project_views.customer_log_delete, name="customer_log_delete"),
     path(
         "kunder/<int:pk>/kontakt/<int:user_id>/ta-bort/",
