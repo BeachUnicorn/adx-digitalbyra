@@ -2,19 +2,18 @@
 Summorna på kundens offertsida. data-base-* är de FASTA radernas summor -
 skriptet räknar om totalen (och momsen) när kunden togglar tillval. Utan JS
 står de serverrenderade beloppen (förvalen) kvar och checkboxarna gäller ändå.
-Priserna lagras exklusive moms; momsen räknas fram här för att kunden ska se
-vad som faktiskt ska betalas.
+Priserna är exklusive moms; momsen specificeras på egen rad under varje
+summa. Totalen inklusive moms visas inte (Giovanni 2026-10-01).
 {% endcomment %}
 <div class="of-totals"
      data-base-one="{{ base.one_time }}"
      data-base-monthly="{{ base.monthly }}"
      data-base-yearly="{{ base.yearly }}"
      data-vat-rate="{{ vat_rate }}">
-    <div class="of-trow"><span>Summa exklusive moms</span><b id="sum-one">{{ quote.totals_display.one_time }} kr</b></div>
-    <div class="of-trow"><span>Moms {{ vat_rate }} %</span><b id="sum-vat">{{ vat.one_time_vat }} kr</b></div>
-    <div class="of-trow of-trow--main"><span>Att betala vid leverans, inklusive moms</span><b id="sum-inc">{{ vat.one_time_inc }} kr</b></div>
+    <div class="of-trow of-trow--main"><span>Att betala vid leverans</span><b id="sum-one">{{ quote.totals_display.one_time }} kr</b></div>
+    <div class="of-trow of-trow--sub"><span>Moms {{ vat_rate }} %</span><b id="sum-vat">{{ vat.one_time }} kr</b></div>
     <div class="of-trow" id="row-monthly" {% if not totals.monthly %}hidden{% endif %}><span>Löpande per månad</span><b id="sum-monthly">{{ quote.totals_display.monthly }} kr/mån</b></div>
-    <div class="of-trow of-trow--sub" id="row-monthly-inc" {% if not totals.monthly %}hidden{% endif %}><span>Löpande per månad, inklusive moms</span><b id="sum-monthly-inc">{{ vat.monthly_inc }} kr/mån</b></div>
+    <div class="of-trow of-trow--sub" id="row-monthly-vat" {% if not totals.monthly %}hidden{% endif %}><span>Moms {{ vat_rate }} %</span><b id="sum-monthly-vat">{{ vat.monthly }} kr/mån</b></div>
     <div class="of-trow" id="row-yearly" {% if not totals.yearly %}hidden{% endif %}><span>Löpande per år</span><b id="sum-yearly">{{ quote.totals_display.yearly }} kr/år</b></div>
-    <div class="of-trow of-trow--sub" id="row-yearly-inc" {% if not totals.yearly %}hidden{% endif %}><span>Löpande per år, inklusive moms</span><b id="sum-yearly-inc">{{ vat.yearly_inc }} kr/år</b></div>
+    <div class="of-trow of-trow--sub" id="row-yearly-vat" {% if not totals.yearly %}hidden{% endif %}><span>Moms {{ vat_rate }} %</span><b id="sum-yearly-vat">{{ vat.yearly }} kr/år</b></div>
 </div>

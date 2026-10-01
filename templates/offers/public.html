@@ -20,7 +20,7 @@ Ingen text under 16 px.
     <div class="of-doc">
         <div class="of-head">
             <img src="{% static 'images/adx-logo.png' %}" alt="{{ site_settings.name|default:'ADX' }}" class="of-logo">
-            <p class="of-kicker">Offert <b>{{ quote.pk }}</b></p>
+            <p class="of-kicker">Offert</p>
         </div>
         <h1>{% if quote.project_title %}{{ quote.project_title }}{% else %}Offert{% endif %}</h1>
         <p class="of-intro">
@@ -180,13 +180,12 @@ Ingen text under 16 px.
         function vat(n) { return Math.round(n * rate / 100); }
         document.getElementById("sum-one").textContent = kr(sums.one_time) + " kr";
         document.getElementById("sum-vat").textContent = kr(vat(sums.one_time)) + " kr";
-        document.getElementById("sum-inc").textContent = kr(sums.one_time + vat(sums.one_time)) + " kr";
         document.getElementById("sum-monthly").textContent = kr(sums.monthly) + " kr/mån";
-        document.getElementById("sum-monthly-inc").textContent = kr(sums.monthly + vat(sums.monthly)) + " kr/mån";
+        document.getElementById("sum-monthly-vat").textContent = kr(vat(sums.monthly)) + " kr/mån";
         document.getElementById("sum-yearly").textContent = kr(sums.yearly) + " kr/år";
-        document.getElementById("sum-yearly-inc").textContent = kr(sums.yearly + vat(sums.yearly)) + " kr/år";
-        document.getElementById("row-monthly-inc").hidden = sums.monthly === 0;
-        document.getElementById("row-yearly-inc").hidden = sums.yearly === 0;
+        document.getElementById("sum-yearly-vat").textContent = kr(vat(sums.yearly)) + " kr/år";
+        document.getElementById("row-monthly-vat").hidden = sums.monthly === 0;
+        document.getElementById("row-yearly-vat").hidden = sums.yearly === 0;
         document.getElementById("row-monthly").hidden = sums.monthly === 0;
         document.getElementById("row-yearly").hidden = sums.yearly === 0;
     }

@@ -59,12 +59,15 @@ class SectionTests(TestCase):
         self.assertLess(lopande, html.index("Drift"))
         self.assertNotIn(">Ingår<", html)
 
-    def test_totals_show_vat_and_amount_including_vat(self):
+    def test_totals_specify_vat_but_never_a_total_including_vat(self):
+        """Giovanni 2026-10-01: momsen specificeras, totalen räknar kunden själv."""
         html = self.page(self.make_quote())
         self.assertIn("Moms 25 %", html)
         self.assertIn("12 500 kr", html)  # moms på 50 000
-        self.assertIn("62 500 kr", html)  # inklusive moms
-        self.assertIn("1 250 kr/mån", html)  # drift inklusive moms
+        self.assertIn("250 kr/mån", html)  # moms på driften
+        self.assertNotIn("62 500", html)
+        self.assertNotIn("1 250", html)
+        self.assertNotIn("inklusive moms", html)
         self.assertIn('data-vat-rate="25"', html)
         # Inga årsrader här, och dolda rader ska förbli dolda trots display:flex.
         self.assertIn('id="row-yearly" hidden', html)
@@ -133,7 +136,16 @@ class SectionTests(TestCase):
         quote = self.make_quote()
         html = self.client.get(f"/offert/{quote.token}/acceptera/").content.decode()
         self.assertIn("Moms 25 %", html)
-        self.assertIn("62 500 kr", html)
+        self.assertIn("12 500 kr", html)
+        self.assertNotIn("62 500", html)
+
+    def test_the_customer_never_sees_the_offer_number(self):
+        """Numret avslöjar hur många offerter byrån skapat."""
+        quote = self.make_quote()
+        for url in (quote.get_public_url(), f"/offert/{quote.token}/acceptera/"):
+            html = self.client.get(url).content.decode()
+            kicker = html.split('class="of-kicker"')[1].split("</p>")[0]
+            self.assertNotIn(str(quote.pk), kicker, url)
 
 
 class OptionPriceLayoutTests(TestCase):

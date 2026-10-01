@@ -121,12 +121,7 @@ def _render_accept(request, quote, form, chosen):
             "chosen": sorted(chosen),
             "sums": {key: format_kr(value) for key, value in sums.items()},
             "raw_sums": sums,
-            "vat": {
-                "one_time_vat": format_kr(vat_of(sums["one_time"])),
-                "one_time_inc": format_kr(sums["one_time"] + vat_of(sums["one_time"])),
-                "monthly_inc": format_kr(sums["monthly"] + vat_of(sums["monthly"])),
-                "yearly_inc": format_kr(sums["yearly"] + vat_of(sums["yearly"])),
-            },
+            "vat": {key: format_kr(vat_of(value)) for key, value in sums.items()},
             "vat_rate": VAT_RATE,
             "client_ip": client_ip(request),
         },

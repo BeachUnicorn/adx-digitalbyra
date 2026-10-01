@@ -290,14 +290,9 @@ class Quote(models.Model):
         return {key: format_kr(value) for key, value in self.totals().items()}
 
     def vat_display(self):
-        """Moms och belopp inklusive moms, för engångssumman och de löpande."""
+        """Momsbeloppet per pristyp. Totalen inklusive moms visas inte - momsen specificeras."""
         totals = self.totals()
-        return {
-            "one_time_vat": format_kr(vat_of(totals["one_time"])),
-            "one_time_inc": format_kr(totals["one_time"] + vat_of(totals["one_time"])),
-            "monthly_inc": format_kr(totals["monthly"] + vat_of(totals["monthly"])),
-            "yearly_inc": format_kr(totals["yearly"] + vat_of(totals["yearly"])),
-        }
+        return {key: format_kr(vat_of(value)) for key, value in totals.items()}
 
     def is_answerable(self):
         """Kan kunden fortfarande agera på offerten?"""
