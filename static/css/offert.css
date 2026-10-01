@@ -39,7 +39,7 @@ h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; le
 /* Tillval: hela raden är en klickbar toggle. */
 .of-opts { margin-top: 30px; }
 .of-lead { font-size: 17px; color: var(--m-text-muted); margin: 0 0 8px; }
-.of-opt { display: grid; grid-template-columns: auto 1fr auto; gap: 2px 18px; align-items: center;
+.of-opt { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 18px; align-items: center;
           padding: 16px 0; border-top: 1px solid var(--m-border); cursor: pointer; }
 .of-opt input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .of-opt .switch { grid-row: span 2; width: 58px; height: 34px; border-radius: 999px; position: relative;
@@ -50,7 +50,7 @@ h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; le
 .of-opt:has(input:checked) .switch { background: var(--m-accent); }
 .of-opt:has(input:checked) .switch::after { transform: translateX(24px); }
 .of-opt:has(input:focus-visible) .switch { outline: 2px solid var(--m-text); outline-offset: 2px; }
-.of-opt-name { font-size: 18px; font-weight: 600; display: block; }
+.of-opt-name { font-size: 18px; font-weight: 600; display: block; overflow-wrap: anywhere; hyphens: auto; }
 .of-opt-desc { font-size: 17px; color: var(--m-text-muted); display: block; line-height: 1.5; }
 .of-opt-price { font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; opacity: .45;
                 transition: opacity .18s ease; font-weight: 600; }
@@ -62,6 +62,8 @@ h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; le
            color: var(--m-text-muted); }
 .of-trow b { color: var(--m-text); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .of-trow--main { font-size: 20px; color: var(--m-text); font-weight: 600; }
+/* display:flex ovan slår annars ut webbläsarens [hidden] - då syntes "Löpande per år 0 kr/år". */
+.of-trow[hidden] { display: none; }
 .of-trow--main b { font-size: 26px; font-weight: 700; }
 .of-valid { font-size: 17px; color: var(--m-text-muted); margin: 22px 0 30px; }
 
@@ -99,6 +101,12 @@ h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; le
     .of-doc { padding: 34px 24px 32px; border-radius: 22px; }
     .of-meta th { width: 130px; }
     .of-lines td:last-child { padding-left: 12px; }
+    /* Tillval på telefon: priset under texten i stället för bredvid. Bredvid
+       klipptes "12 000 kr" i högerkanten när namnet hade ett långt ord
+       (Sökordsannonsering), eftersom 1fr-kolumnen inte kunde krympa. */
+    .of-opt { grid-template-columns: auto minmax(0, 1fr); }
+    .of-opt .switch { grid-row: span 2; }
+    .of-opt-price { grid-column: 2; font-size: 17px; margin-top: 4px; }
 }
 @media print {
     body.m-body { background: #fff; }
@@ -144,3 +152,39 @@ h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; le
 .of-ip { display: none; font-size: 17px; color: var(--m-text-muted); margin: -6px 0 0; padding: 0 20px; line-height: 1.5; }
 .of-ip b { color: var(--m-text); font-family: var(--s-mono); font-weight: 600; }
 .of-confirm:has(input:checked) + .of-ip { display: block; }
+
+/* ===== Det här ingår, Löpande, Villkor, kontaktperson (2026-10-01) ===== */
+.of-block { margin: 0 0 34px; }
+.of-sub { font-size: 17px; color: var(--m-text-muted); margin: -2px 0 8px; }
+.of-incl { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+.of-incl li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; padding: 14px 0;
+              border-top: 1px solid var(--m-border); font-size: 18px; line-height: 1.5; }
+.of-incl b { display: block; font-weight: 600; }
+.of-incl li > span > span { display: block; color: var(--m-text-muted); font-size: 17px; }
+/* Bocken: svart cirkel med vit bock, ritad i CSS - ingen bild att ladda. */
+.of-incl__mark { position: relative; width: 22px; height: 22px; border-radius: 50%; background: var(--m-accent); margin-top: 3px; }
+.of-incl__mark::after { content: ""; position: absolute; left: 7px; top: 6px; width: 8px; height: 4px;
+                        border-left: 2px solid var(--m-accent-text); border-bottom: 2px solid var(--m-accent-text);
+                        transform: rotate(-45deg); }
+.of-trow--sub { font-size: 17px; }
+.of-block--terms { margin: 28px 0 26px; }
+.of-terms { list-style: none; padding: 0; margin: 0; }
+.of-terms li { padding: 12px 0; border-top: 1px solid var(--m-border); font-size: 17px; line-height: 1.5; }
+.of-terms li:last-child { border-bottom: 1px solid var(--m-border); }
+.of-contact { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 18px; align-items: center;
+              border: 1px solid var(--m-border); border-radius: 20px; padding: 20px 22px; background: var(--m-bg);
+              margin: 0 0 26px; }
+.of-avatar { width: 64px; height: 64px; border-radius: 50%; background: var(--m-accent); color: var(--m-accent-text);
+             display: grid; place-items: center; font-family: var(--s-grot); font-weight: 700; font-size: 22px; }
+.of-contact b { display: block; font-size: 19px; }
+.of-contact span > span { display: block; font-size: 17px; color: var(--m-text-muted); }
+.of-contact a { color: var(--m-text); font-size: 17px; overflow-wrap: anywhere; }
+/* Står efter basreglerna ovan, annars vinner de. */
+@media (max-width: 640px) {
+    /* Totalen: beloppet under etiketten i stället för bredvid - annars bröts
+       "Att betala vid leverans, inklusive moms" på fyra rader. */
+    .of-trow--main { flex-direction: column; gap: 2px; }
+    .of-incl { grid-template-columns: 1fr; }
+    .of-contact { grid-template-columns: 52px minmax(0, 1fr); padding: 16px 18px; }
+    .of-avatar { width: 52px; height: 52px; font-size: 19px; }
+}

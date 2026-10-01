@@ -178,6 +178,39 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
                 <input class="o-meta" data-field="valid_until" type="date" value="{{ quote.valid_until|date:'Y-m-d' }}"></div>
         </div>
 
+        {% comment %}
+        Offertsidans texter. Mallarna KOPIERAS in - offerten är en
+        affärshandling och ändras inte när mallen ändras. Mallarna redigeras
+        under Produkter. Autosparas som fälten ovan och låses vid accept.
+        {% endcomment %}
+        <div class="m-panel o-card">
+            <h2 class="o-card__title">Texter på offertsidan</h2>
+            <div class="m-field">
+                <label for="o-includes">Det här ingår</label>
+                {% if includes_templates %}
+                <select class="m-select o-template" data-target="o-includes" aria-label="Hämta från mall">
+                    <option value="">Hämta från mall...</option>
+                    {% for t in includes_templates %}<option value="{{ t.pk }}">{{ t.name }}</option>{% endfor %}
+                </select>
+                {% endif %}
+                <textarea id="o-includes" class="o-meta" data-field="includes" rows="6" placeholder="Design efter ert varumärke: Ett förslag ni godkänner innan vi bygger.">{{ quote.includes }}</textarea>
+                <p class="m-field-help">En punkt per rad. Skriv "Rubrik: förklaring" för fet rubrik med förklaring under. Tomt = sektionen visas inte.</p>
+            </div>
+            <div class="m-field">
+                <label for="o-terms">Villkor</label>
+                {% if terms_templates %}
+                <select class="m-select o-template" data-target="o-terms" aria-label="Hämta från mall">
+                    <option value="">Hämta från mall...</option>
+                    {% for t in terms_templates %}<option value="{{ t.pk }}">{{ t.name }}</option>{% endfor %}
+                </select>
+                {% endif %}
+                <textarea id="o-terms" class="o-meta" data-field="terms" rows="4">{{ quote.terms }}</textarea>
+                <p class="m-field-help">Ett villkor per rad. "Alla priser exklusive moms" och giltighetstiden skrivs automatiskt överst.</p>
+            </div>
+            <p class="m-field-help"><a href="{% url 'manage:product_list' %}#texter">Redigera mallarna</a></p>
+            {{ template_texts|json_script:"o-template-texts" }}
+        </div>
+
         <div class="m-panel o-card">
             <h2 class="o-card__title">Bilagor</h2>
             <p class="af-hero__desc">Visas som knappar på kundens offertsida, bara om det finns några. Typiskt en PDF med mer information.</p>
@@ -364,6 +397,21 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
             });
         }
         input.addEventListener("change", save);
+    });
+
+    // --- Mallar: kopierar in mallens text i fältet och sparar --------------
+    var templateTexts = JSON.parse((document.getElementById("o-template-texts") || {}).textContent || "{}");
+    document.querySelectorAll(".o-template").forEach(function (select) {
+        if (locked) { select.disabled = true; return; }
+        select.addEventListener("change", function () {
+            var text = templateTexts[select.value];
+            var target = document.getElementById(select.dataset.target);
+            select.value = "";
+            if (!text || !target) return;
+            if (target.value.trim() && !window.confirm("Ersätta texten med mallen?")) return;
+            target.value = text;
+            target.dispatchEvent(new Event("change"));
+        });
     });
 
     if (locked) {

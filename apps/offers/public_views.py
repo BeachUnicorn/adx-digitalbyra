@@ -26,7 +26,7 @@ from apps.website.models import SiteSettings
 
 from .emails import send_accepted_notification, send_question_to_staff
 from .forms import AcceptForm
-from .models import PricePeriod, Quote, QuoteAttachment, QuoteLine, QuoteStatus
+from .models import VAT_RATE, PricePeriod, Quote, QuoteAttachment, QuoteLine, QuoteStatus, vat_of
 
 
 def _get_quote(token):
@@ -84,8 +84,15 @@ def offer_public(request, token):
             "quote": quote,
             "site_settings": SiteSettings.load(),
             "totals": quote.totals(),
+            "vat": quote.vat_display(),
+            "vat_rate": VAT_RATE,
             "base": _base_totals(lines),
             "table_lines": table_lines,
+            # Pris = engångsposter, Löpande = per månad/år. Samma rader som
+            # förut, bara uppdelade så att kunden ser vad som återkommer.
+            "one_time_lines": [ln for ln in table_lines if ln.period == PricePeriod.ONE_TIME],
+            "recurring_lines": [ln for ln in table_lines if ln.period != PricePeriod.ONE_TIME],
+            "contact": quote.contact(),
             "optional_lines": [ln for ln in lines if ln.is_optional] if answerable else [],
             "attachments": list(quote.attachments.all()),
             "question_sent": request.GET.get("fraga") == "tack",
@@ -114,6 +121,13 @@ def _render_accept(request, quote, form, chosen):
             "chosen": sorted(chosen),
             "sums": {key: format_kr(value) for key, value in sums.items()},
             "raw_sums": sums,
+            "vat": {
+                "one_time_vat": format_kr(vat_of(sums["one_time"])),
+                "one_time_inc": format_kr(sums["one_time"] + vat_of(sums["one_time"])),
+                "monthly_inc": format_kr(sums["monthly"] + vat_of(sums["monthly"])),
+                "yearly_inc": format_kr(sums["yearly"] + vat_of(sums["yearly"])),
+            },
+            "vat_rate": VAT_RATE,
             "client_ip": client_ip(request),
         },
     )

@@ -36,9 +36,13 @@ valda tillval, med summa) och fyller i beställarens uppgifter. Tillvalen
                 </tbody>
             </table>
             <div class="of-totals">
-                <div class="of-trow of-trow--main"><span>Att betala vid leverans</span><b>{{ sums.one_time }} kr</b></div>
-                {% if raw_sums.monthly %}<div class="of-trow"><span>Löpande per månad</span><b>{{ sums.monthly }} kr/mån</b></div>{% endif %}
-                {% if raw_sums.yearly %}<div class="of-trow"><span>Löpande per år</span><b>{{ sums.yearly }} kr/år</b></div>{% endif %}
+                <div class="of-trow"><span>Summa exklusive moms</span><b>{{ sums.one_time }} kr</b></div>
+                <div class="of-trow"><span>Moms {{ vat_rate }} %</span><b>{{ vat.one_time_vat }} kr</b></div>
+                <div class="of-trow of-trow--main"><span>Att betala vid leverans, inklusive moms</span><b>{{ vat.one_time_inc }} kr</b></div>
+                {% if raw_sums.monthly %}<div class="of-trow"><span>Löpande per månad</span><b>{{ sums.monthly }} kr/mån</b></div>
+                <div class="of-trow of-trow--sub"><span>Löpande per månad, inklusive moms</span><b>{{ vat.monthly_inc }} kr/mån</b></div>{% endif %}
+                {% if raw_sums.yearly %}<div class="of-trow"><span>Löpande per år</span><b>{{ sums.yearly }} kr/år</b></div>
+                <div class="of-trow of-trow--sub"><span>Löpande per år, inklusive moms</span><b>{{ vat.yearly_inc }} kr/år</b></div>{% endif %}
             </div>
             <p class="of-valid">Alla priser exklusive moms.{% if quote.valid_until %} Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}</p>
         </div>

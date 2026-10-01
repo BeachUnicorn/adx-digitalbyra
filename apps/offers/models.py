@@ -44,6 +44,58 @@ def format_kr(amount):
     return f"{amount:,}".replace(",", " ")
 
 
+#: Momssatsen på offertsidan. Priserna lagras exklusive moms; momsen räknas
+#: bara fram för visning, så att kunden ser vad som faktiskt ska betalas.
+VAT_RATE = 25
+
+
+def vat_of(amount):
+    return round(amount * VAT_RATE / 100)
+
+
+class TextKind(models.TextChoices):
+    INCLUDES = "includes", "Det här ingår"
+    TERMS = "terms", "Villkor"
+
+
+class OfferText(models.Model):
+    """
+    Färdiga texter för offertsidan: listor för "Det här ingår" (en per typ
+    av uppdrag) och villkor. Mallen KOPIERAS in i offerten - en skickad
+    offert är en affärshandling och ändras inte när mallen ändras.
+    En villkorsmall kan vara standard: den hamnar i varje ny offert.
+    """
+
+    kind = models.CharField("Typ", max_length=10, choices=TextKind.choices)
+    name = models.CharField("Namn", max_length=120)
+    text = models.TextField("Text", help_text="En rad per punkt.")
+    is_default = models.BooleanField("Standard för nya offerter", default=False)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["kind", "order", "name"]
+        verbose_name = "Offerttext"
+        verbose_name_plural = "Offerttexter"
+
+    def __str__(self):
+        return f"{self.get_kind_display()}: {self.name}"
+
+    @classmethod
+    def default_terms(cls):
+        text = cls.objects.filter(kind=TextKind.TERMS, is_default=True).first()
+        return text.text if text else ""
+
+
+def text_lines(text):
+    """Icke-tomma rader, utan inledande streck eller punkter."""
+    out = []
+    for raw in (text or "").splitlines():
+        line = raw.strip().lstrip("-*\u2022").strip()
+        if line:
+            out.append(line)
+    return out
+
+
 class PricePeriod(models.TextChoices):
     ONE_TIME = "one_time", "Engång"
     MONTHLY = "monthly", "Per månad"
@@ -109,6 +161,16 @@ class Quote(models.Model):
         blank=True,
         help_text="Visas överst på kundens offertsida.",
     )
+    includes = models.TextField(
+        "Det här ingår",
+        blank=True,
+        help_text="En rad per punkt. 'Rubrik: förklaring' ger fet rubrik och förklaring under.",
+    )
+    terms = models.TextField(
+        "Villkor",
+        blank=True,
+        help_text="En rad per villkor. Moms och giltighetstid skrivs automatiskt.",
+    )
     status = models.CharField(max_length=10, choices=QuoteStatus.choices, default=QuoteStatus.DRAFT)
     valid_until = models.DateField("Giltig till", null=True, blank=True)
 
@@ -153,8 +215,57 @@ class Quote(models.Model):
     def __str__(self):
         return f"{self.customer_name} - {self.project_title or 'offert'}"
 
+    def save(self, *args, **kwargs):
+        # En ny offert får standardvillkoren inkopierade. Därefter är de
+        # offertens egna - ändras mallen påverkas inte redan skickade offerter.
+        if self._state.adding and not self.terms:
+            self.terms = OfferText.default_terms()
+        super().save(*args, **kwargs)
+
     def get_public_url(self):
         return f"/offert/{self.token}/"
+
+    def includes_items(self):
+        """[(rubrik, förklaring)] - 'Rubrik: förklaring' delas på första kolon."""
+        items = []
+        for line in text_lines(self.includes):
+            title, sep, rest = line.partition(":")
+            if sep and rest.strip() and len(title) <= 80:
+                items.append((title.strip(), rest.strip()))
+            else:
+                items.append((line, ""))
+        return items
+
+    def terms_lines(self):
+        """Villkoren som kunden ser: moms och giltighet först, sedan offertens egna."""
+        lines = ["Alla priser i svenska kronor, exklusive moms."]
+        if self.valid_until:
+            from django.utils.formats import date_format
+
+            lines.append(f"Offerten gäller till den {date_format(self.valid_until, 'j F Y')}.")
+        return lines + text_lines(self.terms)
+
+    def contact(self):
+        """
+        ADX-personen bakom offerten: namn ur kontot och svarsadressen för
+        kundmejl. Saknar kontot namn används användarnamnet (giovanni.palermo
+        blir Giovanni Palermo). None om det inte finns någon person att visa.
+        """
+        user = self.created_by
+        if user is None:
+            return None
+        name = user.get_full_name().strip()
+        if not name:
+            handle = user.get_username().split("@")[0]
+            if any(sep in handle for sep in "._"):
+                name = " ".join(
+                    part.capitalize() for part in handle.replace("_", ".").split(".") if part
+                )
+        if not name:
+            return None
+        email = getattr(settings, "CUSTOMER_REPLY_TO_EMAIL", "") or user.email
+        initials = "".join(part[0] for part in name.split()[:2]).upper()
+        return {"name": name, "email": email, "initials": initials}
 
     @property
     def customer(self):
@@ -178,6 +289,16 @@ class Quote(models.Model):
     def totals_display(self):
         return {key: format_kr(value) for key, value in self.totals().items()}
 
+    def vat_display(self):
+        """Moms och belopp inklusive moms, för engångssumman och de löpande."""
+        totals = self.totals()
+        return {
+            "one_time_vat": format_kr(vat_of(totals["one_time"])),
+            "one_time_inc": format_kr(totals["one_time"] + vat_of(totals["one_time"])),
+            "monthly_inc": format_kr(totals["monthly"] + vat_of(totals["monthly"])),
+            "yearly_inc": format_kr(totals["yearly"] + vat_of(totals["yearly"])),
+        }
+
     def is_answerable(self):
         """Kan kunden fortfarande agera på offerten?"""
         return self.status in (QuoteStatus.SENT, QuoteStatus.OPENED)
@@ -197,6 +318,8 @@ class Quote(models.Model):
             customer_email=customer_email.strip()[:254],
             project_title=(self.project_title if project_title is None else project_title)[:200],
             intro=self.intro,
+            includes=self.includes,
+            terms=self.terms,
             valid_until=timezone.localdate() + timezone.timedelta(days=30),
             created_by=user,
             copied_from=self,

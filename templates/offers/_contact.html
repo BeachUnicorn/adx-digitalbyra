@@ -1,0 +1,7 @@
+{% comment %}Personen bakom offerten (Quote.contact): namn ur kontot, svarsadressen för kundmejl.{% endcomment %}
+{% if contact %}
+<div class="of-contact">
+    <span class="of-avatar" aria-hidden="true">{{ contact.initials }}</span>
+    <span><b>{{ contact.name }}</b><span>Er kontakt på ADX</span><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></span>
+</div>
+{% endif %}

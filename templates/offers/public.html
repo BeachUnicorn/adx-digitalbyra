@@ -30,7 +30,7 @@ Ingen text under 16 px.
         <table class="of-meta">
             <tbody>
                 <tr><th>Till</th><td>{{ quote.customer_name }}{% if quote.customer_email %}<br>{{ quote.customer_email }}{% endif %}</td></tr>
-                <tr><th>Från</th><td>{{ site_settings.name|default:"ADX" }}{% if site_settings.email %}<br>{{ site_settings.email }}{% endif %}</td></tr>
+                <tr><th>Från</th><td>{% if contact %}{{ site_settings.name|default:"ADX" }}, {{ contact.name }}<br>{{ contact.email }}{% else %}{{ site_settings.name|default:"ADX" }}{% if site_settings.email %}<br>{{ site_settings.email }}{% endif %}{% endif %}</td></tr>
                 <tr><th>Datum</th><td>{{ quote.sent_at|default:quote.created_at|date:"j F Y" }}</td></tr>
                 {% if quote.valid_until %}<tr><th>Giltig till</th><td>{{ quote.valid_until|date:"j F Y" }}</td></tr>{% endif %}
                 <tr><th>Priser</th><td>Alla priser i svenska kronor, exklusive moms</td></tr>
@@ -57,17 +57,49 @@ Ingen text under 16 px.
         </div>
         {% endif %}
 
-        <p class="of-section">{% if quote.is_answerable and optional_lines %}Ingår{% else %}Omfattning{% endif %}</p>
-        <table class="of-lines">
-            <tbody>
-                {% for line in table_lines %}
-                <tr>
-                    <td>{{ line.label }}{% if line.description %}<span class="d">{{ line.description }}</span>{% endif %}</td>
-                    <td>{{ line.price_display }}</td>
-                </tr>
+        {% with items=quote.includes_items %}{% if items %}
+        <div class="of-block">
+            <p class="of-section">Det här ingår</p>
+            <ul class="of-incl">
+                {% for title, text in items %}
+                <li><span class="of-incl__mark" aria-hidden="true"></span><span><b>{{ title }}</b>{% if text %}<span>{{ text }}</span>{% endif %}</span></li>
                 {% endfor %}
-            </tbody>
-        </table>
+            </ul>
+        </div>
+        {% endif %}{% endwith %}
+
+        {% if one_time_lines %}
+        <div class="of-block">
+            <p class="of-section">Pris</p>
+            <table class="of-lines">
+                <tbody>
+                    {% for line in one_time_lines %}
+                    <tr>
+                        <td>{{ line.label }}{% if line.description %}<span class="d">{{ line.description }}</span>{% endif %}</td>
+                        <td>{{ line.price_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if recurring_lines %}
+        <div class="of-block">
+            <p class="of-section">Löpande</p>
+            <p class="of-sub">Betalas löpande efter leverans.</p>
+            <table class="of-lines">
+                <tbody>
+                    {% for line in recurring_lines %}
+                    <tr>
+                        <td>{{ line.label }}{% if line.description %}<span class="d">{{ line.description }}</span>{% endif %}</td>
+                        <td>{{ line.price_display }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
 
         {% if quote.is_answerable %}
         <form method="get" action="{% url 'offers:accept' quote.token %}">
@@ -93,10 +125,8 @@ Ingen text under 16 px.
 
             {% include "offers/_totals.html" %}
 
-            <p class="of-valid">
-                Alla priser exklusive moms.
-                {% if quote.valid_until %}Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}
-            </p>
+            {% include "offers/_terms.html" %}
+            {% include "offers/_contact.html" %}
 
             <div class="of-actions">
                 <button type="submit" class="of-accept">Acceptera offerten</button>
@@ -113,10 +143,8 @@ Ingen text under 16 px.
         </details>
         {% else %}
         {% include "offers/_totals.html" %}
-        <p class="of-valid">
-            Alla priser exklusive moms.
-            {% if quote.valid_until %}Offerten gäller till den {{ quote.valid_until|date:"j F Y" }}.{% endif %}
-        </p>
+        {% include "offers/_terms.html" %}
+        {% include "offers/_contact.html" %}
         {% endif %}
 
         {% if quote.sent_at %}
@@ -148,9 +176,17 @@ Ingen text under 16 px.
         boxes.forEach(function (box) {
             if (box.checked) { sums[box.dataset.period] += parseInt(box.dataset.price, 10) || 0; }
         });
+        var rate = parseInt(totals.dataset.vatRate, 10) || 0;
+        function vat(n) { return Math.round(n * rate / 100); }
         document.getElementById("sum-one").textContent = kr(sums.one_time) + " kr";
+        document.getElementById("sum-vat").textContent = kr(vat(sums.one_time)) + " kr";
+        document.getElementById("sum-inc").textContent = kr(sums.one_time + vat(sums.one_time)) + " kr";
         document.getElementById("sum-monthly").textContent = kr(sums.monthly) + " kr/mån";
+        document.getElementById("sum-monthly-inc").textContent = kr(sums.monthly + vat(sums.monthly)) + " kr/mån";
         document.getElementById("sum-yearly").textContent = kr(sums.yearly) + " kr/år";
+        document.getElementById("sum-yearly-inc").textContent = kr(sums.yearly + vat(sums.yearly)) + " kr/år";
+        document.getElementById("row-monthly-inc").hidden = sums.monthly === 0;
+        document.getElementById("row-yearly-inc").hidden = sums.yearly === 0;
         document.getElementById("row-monthly").hidden = sums.monthly === 0;
         document.getElementById("row-yearly").hidden = sums.yearly === 0;
     }

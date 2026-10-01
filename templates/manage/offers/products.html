@@ -51,4 +51,46 @@ Utseendet ligger i skinnets delfil "affar" (klasserna af- och o-prod).
     </p>
     {% endfor %}
 </div>
+
+{% comment %}
+Mallar för offertsidans texter. Väljs i offerten och KOPIERAS in - en
+skickad offert ändras aldrig när en mall ändras. Villkorsmallen som är
+standard hamnar automatiskt i varje ny offert.
+{% endcomment %}
+<div class="m-panel af-hero" id="texter">
+    <div class="af-hero__row"><h2 class="af-hero__title">Texter på offertsidan</h2></div>
+    <p class="af-hero__desc">Färdiga listor för "Det här ingår" och villkor. En punkt per rad; "Rubrik: förklaring" ger fet rubrik. Väljs i offerten och kopieras in, så redan skickade offerter ändras aldrig.</p>
+</div>
+<div class="m-panel">
+    {% for t in texts %}
+    <form method="post" action="{% url 'manage:offer_text_update' t.pk %}" class="o-text-row">
+        {% csrf_token %}
+        <div class="o-text-row__head">
+            <input name="name" value="{{ t.name }}" aria-label="Mallens namn" class="o-prod__name">
+            <select name="kind" aria-label="Typ">
+                {% for value, label in text_kinds.choices %}<option value="{{ value }}"{% if t.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+            {% if t.kind == "terms" %}<label class="o-prod__active"><input type="checkbox" name="is_default"{% if t.is_default %} checked{% endif %}> Standard för nya offerter</label>{% endif %}
+        </div>
+        <textarea name="text" rows="5" aria-label="Text">{{ t.text }}</textarea>
+        <div class="o-text-row__actions">
+            <button type="submit" class="m-btn m-btn--small m-btn--ghost">Spara</button>
+            <button type="submit" name="action" value="delete" class="m-btn m-btn--small m-btn--ghost" onclick="return confirm('Ta bort mallen {{ t.name|escapejs }}?')">Ta bort</button>
+        </div>
+    </form>
+    {% empty %}
+    <p class="af-empty">Inga mallar än.</p>
+    {% endfor %}
+    <form method="post" action="{% url 'manage:offer_text_create' %}" class="o-text-row o-text-row--new">
+        {% csrf_token %}
+        <div class="o-text-row__head">
+            <input name="name" placeholder="Ny mall, t.ex. Webbshop" aria-label="Mallens namn" class="o-prod__name" required>
+            <select name="kind" aria-label="Typ">
+                {% for value, label in text_kinds.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <textarea name="text" rows="4" placeholder="Rubrik: förklaring" aria-label="Text"></textarea>
+        <div class="o-text-row__actions"><button type="submit" class="m-btn m-btn--small">Skapa mall</button></div>
+    </form>
+</div>
 {% endblock %}

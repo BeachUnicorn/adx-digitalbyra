@@ -30,7 +30,16 @@ from apps.website.models import SiteSettings
 
 from .emails import send_quote_to_customer
 from .forms import AttachForm
-from .models import PricePeriod, Product, Quote, QuoteAttachment, QuoteLine, QuoteStatus
+from .models import (
+    OfferText,
+    PricePeriod,
+    Product,
+    Quote,
+    QuoteAttachment,
+    QuoteLine,
+    QuoteStatus,
+    TextKind,
+)
 
 
 def _ctx(**extra):
@@ -125,6 +134,9 @@ def offer_edit(request, pk):
             periods=PricePeriod,
             totals=quote.totals(),
             statuses=QuoteStatus,
+            includes_templates=OfferText.objects.filter(kind=TextKind.INCLUDES),
+            terms_templates=OfferText.objects.filter(kind=TextKind.TERMS),
+            template_texts={str(t.pk): t.text for t in OfferText.objects.all()},
         ),
     )
 
@@ -151,7 +163,7 @@ def offer_update(request, pk):
     content = {key: value for key, value in data.items() if key != "project"}
     if content and _locked(quote):
         return JsonResponse({"ok": False, "error": "Accepterad offert är låst."}, status=400)
-    editable = ("customer_name", "customer_email", "project_title", "intro")
+    editable = ("customer_name", "customer_email", "project_title", "intro", "includes", "terms")
     for field in editable:
         if field in content:
             # Trunkera mot fältets faktiska max_length - en platt gräns
@@ -541,8 +553,57 @@ def product_list(request):
     return render(
         request,
         "manage/offers/products.html",
-        _ctx(products=Product.objects.all(), periods=PricePeriod),
+        _ctx(
+            products=Product.objects.all(),
+            periods=PricePeriod,
+            texts=OfferText.objects.all(),
+            text_kinds=TextKind,
+        ),
     )
+
+
+def _save_text(text, request):
+    text.name = request.POST.get("name", "").strip()[:120] or text.name or "Namnlös"
+    kind = request.POST.get("kind", "")
+    if kind in TextKind.values:
+        text.kind = kind
+    text.text = request.POST.get("text", "").strip()
+    # Standard finns bara för villkor, och bara en åt gången.
+    text.is_default = text.kind == TextKind.TERMS and request.POST.get("is_default") == "on"
+    text.save()
+    if text.is_default:
+        OfferText.objects.filter(kind=text.kind, is_default=True).exclude(pk=text.pk).update(
+            is_default=False
+        )
+
+
+@login_required
+@require_POST
+def offer_text_create(request):
+    if not request.POST.get("text", "").strip():
+        messages.error(request, "Skriv mallens text.")
+        return redirect(reverse("manage:product_list") + "#texter")
+    text = OfferText(kind=TextKind.INCLUDES)
+    _save_text(text, request)
+    messages.success(request, f"Mallen {text.name} är skapad.")
+    return redirect(reverse("manage:product_list") + "#texter")
+
+
+@login_required
+@require_POST
+def offer_text_update(request, pk):
+    text = get_object_or_404(OfferText, pk=pk)
+    if request.POST.get("action") == "delete":
+        text.delete()
+        messages.success(
+            request, "Mallen är borttagen. Offerter som redan använt den påverkas inte."
+        )
+    else:
+        _save_text(text, request)
+        messages.success(
+            request, f"Mallen {text.name} är sparad. Redan skapade offerter påverkas inte."
+        )
+    return redirect(reverse("manage:product_list") + "#texter")
 
 
 @login_required

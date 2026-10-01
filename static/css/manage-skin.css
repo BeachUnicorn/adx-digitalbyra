@@ -1807,3 +1807,12 @@ body.mob-menu-open{overflow:hidden}
   .mob-brand{display:flex}
 }
 
+
+/* Offerttextmallar under Produkter (manage/offers/products.html). */
+.o-text-row{display:flex;flex-direction:column;gap:10px;padding:18px 22px;border-top:1px solid var(--m-border)}
+.o-text-row:first-child{border-top:0}
+.o-text-row__head{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.o-text-row__head .o-prod__name{flex:1 1 220px}
+.o-text-row textarea{font:inherit;font-size:15px;line-height:1.5;width:100%;padding:12px 14px;border:1px solid var(--m-border);border-radius:14px;background:var(--s-field);color:var(--m-text);resize:vertical}
+.o-text-row__actions{display:flex;gap:8px;flex-wrap:wrap}
+.o-text-row--new{background:var(--s-hover)}

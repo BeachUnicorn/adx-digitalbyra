@@ -125,6 +125,8 @@ urlpatterns = [
     path("produkter/", offer_views.product_list, name="product_list"),
     path("produkter/ny/", offer_views.product_create, name="product_create"),
     path("produkter/<int:pk>/uppdatera/", offer_views.product_update, name="product_update"),
+    path("offerttexter/ny/", offer_views.offer_text_create, name="offer_text_create"),
+    path("offerttexter/<int:pk>/", offer_views.offer_text_update, name="offer_text_update"),
     # Versionshistorik (apps/assistant)
     path(
         "historik/<slug:app_label>/<slug:model_name>/<int:pk>/",

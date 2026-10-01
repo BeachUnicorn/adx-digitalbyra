@@ -1,0 +1,7 @@
+{% comment %}Villkoren: moms och giltighet skrivs automatiskt, resten är offertens egna (Quote.terms).{% endcomment %}
+<div class="of-block of-block--terms">
+    <p class="of-section">Villkor</p>
+    <ul class="of-terms">
+        {% for line in quote.terms_lines %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+</div>
