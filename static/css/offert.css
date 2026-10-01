@@ -166,7 +166,10 @@ h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; le
 .of-incl__mark::after { content: ""; position: absolute; left: 7px; top: 6px; width: 8px; height: 4px;
                         border-left: 2px solid var(--m-accent-text); border-bottom: 2px solid var(--m-accent-text);
                         transform: rotate(-45deg); }
-.of-trow--sub { font-size: 17px; }
+/* Momsraderna: underordnade summan ovanför - mindre, gråare, närmare.
+   16 px är sidans golv (ingen text under 16 px på en affärshandling). */
+.of-trow--sub { font-size: 16px; padding-top: 0; margin-top: -4px; }
+.of-trow--sub b { color: var(--m-text-muted); font-weight: 500; }
 .of-block--terms { margin: 28px 0 26px; }
 .of-terms { list-style: none; padding: 0; margin: 0; }
 .of-terms li { padding: 12px 0; border-top: 1px solid var(--m-border); font-size: 17px; line-height: 1.5; }
