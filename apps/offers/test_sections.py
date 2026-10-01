@@ -211,3 +211,79 @@ class ShareLinkTests(TestCase):
         self.share()
         self.quote.refresh_from_db()
         self.assertEqual(self.quote.status, QuoteStatus.ACCEPTED)
+
+
+class DeclineTests(TestCase):
+    """Kunden kan tacka nej: två steg, skäl valfritt, notis till byrån, går att öppna igen."""
+
+    EMAIL = {
+        "EMAIL_BACKEND": "django.core.mail.backends.locmem.EmailBackend",
+        "EMAIL_HOST_USER": "x",
+        "EMAIL_HOST_PASSWORD": "x",
+        "INQUIRY_NOTIFICATION_EMAIL": "byran@example.com",
+    }
+
+    def setUp(self):
+        self.quote = Quote.objects.create(
+            customer_name="Verkstad AB", customer_email="kund@example.com"
+        )
+        QuoteLine.objects.create(quote=self.quote, label="Hemsida", price=24995, order=1)
+        Quote.objects.filter(pk=self.quote.pk).update(status=QuoteStatus.SENT)
+
+    def test_the_offer_page_has_a_red_decline_button_next_to_accept(self):
+        html = self.client.get(self.quote.get_public_url()).content.decode()
+        self.assertIn('class="of-decline"', html)
+        self.assertIn(f"/offert/{self.quote.token}/tacka-nej/", html)
+        css = (Path(settings.BASE_DIR) / "static" / "css" / "offert.css").read_text()
+        rule = css.split(".of-decline {")[1].split("}")[0]
+        self.assertIn("background: var(--s-danger)", rule)
+
+    def test_the_first_click_only_shows_the_confirmation_page(self):
+        r = self.client.get(f"/offert/{self.quote.token}/tacka-nej/")
+        self.assertContains(r, "Varför tackar ni nej?")
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.SENT)
+
+    def test_declining_records_the_reason_and_notifies_the_agency_once(self):
+        from django.core import mail
+
+        with self.settings(**self.EMAIL):
+            url = f"/offert/{self.quote.token}/tacka-nej/"
+            self.client.post(url, {"reason": "price", "message": "För dyrt för oss just nu."})
+            self.client.post(url, {"reason": "timing"})  # dubbelklick
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.DECLINED)
+        self.assertEqual(self.quote.decline_reason, "price")
+        self.assertIsNotNone(self.quote.declined_at)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ["byran@example.com"])
+        self.assertIn("Priset passar inte", mail.outbox[0].body)
+        self.assertIn("För dyrt för oss just nu.", mail.outbox[0].body)
+        page = self.client.get(self.quote.get_public_url()).content.decode()
+        self.assertIn("Ni har tackat nej", page)
+        self.assertNotIn("Acceptera offerten", page)
+
+    def test_no_reason_is_fine_and_an_unknown_reason_is_dropped(self):
+        self.client.post(f"/offert/{self.quote.token}/tacka-nej/", {"reason": "<script>"})
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.DECLINED)
+        self.assertEqual(self.quote.decline_reason, "")
+
+    def test_an_accepted_offer_cannot_be_declined(self):
+        Quote.objects.filter(pk=self.quote.pk).update(status=QuoteStatus.ACCEPTED)
+        self.client.post(f"/offert/{self.quote.token}/tacka-nej/", {"reason": "price"})
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.ACCEPTED)
+
+    def test_staff_sees_the_reason_and_can_reopen(self):
+        staff = get_user_model().objects.create_user("byra", password="x12345678", is_staff=True)
+        self.client.post(f"/offert/{self.quote.token}/tacka-nej/", {"reason": "scope"})
+        self.client.force_login(staff)
+        page = self.client.get(f"/manage/offerter/{self.quote.pk}/").content.decode()
+        self.assertIn("Kunden tackade nej", page)
+        self.assertIn("Förslaget passar inte våra behov", page)
+        self.client.post(f"/manage/offerter/{self.quote.pk}/status/", {"status": "sent"})
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.SENT)
+        self.assertIsNone(self.quote.declined_at)
+        self.assertEqual(self.quote.decline_reason, "scope", "skälet sparas som historik")

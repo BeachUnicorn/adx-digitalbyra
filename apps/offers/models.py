@@ -131,6 +131,14 @@ class Product(models.Model):
         return self.name
 
 
+class DeclineReason(models.TextChoices):
+    PRICE = "price", "Priset passar inte"
+    OTHER_SUPPLIER = "other_supplier", "Vi har valt en annan leverantör"
+    TIMING = "timing", "Inte aktuellt just nu"
+    SCOPE = "scope", "Förslaget passar inte våra behov"
+    OTHER = "other", "Annat"
+
+
 class QuoteStatus(models.TextChoices):
     DRAFT = "draft", "Utkast"
     SENT = "sent", "Skickad"
@@ -195,6 +203,13 @@ class Quote(models.Model):
     accept_billing_email = models.EmailField("Faktura-e-post", blank=True)
     accept_reference = models.CharField("Er referens", max_length=100, blank=True)
     accept_message = models.TextField("Meddelande", blank=True)
+    # Kundens nej, från offertsidan. Skälet är valfritt men guld värt för
+    # nästa offert; det sparas även om offerten senare öppnas igen.
+    decline_reason = models.CharField(
+        "Skäl", max_length=20, choices=DeclineReason.choices, blank=True
+    )
+    decline_message = models.TextField("Kundens kommentar", blank=True)
+    declined_ip = models.GenericIPAddressField(null=True, blank=True)
 
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL

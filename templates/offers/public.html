@@ -39,6 +39,8 @@ Ingen text under 16 px.
 
         {% if quote.status == 'accepted' %}
         <p class="of-banner of-banner--ok">Offerten är accepterad{% if quote.accepted_at %} {{ quote.accepted_at|date:"j F Y" }}{% endif %}{% if quote.accepted_by %} av {{ quote.accepted_by }}{% endif %}{% if quote.accepted_ip %} (IP {{ quote.accepted_ip }}){% endif %}. Tack! Vi hör av oss om nästa steg.</p>
+        {% elif quote.status == 'declined' %}
+        <p class="of-banner of-banner--declined">Ni har tackat nej till offerten{% if quote.declined_at %} {{ quote.declined_at|date:"j F Y" }}{% endif %}. Tack för beskedet. Har ni ändrat er, eller har ni frågor? Kontakta oss{% if contact %} på <a href="mailto:{{ contact.email }}">{{ contact.email }}</a>{% endif %}.</p>
         {% elif question_sent %}
         <p class="of-banner">Frågan är skickad. Vi återkommer till er.</p>
         {% elif question_failed %}
@@ -133,6 +135,9 @@ Ingen text under 16 px.
                 <p class="of-legal">Nästa steg: fyll i era uppgifter och bekräfta beställningen{% if optional_lines %} med de tillval ni valt{% endif %}.</p>
             </div>
         </form>
+        <div class="of-decline-row">
+            <a href="{% url 'offers:decline' quote.token %}" class="of-decline">Tacka nej</a>
+        </div>
         <details class="of-ask">
             <summary>Ställ en fråga</summary>
             <form method="post" action="{% url 'offers:question' quote.token %}" class="q">
@@ -151,7 +156,7 @@ Ingen text under 16 px.
         <div class="of-trail" aria-label="Offertens status">
             <span class="done">Skickad {{ quote.sent_at|date:"j M" }}</span>
             {% if quote.opened_at %}<span class="done">Öppnad {{ quote.opened_at|date:"j M" }}</span>{% else %}<span>Öppnad</span>{% endif %}
-            {% if quote.accepted_at %}<span class="done">Accepterad {{ quote.accepted_at|date:"j M" }}</span>{% else %}<span>Accepterad</span>{% endif %}
+            {% if quote.status == 'declined' %}<span class="declined">Avböjd {{ quote.declined_at|date:"j M" }}</span>{% elif quote.accepted_at %}<span class="done">Accepterad {{ quote.accepted_at|date:"j M" }}</span>{% else %}<span>Accepterad</span>{% endif %}
         </div>
         {% endif %}
     </div>

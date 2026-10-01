@@ -1823,3 +1823,7 @@ body.mob-menu-open{overflow:hidden}
 .o-share__url{flex:1;min-width:0;font-family:var(--s-mono);font-size:13px;padding:10px 12px;border:1px solid var(--m-border);border-radius:12px;background:var(--s-field);color:var(--m-text)}
 .o-share form{margin:0}
 .o-share .m-btn{width:auto}
+
+/* Kundens nej på offerten (manage/offers/edit.html). */
+.o-declined-by{margin-top:14px;padding:14px 16px;border:1px solid var(--s-danger-soft);background:var(--s-danger-bg);border-radius:14px}
+.o-declined-by .o-card__title{color:var(--s-danger)}

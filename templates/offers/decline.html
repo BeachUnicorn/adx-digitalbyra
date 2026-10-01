@@ -1,0 +1,46 @@
+{% load static %}{% comment %}
+Steg två när kunden tackar nej (public_views.offer_decline). Skälet är
+valfritt: ett nej utan skäl är bättre än inget svar alls. Stäng-knappen
+leder tillbaka till offerten - ingenting har hänt förrän kunden bekräftar.
+{% endcomment %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Tacka nej till offert från {{ site_settings.name|default:"ADX" }}</title>
+<link rel="stylesheet" href="{% static 'css/manage.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/manage-skin.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/offert.css' %}?v={{ static_version }}">
+</head>
+<body class="m-body">
+<div class="of-shell">
+    <div class="of-doc">
+        <div class="of-head">
+            <img src="{% static 'images/adx-logo.png' %}" alt="{{ site_settings.name|default:'ADX' }}" class="of-logo">
+            <p class="of-kicker">Offert</p>
+        </div>
+        <h1>Tacka nej</h1>
+        <p class="of-intro">Tack för att ni tog er tid att läsa förslaget{% if quote.project_title %} om {{ quote.project_title|lower }}{% endif %}. Berätta gärna varför ni tackar nej, så blir nästa förslag bättre. Det är frivilligt.</p>
+
+        <form method="post" class="of-form">
+            {% csrf_token %}
+            <fieldset class="of-reasons">
+                <legend class="of-section">Varför tackar ni nej?</legend>
+                {% for value, label in reasons %}
+                <label class="of-reason"><input type="radio" name="reason" value="{{ value }}"> <span>{{ label }}</span></label>
+                {% endfor %}
+            </fieldset>
+            <div class="of-field">
+                <label for="decline-message">Något mer ni vill säga? (valfritt)</label>
+                <textarea id="decline-message" name="message" maxlength="2000"></textarea>
+            </div>
+            <div class="of-actions">
+                <button type="submit" class="of-decline-confirm">Tacka nej till offerten</button>
+            </div>
+        </form>
+        <p class="of-back"><a href="{% url 'offers:public' quote.token %}">Tillbaka till offerten</a></p>
+    </div>
+</div>
+</body>
+</html>

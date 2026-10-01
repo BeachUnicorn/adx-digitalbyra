@@ -24,9 +24,22 @@ from django.utils import timezone
 
 from apps.website.models import SiteSettings
 
-from .emails import send_accepted_notification, send_question_to_staff
+from .emails import (
+    send_accepted_notification,
+    send_declined_notification,
+    send_question_to_staff,
+)
 from .forms import AcceptForm
-from .models import VAT_RATE, PricePeriod, Quote, QuoteAttachment, QuoteLine, QuoteStatus, vat_of
+from .models import (
+    VAT_RATE,
+    DeclineReason,
+    PricePeriod,
+    Quote,
+    QuoteAttachment,
+    QuoteLine,
+    QuoteStatus,
+    vat_of,
+)
 
 
 def _get_quote(token):
@@ -168,6 +181,45 @@ def offer_accept(request, token):
     if updated:
         quote.refresh_from_db()
         send_accepted_notification(quote)
+    return redirect("offers:public", token=token)
+
+
+def offer_decline(request, token):
+    """
+    GET: sidan där kunden tackar nej (skäl valfritt). POST: nejet självt.
+    Två steg som accepten - ett felklick på offertsidan ska inte kunna
+    stänga affären. Villkorad UPDATE: dubbelklick ger ett nej och ett mejl.
+    """
+    quote = _get_quote(token)
+    if not quote.is_answerable():
+        return redirect("offers:public", token=token)
+    if request.method != "POST":
+        return render(
+            request,
+            "offers/decline.html",
+            {
+                "quote": quote,
+                "site_settings": SiteSettings.load(),
+                "reasons": DeclineReason.choices,
+            },
+        )
+    reason = request.POST.get("reason", "")
+    if reason not in DeclineReason.values:
+        reason = ""
+    with transaction.atomic():
+        updated = Quote.objects.filter(
+            pk=quote.pk, status__in=(QuoteStatus.SENT, QuoteStatus.OPENED)
+        ).update(
+            status=QuoteStatus.DECLINED,
+            declined_at=timezone.now(),
+            declined_ip=client_ip(request),
+            decline_reason=reason,
+            decline_message=request.POST.get("message", "").strip()[:2000],
+            updated_at=timezone.now(),
+        )
+    if updated:
+        quote.refresh_from_db()
+        send_declined_notification(quote)
     return redirect("offers:public", token=token)
 
 

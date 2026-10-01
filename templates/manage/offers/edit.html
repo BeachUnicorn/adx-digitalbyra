@@ -295,6 +295,13 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
                     <button type="submit" class="m-btn m-btn--small m-btn--ghost">Markera förlorad</button>
                 </form>
                 {% endif %}
+                {% if quote.status == 'declined' %}
+                <form method="post" action="{% url 'manage:offer_status' quote.pk %}"
+                      onsubmit="return confirm('Öppna offerten igen? Kunden kan då acceptera den via samma länk.');">
+                    {% csrf_token %}<input type="hidden" name="status" value="sent">
+                    <button type="submit" class="m-btn m-btn--small m-btn--ghost">Öppna offerten igen</button>
+                </form>
+                {% endif %}
                 <a href="{% url 'manage:offer_list' %}" class="m-btn m-btn--small m-btn--ghost" data-copy="{% url 'manage:offer_duplicate' quote.pk %}">Kopiera till annan kund</a>
                 <form method="post" action="{% url 'manage:offer_delete' quote.pk %}"
                       onsubmit="return confirm('Ta bort hela offerten?');">
@@ -306,6 +313,17 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
             <p class="o-sent-meta">
                 Skickad {{ quote.sent_at|date:"j M H:i" }}{% if quote.opened_at %} &middot; Öppnad {{ quote.opened_at|date:"j M H:i" }}{% endif %}{% if quote.accepted_at %} &middot; Accepterad {{ quote.accepted_at|date:"j M H:i" }}{% endif %}
             </p>
+            {% endif %}
+            {% if quote.declined_ip or quote.decline_reason or quote.decline_message %}
+            <div class="o-declined-by">
+                <div class="o-card__title">{% if quote.status == 'declined' %}Kunden tackade nej{% else %}Tackade nej tidigare{% endif %}</div>
+                <dl class="tv-facts">
+                    <dt>Skäl</dt><dd>{% if quote.decline_reason %}{{ quote.get_decline_reason_display }}{% else %}Inget angivet{% endif %}</dd>
+                    {% if quote.decline_message %}<dt>Kommentar</dt><dd>{{ quote.decline_message|linebreaksbr }}</dd>{% endif %}
+                    {% if quote.declined_at %}<dt>När</dt><dd>{{ quote.declined_at|date:"j M Y H:i" }}</dd>{% endif %}
+                    {% if quote.declined_ip %}<dt>IP</dt><dd>{{ quote.declined_ip }}</dd>{% endif %}
+                </dl>
+            </div>
             {% endif %}
             {% if quote.accepted_by %}
             <div class="o-accepted-by">

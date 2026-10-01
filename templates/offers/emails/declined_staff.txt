@@ -1,0 +1,10 @@
+{{ quote.customer_name }} har tackat nej till offerten{% if quote.project_title %} för {{ quote.project_title }}{% endif %}.
+
+Skäl: {% if quote.decline_reason %}{{ quote.get_decline_reason_display }}{% else %}inget angivet{% endif %}
+{% if quote.decline_message %}
+Kommentar:
+{{ quote.decline_message }}
+{% endif %}
+Offerten är markerad som förlorad. Du kan öppna den igen i /manage/ om kunden ändrar sig.
+
+{{ base_url }}/manage/offerter/{{ quote.pk }}/

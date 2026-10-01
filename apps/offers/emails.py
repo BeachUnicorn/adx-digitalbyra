@@ -64,6 +64,17 @@ def send_accepted_notification(quote):
     )
 
 
+def send_declined_notification(quote):
+    """Till oss: kunden tackade nej på offertsidan, med skäl om det angavs."""
+    return _send(
+        subject=f"Tackade nej: {quote.customer_name} - {quote.project_title or 'offert'}",
+        template="declined_staff",
+        context={"quote": quote},
+        to=_as_list(settings.INQUIRY_NOTIFICATION_EMAIL),
+        reply_to=[quote.customer_email] if quote.customer_email else None,
+    )
+
+
 def send_question_to_staff(quote, message):
     """Kundens fråga från offertsidan, med reply-to satt till kunden."""
     return _send(

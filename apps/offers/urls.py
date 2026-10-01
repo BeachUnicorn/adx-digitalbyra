@@ -9,6 +9,7 @@ app_name = "offers"
 urlpatterns = [
     path("offert/<str:token>/", public_views.offer_public, name="public"),
     path("offert/<str:token>/acceptera/", public_views.offer_accept, name="accept"),
+    path("offert/<str:token>/tacka-nej/", public_views.offer_decline, name="decline"),
     path("offert/<str:token>/fraga/", public_views.offer_question, name="question"),
     path(
         "offert/<str:token>/bilaga/<int:pk>/",

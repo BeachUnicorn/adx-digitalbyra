@@ -191,3 +191,26 @@ h1 { font-family: var(--s-grot); font-weight: 700; text-transform: uppercase; le
     .of-contact { grid-template-columns: 52px minmax(0, 1fr); padding: 16px 18px; }
     .of-avatar { width: 52px; height: 52px; font-size: 19px; }
 }
+
+/* ===== Tacka nej (2026-10-01): röd, mindre än Acceptera ===== */
+.of-decline-row { display: flex; justify-content: center; margin-top: 14px; }
+.of-decline { display: inline-block; font-family: var(--s-mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase;
+              font-weight: 600; color: #fff; background: var(--s-danger); border: 0;
+              border-radius: 999px; padding: 13px 30px; text-decoration: none; transition: filter .15s ease, transform .15s ease; }
+.of-decline:hover { filter: brightness(.9); transform: translateY(-1px); }
+.of-decline:focus-visible { outline: 2px solid var(--s-danger); outline-offset: 3px; }
+.of-decline-confirm { font-family: var(--s-mono); font-size: 17px; letter-spacing: .1em; text-transform: uppercase; font-weight: 600;
+                      color: #fff; background: var(--s-danger); border: 0; border-radius: 999px; padding: 20px 24px;
+                      cursor: pointer; width: 100%; }
+.of-decline-confirm:hover { filter: brightness(.92); }
+.of-decline-confirm:focus-visible { outline: 2px solid var(--s-danger); outline-offset: 3px; }
+@media (max-width: 640px) { .of-decline-confirm { font-size: 16px; letter-spacing: .04em; padding: 18px 12px; } }
+.of-reasons { border: 0; padding: 0; margin: 0 0 6px; display: grid; gap: 8px; }
+.of-reasons legend { padding: 0; margin-bottom: 8px; }
+.of-reason { display: flex; gap: 12px; align-items: center; padding: 14px 16px; border: 1px solid var(--m-border);
+             border-radius: 14px; font-size: 18px; cursor: pointer; background: var(--s-field); }
+.of-reason input { width: 20px; height: 20px; accent-color: var(--m-accent); margin: 0; flex: none; }
+.of-reason:has(input:checked) { border-color: var(--m-text); }
+.of-banner--declined { border-color: var(--s-danger-soft); background: var(--s-danger-bg); color: var(--m-text); font-weight: 500; }
+.of-trail span.declined { color: var(--s-danger); border-color: var(--s-danger-soft); background: var(--s-danger-bg); }
+

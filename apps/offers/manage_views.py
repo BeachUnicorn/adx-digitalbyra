@@ -200,6 +200,12 @@ def offer_status(request, pk):
         quote.accepted_at = timezone.now()
     if status == QuoteStatus.DECLINED and not quote.declined_at:
         quote.declined_at = timezone.now()
+    if status == QuoteStatus.SENT:
+        # Öppna igen efter ett nej: länken fungerar och kunden kan acceptera.
+        # Skälet till nejet sparas som historik, tidpunkten nollställs.
+        quote.declined_at = None
+        if not quote.sent_at:
+            quote.sent_at = timezone.now()
     quote.save()
     messages.success(request, f"Status: {quote.get_status_display()}.")
     return redirect("manage:offer_edit", pk=pk)
