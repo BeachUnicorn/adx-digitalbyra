@@ -241,6 +241,27 @@ avsnittet Affär) och går alltid via tokens. tavla.css för faktalistan
                     {% if quote.sent_at %}Skicka igen{% else %}Skicka till kund{% endif %}
                 </button>
             </form>
+            {% comment %}
+            Kundlänken. Acceptera-knappen syns bara när offerten är skickad, så
+            ett utkast måste aktiveras först - med mejl ovan, eller här utan
+            mejl (kund utan e-post, eller länken skickas på annat sätt).
+            {% endcomment %}
+            <div class="o-share" id="kundlank">
+                {% if quote.status == 'sent' or quote.status == 'opened' %}
+                <label for="o-share-url" class="o-card__title">Länk till kunden</label>
+                <div class="o-share__row">
+                    <input id="o-share-url" class="o-share__url" value="{{ public_url }}" readonly onclick="this.select()">
+                    <button type="button" class="m-btn m-btn--small" data-copy-target="o-share-url">Kopiera</button>
+                </div>
+                {% elif quote.status != 'accepted' %}
+                <form method="post" action="{% url 'manage:offer_share' quote.pk %}"
+                      onsubmit="return confirm('Aktivera länken utan att mejla? Offerten markeras som skickad och kunden kan acceptera den.');">
+                    {% csrf_token %}
+                    <button type="submit" class="m-btn m-btn--small m-btn--ghost">Ta fram länk utan mejl</button>
+                </form>
+                <p class="m-field-help">Markerar offerten som skickad, utan mejl. Använd när kunden saknar e-post eller länken skickas på annat sätt.</p>
+                {% endif %}
+            </div>
             <a href="{{ quote.get_public_url }}" target="_blank" rel="noopener" class="m-btn m-btn--small m-btn--ghost o-preview">
                 Visa kundsidan &#8599;
             </a>

@@ -100,6 +100,7 @@ urlpatterns = [
     path("offerter/<int:pk>/uppdatera/", offer_views.offer_update, name="offer_update"),
     path("offerter/<int:pk>/status/", offer_views.offer_status, name="offer_status"),
     path("offerter/<int:pk>/skicka/", offer_views.offer_send, name="offer_send"),
+    path("offerter/<int:pk>/dela/", offer_views.offer_share, name="offer_share"),
     path("offerter/<int:pk>/ta-bort/", offer_views.offer_delete, name="offer_delete"),
     path(
         "offerter/<int:pk>/arenden/",

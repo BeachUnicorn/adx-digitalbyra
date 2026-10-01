@@ -1816,3 +1816,10 @@ body.mob-menu-open{overflow:hidden}
 .o-text-row textarea{font:inherit;font-size:15px;line-height:1.5;width:100%;padding:12px 14px;border:1px solid var(--m-border);border-radius:14px;background:var(--s-field);color:var(--m-text);resize:vertical}
 .o-text-row__actions{display:flex;gap:8px;flex-wrap:wrap}
 .o-text-row--new{background:var(--s-hover)}
+
+/* Kundlänken på offerten (manage/offers/edit.html). */
+.o-share{margin:4px 0 12px;display:flex;flex-direction:column;gap:8px}
+.o-share__row{display:flex;gap:8px}
+.o-share__url{flex:1;min-width:0;font-family:var(--s-mono);font-size:13px;padding:10px 12px;border:1px solid var(--m-border);border-radius:12px;background:var(--s-field);color:var(--m-text)}
+.o-share form{margin:0}
+.o-share .m-btn{width:auto}

@@ -156,3 +156,58 @@ class OptionPriceLayoutTests(TestCase):
         self.assertIn("grid-template-columns: auto minmax(0, 1fr) auto", css)
         phone = css.split("@media (max-width: 640px)")[1].split("\n}")[0]
         self.assertIn(".of-opt-price { grid-column: 2;", phone)
+
+
+class ShareLinkTests(TestCase):
+    """Länken till kunden utan mejl: kunder utan e-post ska också kunna acceptera."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.staff = get_user_model().objects.create_user(
+            "byra", password="x12345678", is_staff=True
+        )
+
+    def setUp(self):
+        self.quote = Quote.objects.create(customer_name="Verkstad AB", created_by=self.staff)
+        QuoteLine.objects.create(quote=self.quote, label="Hemsida", price=24995, order=1)
+        self.client.force_login(self.staff)
+
+    def share(self):
+        return self.client.post(f"/manage/offerter/{self.quote.pk}/dela/")
+
+    def test_a_draft_cannot_be_accepted_until_the_link_is_activated(self):
+        from django.core import mail
+        from django.test import Client
+
+        customer = Client()
+        self.assertNotIn(
+            "Acceptera offerten", customer.get(self.quote.get_public_url()).content.decode()
+        )
+        self.share()
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.SENT)
+        self.assertIsNotNone(self.quote.sent_at)
+        self.assertEqual(len(mail.outbox), 0, "inget mejl")
+        self.assertIn(
+            "Acceptera offerten", customer.get(self.quote.get_public_url()).content.decode()
+        )
+
+    def test_the_editor_shows_the_full_link_to_copy_once_active(self):
+        page = self.client.get(f"/manage/offerter/{self.quote.pk}/").content.decode()
+        self.assertIn("Ta fram länk utan mejl", page)
+        self.assertNotIn('id="o-share-url"', page)
+        self.share()
+        page = self.client.get(f"/manage/offerter/{self.quote.pk}/").content.decode()
+        self.assertIn('id="o-share-url"', page)
+        self.assertIn(f"{self.quote.get_public_url()}", page)
+        self.assertIn('data-copy-target="o-share-url"', page)
+
+    def test_accepted_and_empty_offers_are_refused(self):
+        empty = Quote.objects.create(customer_name="Tom AB")
+        self.client.post(f"/manage/offerter/{empty.pk}/dela/")
+        empty.refresh_from_db()
+        self.assertEqual(empty.status, QuoteStatus.DRAFT)
+        Quote.objects.filter(pk=self.quote.pk).update(status=QuoteStatus.ACCEPTED)
+        self.share()
+        self.quote.refresh_from_db()
+        self.assertEqual(self.quote.status, QuoteStatus.ACCEPTED)

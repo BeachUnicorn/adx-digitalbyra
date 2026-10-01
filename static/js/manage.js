@@ -197,3 +197,24 @@
         }
     });
 })();
+
+// Kopiera-knappar: [data-copy-text] kopierar sin text, [data-copy-target]
+// kopierar värdet i fältet med det id:t. Går urklippet inte att nå markeras
+// texten i fältet i stället, så att den kan kopieras för hand.
+(function () {
+    document.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-copy-text], [data-copy-target]");
+        if (!btn) return;
+        var field = btn.dataset.copyTarget ? document.getElementById(btn.dataset.copyTarget) : null;
+        var text = field ? field.value : btn.dataset.copyText;
+        var label = btn.textContent;
+        function done() { btn.textContent = "Kopierat"; setTimeout(function () { btn.textContent = label; }, 1800); }
+        function fallback() { if (field) { field.focus(); field.select(); } }
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done, fallback);
+        } else {
+            fallback();
+        }
+    });
+})();
+

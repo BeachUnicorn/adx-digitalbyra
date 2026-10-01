@@ -137,6 +137,7 @@ def offer_edit(request, pk):
             includes_templates=OfferText.objects.filter(kind=TextKind.INCLUDES),
             terms_templates=OfferText.objects.filter(kind=TextKind.TERMS),
             template_texts={str(t.pk): t.text for t in OfferText.objects.all()},
+            public_url=f"{_site_base()}{quote.get_public_url()}",
         ),
     )
 
@@ -234,6 +235,43 @@ def offer_send(request, pk):
     else:
         messages.error(request, "Mejlet kunde inte skickas - kontrollera e-postinställningarna.")
     return redirect("manage:offer_edit", pk=pk)
+
+
+def _site_base():
+    from django.conf import settings
+
+    return (getattr(settings, "SITE_BASE_URL", "") or "https://adx.se").rstrip("/")
+
+
+@login_required
+@require_POST
+def offer_share(request, pk):
+    """
+    Aktivera offertlänken utan mejl - för kunder utan e-post, eller när
+    länken skickas på annat sätt (sms, chatt). Markerar offerten som
+    skickad, så att kunden ser Acceptera-knappen. Inget mejlas.
+    """
+    from django.utils import timezone
+
+    quote = get_object_or_404(Quote.objects.prefetch_related("lines"), pk=pk)
+    if not quote.lines.exists():
+        messages.error(request, "Offerten har inga rader än.")
+        return redirect("manage:offer_edit", pk=pk)
+    if quote.status == QuoteStatus.ACCEPTED:
+        messages.error(request, "Offerten är redan accepterad.")
+        return redirect("manage:offer_edit", pk=pk)
+    now = timezone.now()
+    Quote.objects.filter(pk=quote.pk, status__in=(QuoteStatus.DRAFT, QuoteStatus.DECLINED)).update(
+        status=QuoteStatus.SENT
+    )
+    Quote.objects.filter(pk=quote.pk, sent_at__isnull=True).update(sent_at=now)
+    Quote.objects.filter(pk=quote.pk).update(updated_at=now)
+    messages.success(
+        request,
+        "Länken är aktiv: kunden kan acceptera offerten. Kopiera den nedan och skicka den "
+        "som du vill. Inget mejl har gått.",
+    )
+    return redirect(reverse("manage:offer_edit", args=[pk]) + "#kundlank")
 
 
 @login_required

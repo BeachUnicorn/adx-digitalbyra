@@ -57,11 +57,4 @@
         </tbody>
     </table>
 </div>
-<script>
-document.querySelectorAll("[data-copy-text]").forEach(function (btn) {
-    btn.addEventListener("click", function () {
-        navigator.clipboard.writeText(btn.getAttribute("data-copy-text")).then(function () { btn.textContent = "Kopierat"; });
-    });
-});
-</script>
 {% endblock %}
