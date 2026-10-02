@@ -3238,7 +3238,7 @@ class ArendeMcpTests(TestCase):
 
         issue = Issue.objects.get(pk=result["id"])
         self.assertEqual(issue.reporter, self.user)
-        self.assertEqual(issue.column.title, "Att göra")
+        self.assertEqual(issue.status, "new")
         self.assertFalse(issue.visible_to_customer)
         self.assertEqual(DraftChange.objects.count(), 0)
         self.assertEqual(AIJob.objects.count(), 0)
@@ -3266,7 +3266,7 @@ class ArendeMcpTests(TestCase):
         result = self._run("flytta_arende", nyckel_eller_id="NORD-1", steg="done")
         self.issue.refresh_from_db()
         self.assertIsNotNone(self.issue.closed_at)
-        self.assertTrue(self.issue.column.is_done)
+        self.assertEqual(self.issue.status, "done")
         self.assertTrue(result["stangt"])
         self.assertTrue(self.issue.activity.filter(text="flyttade till Klart").exists())
 
@@ -3276,7 +3276,10 @@ class ArendeMcpTests(TestCase):
         self.assertEqual(self.issue.stage, "active")
         with self.assertRaises(OperationError) as ctx:
             self._run("flytta_arende", nyckel_eller_id="NORD-1", kolumn="Granskas")
-        self.assertIn("Att göra", str(ctx.exception))
+        self.assertIn("Nytt, Pågår, Klart", str(ctx.exception))
+        self._run("flytta_arende", nyckel_eller_id="NORD-1", kolumn="Att göra")
+        self.issue.refresh_from_db()
+        self.assertEqual(self.issue.status, "new", "gamla kolumnnamnet fungerar fortfarande")
         with self.assertRaises(OperationError):
             self._run("flytta_arende", nyckel_eller_id="NORD-1")
 
@@ -3399,7 +3402,6 @@ class ArendeMcpTests(TestCase):
         project = Project.objects.get(key=projekt["key"])
         self.assertEqual(project.customer.name, "Ny Kund AB")
         self.assertEqual(project.created_by, self.user)
-        self.assertEqual(project.columns.count(), 3)
 
     def test_customer_contact_is_refused_everywhere(self):
         contact = get_user_model().objects.create_user("kontakt", "k@t.local", "x")

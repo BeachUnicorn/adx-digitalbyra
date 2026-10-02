@@ -113,6 +113,9 @@
 
   if (!board) return;   // projekt-, kund- och tidsidan: bara det ovan
   var projectKey = board.getAttribute("data-project") || "";
+  var customerKey = board.getAttribute("data-customer") || "";
+  // "Alla" sorterar på datum; egen ordning (dra inom kolumnen) bara när en kund är vald.
+  var manualOrder = board.getAttribute("data-manual") === "1";
 
   // --- svaret från servern: rita om kort, panel, huvud ----------------------------
   function applyCard(html, id) {
@@ -134,8 +137,7 @@
     if (d.card) {
       var fresh = applyCard(d.card, opts.id);
       if (fresh && opts.col && !fresh.parentNode) { opts.col.querySelector(".tv-col-body").insertBefore(fresh, opts.col.querySelector("[data-empty]")); }
-      // Kolumnbyte via panelen: kortet ska stå i rätt kolumn. På ett projekts
-      // tavla heter kolumnen c<id>; på "Alla" heter den som steget (new/active/done).
+      // Statusbyte via panelen: kortet ska stå i rätt kolumn (new/active/done).
       if (fresh && (opts.moveTo || d.stage)) {
         var col = (opts.moveTo && board.querySelector('.tv-col[data-col="' + opts.moveTo + '"]')) || (d.stage && board.querySelector('.tv-col[data-col="' + d.stage + '"]'));
         if (col && fresh.parentNode !== col.querySelector(".tv-col-body")) col.querySelector(".tv-col-body").insertBefore(fresh, col.querySelector("[data-empty]"));
@@ -148,9 +150,7 @@
   function refreshCounts() {
     board.querySelectorAll(".tv-col").forEach(function (col) {
       var cards = col.querySelectorAll(".tv-card:not(.is-hidden)"), n = cards.length, el = col.querySelector("[data-count]");
-      var wip = el ? el.getAttribute("data-wip") : "";
-      if (el) el.textContent = n + (wip ? "/" + wip : "");
-      col.classList.toggle("is-over", !!wip && n > parseInt(wip, 10));
+      if (el) el.textContent = n;
       var t = 0; cards.forEach(function (c) { var x = c.querySelector("[data-timer]"); if (x) t += parseInt(x.getAttribute("data-seconds"), 10) || 0; });
       var te = col.querySelector("[data-coltime]"); if (te) { var h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60); te.textContent = h + ":" + (m < 10 ? "0" : "") + m; }
       var empty = col.querySelector("[data-empty]"); if (empty) empty.hidden = n > 0;
@@ -189,7 +189,7 @@
   scrim.addEventListener("click", close);
 
   // Autospar: ett fält, ett anrop. Panelen ritas bara om när fältet påverkar
-  // annat i den (kolumn, etiketter, synlighet); annars bara kortet.
+  // annat i den (status, plats, etiketter, synlighet); annars bara kortet.
   function saveField(field, value, opts) {
     opts = opts || {};
     return post(urlFor("field", openId), { field: field, value: value, panel: !!opts.panel })
@@ -198,7 +198,9 @@
   }
   drawer.addEventListener("change", function (e) {
     var el = e.target, f = el.getAttribute("data-field"); if (!f) return;
-    if (f === "column") { saveField("column", el.value, { panel: true, moveTo: el.value }).catch(function () {}); return; }
+    if (f === "status") { saveField("status", el.value, { panel: true, moveTo: el.value }).catch(function () {}); return; }
+    // Ny kund eller nytt projekt: kortet kan ha lämnat vyn, så tavlan laddas om (panelen öppnas igen).
+    if (f === "place") { saveField("place", el.value, { panel: true }).then(function () { if (customerKey) window.location.reload(); }).catch(function () {}); return; }
     if (el.tagName === "SELECT" || el.type === "date" || el.getAttribute("data-on") === "change") saveField(f, el.value).catch(function () {});
   });
   drawer.addEventListener("focusout", function (e) {
@@ -275,7 +277,7 @@
     col.querySelector(".tv-col-body").insertBefore(card, beforeEl || col.querySelector("[data-empty]"));
     refreshCounts();
     var id = parseInt(card.getAttribute("data-id"), 10);
-    return post(urlFor("move", id), { target: col.getAttribute("data-col"), order: idsIn(col), panel: !!panel })
+    return post(urlFor("move", id), { target: col.getAttribute("data-col"), order: manualOrder ? idsIn(col) : [], panel: !!panel })
       .then(apply).catch(function (err) { fail(err); window.setTimeout(function () { window.location.reload(); }, 1200); });
   }
   function nextCol(col) { var cols = Array.prototype.slice.call(board.querySelectorAll(".tv-col")); return cols[(cols.indexOf(col) + 1) % cols.length]; }
@@ -294,7 +296,7 @@
     var form = e.target.closest(".tv-add"); if (!form) return;
     e.preventDefault();
     var title = form.title.value.trim(); if (!title) return;
-    post(board.getAttribute("data-add-url"), { title: title, target: form.getAttribute("data-col"), project: projectKey }).then(function (d) {
+    post(board.getAttribute("data-add-url"), { title: title, target: form.getAttribute("data-col"), project: projectKey, customer: customerKey }).then(function (d) {
       apply(d, { col: colOf(form), id: d.id });
       form.title.value = ""; form.title.focus();
     }).catch(fail);

@@ -32,9 +32,9 @@ from .access import VIEW_AS_KEY, staff_required
 from .board import (
     STAGES,
     BoardFilter,
+    board_customers,
     board_issues,
     board_labels,
-    board_projects,
     columns_for,
     fmt_hours,
     fmt_seconds,
@@ -45,7 +45,6 @@ from .board import (
 )
 from .emails import log_period_label, send_invite, send_issue_update_to_customer, send_log_digest
 from .forms import (
-    ColumnForm,
     CommentForm,
     CustomerCreateForm,
     CustomerForm,
@@ -55,12 +54,12 @@ from .forms import (
 from .models import (
     Attachment,
     ChecklistItem,
-    Column,
     Comment,
     Customer,
     CustomerLogEntry,
     Issue,
     IssuePriority,
+    IssueStatus,
     IssueType,
     Label,
     LogDigest,
@@ -102,7 +101,7 @@ def _staff_users():
 def _load_issue(pk):
     return get_object_or_404(
         Issue.objects.select_related(
-            "project", "column", "customer", "project__customer", "assignee"
+            "project", "customer", "project__customer", "assignee"
         ).prefetch_related("labels", "checklist"),
         pk=pk,
     )
@@ -117,12 +116,42 @@ def _card_html(request, issue):
     return render_to_string("projects/_card.html", {"issue": issue}, request=request)
 
 
+def _places(issue):
+    """
+    Valen i panelens "Plats": lös, direkt på en kund, eller i ett projekt.
+    (värde, etikett, vald) grupperat per kund; "p<id>" = projekt, "c<id>" = kund.
+    """
+    current = (
+        f"p{issue.project_id}"
+        if issue.project_id
+        else (f"c{issue.customer_id}" if issue.customer_id else "")
+    )
+    projects = list(
+        Project.objects.exclude(status=ProjectStatus.ARCHIVED)
+        .select_related("customer")
+        .order_by("name")
+    )
+    if issue.project_id and issue.project not in projects:
+        projects.append(issue.project)
+    customers = list(Customer.objects.filter(Q(is_active=True) | Q(pk=issue.customer_id or 0)))
+    groups = [("", [("", "Ingen kund", current == "")])]
+    loose = [p for p in projects if not p.customer_id]
+    if loose:
+        groups.append(("Utan kund", [(f"p{p.pk}", p.name, current == f"p{p.pk}") for p in loose]))
+    for c in sorted(customers, key=lambda c: c.name.lower()):
+        rows = [(f"c{c.pk}", f"{c.name}, inget projekt", current == f"c{c.pk}")]
+        rows += [
+            (f"p{p.pk}", f"{c.name} / {p.name}", current == f"p{p.pk}")
+            for p in projects
+            if p.customer_id == c.pk
+        ]
+        groups.append((c.name, rows))
+    return groups
+
+
 def _panel_html(request, issue):
     project = issue.project
-    if project is not None:
-        columns = [(f"c{c.pk}", c.title, c.pk == issue.column_id) for c in project.columns.all()]
-    else:
-        columns = [(stage, label, stage == issue.stage) for stage, label in STAGES]
+    columns = [(stage, label, stage == issue.status) for stage, label in STAGES]
     budget = None
     if project is not None and project.budget_hours:
         budget = {
@@ -134,6 +163,7 @@ def _panel_html(request, issue):
         {
             "issue": issue,
             "columns": columns,
+            "places": _places(issue),
             "staff": _staff_users(),
             "labels": Label.objects.all(),
             "priorities": IssuePriority.choices,
@@ -173,27 +203,23 @@ def _respond(request, issue=None, *, panel=False, card=True, stats=True, **extra
 
 @staff_required
 def board(request):
-    flt = BoardFilter(request.GET, user=request.user)
-    projects = board_projects()
-    project = projects.filter(key=flt.project_key).first() if flt.project_key else None
-    if flt.project_key and project is None:
-        flt.project_key = ""
-    issues = board_issues(flt, project=project)
-    columns = columns_for(project, issues)
+    flt = BoardFilter(request.GET, user=request.user).resolve()
+    issues = board_issues(flt)
+    columns = columns_for(issues, manual=flt.manual_order)
     open_id = request.GET.get("arende", "")
     return render(
         request,
         "projects/board.html",
         {
             "active": "board",
-            "projects": projects,
-            "project": project,
+            "project": flt.project,
+            "customer": flt.customer,
             "columns": columns,
             "filter": flt,
-            "pills": flt.pills(projects, board_labels()),
+            "pills": flt.pills(board_customers(flt.customer), board_labels()),
             "stats": header_stats(request.user),
             "open_id": int(open_id) if open_id.isdigit() else None,
-            "title": project.name if project else "Tavlan",
+            "title": "Tavlan" if flt.is_all else flt.scope_name,
         },
     )
 
@@ -205,21 +231,12 @@ def issue_move(request, pk):
     data = _json(request)
     target = str(data.get("target", ""))
     order = [int(x) for x in data.get("order", []) if str(x).isdigit()]
-    column = stage = None
-    if target.startswith("c") and target[1:].isdigit():
-        column = get_object_or_404(Column, pk=int(target[1:]))
-    elif target in dict(STAGES):
-        stage = target
-    else:
+    if target not in dict(STAGES):
         return JsonResponse({"ok": False, "error": "okänt mål"}, status=400)
-    was = (issue.column_id, issue.stage)
-    try:
-        move_issue(issue, column=column, stage=stage, after_ids=order)
-    except ValueError as exc:
-        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
-    if (issue.column_id, issue.stage) != was:
-        where = issue.column.title if issue.column_id else dict(STAGES).get(stage, "")
-        issue.log(request.user, f"flyttade till {where}")
+    was = issue.status
+    move_issue(issue, stage=target, after_ids=order)
+    if issue.status != was:
+        issue.log(request.user, f"flyttade till {issue.get_status_display()}")
     return _respond(request, issue, panel=bool(data.get("panel")))
 
 
@@ -280,14 +297,16 @@ def issue_quick_add(request):
     title = str(data.get("title", "")).strip()[:200]
     if not title:
         return JsonResponse({"ok": False, "error": "rubrik saknas"}, status=400)
-    project = Project.objects.filter(key=str(data.get("project", "")).upper()).first()
-    issue = Issue(title=title, project=project, reporter=request.user)
+    flt = BoardFilter({"kund": data.get("customer"), "projekt": data.get("project")}).resolve()
+    try:
+        customer, project = flt.place_for_new()
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
     target = str(data.get("target", ""))
-    if project and target.startswith("c") and target[1:].isdigit():
-        issue.column = Column.objects.filter(pk=int(target[1:]), project=project).first()
-    issue.save()
-    if target in dict(STAGES):
-        move_issue(issue, stage=target)
+    status = target if target in dict(STAGES) else IssueStatus.NEW
+    issue = Issue.objects.create(
+        title=title, project=project, customer=customer, status=status, reporter=request.user
+    )
     issue.log(request.user, "skapade ärendet")
     return _respond(request, issue, id=issue.pk, stats=False)
 
@@ -305,6 +324,8 @@ def issue_detail(request, pk):
     params = {"arende": issue.pk}
     if issue.project_id:
         params["projekt"] = issue.project.key
+    elif issue.customer_id:
+        params["kund"] = issue.customer_id
     return redirect(reverse("manage:board") + "?" + "&".join(f"{k}={v}" for k, v in params.items()))
 
 
@@ -329,13 +350,45 @@ _FIELD_LOG = {
 }
 
 
+def _move_place(issue, value, user):
+    """
+    Flytta ärendet till ett projekt ("p<id>"), direkt på en kund ("c<id>")
+    eller loss (""). Byter det projekt får det nästa nummer i det nya; tid,
+    kommentarer och historik följer med.
+    """
+    project = customer = None
+    if value.startswith("p") and value[1:].isdigit():
+        project = Project.objects.filter(pk=int(value[1:])).first()
+        if project is None:
+            return "okänt projekt"
+    elif value.startswith("c") and value[1:].isdigit():
+        customer = Customer.objects.filter(pk=int(value[1:])).first()
+        if customer is None:
+            return "okänd kund"
+    elif value:
+        return "okänd plats"
+    if issue.project_id == getattr(project, "pk", None) and (
+        project is not None or issue.customer_id == getattr(customer, "pk", None)
+    ):
+        return None
+    was = issue.key
+    if issue.project_id != getattr(project, "pk", None):
+        issue.number = None
+    issue.project = project
+    issue.customer = customer
+    issue.save()
+    where = project or customer or "inget projekt, ingen kund"
+    issue.log(user, f"flyttade från {was} till {where}")
+    return None
+
+
 @staff_required
 @require_POST
 def issue_field(request, pk):
     """
     Autospar för ETT fält i glidpanelen: {"field": ..., "value": ...}.
 
-    Varje fält saneras för sig - ingen generisk setattr. Kolumnbyte går
+    Varje fält saneras för sig - ingen generisk setattr. Statusbyte går
     via move_issue så att closed_at och loggen blir rätt.
     """
     issue = _load_issue(pk)
@@ -390,22 +443,18 @@ def issue_field(request, pk):
             issue.labels.remove(label)
         else:
             issue.labels.add(label)
-    elif field == "column":
+    elif field == "status":
         target = str(value or "")
-        column = stage = None
-        if target.startswith("c") and target[1:].isdigit():
-            column = Column.objects.filter(pk=int(target[1:]), project=issue.project).first()
-            if column is None:
-                return JsonResponse({"ok": False, "error": "okänd kolumn"}, status=400)
-        elif target in dict(STAGES):
-            stage = target
-        else:
-            return JsonResponse({"ok": False, "error": "okänt mål"}, status=400)
-        was = (issue.column_id, issue.stage)
-        move_issue(issue, column=column, stage=stage)
-        if (issue.column_id, issue.stage) != was:
-            where = issue.column.title if issue.column_id else dict(STAGES).get(stage, "")
-            issue.log(request.user, f"flyttade till {where}")
+        if target not in dict(STAGES):
+            return JsonResponse({"ok": False, "error": "okänd status"}, status=400)
+        was = issue.status
+        move_issue(issue, stage=target)
+        if issue.status != was:
+            issue.log(request.user, f"flyttade till {issue.get_status_display()}")
+    elif field == "place":
+        error = _move_place(issue, str(value or ""), request.user)
+        if error:
+            return JsonResponse({"ok": False, "error": error}, status=400)
     else:
         return JsonResponse({"ok": False, "error": f"okänt fält: {field}"}, status=400)
 
@@ -689,62 +738,12 @@ def project_detail(request, key):
             "active": "projects",
             "project": project,
             "form": form,
-            "column_form": ColumnForm(),
-            "columns": project.columns.all(),
-            "issues": with_time(project.issues.select_related("column").with_logged_seconds()),
+            "issues": with_time(project.issues.with_logged_seconds()),
             "quotes": quotes,
             "time": fmt_hours(project.total_seconds()),
             "title": project.name,
         },
     )
-
-
-@staff_required
-@require_POST
-def column_add(request, key):
-    project = get_object_or_404(Project, key=key.upper())
-    form = ColumnForm(request.POST)
-    if form.is_valid():
-        column = form.save(commit=False)
-        column.project = project
-        last = project.columns.order_by("-position").first()
-        column.position = (last.position + 1) if last else 0
-        column.save()
-        messages.success(request, f"Kolumnen {column.title} är tillagd.")
-    else:
-        messages.error(request, "; ".join(", ".join(v) for v in form.errors.values()))
-    return redirect("manage:project_detail", key=project.key)
-
-
-@staff_required
-@require_POST
-def column_update(request, pk):
-    column = get_object_or_404(Column.objects.select_related("project"), pk=pk)
-    action = request.POST.get("action", "save")
-    if action == "delete":
-        if column.issues.exists():
-            messages.error(request, "Kolumnen har ärenden - flytta dem först.")
-        else:
-            column.delete()
-            messages.success(request, "Kolumnen är borttagen.")
-    elif action in ("up", "down"):
-        siblings = list(column.project.columns.order_by("position", "id"))
-        idx = siblings.index(column)
-        swap = idx - 1 if action == "up" else idx + 1
-        if 0 <= swap < len(siblings):
-            siblings[idx], siblings[swap] = siblings[swap], siblings[idx]
-            for position, c in enumerate(siblings):
-                Column.objects.filter(pk=c.pk).update(position=position)
-    else:
-        form = ColumnForm(request.POST, instance=column)
-        if form.is_valid():
-            form.save()
-            # Kolumnens is_done kan ha ändrats: Issue.save räknar om closed_at.
-            for issue in column.issues.all():
-                issue.save()
-        else:
-            messages.error(request, "; ".join(", ".join(v) for v in form.errors.values()))
-    return redirect("manage:project_detail", key=column.project.key)
 
 
 # ------------------------------------------------------------------ kunder
@@ -878,9 +877,7 @@ def customer_detail(request, pk):
         messages.success(request, "Kunden är sparad.")
         return redirect("manage:customer_detail", pk=pk)
     issues = with_time(
-        Issue.objects.for_customer(customer)
-        .select_related("project", "column")
-        .with_logged_seconds()
+        Issue.objects.for_customer(customer).select_related("project").with_logged_seconds()
     )
     from apps.monitor.models import settings_for as monitor_settings_for
 

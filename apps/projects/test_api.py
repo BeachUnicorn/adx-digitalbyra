@@ -56,21 +56,44 @@ class ApiTests(TestCase):
         AssistantToken.objects.filter(user=self.staff).update(is_active=False)
         self.assertEqual(self.call("get", "state/").status_code, 401)
 
-    def test_state_lists_active_projects_and_filters_issues(self):
+    def test_state_is_customer_first_then_project(self):
         data = self.call("get", "state/").json()
-        self.assertEqual([p["key"] for p in data["projects"]], ["BDG", "SKV"])
-        self.assertEqual({p["key"]: p["open"] for p in data["projects"]}, {"BDG": 2, "SKV": 1})
-        self.assertEqual(len(data["issues"]), 3, "alla aktiva projekt, inte det avslutade")
-        self.assertIsNone(data["running"])
+        self.assertIsNone(data["customer"])
+        self.assertEqual(data["scope_name"], "Alla kunder")
+        self.assertIsNone(data["add_target"], "Alla är överblick, ingen plats att lägga till")
+        self.assertEqual(data["projects"], [], "projekten visas först när en kund är vald")
+        keys = {c["name"]: c["open"] for c in data["customers"]}
+        self.assertEqual(keys["Acme"], 2)
+        self.assertEqual(keys["Utan kund"], 2, "SKV saknar kund, OLD räknas som utan kund också")
+        self.assertEqual(len(data["issues"]), 4)
+        # Alla: äldst skapat överst.
+        self.assertEqual([i["key"] for i in data["issues"]][:2], ["BDG-1", "BDG-2"])
 
-        data = self.call("get", "state/", {"project": "bdg"}).json()
-        self.assertEqual(data["project"], "BDG")
-        self.assertEqual([i["key"] for i in data["issues"]], ["BDG-1", "BDG-2"], "akut först")
+        data = self.call("get", "state/", {"customer": str(self.acme.pk)}).json()
+        self.assertEqual([p["key"] for p in data["projects"]], ["BDG"])
+        self.assertEqual({i["key"] for i in data["issues"]}, {"BDG-1", "BDG-2"})
+        self.assertEqual(data["add_target"], "Acme, BD Group", "kundens enda aktiva projekt")
         step = {"id": self.step.pk, "text": "Återskapa", "done": False}
-        self.assertEqual(data["issues"][0]["checklist"], [step])
+        bug = next(i for i in data["issues"] if i["key"] == "BDG-1")
+        self.assertEqual(bug["checklist"], [step])
+        self.assertEqual(bug["customer"], "Acme")
+
+        data = self.call("get", "state/", {"customer": "utan", "project": "skv"}).json()
+        self.assertEqual(data["project"], "SKV")
+        self.assertEqual([i["key"] for i in data["issues"]], ["SKV-1"])
+
+    def test_a_loose_issue_shows_under_utan_kund_and_alla(self):
+        loose = Issue.objects.create(title="Idé utan hem")
+        for params in ({}, {"customer": "utan"}):
+            keys = [i["key"] for i in self.call("get", "state/", params).json()["issues"]]
+            self.assertIn(loose.key, keys)
+        acme = self.call("get", "state/", {"customer": str(self.acme.pk)}).json()
+        self.assertNotIn(loose.key, [i["key"] for i in acme["issues"]])
 
     def test_start_runs_the_timer_and_moves_new_to_active(self):
-        data = self.call("post", f"issues/{self.img.pk}/start/", {"project": "BDG"}).json()
+        data = self.call(
+            "post", f"issues/{self.img.pk}/start/", {"customer": str(self.acme.pk)}
+        ).json()
         self.assertEqual(data["running"]["key"], "BDG-2")
         self.img.refresh_from_db()
         self.assertEqual(self.img.stage, "active")
@@ -88,7 +111,9 @@ class ApiTests(TestCase):
 
     def test_done_closes_the_issue_quietly_and_stops_its_timer(self):
         self.call("post", f"issues/{self.bug.pk}/start/")
-        data = self.call("post", f"issues/{self.bug.pk}/done/", {"project": "BDG"}).json()
+        data = self.call(
+            "post", f"issues/{self.bug.pk}/done/", {"customer": str(self.acme.pk)}
+        ).json()
         self.bug.refresh_from_db()
         self.assertTrue(self.bug.is_closed)
         self.assertIsNone(data["running"])
@@ -103,14 +128,32 @@ class ApiTests(TestCase):
         self.step.refresh_from_db()
         self.assertFalse(self.step.is_done)
 
-    def test_create_needs_a_project_and_a_title(self):
-        self.assertEqual(self.call("post", "issues/", {"title": "x"}).status_code, 400)
-        blank = self.call("post", "issues/", {"title": " ", "project": "SKV"})
+    def test_create_follows_the_chosen_place(self):
+        self.assertEqual(self.call("post", "issues/", {"title": "x"}).status_code, 400, "Alla")
+        blank = self.call("post", "issues/", {"title": " ", "customer": "utan"})
         self.assertEqual(blank.status_code, 400)
-        data = self.call("post", "issues/", {"title": "<b>Ny</b> sida", "project": "SKV"}).json()
-        issue = Issue.objects.get(project=self.skv, title="Ny sida")
-        self.assertIn(issue.key, [i["key"] for i in data["issues"]])
+
+        self.call(
+            "post", "issues/", {"title": "<b>Ny</b> sida", "customer": "utan", "project": "SKV"}
+        )
+        issue = Issue.objects.get(title="Ny sida")
+        self.assertEqual((issue.project, issue.customer), (self.skv, None))
         self.assertFalse(issue.visible_to_customer)
+
+        # Kund med ett aktivt projekt: i projektet.
+        self.call("post", "issues/", {"title": "I projektet", "customer": str(self.acme.pk)})
+        self.assertEqual(Issue.objects.get(title="I projektet").project, self.bdg)
+
+        # Kund med flera aktiva projekt: direkt på kunden.
+        Project.objects.create(name="Support", key="BDGS", customer=self.acme)
+        self.call("post", "issues/", {"title": "På kunden", "customer": str(self.acme.pk)})
+        on_customer = Issue.objects.get(title="På kunden")
+        self.assertEqual((on_customer.project, on_customer.customer), (None, self.acme))
+
+        # Utan kund och utan projekt: helt löst.
+        self.call("post", "issues/", {"title": "Löst", "customer": "utan"})
+        loose = Issue.objects.get(title="Löst")
+        self.assertEqual((loose.project, loose.customer), (None, None))
 
     def test_wrong_method_and_unknown_paths(self):
         self.assertEqual(self.call("get", f"issues/{self.bug.pk}/done/").status_code, 405)

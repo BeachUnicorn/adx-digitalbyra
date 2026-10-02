@@ -9,12 +9,15 @@ Appen pollar GET state/ och varje skrivning svarar med samma state, så
 appen alltid har en enda sanning efter ett klick. Timern är serverns:
 startar man i appen syns det på tavlan, och tvärtom.
 
+Urvalet är tavlans (board.BoardFilter): kund först (customer = id, "utan"
+eller tomt för alla), sedan projekt (project = nyckel). Samma regler för
+var en ny todo hamnar.
+
 Inget här mejlar kunden. Att flytta ett ärende till Klart är tyst, precis
 som på tavlan.
 """
 
 import json
-from datetime import date
 from functools import wraps
 
 from django.db.models import Q
@@ -27,8 +30,8 @@ from django.views.decorators.http import require_GET, require_POST
 from apps.common.security import sanitize_plain_text
 
 from .access import is_agency_user
-from .board import move_issue, today_seconds
-from .models import ChecklistItem, Issue, Project, ProjectStatus, TimeEntry
+from .board import NO_CUSTOMER, BoardFilter, board_customers, move_issue, today_seconds
+from .models import ChecklistItem, Issue, IssueStatus, TimeEntry
 
 #: Fler rader än så ryms inte i en sidopanel ändå.
 MAX_ISSUES = 200
@@ -75,14 +78,15 @@ def _when(dt):
 
 
 def _issue_json(issue):
+    customer = issue.effective_customer
     return {
         "id": issue.pk,
         "key": issue.key,
         "title": issue.title,
+        "customer": customer.name if customer else None,
         "project": issue.project.key if issue.project_id else None,
         "project_name": issue.project.name if issue.project_id else None,
-        "stage": issue.stage,
-        "column": issue.column.title if issue.column_id else None,
+        "stage": issue.status,
         "priority": issue.priority,
         "priority_label": issue.get_priority_display(),
         "due_on": issue.due_on.isoformat() if issue.due_on else None,
@@ -108,44 +112,56 @@ def _running_json(user):
     }
 
 
-def _project_filter(value):
-    """Projektnyckel ur ?project= eller kroppen. Tomt = alla projekt."""
-    key = str(value or "").strip().upper()
-    if not key:
+def _filter(data):
+    return BoardFilter(
+        {"kund": data.get("customer") or "", "projekt": data.get("project") or ""}
+    ).resolve()
+
+
+def _add_target(flt):
+    """Var en ny todo hamnar i vyn, som text - eller None i Alla."""
+    try:
+        customer, project = flt.place_for_new()
+    except ValueError:
         return None
-    return Project.objects.filter(key=key).first()
+    if project is not None and project.customer_id:
+        return f"{project.customer.name}, {project.name}"
+    if project is not None:
+        return project.name
+    return customer.name if customer else "Utan kund"
 
 
-def state(user, project_key=""):
+def state(user, data):
     """Allt appen visar, i ett svar."""
-    active = Project.objects.filter(status=ProjectStatus.ACTIVE)
-    open_issues = Issue.objects.open().filter(Q(project__isnull=True) | Q(project__in=active))
-    counts = {}
-    for project_id in open_issues.exclude(project__isnull=True).values_list(
-        "project_id", flat=True
-    ):
-        counts[project_id] = counts.get(project_id, 0) + 1
+    flt = _filter(data)
+    open_issues = Issue.objects.open()
+
+    loose = open_issues.filter(customer__isnull=True).filter(
+        Q(project__isnull=True) | Q(project__customer__isnull=True)
+    )
+    customers = [{"key": NO_CUSTOMER, "name": "Utan kund", "open": loose.count()}] + [
+        {"key": str(c.pk), "name": c.name, "open": open_issues.for_customer(c).count()}
+        for c in board_customers(flt.customer)
+    ]
     projects = [
-        {"key": p.key, "name": p.name, "open": counts.get(p.pk, 0)} for p in active.order_by("name")
+        {"key": p.key, "name": p.name, "open": open_issues.filter(project=p).count()}
+        for p in flt.projects()
     ]
 
-    project = _project_filter(project_key)
-    issues = open_issues.select_related("project", "column").prefetch_related("checklist")
-    if project is not None:
-        issues = issues.filter(project=project)
-    issues = list(issues.order_by("-priority", "id")[: MAX_ISSUES + 1])
-    truncated = len(issues) > MAX_ISSUES
-    issues = issues[:MAX_ISSUES]
-    # Pågår först, sedan prioritet, sedan det som förfaller först.
-    stage_rank = {"active": 0, "new": 1}
-    issues.sort(
-        key=lambda i: (
-            stage_rank.get(i.stage, 2),
-            -i.priority,
-            i.due_on or date.max,
-            i.pk,
+    issues = flt.scope(
+        open_issues.select_related("project", "customer", "project__customer").prefetch_related(
+            "checklist"
         )
     )
+    issues = list(issues.order_by("created_at", "id")[: MAX_ISSUES + 1])
+    truncated = len(issues) > MAX_ISSUES
+    issues = issues[:MAX_ISSUES]
+    # Pågår före Nytt; inom dem tavlans ordning (egen med kund vald, annars äldst först).
+    rank = {IssueStatus.ACTIVE: 0, IssueStatus.NEW: 1}
+    if flt.manual_order:
+        issues.sort(key=lambda i: (rank.get(i.status, 2), i.position, i.pk))
+    else:
+        issues.sort(key=lambda i: (rank.get(i.status, 2), i.created_at, i.pk))
 
     return {
         "ok": True,
@@ -153,7 +169,11 @@ def state(user, project_key=""):
         "now": _when(timezone.now()),
         "today_seconds": today_seconds(user),
         "running": _running_json(user),
-        "project": project.key if project else None,
+        "customer": flt.customer_key or None,
+        "project": flt.project_key or None,
+        "scope_name": flt.scope_name,
+        "add_target": _add_target(flt),
+        "customers": customers,
         "projects": projects,
         "open_total": open_issues.count(),
         "issues": [_issue_json(i) for i in issues],
@@ -163,7 +183,8 @@ def state(user, project_key=""):
 
 def _respond(request, data=None):
     data = data if data is not None else _body(request)
-    return JsonResponse(state(request.user, data.get("project") or request.GET.get("project")))
+    merged = {**request.GET.dict(), **data}
+    return JsonResponse(state(request.user, merged))
 
 
 def _stop_running(user):
@@ -177,7 +198,7 @@ def _stop_running(user):
 @api_view
 @require_GET
 def get_state(request):
-    return JsonResponse(state(request.user, request.GET.get("project")))
+    return JsonResponse(state(request.user, request.GET.dict()))
 
 
 @api_view
@@ -187,10 +208,9 @@ def issue_start(request, pk):
     issue = get_object_or_404(Issue.objects.open(), pk=pk)
     _stop_running(request.user)
     issue.start_timer(request.user)
-    if issue.stage == "new":
-        move_issue(issue, stage="active")
-        where = issue.column.title if issue.column_id else "Pågår"
-        issue.log(request.user, f"flyttade till {where}")
+    if issue.status == IssueStatus.NEW:
+        move_issue(issue, stage=IssueStatus.ACTIVE)
+        issue.log(request.user, "flyttade till Pågår")
     return _respond(request)
 
 
@@ -207,8 +227,8 @@ def issue_done(request, pk):
     issue = get_object_or_404(Issue.objects.open(), pk=pk)
     if issue.time_entries.filter(user=request.user, ended_at__isnull=True).exists():
         _stop_running(request.user)
-    move_issue(issue, stage="done")
-    issue.log(request.user, f"flyttade till {issue.column.title if issue.column_id else 'Klart'}")
+    move_issue(issue, stage=IssueStatus.DONE)
+    issue.log(request.user, "flyttade till Klart")
     return _respond(request)
 
 
@@ -229,9 +249,12 @@ def issue_create(request):
     title = sanitize_plain_text(str(data.get("title", "")), max_length=200)
     if not title:
         return _error("Rubriken är tom.", 400)
-    project = _project_filter(data.get("project"))
-    if project is None:
-        return _error("Välj ett projekt först.", 400)
-    issue = Issue.objects.create(project=project, title=title, reporter=request.user)
+    try:
+        customer, project = _filter(data).place_for_new()
+    except ValueError as exc:
+        return _error(str(exc), 400)
+    issue = Issue.objects.create(
+        project=project, customer=customer, title=title, reporter=request.user
+    )
     issue.log(request.user, f"skapade ärendet i {CLIENT}")
     return _respond(request, data)

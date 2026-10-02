@@ -8,7 +8,7 @@ Knappen "Svar + mejl till kunden" är systemets ENDA väg till ett kundmejl.
 <div class="tv-detail" data-id="{{ issue.pk }}" data-key="{{ issue.key }}">
   <div class="tv-detail-head">
     <div class="tv-detail-head__main">
-      <span class="tv-key"><b>{{ issue.key }}</b>{% if issue.project %} {{ issue.project.name }}{% endif %}{% if customer %} @ <a href="{% url 'manage:customer_detail' customer.pk %}">{{ customer.name }}</a>{% elif not issue.project %} Internt{% endif %}</span>
+      <span class="tv-key"><b>{{ issue.key }}</b>{% if issue.project %} {{ issue.project.name }}{% endif %}{% if customer %} @ <a href="{% url 'manage:customer_detail' customer.pk %}">{{ customer.name }}</a>{% elif not issue.project %} Utan kund{% endif %}</span>
       <h2 class="tv-detail-title" contenteditable="true" spellcheck="false" data-field="title" aria-label="Rubrik">{{ issue.title }}</h2>
     </div>
     <div class="tv-detail-head__tools">
@@ -28,8 +28,10 @@ Knappen "Svar + mejl till kunden" är systemets ENDA väg till ett kundmejl.
   </div>
 
   <div class="tv-props">
-    <div class="tv-prop"><label for="f-column">Kolumn</label>
-      <select id="f-column" data-field="column">{% for key, label, on in columns %}<option value="{{ key }}"{% if on %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="tv-prop"><label for="f-status">Status</label>
+      <select id="f-status" data-field="status">{% for key, label, on in columns %}<option value="{{ key }}"{% if on %} selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+    <div class="tv-prop"><label for="f-place">Kund och projekt</label>
+      <select id="f-place" data-field="place">{% for group, rows in places %}{% if group %}<optgroup label="{{ group }}">{% endif %}{% for value, label, on in rows %}<option value="{{ value }}"{% if on %} selected{% endif %}>{{ label }}</option>{% endfor %}{% if group %}</optgroup>{% endif %}{% endfor %}</select></div>
     <div class="tv-prop"><label for="f-assignee">Ansvarig</label>
       <select id="f-assignee" data-field="assignee"><option value="">Ingen</option>{% for u in staff %}<option value="{{ u.pk }}"{% if issue.assignee_id == u.pk %} selected{% endif %}>{{ u.get_full_name|default:u.get_username }}</option>{% endfor %}</select></div>
     <div class="tv-prop"><label for="f-priority">Prioritet</label>

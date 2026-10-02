@@ -4,7 +4,7 @@ Projekt och ärenden: en lätt JIRA för byrån.
 Hierarkin:
 
     Customer (kund)
-      └── Project (projekt, har egna kolumner = sitt eget arbetsflöde)
+      └── Project (projekt)
             └── Issue (ärende)
                   ├── TimeEntry (tidsposter - timern ÄR en öppen tidspost)
                   ├── Comment
@@ -19,11 +19,12 @@ Tre designbeslut som bär allt annat:
    med kund så ÄR kunden projektets - det får aldrig finnas två sanningar.
    Issue.clean() vaktar detta; Issue.effective_customer ger svaret.
 
-2. Kolumner är data, inte en hårdkodad statuslista. Varje projekt äger
-   sina kolumner (kopieras från DEFAULT_COLUMNS vid skapande), så ett
-   projekt kan ha "Väntar på kund" och ett annat "Granskas" utan att
-   någon annans tavla ändras. Kolumnen med is_done=True stänger ärendet
-   (closed_at sätts) - det är vad rapporter räknar på.
+2. Tre fasta kolumner för allt: Nytt, Pågår, Klart (Issue.status). Samma
+   på varje tavla, så "Alla" går att överblicka och ett ärende beter sig
+   likadant med eller utan projekt. Klart stänger ärendet (closed_at
+   sätts) - det är vad rapporter räknar på. Tidigare hade varje projekt
+   egna kolumner och ärenden utan projekt en egen statusmekanism; de två
+   vägarna gled isär (ett ärende gick inte att dra till Pågår).
 
 3. Timern är inte ett fält utan en TimeEntry med ended_at=NULL. Det ger
    historik (vem, när, hur länge, fakturerbart eller inte), summering per
@@ -111,13 +112,6 @@ def attachment_path(instance, filename):
     return f"arenden/{secrets.token_urlsafe(12)}/{safe}.{ext}"
 
 
-DEFAULT_COLUMNS = [
-    ("Att göra", False),
-    ("Pågår", False),
-    ("Klart", True),
-]
-
-
 class Customer(models.Model):
     name = models.CharField("Namn", max_length=200)
     org_number = models.CharField("Organisationsnummer", max_length=20, blank=True)
@@ -146,9 +140,8 @@ class Customer(models.Model):
         """
         Projektet kundens egna ärenden hamnar i. Skapas vid första behovet.
 
-        Varje ärende ska ha kolumner (annars kan det inte flyttas på en
-        tavla), så portalens ärenden får alltid ett projekt - kundens
-        "Support"-projekt - i stället för att ligga lösa.
+        Portalens ärenden samlas i kundens "Support"-projekt, så de får
+        nummer (NORD-3) och syns under projektet på tavlan.
         """
         project = self.projects.filter(name="Support").first()
         if project is None:
@@ -215,11 +208,7 @@ class Project(models.Model):
 
     def save(self, *args, **kwargs):
         self.key = self.key.strip().upper()
-        creating = self._state.adding
         super().save(*args, **kwargs)
-        if creating and not self.columns.exists():
-            for position, (title, is_done) in enumerate(DEFAULT_COLUMNS):
-                Column.objects.create(project=self, title=title, position=position, is_done=is_done)
 
     @classmethod
     def make_key(cls, name):
@@ -234,35 +223,6 @@ class Project(models.Model):
 
     def total_seconds(self):
         return TimeEntry.objects.filter(issue__project=self).total_seconds()
-
-
-class Column(models.Model):
-    """En kolumn på projektets tavla. Ordningen är position; is_done stänger."""
-
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="columns")
-    title = models.CharField("Rubrik", max_length=60)
-    position = models.PositiveIntegerField(default=0)
-    wip_limit = models.PositiveIntegerField(
-        "Max samtidiga", null=True, blank=True, help_text="Tomt = ingen gräns."
-    )
-    is_done = models.BooleanField(
-        "Avslutar ärendet",
-        default=False,
-        help_text="Ärenden som flyttas hit räknas som klara.",
-    )
-
-    class Meta:
-        ordering = ["position", "id"]
-        verbose_name = "Kolumn"
-        verbose_name_plural = "Kolumner"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["project", "title"], name="unique_column_title_per_project"
-            ),
-        ]
-
-    def __str__(self):
-        return f"{self.project.key}: {self.title}"
 
 
 class Label(models.Model):
@@ -307,6 +267,14 @@ class Urgency(models.TextChoices):
     CRITICAL = "critical", "Akut - något är trasigt"
 
 
+class IssueStatus(models.TextChoices):
+    """Samma tre kolumner på alla tavlor, för alla kunder och projekt."""
+
+    NEW = "new", "Nytt"
+    ACTIVE = "active", "Pågår"
+    DONE = "done", "Klart"
+
+
 class IssueQuerySet(models.QuerySet):
     def open(self):
         return self.filter(closed_at__isnull=True)
@@ -338,15 +306,10 @@ class Issue(models.Model):
         related_name="issues",
         verbose_name="Kund",
     )
-    column = models.ForeignKey(
-        Column,
-        null=True,
-        blank=True,
-        on_delete=models.PROTECT,
-        related_name="issues",
-        verbose_name="Kolumn",
-    )
     number = models.PositiveIntegerField(null=True, blank=True, editable=False)
+    status = models.CharField(
+        "Status", max_length=10, choices=IssueStatus.choices, default=IssueStatus.NEW
+    )
     title = models.CharField("Rubrik", max_length=200)
     description = models.TextField("Beskrivning", blank=True)
     issue_type = models.CharField(
@@ -386,13 +349,10 @@ class Issue(models.Model):
     )
     urgency = models.CharField("Brådska", max_length=10, choices=Urgency.choices, blank=True)
     page_url = models.URLField("Gäller sida", blank=True)
-    # Ordning inom kolumnen. Skrivs om för hela kolumnen vid omordning -
-    # samma enkla, robusta grepp som offertraderna.
+    # Egen ordning inom kolumnen när en kund eller ett projekt är valt.
+    # Skrivs om för hela kolumnen vid omordning. "Alla" sorterar på datum.
     position = models.PositiveIntegerField(default=0)
     closed_at = models.DateTimeField(null=True, blank=True)
-    #: Bara för ärenden UTAN projekt. De har ingen kolumn, och utan det här
-    #: fältet fanns bara öppet/stängt - kortet gick inte att dra till Pågår.
-    started_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -403,7 +363,8 @@ class Issue(models.Model):
         verbose_name = "Ärende"
         verbose_name_plural = "Ärenden"
         indexes = [
-            models.Index(fields=["project", "column", "position"]),
+            models.Index(fields=["status", "position"]),
+            models.Index(fields=["project", "status"]),
             models.Index(fields=["customer", "closed_at"]),
             models.Index(fields=["assignee", "closed_at"]),
         ]
@@ -427,20 +388,15 @@ class Issue(models.Model):
         # samma sak på två ställen.
         if self.project_id and self.project.customer_id:
             self.customer = None
-        if self.project_id and self.column_id is None:
-            self.column = self.project.columns.order_by("position").first()
         if self.project_id and self.number is None:
             self.number = self._next_number()
         if not self.project_id:
-            self.column = None
             self.number = None
-        # Kolumnen avgör om ärendet är stängt.
-        if self.column_id and self.column.is_done:
+        # Statusen avgör om ärendet är stängt.
+        if self.status == IssueStatus.DONE:
             self.closed_at = self.closed_at or timezone.now()
-        elif self.column_id:
+        else:
             self.closed_at = None
-        if self.column_id:
-            self.started_at = None  # kolumnen bär statusen; fältet är bara för projektlösa
         # Beskrivningen är HTML från Tiptap och saneras vid VARJE sparning, så
         # ingen väg in (formulär, panel, MCP, admin) kan lämna något annat.
         from .richtext import sanitize_issue_html
@@ -496,25 +452,11 @@ class Issue(models.Model):
 
     @property
     def stage(self):
-        """
-        Grov status oberoende av projektets kolumnnamn: new / active / done.
-        Portalen visar kundens ärenden från flera projekt på EN tavla, och
-        då är det här den gemensamma nämnaren.
-        """
-        if self.closed_at:
-            return "done"
-        if self.column_id and self.column.position > 0:
-            return "active"
-        if not self.column_id and self.started_at:
-            return "active"
-        return "new"
+        """Statusen under sitt gamla namn: mallar, JSON och portalen läser det."""
+        return self.status
 
     # ---- validering ----------------------------------------------------------
     def clean(self):
-        if self.project_id and self.column_id and self.column.project_id != self.project_id:
-            raise ValidationError({"column": "Kolumnen tillhör ett annat projekt."})
-        if not self.project_id and self.column_id:
-            raise ValidationError({"column": "Ett ärende utan projekt har ingen kolumn."})
         if (
             self.project_id
             and self.customer_id

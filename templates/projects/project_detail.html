@@ -5,34 +5,12 @@
   <div>
     <div class="tv-kicker">{{ project.key }}</div>
     <h1 class="tv-h1 tv-h1--plain">{{ project.name }}</h1>
-    <div class="tv-sub">{% if project.customer %}<a href="{% url 'manage:customer_detail' project.customer.pk %}">{{ project.customer.name }}</a>{% else %}Internt{% endif %} &middot; {{ project.get_status_display }} &middot; {{ time }} loggat{% if project.budget_hours %} av {{ project.budget_hours }} h{% endif %}</div>
+    <div class="tv-sub">{% if project.customer %}<a href="{% url 'manage:customer_detail' project.customer.pk %}">{{ project.customer.name }}</a>{% else %}Utan kund{% endif %} &middot; {{ project.get_status_display }} &middot; {{ time }} loggat{% if project.budget_hours %} av {{ project.budget_hours }} h{% endif %}</div>
   </div>
-  <a class="m-btn" href="{% url 'manage:board' %}?projekt={{ project.key }}">Öppna tavlan</a>
+  <a class="m-btn" href="{% url 'manage:board' %}?{% if project.customer_id %}kund={{ project.customer_id }}{% else %}kund=utan{% endif %}&amp;projekt={{ project.key }}">Öppna tavlan</a>
 </div>
 <div class="tv-grid">
   <div class="tv-stack">
-    <div class="m-panel tv-panel">
-      <div class="tv-sec-title">Kolumner</div>
-      <p class="tv-prop__note">Ordningen är tavlans ordning. "Avslutar" stänger ärenden som flyttas dit.</p>
-      {% for c in columns %}
-      <form method="post" action="{% url 'manage:column_update' c.pk %}" class="tv-row">{% csrf_token %}
-        <input type="text" name="title" value="{{ c.title }}" aria-label="Rubrik" class="tv-input">
-        <input type="number" name="wip_limit" value="{{ c.wip_limit|default_if_none:'' }}" placeholder="max" aria-label="Max samtidiga" class="tv-input tv-input--short">
-        <label class="tv-checklabel"><input type="checkbox" name="is_done"{% if c.is_done %} checked{% endif %}> avslutar</label>
-        <button type="submit" name="action" value="save" class="m-btn m-btn--small m-btn--ghost">Spara</button>
-        <button type="submit" name="action" value="up" class="m-btn m-btn--small m-btn--ghost" title="Upp">&uarr;</button>
-        <button type="submit" name="action" value="down" class="m-btn m-btn--small m-btn--ghost" title="Ned">&darr;</button>
-        <button type="submit" name="action" value="delete" class="m-btn m-btn--small m-btn--danger" data-confirm="Ta bort kolumnen?">&times;</button>
-      </form>
-      {% endfor %}
-      <form method="post" action="{% url 'manage:column_add' project.key %}" class="tv-row">{% csrf_token %}
-        <input type="text" name="title" placeholder="Ny kolumn" required aria-label="Ny kolumn" class="tv-input">
-        <input type="number" name="wip_limit" placeholder="max" aria-label="Max samtidiga" class="tv-input tv-input--short">
-        <label class="tv-checklabel"><input type="checkbox" name="is_done"> avslutar</label>
-        <button type="submit" class="m-btn m-btn--small">Lägg till</button>
-      </form>
-    </div>
-
     {% if quotes %}
     <div class="m-panel m-table-wrap">
       <div class="tv-panel-head"><div class="tv-sec-title">Offerter</div></div>
@@ -51,9 +29,9 @@
     <div class="m-panel m-table-wrap">
       <div class="tv-panel-head"><div class="tv-sec-title">Ärenden</div></div>
       <table class="m-table">
-        <thead><tr><th>Nyckel</th><th>Rubrik</th><th>Kolumn</th><th class="m-num">Tid</th></tr></thead>
+        <thead><tr><th>Nyckel</th><th>Rubrik</th><th>Status</th><th class="m-num">Tid</th></tr></thead>
         <tbody>
-        {% for i in issues %}<tr><td><a href="{% url 'manage:issue_detail' i.pk %}" class="tv-link"><b>{{ i.key }}</b></a></td><td>{{ i.title }}</td><td class="tv-muted">{{ i.column.title|default:"-" }}</td><td class="m-num">{{ i.seconds|hours }}</td></tr>
+        {% for i in issues %}<tr><td><a href="{% url 'manage:issue_detail' i.pk %}" class="tv-link"><b>{{ i.key }}</b></a></td><td>{{ i.title }}</td><td class="tv-muted">{{ i.get_status_display }}</td><td class="m-num">{{ i.seconds|hours }}</td></tr>
         {% empty %}<tr><td colspan="4" class="m-empty">Inga ärenden.</td></tr>{% endfor %}
         </tbody>
       </table>

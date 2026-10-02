@@ -32,7 +32,7 @@ from django.utils import timezone
 from apps.assistant.models import Risk
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 from apps.projects.access import is_agency_user
-from apps.projects.board import STAGES, move_issue, with_time
+from apps.projects.board import move_issue, with_time
 from apps.projects.forms import CustomerForm, IssueForm, ProjectForm
 from apps.projects.models import (
     ChecklistItem,
@@ -41,6 +41,7 @@ from apps.projects.models import (
     CustomerLogEntry,
     Issue,
     IssuePriority,
+    IssueStatus,
     IssueType,
     Label,
     Project,
@@ -156,7 +157,7 @@ def _issue(ref):
     """Ärende via nyckel (NORD-3, tål gemener) eller id (123, #123)."""
     text = str(ref or "").strip().lstrip("#")
     qs = Issue.objects.select_related(
-        "project", "project__customer", "customer", "column", "assignee", "reporter"
+        "project", "project__customer", "customer", "assignee", "reporter"
     )
     match = _KEY.match(text)
     if match:
@@ -208,12 +209,27 @@ def _staff(ref):
     return user
 
 
-def _column(project, title):
-    column = project.columns.filter(title__iexact=str(title or "").strip()).first()
-    if column is None:
-        known = ", ".join(project.columns.values_list("title", flat=True))
-        raise OperationError(f"Okänd kolumn i {project.key}: {title}. Kolumner: {known}")
-    return column
+_STAGE_WORDS = {
+    "new": IssueStatus.NEW,
+    "nytt": IssueStatus.NEW,
+    "att gora": IssueStatus.NEW,
+    "active": IssueStatus.ACTIVE,
+    "pagar": IssueStatus.ACTIVE,
+    "done": IssueStatus.DONE,
+    "klart": IssueStatus.DONE,
+    "klar": IssueStatus.DONE,
+}
+
+
+def _stage(value):
+    """Kolumn eller steg i valfri form ("Pågår", "active", "att göra") -> status."""
+    key = str(value or "").strip().lower().replace("å", "a").replace("ä", "a").replace("ö", "o")
+    if key not in _STAGE_WORDS:
+        raise OperationError(
+            f"Okänd kolumn: {value}. Alla tavlor har samma tre: Nytt, Pågår, Klart "
+            f"(eller new, active, done)."
+        )
+    return _STAGE_WORDS[key]
 
 
 def _priority(value):
@@ -259,8 +275,8 @@ def _issue_row(issue):
         "rubrik": issue.title,
         "projekt": issue.project.key if issue.project_id else None,
         "kund": customer.name if customer else None,
-        "kolumn": issue.column.title if issue.column_id else None,
-        "steg": issue.stage,
+        "kolumn": issue.get_status_display(),
+        "steg": issue.status,
         "prioritet": issue.get_priority_display(),
         "ansvarig": _who(issue.assignee),
         "forfaller": issue.due_on.isoformat() if issue.due_on else None,
@@ -306,14 +322,13 @@ def _lista_kunder(user):
 def _lista_projekt(user):
     require_agency(user)
     rows = []
-    for project in Project.objects.select_related("customer").prefetch_related("columns"):
+    for project in Project.objects.select_related("customer"):
         rows.append(
             {
                 "key": project.key,
                 "namn": project.name,
                 "kund": project.customer.name if project.customer_id else None,
                 "status": project.status,
-                "kolumner": [c.title for c in project.columns.all()],
                 "oppna_arenden": project.issues.filter(closed_at__isnull=True).count(),
                 "loggad_tid_h": round(project.total_seconds() / 3600, 1),
             }
@@ -324,9 +339,7 @@ def _lista_projekt(user):
 def _lista_arenden(user, projekt=None, kund=None, status="oppna", mina=False, sok=None):
     require_agency(user)
     qs = (
-        Issue.objects.select_related(
-            "project", "project__customer", "customer", "column", "assignee"
-        )
+        Issue.objects.select_related("project", "project__customer", "customer", "assignee")
         .prefetch_related("labels", "checklist")
         .with_logged_seconds()
     )
@@ -347,7 +360,7 @@ def _lista_arenden(user, projekt=None, kund=None, status="oppna", mina=False, so
         qs = qs.filter(
             Q(title__icontains=text) | Q(description__icontains=text)
         )  # HTML, men texten finns i den
-    qs = qs.order_by("project__key", "column__position", "position", "id")
+    qs = qs.order_by("project__key", "position", "id")
 
     # En rad extra avslöjar kapning utan en separat count-fråga.
     issues = with_time(qs[: MAX_ROWS + 1])
@@ -522,11 +535,7 @@ def _skapa_arende(
             f"Projektet {project.key} tillhör {project.customer.name}, inte {customer.name}. "
             f"Ange bara projekt."
         )
-    column = None
-    if kolumn:
-        if project is None:
-            raise OperationError("kolumn kräver ett projekt.")
-        column = _column(project, kolumn)
+    status = _stage(kolumn) if kolumn else IssueStatus.NEW
 
     title = clean_text(rubrik, "rubrik", 200)
     if not title:
@@ -536,7 +545,7 @@ def _skapa_arende(
         "description": clean_text(beskrivning, "beskrivning", 20000, multiline=True),
         "project": project.pk if project else None,
         "customer": customer.pk if customer else None,
-        "column": column.pk if column else None,
+        "status": status,
         "issue_type": IssueType.TASK,
         "priority": _priority(prioritet),
         "assignee": _staff(ansvarig).pk if ansvarig else None,
@@ -559,7 +568,7 @@ def _skapa_arende(
         "id": issue.pk,
         "nyckel": issue.key,
         "projekt": issue.project.key if issue.project_id else None,
-        "kolumn": issue.column.title if issue.column_id else None,
+        "kolumn": issue.get_status_display(),
         "synlig_for_kund": issue.visible_to_customer,
         "lank": _issue_url(issue),
     }
@@ -641,32 +650,17 @@ def _flytta_arende(user, nyckel_eller_id, kolumn=None, steg=None):
     require_agency(user)
     issue = _issue(nyckel_eller_id)
     if not kolumn and not steg:
-        raise OperationError(
-            "Ange kolumn (kolumntitel i projektet) eller steg (new, active, done)."
-        )
-    column = None
-    if kolumn:
-        if not issue.project_id:
-            raise OperationError(
-                f"{issue.key} har inget projekt och därmed inga kolumner - använd steg."
-            )
-        column = _column(issue.project, kolumn)
-    elif steg not in dict(STAGES):
-        raise OperationError("steg ska vara new, active eller done.")
-
-    was_column, was_closed = issue.column_id, issue.is_closed
-    try:
-        move_issue(issue, column=column, stage=steg)
-    except ValueError as exc:
-        raise OperationError(str(exc)) from exc
-    if issue.column_id != was_column or issue.is_closed != was_closed:
-        where = issue.column.title if issue.column_id else dict(STAGES).get(steg, "")
-        issue.log(user, f"flyttade till {where}")
+        raise OperationError("Ange kolumn: Nytt, Pågår eller Klart (eller steg new, active, done).")
+    stage = _stage(kolumn or steg)
+    was = issue.status
+    move_issue(issue, stage=stage)
+    if issue.status != was:
+        issue.log(user, f"flyttade till {issue.get_status_display()}")
     return {
         "status": "flyttat",
         "nyckel": issue.key,
-        "kolumn": issue.column.title if issue.column_id else None,
-        "steg": issue.stage,
+        "kolumn": issue.get_status_display(),
+        "steg": issue.status,
         "stangt": issue.is_closed,
         "lank": _issue_url(issue),
     }
@@ -806,7 +800,6 @@ def _skapa_projekt(
         "key": project.key,
         "namn": project.name,
         "kund": project.customer.name if project.customer_id else None,
-        "kolumner": [c.title for c in project.columns.all()],
         "lank": f"{base_url()}/manage/projekt/{project.key}/",
     }
 
@@ -957,8 +950,8 @@ register(
     Operation(
         name="lista_projekt",
         description=(
-            "Lista alla projekt med nyckel (t.ex. NORD), kund, status, kolumnerna på "
-            "projektets tavla, öppna ärenden och loggad tid i timmar."
+            "Lista alla projekt med nyckel (t.ex. NORD), kund, status, öppna ärenden "
+            "och loggad tid i timmar. Alla tavlor har samma kolumner: Nytt, Pågår, Klart."
         ),
         input_schema=_EMPTY,
         risk=Risk.READ,
@@ -1041,7 +1034,7 @@ register(
                 "etiketter": {"type": "array", "items": _S},
                 "ansvarig": {**_S, "description": "Användarnamn eller förnamn på byråns personal."},
                 "synlig_for_kund": _B,
-                "kolumn": {**_S, "description": "Kolumntitel i projektet; annars första kolumnen."},
+                "kolumn": {**_S, "description": "Nytt, Pågår eller Klart; utelämnad = Nytt."},
             },
             ["rubrik"],
         ),
@@ -1079,9 +1072,9 @@ register(
     Operation(
         name="flytta_arende",
         description=(
-            "Flytta ett ärende till en kolumn i projektet (kolumn = titel, se "
-            "lista_projekt) eller till ett steg: new, active eller done. Steget done "
-            "stänger ärendet. Kunden mejlas inte."
+            "Flytta ett ärende till en kolumn: Nytt, Pågår eller Klart (samma på alla "
+            "tavlor; steg new, active, done fungerar också). Klart stänger ärendet. "
+            "Kunden mejlas inte."
         ),
         input_schema=_schema(
             {
@@ -1159,9 +1152,8 @@ register(
     Operation(
         name="skapa_projekt",
         description=(
-            "Skapa ett projekt DIREKT, med standardkolumnerna Att göra / Pågår / "
-            "Klart. key (t.ex. NORD, max 10 tecken) skapas ur namnet om den utelämnas. "
-            "kund är id eller namn på en befintlig kund."
+            "Skapa ett projekt DIREKT. key (t.ex. NORD, max 10 tecken) skapas ur "
+            "namnet om den utelämnas. kund är id eller namn på en befintlig kund."
         ),
         input_schema=_schema(
             {

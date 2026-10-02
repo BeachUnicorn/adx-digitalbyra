@@ -616,7 +616,7 @@ class ProjectLinkTests(StaffClientMixin, TestCase):
             (fixed.issue.title, fixed.issue.description_text, fixed.issue.project),
             ("Hemsida", "Fem sidor", project),
         )
-        self.assertEqual(fixed.issue.column, project.columns.order_by("position").first())
+        self.assertEqual(fixed.issue.status, "new")
         self.assertTrue(fixed.issue.is_billable)
         self.assertEqual(fixed.issue.reporter, self.user)
         self.assertIn(f"offert #{quote.pk}", fixed.issue.activity.get().text)

@@ -2,7 +2,6 @@ from django import forms
 from django.contrib.auth import get_user_model
 
 from .models import (
-    Column,
     Customer,
     Issue,
     Project,
@@ -39,7 +38,7 @@ class IssueForm(forms.ModelForm):
             "description",
             "project",
             "customer",
-            "column",
+            "status",
             "issue_type",
             "priority",
             "assignee",
@@ -56,13 +55,10 @@ class IssueForm(forms.ModelForm):
         self.fields["project"].queryset = Project.objects.exclude(status="archived")
         self.fields["customer"].queryset = Customer.objects.filter(is_active=True)
         self.fields["assignee"].queryset = get_user_model().objects.filter(is_staff=True)
-        project = self.instance.project if self.instance and self.instance.project_id else None
-        if "project" in self.data and self.data.get("project"):
-            project = Project.objects.filter(pk=self.data.get("project")).first()
-        self.fields["column"].queryset = (
-            Column.objects.filter(project=project) if project else Column.objects.none()
-        )
-        self.fields["column"].required = False
+        self.fields["status"].required = False
+
+    def clean_status(self):
+        return self.cleaned_data.get("status") or self.instance.status
 
 
 class PortalIssueForm(forms.Form):
@@ -159,12 +155,6 @@ class ProjectForm(forms.ModelForm):
         if commit:
             project.save()
         return project
-
-
-class ColumnForm(forms.ModelForm):
-    class Meta:
-        model = Column
-        fields = ["title", "wip_limit", "is_done"]
 
 
 class CustomerForm(forms.ModelForm):

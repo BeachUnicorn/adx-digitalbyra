@@ -44,7 +44,7 @@ def customer_issues(customer):
     return (
         Issue.objects.for_customer(customer)
         .filter(visible_to_customer=True)
-        .select_related("project", "column", "customer")
+        .select_related("project", "customer")
     )
 
 

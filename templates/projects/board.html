@@ -9,16 +9,21 @@ Klick på ett kort öppnar glidpanelen (#drawer) med ärendet.
   <div>
     <h1 class="tv-h1">{{ title }}</h1>
     <div class="tv-sub">
-      {% if project %}{% if project.customer %}{{ project.customer.name }} &middot; {% endif %}<a href="{% url 'manage:project_detail' project.key %}">Projektets inställningar</a>{% else %}Alla projekt. Klicka på ett kort för att öppna ärendet.{% endif %}
+      {% if project %}{% if project.customer %}<a href="{% url 'manage:customer_detail' project.customer.pk %}">{{ project.customer.name }}</a> &middot; {% endif %}<a href="{% url 'manage:project_detail' project.key %}">Projektets inställningar</a>{% elif customer %}<a href="{% url 'manage:customer_detail' customer.pk %}">Kundkortet</a> &middot; alla kundens ärenden, oavsett projekt.{% elif filter.customer_key %}Ärenden och projekt som inte hör till någon kund.{% else %}Alla kunder. Äldst skapade överst; Klart visar det senast stängda först.{% endif %}
     </div>
   </div>
   <div class="tv-today" id="tv-stats">{% include "projects/_stats.html" %}</div>
 </div>
 
+<div class="tv-filters tv-filters--scope" aria-label="Kund">
+  {% for label, href, on in pills.customers %}<a class="tv-pill tv-pill--scope{% if on %} is-on{% endif %}" href="{{ href }}">{{ label }}</a>{% endfor %}
+</div>
+{% if pills.projects %}<div class="tv-filters tv-filters--projects" aria-label="Projekt">
+  {% for label, href, on in pills.projects %}<a class="tv-pill tv-pill--small{% if on %} is-on{% endif %}" href="{{ href }}">{{ label }}</a>{% endfor %}
+</div>{% endif %}
+
 <div class="tv-filters" id="filters">
   {% for label, href, on in pills.toggles %}<a class="tv-pill{% if on %} is-on{% endif %}" href="{{ href }}">{{ label }}</a>{% endfor %}
-  <span class="sep"></span>
-  {% for label, href, on in pills.projects %}<a class="tv-pill{% if on %} is-on{% endif %}" href="{{ href }}">{{ label }}</a>{% endfor %}
   {% if pills.labels %}<span class="sep"></span>
   {% for label, href, on in pills.labels %}<a class="tv-pill{% if on %} is-on{% endif %}" href="{{ href }}">{{ label }}</a>{% endfor %}{% endif %}
   <input class="tv-search" type="search" placeholder="Sök ärende, kund..." value="{{ filter.q }}" aria-label="Sök" autocomplete="off">
@@ -42,22 +47,24 @@ Klick på ett kort öppnar glidpanelen (#drawer) med ärendet.
      data-time-add-url="{% url 'manage:time_add' 0 %}"
      data-time-url="{% url 'manage:time_update' 0 %}"
      data-project="{{ project.key|default:'' }}"
+     data-customer="{{ filter.customer_key }}"
+     data-manual="{% if filter.manual_order %}1{% endif %}"
      {% if open_id %}data-open="{{ open_id }}"{% endif %}>
   {% for col in columns %}
-  <section class="tv-col{% if col.over %} is-over{% endif %}" data-col="{{ col.key }}" data-title="{{ col.title }}">
+  <section class="tv-col" data-col="{{ col.key }}" data-title="{{ col.title }}">
     <header class="tv-col-head">
       <h2 class="tv-col-title">{{ col.title }}</h2>
-      <span class="tv-col-count" data-count data-wip="{{ col.wip|default:'' }}">{{ col.issues|length }}{% if col.wip %}/{{ col.wip }}{% endif %}</span>
+      <span class="tv-col-count" data-count>{{ col.issues|length }}</span>
       <span class="tv-col-time">tid <span data-coltime>{{ col.time }}</span></span>
     </header>
     <div class="tv-col-body">
       {% for issue in col.issues %}{% include "projects/_card.html" %}{% endfor %}
       <div class="tv-empty" data-empty{% if col.issues %} hidden{% endif %}>Tomt</div>
     </div>
-    <form class="tv-add" data-col="{{ col.key }}">
+    {% if not filter.is_all %}<form class="tv-add" data-col="{{ col.key }}">
       <input type="text" name="title" placeholder="Nytt ärende" autocomplete="off" aria-label="Nytt ärende i {{ col.title }}">
       <button type="submit">Lägg till</button>
-    </form>
+    </form>{% endif %}
   </section>
   {% endfor %}
 </div>

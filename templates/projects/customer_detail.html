@@ -8,11 +8,14 @@
     {% if not customer.is_active %}<div class="tv-sub">Kunden är inaktiv: kontakterna kan inte logga in i portalen förrän du bockar i Aktiv i formuläret.</div>{% endif %}
     <div class="tv-sub">{{ time }} loggad tid{% if customer.email %} &middot; {{ customer.email }}{% endif %}{% if customer.phone %} &middot; {{ customer.phone }}{% endif %}</div>
   </div>
-  {% if customer.is_active %}
-  <form method="post" action="{% url 'manage:customer_view_as' customer.pk %}">{% csrf_token %}
-    <button type="submit" class="m-btn m-btn--ghost" title="Öppnar /kund/ med kundens ögon - skrivskyddat">Visa portalen som kunden</button>
-  </form>
-  {% endif %}
+  <div class="tv-head__actions">
+    <a class="m-btn" href="{% url 'manage:board' %}?kund={{ customer.pk }}">Öppna tavlan</a>
+    {% if customer.is_active %}
+    <form method="post" action="{% url 'manage:customer_view_as' customer.pk %}">{% csrf_token %}
+      <button type="submit" class="m-btn m-btn--ghost" title="Öppnar /kund/ med kundens ögon - skrivskyddat">Visa portalen som kunden</button>
+    </form>
+    {% endif %}
+  </div>
 </div>
 <div class="tv-grid">
   <div class="tv-stack">
@@ -130,9 +133,9 @@
     <div class="m-panel m-table-wrap">
       <div class="tv-panel-head"><div class="tv-sec-title">Ärenden</div></div>
       <table class="m-table">
-        <thead><tr><th>Nyckel</th><th>Rubrik</th><th>Kolumn</th><th>Kund ser</th><th class="m-num">Tid</th></tr></thead>
+        <thead><tr><th>Nyckel</th><th>Rubrik</th><th>Status</th><th>Kund ser</th><th class="m-num">Tid</th></tr></thead>
         <tbody>
-        {% for i in issues %}<tr><td><a href="{% url 'manage:issue_detail' i.pk %}" class="tv-link"><b>{{ i.key }}</b></a></td><td>{{ i.title }}</td><td class="tv-muted">{{ i.column.title|default:"-" }}</td><td>{% if i.visible_to_customer %}<span class="m-badge m-badge--published">ja</span>{% else %}<span class="tv-muted">nej</span>{% endif %}</td><td class="m-num">{{ i.seconds|hours }}</td></tr>
+        {% for i in issues %}<tr><td><a href="{% url 'manage:issue_detail' i.pk %}" class="tv-link"><b>{{ i.key }}</b></a></td><td>{{ i.title }}</td><td class="tv-muted">{{ i.get_status_display }}</td><td>{% if i.visible_to_customer %}<span class="m-badge m-badge--published">ja</span>{% else %}<span class="tv-muted">nej</span>{% endif %}</td><td class="m-num">{{ i.seconds|hours }}</td></tr>
         {% empty %}<tr><td colspan="5" class="m-empty">Inga ärenden.</td></tr>{% endfor %}
         </tbody>
       </table>

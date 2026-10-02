@@ -19,17 +19,13 @@ from django.test import Client, TestCase, override_settings
 from django.utils import timezone
 
 from .board import move_issue
-from .models import Attachment, Column, Comment, Customer, Issue, Project, TimeEntry
+from .models import Attachment, Comment, Customer, Issue, Project, TimeEntry
 
 
 class ProjectTests(TestCase):
-    def test_a_new_project_gets_default_columns_and_uppercase_key(self):
+    def test_a_new_project_gets_an_uppercase_key(self):
         project = Project.objects.create(name="Ny hemsida", key="nord")
         self.assertEqual(project.key, "NORD")
-        self.assertEqual(
-            list(project.columns.values_list("title", "is_done")),
-            [("Att göra", False), ("Pågår", False), ("Klart", True)],
-        )
 
     def test_issue_numbers_run_per_project(self):
         a = Project.objects.create(name="A", key="A")
@@ -45,7 +41,7 @@ class ProjectTests(TestCase):
         issue = Issue.objects.create(title="Lös fråga")
         self.assertEqual(issue.key, f"#{issue.pk}")
         self.assertIsNone(issue.number)
-        self.assertIsNone(issue.column)
+        self.assertEqual(issue.status, "new")
 
 
 class CustomerTruthTests(TestCase):
@@ -75,34 +71,22 @@ class CustomerTruthTests(TestCase):
         Issue.objects.create(customer=self.other, title="c")
         self.assertEqual(set(Issue.objects.for_customer(self.acme)), {via_project, direct})
 
-    def test_column_from_another_project_is_refused(self):
-        foreign = Project.objects.create(name="Annat", key="ANN")
-        issue = Issue(project=self.project, column=foreign.columns.first(), title="x")
-        with self.assertRaises(ValidationError):
-            issue.full_clean()
 
+class StatusFlowTests(TestCase):
+    """Tre fasta kolumner för alla: samma beteende med och utan projekt."""
 
-class ColumnFlowTests(TestCase):
-    def setUp(self):
-        self.project = Project.objects.create(name="P", key="P")
-        self.done = self.project.columns.get(is_done=True)
-        self.todo = self.project.columns.get(title="Att göra")
-
-    def test_moving_to_a_done_column_closes_and_back_reopens(self):
-        issue = Issue.objects.create(project=self.project, title="x")
-        self.assertIsNone(issue.closed_at)
-        issue.column = self.done
-        issue.save()
-        self.assertIsNotNone(issue.closed_at)
-        self.assertNotIn(issue, Issue.objects.open())
-        issue.column = self.todo
-        issue.save()
-        self.assertIsNone(issue.closed_at)
-
-    def test_column_titles_are_unique_per_project(self):
-        with self.assertRaises(IntegrityError):
-            with transaction.atomic():
-                Column.objects.create(project=self.project, title="Klart", position=9)
+    def test_done_closes_and_back_reopens(self):
+        for project in (Project.objects.create(name="P", key="P"), None):
+            issue = Issue.objects.create(project=project, title="x")
+            self.assertIsNone(issue.closed_at)
+            issue.status = "done"
+            issue.save()
+            self.assertIsNotNone(issue.closed_at)
+            self.assertNotIn(issue, Issue.objects.open())
+            issue.status = "active"
+            issue.save()
+            self.assertIsNone(issue.closed_at)
+            self.assertEqual(issue.stage, "active")
 
 
 class TimerTests(TestCase):
@@ -564,24 +548,20 @@ class BoardTests(PortalFixtureMixin, TestCase):
 
     def test_move_between_columns_closes_on_done(self):
         client = self.as_staff()
-        done = self.project.columns.get(is_done=True)
         response = client.post(
             f"/manage/arenden/{self.visible.pk}/flytta/",
-            json.dumps({"target": f"c{done.pk}", "order": [self.visible.pk]}),
+            json.dumps({"target": "done", "order": [self.visible.pk]}),
             content_type="application/json",
         )
         self.assertEqual(response.json()["stage"], "done")
         self.visible.refresh_from_db()
         self.assertIsNotNone(self.visible.closed_at)
-
-    def test_move_by_stage_on_the_all_board_picks_the_projects_column(self):
-        self.as_staff().post(
+        bad = client.post(
             f"/manage/arenden/{self.visible.pk}/flytta/",
-            json.dumps({"target": "active"}),
+            json.dumps({"target": "c12"}),
             content_type="application/json",
         )
-        self.visible.refresh_from_db()
-        self.assertEqual(self.visible.column.title, "Pågår")
+        self.assertEqual(bad.status_code, 400)
 
     def test_issue_without_project_can_be_moved_to_active_and_back(self):
         """Buggen 2026-09-21: utan projekt fanns bara öppet/stängt, kortet föll till Nytt."""
@@ -598,22 +578,20 @@ class BoardTests(PortalFixtureMixin, TestCase):
             return response.json()["stage"]
 
         self.assertEqual(move("active"), "active")
-        self.assertIsNotNone(loose.started_at)
         self.assertIn("flyttade till Pågår", loose.activity.order_by("-pk").first().text)
         self.assertEqual(move("done"), "done")
         self.assertIsNotNone(loose.closed_at)
         self.assertEqual(move("active"), "active")  # återöppnat hamnar i Pågår, inte i Nytt
         self.assertIsNone(loose.closed_at)
         self.assertEqual(move("new"), "new")
-        self.assertIsNone(loose.started_at)
 
-    def test_started_at_is_cleared_when_the_issue_gets_a_project(self):
+    def test_status_survives_when_the_issue_gets_a_project(self):
         loose = Issue.objects.create(title="Löst ärende")
         move_issue(loose, stage="active")
         loose.project = self.project
         loose.save()
-        self.assertIsNone(loose.started_at)
-        self.assertEqual(loose.stage, "new")  # projektets första kolumn gäller nu
+        self.assertEqual(loose.stage, "active")
+        self.assertEqual(loose.key, "ACME-3")
 
     def test_timer_toggle_via_fetch(self):
         client = self.as_staff()
@@ -677,18 +655,124 @@ class BoardTests(PortalFixtureMixin, TestCase):
         self.assertIn("ACME-1", html)
 
 
+class CustomerFirstBoardTests(PortalFixtureMixin, TestCase):
+    """Kund först, projekt sedan; Alla är överblick, sorterad på datum."""
+
+    def test_customer_shows_all_its_issues_across_projects_and_direct(self):
+        support = Project.objects.create(name="Support", key="ACMS", customer=self.acme)
+        in_support = Issue.objects.create(project=support, title="Supportfråga")
+        direct = Issue.objects.create(customer=self.acme, title="Direkt på kunden")
+        html = self.as_staff().get(f"/manage/tavla/?kund={self.acme.pk}").content.decode()
+        for issue in (self.visible, self.hidden, in_support, direct):
+            self.assertIn(issue.title, html)
+        self.assertNotIn("Annans ärende", html)
+        self.assertIn("Alla projekt", html, "projektknapparna visas under vald kund")
+        html = self.as_staff().get(f"/manage/tavla/?kund={self.acme.pk}&projekt=ACMS").content
+        self.assertIn(b"Supportfr", html)
+        self.assertNotIn(b"Internt jobb", html)
+
+    def test_utan_kund_shows_loose_issues_and_projects_without_customer(self):
+        own = Project.objects.create(name="ADX", key="ADX")
+        mine = Issue.objects.create(project=own, title="Eget projekt")
+        loose = Issue.objects.create(title="Helt löst")
+        html = self.as_staff().get("/manage/tavla/?kund=utan").content.decode()
+        self.assertIn(mine.title, html)
+        self.assertIn(loose.title, html)
+        self.assertNotIn("Internt jobb", html)
+        self.assertIn(loose.title, self.as_staff().get("/manage/tavla/").content.decode())
+
+    def test_project_of_another_customer_falls_back_to_the_customer(self):
+        from .board import BoardFilter
+
+        flt = BoardFilter({"kund": str(self.other.pk), "projekt": "ACME"}).resolve()
+        self.assertEqual(flt.customer, self.other)
+        self.assertIsNone(flt.project)
+
+    def test_alla_has_no_add_forms_and_sorts_by_age(self):
+        from .board import columns_for
+
+        html = self.as_staff().get("/manage/tavla/").content.decode()
+        self.assertNotIn('class="tv-add"', html)
+        self.assertIn(
+            'class="tv-add"', self.as_staff().get("/manage/tavla/?kund=utan").content.decode()
+        )
+
+        old = Issue.objects.create(title="Gammal", position=5)
+        new = Issue.objects.create(title="Ny", position=0)
+        Issue.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timezone.timedelta(days=9)
+        )
+        old.refresh_from_db()
+        first = Issue.objects.create(title="Stängd först", status="done")
+        last = Issue.objects.create(title="Stängd sist", status="done")
+        Issue.objects.filter(pk=first.pk).update(
+            closed_at=timezone.now() - timezone.timedelta(days=2)
+        )
+        issues = list(Issue.objects.filter(pk__in=[old.pk, new.pk, first.pk, last.pk]))
+        for i in issues:
+            i.refresh_from_db()
+            i.seconds = 0
+        cols = {c["key"]: [i.title for i in c["issues"]] for c in columns_for(issues)}
+        self.assertEqual(cols["new"], ["Gammal", "Ny"], "äldst skapat överst")
+        self.assertEqual(cols["done"], ["Stängd sist", "Stängd först"], "senast stängt överst")
+        manual = {
+            c["key"]: [i.title for i in c["issues"]] for c in columns_for(issues, manual=True)
+        }
+        self.assertEqual(manual["new"], ["Ny", "Gammal"], "egen ordning när kund är vald")
+
+    def test_quick_add_lands_where_the_view_says(self):
+        client = self.as_staff()
+
+        def add(title, **where):
+            return client.post(
+                "/manage/arenden/snabb/",
+                json.dumps({"title": title, "target": "active", **where}),
+                content_type="application/json",
+            )
+
+        self.assertEqual(add("I Alla").status_code, 400)
+        add("Hos Acme", customer=str(self.acme.pk))
+        made = Issue.objects.get(title="Hos Acme")
+        self.assertEqual((made.project, made.status), (self.project, "active"))
+        add("Löst", customer="utan")
+        self.assertEqual(Issue.objects.get(title="Löst").effective_customer, None)
+
+    def test_the_panel_moves_an_issue_between_customer_and_project(self):
+        loose = Issue.objects.create(title="Idé")
+        url = f"/manage/arenden/{loose.pk}/falt/"
+        post = lambda v: self.as_staff().post(  # noqa: E731
+            url, json.dumps({"field": "place", "value": v}), content_type="application/json"
+        )
+        self.assertEqual(post(f"c{self.other.pk}").status_code, 200)
+        loose.refresh_from_db()
+        self.assertEqual(
+            (loose.customer, loose.project, loose.key), (self.other, None, f"#{loose.pk}")
+        )
+        post(f"p{self.project.pk}")
+        loose.refresh_from_db()
+        self.assertEqual((loose.project, loose.customer), (self.project, None))
+        self.assertTrue(loose.key.startswith("ACME-"))
+        post("")
+        loose.refresh_from_db()
+        self.assertEqual((loose.project, loose.customer, loose.number), (None, None, None))
+        self.assertEqual(post("x9").status_code, 400)
+        self.assertIn("flyttade från", loose.activity.order_by("-pk").first().text)
+
+
 class FilterTests(PortalFixtureMixin, TestCase):
     """Filtren lever i adressen och servern tillämpar dem."""
 
     def test_project_filter_and_pills(self):
         from .board import BoardFilter
 
-        flt = BoardFilter({"projekt": "acme", "mina": "1", "q": "x"})
+        flt = BoardFilter({"projekt": "acme", "mina": "1", "q": "x"}).resolve()
         self.assertEqual(flt.project_key, "ACME")
+        # Ett projekt utan kundval väljer sin kund själv.
+        self.assertEqual(flt.customer, self.acme)
         self.assertTrue(flt.is_active)
         self.assertIn("mina=1", flt.url())
         self.assertNotIn("mina", flt.url(mina=""))
-        self.assertEqual(flt.clear_url, "?projekt=ACME")
+        self.assertEqual(flt.clear_url, f"?kund={self.acme.pk}&projekt=ACME")
 
     def test_mine_due_prio_and_label_filters(self):
         from .models import Label
@@ -734,7 +818,8 @@ class DrawerTests(PortalFixtureMixin, TestCase):
         html = r.json()["panel"]
         self.assertIn("Synligt", html)
         self.assertIn("Svar + mejl till kunden", html)
-        self.assertIn('data-field="column"', html)
+        self.assertIn('data-field="status"', html)
+        self.assertIn('data-field="place"', html)
 
     def test_field_autosave_and_activity(self):
         url = f"/manage/arenden/{self.hidden.pk}/falt/"
@@ -765,8 +850,7 @@ class DrawerTests(PortalFixtureMixin, TestCase):
         self.assertIn("panel", r)
         self._post(url, {"field": "label", "value": webb.pk})
         self.assertEqual(self.hidden.labels.count(), 0)
-        done = self.project.columns.get(is_done=True)
-        r = self._post(url, {"field": "column", "value": f"c{done.pk}"}).json()
+        r = self._post(url, {"field": "status", "value": "done"}).json()
         self.assertEqual(r["stage"], "done")
         self.hidden.refresh_from_db()
         self.assertIsNotNone(self.hidden.closed_at)
@@ -831,8 +915,7 @@ class DrawerTests(PortalFixtureMixin, TestCase):
         self.assertEqual(self.visible.comments.filter(is_internal=False).count(), 1)
         self.assertEqual(len(mail.outbox), 0)
         # Flytt till Klart mejlar inte heller.
-        done = self.project.columns.get(is_done=True)
-        self._post(f"/manage/arenden/{self.visible.pk}/flytta/", {"target": f"c{done.pk}"})
+        self._post(f"/manage/arenden/{self.visible.pk}/flytta/", {"target": "done"})
         self.assertEqual(len(mail.outbox), 0)
 
     @override_settings(**EMAIL)

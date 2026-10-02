@@ -1,14 +1,23 @@
 """
-Tavlans gemensamma logik: hinkar, kort-data, flytt, filter och huvudets siffror.
+Tavlans gemensamma logik: kolumner, kort-data, flytt, filter och huvudets siffror.
 
-Ett projekt har sina egna kolumner. Vyn "Alla" (byrån) och portalen (kund
-med ärenden i flera projekt) behöver ändå en gemensam tavla, och den har
-tre hinkar: new / active / done. Issue.stage härleder hinken ur kolumnen,
-och move_to_stage gör tvärtom: väljer kolumn i ärendets projekt.
+Tre fasta kolumner för allt (Issue.status): Nytt, Pågår, Klart. Samma på
+byråns tavla, i portalen och i Mac-appen.
 
-Filtren lever i URL:en (?projekt=NORD&mina=1&forfaller=1&prio=1&etikett=webb
-&q=text) så att en vy går att bokmärka och ladda om. Servern filtrerar;
-klienten gör bara fritextsökningen omedelbar.
+Man väljer KUND först och smalnar sedan av till ett projekt:
+
+    Alla        allt, även ärenden utan kund. Äldst skapade överst.
+    Utan kund   lösa ärenden och projekt som inte hör till någon kund.
+    <kund>      alla kundens ärenden, oavsett projekt (eller inget).
+      <projekt> bara det projektet.
+
+Kunden är enheten man tänker i och prioriterar inom; projekten är byråns
+egna fack. Med projekt först hamnade en kunds arbete på flera ställen, och
+ärenden direkt på kunden syntes inte alls.
+
+Filtren lever i URL:en (?kund=3&projekt=NORD&mina=1&forfaller=1&prio=1
+&etikett=webb&q=text) så att en vy går att bokmärka och ladda om. Servern
+filtrerar; klienten gör bara fritextsökningen omedelbar.
 """
 
 from datetime import timedelta
@@ -17,41 +26,31 @@ from urllib.parse import urlencode
 from django.db.models import Q, Sum
 from django.utils import timezone
 
-from .models import Issue, IssuePriority, Label, Project, ProjectStatus, TimeEntry
+from .models import (
+    Customer,
+    Issue,
+    IssuePriority,
+    IssueStatus,
+    Label,
+    Project,
+    ProjectStatus,
+    TimeEntry,
+)
 
-STAGES = [("new", "Nytt"), ("active", "Pågår"), ("done", "Klart")]
+STAGES = list(IssueStatus.choices)
 
 #: Stängda ärenden ligger kvar på tavlan så här länge (i Klart-kolumnen).
 DONE_VISIBLE_DAYS = 30
 
-
-def column_for_stage(project, stage):
-    columns = list(project.columns.order_by("position"))
-    if not columns:
-        return None
-    if stage == "done":
-        return next((c for c in columns if c.is_done), columns[-1])
-    if stage == "new":
-        return columns[0]
-    middle = [c for c in columns[1:] if not c.is_done]
-    return middle[0] if middle else columns[0]
+#: ?kund=utan - ärenden och projekt utan kund.
+NO_CUSTOMER = "utan"
 
 
-def move_issue(issue, *, column=None, stage=None, before=None, after_ids=None):
-    """Flytta ett ärende till kolumn eller hink, och placera det i ordningen."""
-    if column is None and stage and issue.project_id:
-        column = column_for_stage(issue.project, stage)
-    if column is not None:
-        if issue.project_id and column.project_id != issue.project_id:
-            raise ValueError("Kolumnen tillhör ett annat projekt.")
-        issue.column = column
-    elif stage and not issue.project_id:
-        # Fristående ärende: ingen kolumn, så statusen bärs av två tidsstämplar.
-        issue.closed_at = (issue.closed_at or timezone.now()) if stage == "done" else None
-        if stage == "new":
-            issue.started_at = None
-        elif stage == "active":
-            issue.started_at = issue.started_at or timezone.now()
+def move_issue(issue, *, stage, after_ids=None):
+    """Flytta ett ärende till en kolumn (new/active/done) och placera det i ordningen."""
+    if stage not in IssueStatus.values:
+        raise ValueError("Okänd kolumn. Använd new, active eller done.")
+    issue.status = stage
     issue.save()
     if after_ids:
         renumber(after_ids)
@@ -105,21 +104,70 @@ class BoardFilter:
     """
     Tavlans filter, lästa ur query-strängen och skrivna tillbaka till den.
 
-    Ett objekt i stället för lösa variabler: vyn, pillren och testerna
-    talar samma språk, och en ny flagga läggs till på ett ställe.
+    Ett objekt i stället för lösa variabler: vyn, pillren, API:t och
+    testerna talar samma språk, och en ny flagga läggs till på ett ställe.
+    Anropa resolve() innan kund och projekt används.
     """
 
     def __init__(self, params, user=None):
-        self.project_key = (params.get("projekt") or "").upper()
+        raw = str(params.get("kund") or "").strip().lower()
+        self.customer_key = raw if raw == NO_CUSTOMER or raw.isdigit() else ""
+        self.project_key = str(params.get("projekt") or "").strip().upper()
         self.mine = params.get("mina") == "1"
         self.due = params.get("forfaller") == "1"
         self.prio = params.get("prio") == "1"
-        self.label = (params.get("etikett") or "").strip()[:40]
-        self.q = (params.get("q") or "").strip()[:100]
+        self.label = str(params.get("etikett") or "").strip()[:40]
+        self.q = str(params.get("q") or "").strip()[:100]
         self.user = user
+        self.customer = None
+        self.project = None
+
+    def resolve(self):
+        """
+        Slå upp kund och projekt. Ett ogiltigt val faller tillbaka till den
+        bredare vyn i stället för att ge en tom tavla. Ett projekt utan
+        kundval (gamla länkar, ?projekt=NORD) väljer sin kund själv.
+        """
+        if self.customer_key.isdigit():
+            self.customer = Customer.objects.filter(pk=int(self.customer_key)).first()
+            if self.customer is None:
+                self.customer_key = ""
+        if self.project_key:
+            project = (
+                Project.objects.select_related("customer").filter(key=self.project_key).first()
+            )
+            if project is not None and not self.customer_key:
+                self.customer_key = str(project.customer_id) if project.customer_id else NO_CUSTOMER
+                self.customer = project.customer
+            if project is not None and project.customer_id != (
+                self.customer.pk if self.customer else None
+            ):
+                project = None
+            self.project = project
+            if project is None:
+                self.project_key = ""
+        return self
+
+    @property
+    def is_all(self):
+        return not self.customer_key
+
+    @property
+    def manual_order(self):
+        """Egen ordning (dra korten) när en kund är vald; "Alla" sorterar på datum."""
+        return not self.is_all
+
+    @property
+    def scope_name(self):
+        if self.project:
+            return self.project.name
+        if self.customer:
+            return self.customer.name
+        return "Utan kund" if self.customer_key == NO_CUSTOMER else "Alla kunder"
 
     def as_params(self, **override):
         data = {
+            "kund": self.customer_key,
             "projekt": self.project_key,
             "mina": "1" if self.mine else "",
             "forfaller": "1" if self.due else "",
@@ -140,10 +188,23 @@ class BoardFilter:
 
     @property
     def clear_url(self):
-        """Allt av utom projektvalet - det är en plats, inte ett filter."""
+        """Allt av utom kund och projekt - det är en plats, inte ett filter."""
         return self.url(mina="", forfaller="", prio="", etikett="", q="")
 
+    def scope(self, qs):
+        """Bara kund- och projektvalet - det som avgör var man är."""
+        if self.customer is not None:
+            qs = qs.for_customer(self.customer)
+        elif self.customer_key == NO_CUSTOMER:
+            qs = qs.filter(customer__isnull=True).filter(
+                Q(project__isnull=True) | Q(project__customer__isnull=True)
+            )
+        if self.project is not None:
+            qs = qs.filter(project=self.project)
+        return qs
+
     def apply(self, qs):
+        qs = self.scope(qs)
         if self.mine and self.user is not None:
             qs = qs.filter(assignee=self.user)
         if self.prio:
@@ -165,72 +226,112 @@ class BoardFilter:
             )
         return qs.distinct()
 
-    def pills(self, projects, labels):
-        """Pillerraden: (etikett, länk, påslagen) i tre grupper."""
+    def projects(self):
+        """Projekten man kan smalna av till under vald kund (inga under Alla)."""
+        if self.customer is not None:
+            qs = self.customer.projects.all()
+        elif self.customer_key == NO_CUSTOMER:
+            qs = Project.objects.filter(customer__isnull=True)
+        else:
+            return Project.objects.none()
+        return qs.exclude(status=ProjectStatus.ARCHIVED).order_by("name")
+
+    def place_for_new(self):
+        """
+        (kund, projekt) för ett nytt ärende i den valda vyn.
+
+        Projekt valt: där. Kund vald med ETT aktivt projekt: i det. Kund med
+        flera: direkt på kunden. Utan kund: helt löst. Alla: inget hem -
+        ValueError, överblicken är inte en plats att lägga saker på.
+        """
+        if self.project is not None:
+            return None, self.project
+        if self.customer is not None:
+            active = list(self.customer.projects.filter(status=ProjectStatus.ACTIVE)[:2])
+            return (None, active[0]) if len(active) == 1 else (self.customer, None)
+        if self.customer_key == NO_CUSTOMER:
+            return None, None
+        raise ValueError("Välj en kund, eller Utan kund, för att lägga till.")
+
+    def pills(self, customers, labels):
+        """Pillerraden: (etikett, länk, påslagen) i grupper."""
         toggles = [
             ("Mina", self.url(mina="" if self.mine else "1"), self.mine),
             ("Förfaller", self.url(forfaller="" if self.due else "1"), self.due),
             ("Hög prio", self.url(prio="" if self.prio else "1"), self.prio),
         ]
-        project_pills = [("Alla", self.url(projekt=""), not self.project_key)] + [
-            (p.key, self.url(projekt=p.key), self.project_key == p.key) for p in projects
+        customer_pills = [
+            ("Alla", self.url(kund="", projekt=""), self.is_all),
+            ("Utan kund", self.url(kund=NO_CUSTOMER, projekt=""), self.customer_key == NO_CUSTOMER),
+        ] + [
+            (c.name, self.url(kund=str(c.pk), projekt=""), self.customer_key == str(c.pk))
+            for c in customers
         ]
+        project_pills = []
+        projects = list(self.projects())
+        if projects:
+            project_pills = [("Alla projekt", self.url(projekt=""), not self.project_key)] + [
+                (p.name, self.url(projekt=p.key), self.project_key == p.key) for p in projects
+            ]
         label_pills = []
         for lab in labels:
             on = self.label == lab.name
             label_pills.append((lab.name, self.url(etikett="" if on else lab.name), on))
-        return {"toggles": toggles, "projects": project_pills, "labels": label_pills}
+        return {
+            "toggles": toggles,
+            "customers": customer_pills,
+            "projects": project_pills,
+            "labels": label_pills,
+        }
 
 
-def board_issues(flt, project=None):
+def board_customers(selected=None):
+    """Aktiva kunder, plus den valda om den har gjorts inaktiv."""
+    qs = Customer.objects.filter(Q(is_active=True) | Q(pk=getattr(selected, "pk", None)))
+    return qs.order_by("name")
+
+
+def board_issues(flt):
     """Ärendena på tavlan: öppna, plus nyligen stängda, genom filtret."""
     since = timezone.now() - timedelta(days=DONE_VISIBLE_DAYS)
     qs = (
-        Issue.objects.select_related(
-            "project", "column", "customer", "project__customer", "assignee"
-        )
+        Issue.objects.select_related("project", "customer", "project__customer", "assignee")
         .prefetch_related("labels", "checklist")
         .with_logged_seconds()
         .filter(Q(closed_at__isnull=True) | Q(closed_at__gte=since))
     )
-    if project is not None:
-        qs = qs.filter(project=project)
     return with_time(flt.apply(qs))
 
 
-def columns_for(project, issues):
-    """Kolumnerna som visas: projektets egna, eller de tre hinkarna."""
-    if project is not None:
-        cols = [
+def order_column(issues, status, manual):
+    """
+    Klart: senast stängt överst. Nytt och Pågår: egen ordning när en kund
+    är vald, annars äldst skapat överst.
+    """
+    if status == IssueStatus.DONE:
+        return sorted(issues, key=lambda i: (i.closed_at or i.created_at, i.pk), reverse=True)
+    if manual:
+        return sorted(issues, key=lambda i: (i.position, i.pk))
+    return sorted(issues, key=lambda i: (i.created_at, i.pk))
+
+
+def columns_for(issues, manual=False):
+    """De tre kolumnerna med sina kort, i rätt ordning."""
+    cols = []
+    for status, label in STAGES:
+        col_issues = order_column([i for i in issues if i.status == status], status, manual)
+        seconds = sum(i.seconds for i in col_issues)
+        cols.append(
             {
-                "key": f"c{c.pk}",
-                "title": c.title,
-                "wip": c.wip_limit,
-                "is_done": c.is_done,
-                "issues": [i for i in issues if i.column_id == c.pk],
-            }
-            for c in project.columns.all()
-        ]
-    else:
-        cols = [
-            {
-                "key": stage,
+                "key": status,
                 "title": label,
-                "wip": None,
-                "is_done": stage == "done",
-                "issues": [i for i in issues if i.stage == stage],
+                "is_done": status == IssueStatus.DONE,
+                "issues": col_issues,
+                "seconds": seconds,
+                "time": fmt_hours(seconds),
             }
-            for stage, label in STAGES
-        ]
-    for col in cols:
-        col["seconds"] = sum(i.seconds for i in col["issues"])
-        col["time"] = fmt_hours(col["seconds"])
-        col["over"] = bool(col["wip"] and len(col["issues"]) > col["wip"])
+        )
     return cols
-
-
-def board_projects():
-    return Project.objects.exclude(status=ProjectStatus.ARCHIVED).select_related("customer")
 
 
 def board_labels():

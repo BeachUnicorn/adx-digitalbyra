@@ -1,11 +1,6 @@
 from django.contrib import admin
 
-from .models import Column, Comment, Customer, Issue, Label, Project, TimeEntry
-
-
-class ColumnInline(admin.TabularInline):
-    model = Column
-    extra = 0
+from .models import Comment, Customer, Issue, Label, Project, TimeEntry
 
 
 @admin.register(Customer)
@@ -19,7 +14,6 @@ class ProjectAdmin(admin.ModelAdmin):
     list_display = ("key", "name", "customer", "status", "due_on")
     list_filter = ("status",)
     search_fields = ("key", "name", "customer__name")
-    inlines = [ColumnInline]
 
 
 class TimeEntryInline(admin.TabularInline):
@@ -35,8 +29,8 @@ class CommentInline(admin.TabularInline):
 
 @admin.register(Issue)
 class IssueAdmin(admin.ModelAdmin):
-    list_display = ("key", "title", "project", "column", "priority", "assignee", "closed_at")
-    list_filter = ("issue_type", "priority", "project")
+    list_display = ("key", "title", "project", "status", "priority", "assignee", "closed_at")
+    list_filter = ("status", "issue_type", "priority", "project")
     search_fields = ("title", "description")
     inlines = [TimeEntryInline, CommentInline]
 

@@ -9,7 +9,7 @@
   </div>
   <h3 class="tv-title">{{ issue.title }}</h3>
   <div class="tv-meta">
-    {% with c=issue.effective_customer %}{% if c %}<span>@ {{ c.name }}</span>{% else %}<span>Internt</span>{% endif %}{% endwith %}
+    {% with c=issue.effective_customer %}{% if c %}<span>@ {{ c.name }}</span>{% else %}<span>Utan kund</span>{% endif %}{% endwith %}
     {% for l in issue.labels.all %}<span class="tv-lab" style="--lab:{{ l.color }}">{{ l.name }}</span>{% endfor %}
     {% if done_total.1 %}<span class="tv-check{% if done_total.0 == done_total.1 %} is-done{% endif %}">{{ done_total.0 }}/{{ done_total.1 }}</span>{% endif %}
     {% if issue.assignee %}<span class="tv-avatar" title="{{ issue.assignee.get_full_name|default:issue.assignee.get_username }}">{{ issue.assignee.first_name|default:issue.assignee.username|first|upper }}</span>{% endif %}
