@@ -35,6 +35,8 @@ urlpatterns = [
     path("forfragan/", include("apps.inquiries.urls")),
     # Kundportalen (apps/projects). Före sajtens slug-catchall.
     path("kund/", include("apps.projects.portal_urls")),
+    # JSON-API för Mac-appen ADX Fokus (apps/projects/api.py).
+    path("api/v1/", include("apps.projects.api_urls")),
     # Offertlänkarna till kund. Före sajtens slug-catchall.
     path("", include("apps.offers.urls")),
     # Integrationsguider för andra AI-assistenter (apps/aidocs) på /aiz/, kodskyddade.

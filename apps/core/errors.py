@@ -139,7 +139,7 @@ def not_found(request, exception=None, path=None):
             status=404,
             content_type="text/markdown; charset=utf-8",
         )
-    if path.startswith(("/status/", "/mcp", "/analytics/")) or _wants_json(request):
+    if path.startswith(("/status/", "/mcp", "/analytics/", "/api/")) or _wants_json(request):
         return JsonResponse({"ok": False, "error": "not_found"}, status=404)
 
     try:
