@@ -1,0 +1,103 @@
+{% load static %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}ADX Flamingo{% endblock %}</title>
+{% comment %}
+ADX Flamingo har egen design och laddar aldrig site.css. site-tools.css är
+byråns verktygslager (dockan, redigeringsorbarna, honeypot-fältet) och
+delas med ADX-sajten. Typsnitten är självhostade (static/fonts/files) -
+inga anrop till tredjepartsdomäner.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'css/site-tools.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo-blocks.css' %}?v={{ static_version }}">
+{% block extra_head %}{% endblock %}
+</head>
+<body class="fl">
+{% comment %}
+"flamingo" (FlamingoAccess) sätts av vyerna. 404-sidan renderas av
+apps/core/errors.py utan den, men grinden har alltid satt request.flamingo
+innan en Flamingo-404 kan visas - därav reserven.
+{% endcomment %}
+{% with fa=flamingo|default:request.flamingo %}
+{% url 'flamingo:home' as home_url %}{% url 'flamingo:app' as app_url %}
+<a href="#main" class="fl-skip">Hoppa till innehållet</a>
+{% if fa.mode == "viewing_as" %}
+<div class="fl-staffbar" role="status">
+  <div class="fl-wrap fl-staffbar__in">
+    <p class="fl-staffbar__text">Du ser Flamingo som {{ fa.customer.name }}.{% if fa.customer_lacks_flamingo %} Kunden har inte Flamingo aktiverat och får 404 här.{% endif %}</p>
+    <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="fl-staffbar__btn">Lämna kundvyn</button></form>
+  </div>
+</div>
+{% endif %}
+<header class="fl-header">
+  <div class="fl-wrap fl-header__in">
+    <a href="{{ home_url }}" class="fl-brand" aria-label="ADX Flamingo, startsidan">
+      <img class="fl-brand__adx" src="{% static 'images/adx-logo.png' %}" alt="" width="1502" height="518">
+      <span class="fl-brand__name"><svg class="fl-brand__mark" width="26" height="26" viewBox="0 0 30 30" aria-hidden="true" focusable="false"><defs><linearGradient id="fl-mark-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9EC3FF"/><stop offset=".4" stop-color="#8365F3"/><stop offset=".7" stop-color="#F27AD9"/><stop offset="1" stop-color="#FE9F30"/></linearGradient></defs><path d="M4 3 C 14 8, 18 14, 26 27 L 20 27 C 14 17, 10 12, 4 9 Z" fill="url(#fl-mark-grad)"/></svg>Flamingo</span>
+    </a>
+    {% if flamingo_nav %}
+    <nav class="fl-nav" aria-label="ADX Flamingo">
+      {% for p in flamingo_nav %}<a href="{{ p.get_absolute_url }}"{% if request.path == p.get_absolute_url %} aria-current="page"{% endif %}>{{ p.title }}</a>{% endfor %}
+    </nav>
+    {% endif %}
+    <div class="fl-header__end">
+      {% if fa.is_agency %}
+      <a class="fl-header__link" href="{% url 'manage:flamingo_overview' %}">Panelen</a>
+      {% else %}
+      <a class="fl-header__link" href="{% url 'portal:home' %}">Kundportalen</a>
+      <form method="post" action="{% url 'portal:logout' %}" class="fl-header__out">{% csrf_token %}<button type="submit" class="fl-header__link">Logga ut</button></form>
+      {% endif %}
+      <a class="fl-btn fl-btn--sm" href="{{ app_url }}"{% if request.path == app_url %} aria-current="page"{% endif %}>Verktyget</a>
+    </div>
+    <button type="button" class="fl-burger" aria-label="Öppna meny" aria-expanded="false" aria-controls="fl-mob-menu" data-menu-open>
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</header>
+
+{% comment %}
+Mobilmenyn: samma vägar som raden ovan, som en egen skärm under 761 px.
+Öppnas av hamburgaren (static/js/menu.js, samma skript som panelen och
+portalen); stängs med Stäng, Esc eller en länk.
+{% endcomment %}
+<div class="fl-mob-menu" id="fl-mob-menu" role="dialog" aria-modal="true" aria-label="Meny" hidden>
+  <div class="fl-mob-menu__head">
+    <span class="fl-brand fl-brand--menu"><img class="fl-brand__adx" src="{% static 'images/adx-logo.png' %}" alt="ADX" width="1502" height="518"><span class="fl-brand__name"><svg class="fl-brand__mark" width="26" height="26" viewBox="0 0 30 30" aria-hidden="true" focusable="false"><path d="M4 3 C 14 8, 18 14, 26 27 L 20 27 C 14 17, 10 12, 4 9 Z" fill="url(#fl-mark-grad)"/></svg>Flamingo</span></span>
+    <button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-menu-close>Stäng</button>
+  </div>
+  {% if fa.customer %}<p class="fl-kicker fl-mob-menu__kicker">{{ fa.customer.name }}</p>{% endif %}
+  <nav class="fl-mob-menu__links" aria-label="ADX Flamingo">
+    <a href="{{ home_url }}"{% if request.path == home_url %} aria-current="page"{% endif %}>Start</a>
+    {% for p in flamingo_nav %}<a href="{{ p.get_absolute_url }}"{% if request.path == p.get_absolute_url %} aria-current="page"{% endif %}>{{ p.title }}</a>{% endfor %}
+  </nav>
+  <a class="fl-btn fl-mob-menu__cta" href="{{ app_url }}">Verktyget</a>
+  <div class="fl-mob-menu__foot">
+    {% if fa.is_agency %}
+    <a href="{% url 'manage:flamingo_overview' %}">Panelen</a>
+    {% else %}
+    <a href="{% url 'portal:home' %}">Kundportalen</a>
+    <form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}<button type="submit">Logga ut</button></form>
+    {% endif %}
+  </div>
+</div>
+
+<main id="main" class="fl-main">{% block content %}{% endblock %}</main>
+
+<footer class="fl-footer">
+  <div class="fl-wrap fl-footer__in">
+    <p>ADX Flamingo är en tjänst från ADX Digitalbyrå.</p>
+    <a href="https://adx.se/">adx.se</a>
+  </div>
+</footer>
+{% endwith %}
+
+{% include "website/partials/admin_dock.html" %}
+<script src="{% static 'js/menu.js' %}?v={{ static_version }}" defer></script>
+{% if show_admin_dock %}<script src="{% static 'js/site.js' %}?v={{ site_css_version }}" defer></script>{% endif %}
+{% block extra_js %}{% endblock %}
+</body>
+</html>

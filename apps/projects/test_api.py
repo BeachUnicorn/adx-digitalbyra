@@ -49,8 +49,17 @@ class ApiTests(TestCase):
             self.assertFalse(response.json()["ok"])
 
     def test_a_customer_contact_with_a_key_is_shut_out(self):
+        # Nycklar fungerar bara för staff (2026-10-03): kontaktens nyckel
+        # är ingen nyckel alls.
         _, raw = AssistantToken.issue(self.contact)
-        self.assertEqual(self.call("get", "state/", raw=raw).status_code, 403)
+        self.assertEqual(self.call("get", "state/", raw=raw).status_code, 401)
+
+    def test_a_demoted_staff_key_stops_working(self):
+        user = User.objects.create_user("f.d.", password="x12345678", is_staff=True)
+        _, raw = AssistantToken.issue(user)
+        self.assertEqual(self.call("get", "state/", raw=raw).status_code, 200)
+        User.objects.filter(pk=user.pk).update(is_staff=False)
+        self.assertEqual(self.call("get", "state/", raw=raw).status_code, 401)
 
     def test_a_revoked_key_stops_working(self):
         AssistantToken.objects.filter(user=self.staff).update(is_active=False)

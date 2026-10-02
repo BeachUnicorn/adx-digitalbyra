@@ -4,7 +4,7 @@ Dynamic XML sitemap for all public pages.
 Generates entries for:
 - Homepage and FAQ index
 - Block pages (published)
-- FAQ sections (active)
+- FAQ sections (active and public, see apps/faq/visibility.py)
 - Städer (visible areas)
 """
 
@@ -12,7 +12,7 @@ from django.contrib.sitemaps import Sitemap
 from django.urls import reverse
 
 from apps.areas.models import Area
-from apps.faq.models import FAQSection
+from apps.faq.visibility import public_sections
 from apps.website.models import BlockPage
 
 
@@ -52,7 +52,9 @@ class BlockPageSitemap(Sitemap):
         """
         from apps.website.models import SiteSettings
 
-        pages = BlockPage.objects.filter(is_published=True)
+        # Flamingo-sidor ligger bakom behörighet: aldrig i sitemapen (och
+        # därmed aldrig i 404-förslagen eller länkrapportens crawl heller).
+        pages = BlockPage.objects.filter(is_published=True, design=BlockPage.DESIGN_ADX)
         homepage_id = SiteSettings.load().homepage_id
         return pages.exclude(pk=homepage_id) if homepage_id else pages
 
@@ -68,7 +70,8 @@ class FAQSitemap(Sitemap):
     priority = 0.5
 
     def items(self):
-        return FAQSection.objects.filter(is_active=True)
+        # Flamingo-sektioner ligger bakom behörighet och hålls utanför.
+        return public_sections()
 
     def location(self, obj):
         return obj.get_absolute_url()

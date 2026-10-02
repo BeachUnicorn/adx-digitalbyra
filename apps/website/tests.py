@@ -23,14 +23,35 @@ class BlockRegistrySyncTests(TestCase):
     """En blocktyp = en choice + en schemapost + en mall. Alltid alla tre."""
 
     def test_every_block_type_has_schema_and_template(self):
+        """En mall per design typen deklarerar (block_schema.designs_for)."""
+        from apps.manage.block_schema import designs_for
+
         template_dir = Path(django_settings.BASE_DIR) / "templates" / "website" / "blocks"
         missing = []
         for value, _label in BlockType.choices:
             if value not in BLOCK_EDIT_SCHEMA:
                 missing.append(f"{value}: saknar post i BLOCK_EDIT_SCHEMA")
-            if not (template_dir / f"{value}.html").exists():
-                missing.append(f"{value}: saknar templates/website/blocks/{value}.html")
+                continue
+            for design in designs_for(value):
+                rel = f"{design}/{value}.html" if design else f"{value}.html"
+                if not (template_dir / rel).exists():
+                    missing.append(f"{value}: saknar templates/website/blocks/{rel}")
         self.assertEqual(missing, [], "\n".join(missing))
+
+    def test_flamingo_only_types_have_no_adx_template_and_vice_versa(self):
+        """En mall i fel katalog renderas aldrig och ruttnar: spegla deklarationen."""
+        from apps.manage.block_schema import designs_for
+
+        template_dir = Path(django_settings.BASE_DIR) / "templates" / "website" / "blocks"
+        for path in (template_dir / "flamingo").glob("*.html"):
+            with self.subTest(mall=path.name):
+                self.assertIn("flamingo", designs_for(path.stem), f"{path.name} utan deklaration")
+        choices = {value for value, _ in BlockType.choices}
+        for path in template_dir.glob("*.html"):
+            if path.stem.startswith("_") or path.stem not in choices:
+                continue  # delmallar (_wrapper, _compare_cell ...)
+            with self.subTest(mall=path.name):
+                self.assertIn("", designs_for(path.stem), f"{path.name}: ADX-mall utan ADX")
 
     def test_every_schema_key_is_a_block_type(self):
         choices = {value for value, _ in BlockType.choices}
@@ -1031,14 +1052,14 @@ class AdminDockTests(TestCase):
         annars blir knappen en tom ruta. Samma vakt som för redigeringsorben:
         markup utan CSS är det som gick fel med pennan.
         """
-        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site-tools.css").read_text()
         for cls in (".c-admin-dock__orb", ".c-admin-dock__canvas", ".c-admin-dock.orb-live"):
             with self.subTest(cls=cls):
                 self.assertIn(cls, css)
 
     def test_the_canvas_never_swallows_the_click(self):
         """Canvasen ligger ovanpå knappen - utan detta går den inte att klicka."""
-        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site-tools.css").read_text()
         block = css.split(".c-admin-dock__canvas {")[1].split("}")[0]
         self.assertIn("pointer-events: none", block)
 
@@ -1070,7 +1091,8 @@ class EditOrbTests(TestCase):
     Pennan hade INGEN CSS alls - varken .edit-pencil eller wrappern - så den
     låg ostilad i elementets övre vänstra hörn i normalt flöde. Vakten nedan
     kontrollerar att varje klass partialen använder också är definierad i
-    site.css, vilket är precis det som saknades.
+    site-tools.css (verktygslagret, utbrutet ur site.css 2026-10-03), vilket
+    är precis det som saknades.
     """
 
     #: Klasser som edit_orb.html och dess wrapper hänger utseendet på.
@@ -1104,13 +1126,13 @@ class EditOrbTests(TestCase):
 
     def test_every_orb_class_is_styled(self):
         """Grundfelet: markup som skeppas utan CSS ser ostilad ut i hörnet."""
-        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site-tools.css").read_text()
         missing = [c for c in self.ORB_CLASSES if c not in css]
-        self.assertEqual(missing, [], f"Klasser utan CSS i site.css: {missing}")
+        self.assertEqual(missing, [], f"Klasser utan CSS i site-tools.css: {missing}")
 
     def test_the_orb_is_positioned_left_and_centred(self):
         """Kravet: till vänster, lodrätt centrerad - inte i övre hörnet."""
-        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site-tools.css").read_text()
         block = css.split(".edit-orb {")[1].split("}")[0]
         self.assertIn("position: absolute", block)
         self.assertIn("top: 50%", block)
@@ -1119,7 +1141,7 @@ class EditOrbTests(TestCase):
         self.assertIn(".has-edit-orb { position: relative; }", css)
 
     def test_the_animation_respects_reduced_motion(self):
-        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site.css").read_text()
+        css = (Path(django_settings.BASE_DIR) / "static" / "css" / "site-tools.css").read_text()
         # Orbens eget block - inte "det sista i filen", som slutade stämma när
         # 404-sidan fick sin egen reduced-motion-regel efter orbens.
         blocks = css.split("prefers-reduced-motion")[1:]

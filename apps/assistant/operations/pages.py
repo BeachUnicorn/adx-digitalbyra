@@ -14,8 +14,10 @@ from apps.manage.block_schema import (
     BLOCK_EDIT_SCHEMA,
     clean_block_rows,
     clean_block_values,
+    designs_for,
     field_keys,
     list_specs,
+    types_for_design,
 )
 from apps.manage.forms import BlockPageForm
 from apps.website.models import Block, BlockPage
@@ -48,6 +50,17 @@ COMPOSITION_RULES = [
     "En ny sida hamnar INTE i någon meny - menyer ligger utanför det du kan "
     "ändra. Säg till kunden att sidan behöver läggas in i menyn manuellt, "
     "annars nås den bara via direktlänk.",
+]
+
+#: Två designer delar blocksystemet. Varje sida har en, och bara blocktyper
+#: som finns i sidans design går att lägga på den.
+DESIGN_RULES = [
+    "ADX: adx.se:s publika sidor. Reglerna ovan gäller dem.",
+    "ADX Flamingo: sidorna under /flamingo/, i en egen design och bara synliga "
+    "för kunder med ADX Flamingo aktiverat. Börja med fl_hero och sluta med bar. "
+    "Fältet 'designer' i katalogen och 'tillatna_blocktyper' i hamta_sida säger "
+    "vilka typer som går på vilken sida.",
+    "Nya sidor du skapar blir ADX-sidor. Flamingo-sidor skapar en människa.",
 ]
 
 #: Fälttyper modellen inte kan sätta, och varför. Ett tyst tomt värde är
@@ -194,6 +207,7 @@ def _lista(user):
                 "slug": p.slug,
                 "titel": p.title,
                 "publicerad": p.is_published,
+                "design": p.get_design_display(),
                 "url": p.get_absolute_url(),
             }
             for p in BlockPage.objects.all()
@@ -231,6 +245,9 @@ def _hamta(user, slug):
         "slug": page.slug,
         "titel": page.title,
         "publicerad": page.is_published,
+        "design": page.get_design_display(),
+        "url": page.get_absolute_url(),
+        "tillatna_blocktyper": types_for_design(page.design),
         "meta_title": page.meta_title,
         "meta_description": page.meta_description,
         "block": blocks,
@@ -365,6 +382,15 @@ def _prepare_skapa_block(job, user, sid_slug, blocktyp, falt=None, listor=None):
         raise OperationError(
             f"Okänd blocktyp: {blocktyp}. Giltiga: {', '.join(sorted(BLOCK_EDIT_SCHEMA))}"
         )
+    # En sida du föreslår i samma tur är alltid en ADX-sida (skapa_sida).
+    design = page.design if page else BlockPage.DESIGN_ADX
+    allowed = types_for_design(design)
+    if blocktyp not in allowed:
+        name = dict(BlockPage.DESIGN_CHOICES)[design]
+        raise OperationError(
+            f"Blocktypen {blocktyp} finns inte i designen {name}. "
+            f"Giltiga på den här sidan: {', '.join(allowed)}"
+        )
     data = _build_data(blocktyp, {}, falt, listor)
     title = page.title if page else pending.payload.get("title", sid_slug)
     # Slug, inte id: sidan kan sakna id ännu. Den slås upp vid apply, och
@@ -466,6 +492,7 @@ def _katalog(user):
                 "typ": key,
                 "namn": schema["label"],
                 "beskrivning": schema["purpose"],
+                "designer": [dict(BlockPage.DESIGN_CHOICES)[d] for d in designs_for(key)],
                 "falt": [
                     {
                         "nyckel": spec["key"],
@@ -502,6 +529,7 @@ def _katalog(user):
     return {
         "blocktyper": typer,
         "sa_byggs_en_sida": COMPOSITION_RULES,
+        "designer": DESIGN_RULES,
         "det_du_inte_kan": [
             "Bilder - du kan inte se dem, så de väljs i mediebiblioteket av "
             "en människa. Skapa blocket ändå och be kunden lägga bilden.",

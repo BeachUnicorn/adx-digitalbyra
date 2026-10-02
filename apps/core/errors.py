@@ -156,6 +156,16 @@ def _render_404(request, path):
     user = getattr(request, "user", None)
     is_agency = bool(user and is_agency_user(user))
 
+    # ADX Flamingo: egen 404 bara för den som redan är innanför grinden.
+    # Alla andra fick sitt 404 av grinden och hamnar på sajtens vanliga nedan.
+    access = getattr(request, "flamingo", None)
+    if path.startswith("/flamingo/") and access:
+        from apps.flamingo.views import flamingo_pages
+
+        context = {"path": path, "flamingo": access, "flamingo_nav": flamingo_pages(access)}
+        body = loader.render_to_string("flamingo/404.html", context, request)
+        return HttpResponse(body, status=404)
+
     if path.startswith("/manage/") and is_agency:
         context = {"path": path, "title": "Sidan finns inte"}
         body = loader.render_to_string("errors/404_manage.html", context, request)

@@ -1,0 +1,39 @@
+{% comment %}ADX Flamingos jämförelsetabell - samma data som website/blocks/compare.html:
+sec-head + col1-col3 + rows[{label,v1,v2,v3}]. Cellvärden som i ADX: "+" ger
+en bock, "-" ett streck, annat skrivs som text. Sista kolumnen markeras i
+lila. Under 600 px blir varje rad ett kort och data-label bär kolumnens
+namn; rollerna håller kvar tabellens betydelse för skärmläsare när CSS:en
+gör om tabellen till block. Stil: static/css/flamingo.css (.fl-compare).{% endcomment %}
+<section class="fl-sec fl-compare-sec">
+    <div class="fl-wrap">
+        {% if kicker or title or intro %}
+        <div class="fl-sec-head">
+            {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+            {% if title %}<h2 class="fl-h2">{{ title }}</h2>{% endif %}
+            {% if intro %}<p class="fl-lead">{{ intro|linebreaksbr }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="fl-compare-wrap">
+            <table class="fl-compare" role="table">
+                <thead role="rowgroup">
+                    <tr role="row">
+                        <th scope="col" role="columnheader">Ingår</th>
+                        <th scope="col" role="columnheader">{{ col1 }}</th>
+                        <th scope="col" role="columnheader">{{ col2 }}</th>
+                        <th scope="col" role="columnheader">{{ col3 }}</th>
+                    </tr>
+                </thead>
+                <tbody role="rowgroup">
+                    {% for row in rows %}
+                    <tr role="row">
+                        <th scope="row" role="rowheader">{{ row.label }}</th>
+                        <td role="cell" data-label="{{ col1 }}">{% if row.v1 == "+" %}<span class="fl-compare__mark fl-compare__mark--yes" aria-hidden="true"></span><span class="sr-only">Ja</span>{% elif row.v1 == "-" %}<span class="fl-compare__mark fl-compare__mark--no" aria-hidden="true"></span><span class="sr-only">Nej</span>{% else %}{{ row.v1 }}{% endif %}</td>
+                        <td role="cell" data-label="{{ col2 }}">{% if row.v2 == "+" %}<span class="fl-compare__mark fl-compare__mark--yes" aria-hidden="true"></span><span class="sr-only">Ja</span>{% elif row.v2 == "-" %}<span class="fl-compare__mark fl-compare__mark--no" aria-hidden="true"></span><span class="sr-only">Nej</span>{% else %}{{ row.v2 }}{% endif %}</td>
+                        <td role="cell" data-label="{{ col3 }}">{% if row.v3 == "+" %}<span class="fl-compare__mark fl-compare__mark--yes" aria-hidden="true"></span><span class="sr-only">Ja</span>{% elif row.v3 == "-" %}<span class="fl-compare__mark fl-compare__mark--no" aria-hidden="true"></span><span class="sr-only">Nej</span>{% else %}{{ row.v3 }}{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>

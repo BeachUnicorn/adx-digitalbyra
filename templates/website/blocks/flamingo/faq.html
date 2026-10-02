@@ -1,0 +1,29 @@
+{% load website_tags render_context %}
+{% comment %}ADX Flamingos FAQ - samma data som website/blocks/faq.html: kicker,
+title, faq_section_id. Frågorna hämtas ur FAQ-appen precis som i ADX, och
+svaren går genom samma vars_html (sanering + variabler). FAQPage-schemat
+lämnas bort: Flamingo är noindex och bakom inloggning, så det har ingen
+läsare här. Med sektionshuvud: huvudet till vänster och raderna till höger
+från 900 px. Stil: static/css/flamingo.css (.fl-faq).{% endcomment %}
+{% faq_section faq_section_id as section %}
+{% if section %}
+<section class="fl-sec fl-faq-sec{% if kicker or title or intro %} fl-faq-sec--split{% endif %}">
+    <div class="fl-wrap fl-faq-sec__in">
+        {% if kicker or title or intro %}
+        <div class="fl-sec-head">
+            {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+            {% if title %}<h2 class="fl-h2">{{ title }}</h2>{% endif %}
+            {% if intro %}<p class="fl-lead">{{ intro|linebreaksbr }}</p>{% endif %}
+        </div>
+        {% endif %}
+        <div class="fl-faq">
+            {% for item in section.items.all %}{% if item.is_active %}
+            <details class="fl-faq__item">
+                <summary class="fl-faq__q">{{ item.question }}<span class="fl-faq__icon" aria-hidden="true"></span></summary>
+                <div class="fl-faq__a">{{ item.answer|vars_html }}</div>
+            </details>
+            {% endif %}{% endfor %}
+        </div>
+    </div>
+</section>
+{% endif %}

@@ -76,6 +76,17 @@ class MediaFile(models.Model):
 class BlockPage(models.Model):
     """A page container for the website."""
 
+    #: Designen avgör allt som skiljer: vilken grundmall och stilmall sidan
+    #: får, vilka blocktyper som går att lägga på den, adressen och vem som
+    #: ser den. ADX-sidor är publika på /<slug>/. ADX Flamingo-sidor ligger
+    #: under /flamingo/ bakom Flamingo-behörigheten (apps/flamingo) och syns
+    #: aldrig i sitemap, menyer, länkring eller 404-förslag.
+    DESIGN_ADX = ""
+    DESIGN_FLAMINGO = "flamingo"
+    DESIGN_CHOICES = [(DESIGN_ADX, "ADX"), (DESIGN_FLAMINGO, "ADX Flamingo")]
+    #: Flamingos startsida har den här sluggen och bor på /flamingo/.
+    FLAMINGO_HOME_SLUG = "flamingo"
+
     title = models.CharField(max_length=255)
     slug = models.SlugField(max_length=255, unique=True)
     meta_title = models.CharField(max_length=255, blank=True)
@@ -92,6 +103,9 @@ class BlockPage(models.Model):
         ("case", "Case"),
     ]
     category = models.CharField(max_length=20, blank=True, default="", choices=CATEGORY_CHOICES)
+    design = models.CharField(
+        "Design", max_length=20, blank=True, default=DESIGN_ADX, choices=DESIGN_CHOICES
+    )
     is_published = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=100)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -109,6 +123,10 @@ class BlockPage(models.Model):
         super().save(*args, **kwargs)
 
     def get_absolute_url(self):
+        if self.is_flamingo:
+            if self.slug == self.FLAMINGO_HOME_SLUG:
+                return "/flamingo/"
+            return f"/flamingo/{self.slug}/"
         # Check if this page is the homepage
         try:
             settings = SiteSettings.objects.first()
@@ -117,6 +135,10 @@ class BlockPage(models.Model):
         except SiteSettings.DoesNotExist:
             pass
         return f"/{self.slug}/"
+
+    @property
+    def is_flamingo(self):
+        return self.design == self.DESIGN_FLAMINGO
 
 
 class BlockType(models.TextChoices):
@@ -144,6 +166,14 @@ class BlockType(models.TextChoices):
     INQUIRY_FORM = "inquiry_form", "Förfrågningsformulär"
     NEWSLETTER = "newsletter", "Nyhetsbrev"
     SPACER = "spacer", "Mellanrum"
+    # ADX Flamingos egna sektioner (adx-marketing/nara-mockup). Finns bara i
+    # Flamingo-designen: mallen ligger i templates/website/blocks/flamingo/
+    # och block_schema.py deklarerar dem FLAMINGO_ONLY.
+    FL_HERO = "fl_hero", "Flamingo hero"
+    FL_LOGOS = "fl_logos", "Flamingo integrationsrad"
+    FL_LAYERS = "fl_layers", "Flamingo lager"
+    FL_BAND = "fl_band", "Flamingo bandet"
+    FL_ARCHETYPES = "fl_archetypes", "Flamingo sidtyper"
 
 
 class Block(models.Model):
@@ -228,7 +258,7 @@ class MenuItem(models.Model):
         """False när posten pekar på en avpublicerad sida - menyerna döljer
         den vid rendering (länkregeln: skicka aldrig ut en död länk)."""
         if self.page_id:
-            return bool(self.page and self.page.is_published)
+            return bool(self.page and self.page.is_published and not self.page.is_flamingo)
         return True
 
     @property

@@ -404,6 +404,7 @@ a.m-list__main:hover .m-list__title{text-decoration-thickness:1px;text-underline
 /* Ett piller bryts aldrig på två rader (blir annars två pillerhalvor i en trång tabellcell). */
 .m-badge{font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:3px 10px;font-weight:500;border:1px solid transparent;white-space:nowrap}
 .m-badge--published,.m-badge--active,.m-badge--quoted{background:var(--s-ok-soft);color:var(--s-ok);border-color:var(--s-ok-line)}
+.m-badge--flamingo{background:linear-gradient(90deg,#EEF3FF,#F4EEFF 45%,#FFEFF8 75%,#FFF3E6);color:#4A2FC9;border-color:#D9CFFB}
 .m-badge--in_progress,.m-badge--business{background:var(--s-warn-soft);color:var(--s-warn);border-color:var(--s-warn-line)}
 .m-badge--ai{background:var(--s-info-soft);color:var(--s-info);border-color:var(--s-info-line)}
 .m-badge--alert,.m-badge--new{background:var(--s-hot);color:var(--s-hot-text)}

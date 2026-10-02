@@ -8,6 +8,13 @@
   </div>
   {% if not request.viewing_as %}<a class="m-btn" href="{% url 'portal:issue_create' %}">Nytt ärende</a>{% endif %}
 </div>
+{% if show_flamingo %}
+<a class="pt-flamingo-card" href="{% url 'flamingo:home' %}">
+  <span class="pt-flamingo-card__k">ADX Flamingo</span>
+  <b>Annonser, sidor och förfrågningar, mätt hela vägen till affär.</b>
+  <span class="pt-flamingo-card__go">Öppna Flamingo</span>
+</a>
+{% endif %}
 <div class="tv-board pt-board" aria-label="Ärenden">
   {% for col in columns %}
   <section class="tv-col" data-col="{{ col.key }}">

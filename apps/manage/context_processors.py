@@ -72,8 +72,9 @@ def _css_mtime():
     from django.conf import settings
 
     # Stämpeln täcker alla panelens filer: manage.css (struktur),
-    # manage-skin.css (utseende) och tavla.css (tavlan). Senaste ändringen
-    # av någon av dem ger ny URL.
+    # manage-skin.css (utseende) och tavla.css (tavlan), plus verktygslagret
+    # (site-tools.css, laddas av både sajten och Flamingo) och ADX Flamingos
+    # två stilmallar. Senaste ändringen av någon av dem ger ny URL.
     static = Path(settings.BASE_DIR) / "static"
     stamps = []
     for name in (
@@ -82,6 +83,9 @@ def _css_mtime():
         "css/tavla.css",
         "css/offert.css",
         "css/tiptap.css",
+        "css/site-tools.css",
+        "css/flamingo.css",
+        "css/flamingo-blocks.css",
         "js/dist/tiptap-editor.js",
         "js/manage-tables.js",
         "js/menu.js",

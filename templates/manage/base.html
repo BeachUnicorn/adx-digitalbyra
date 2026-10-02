@@ -40,16 +40,17 @@
 
 
             <li class="m-nav__dropdown">
-                <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'pages' or active == 'services' or active == 'faq' or active == 'areas' %}is-active{% endif %}">Innehåll ▾</button>
+                <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'pages' or active == 'services' or active == 'faq' or active == 'areas' or active == 'media' %}is-active{% endif %}">Innehåll ▾</button>
                 <ul class="m-nav__dropdown-menu">
                     <li><a href="{% url 'manage:page_list' %}">Blocksidor</a></li>
                     <li><a href="{% url 'manage:services_overview' %}">Tjänster</a></li>
                     <li><a href="{% url 'manage:faq_overview' %}">FAQ</a></li>
                     <li><a href="{% url 'manage:areas_overview' %}">Städer</a></li>
+                    <li><a href="{% url 'manage:media_library' %}">Media</a></li>
                 </ul>
             </li>
 
-            <li><a href="{% url 'manage:media_library' %}" class="m-nav__link {% if active == 'media' %}is-active{% endif %}">Media</a></li>
+            <li><a href="{% url 'manage:flamingo_overview' %}" class="m-nav__link {% if active == 'flamingo' %}is-active{% endif %}">Flamingo</a></li>
             <li><a href="{% url 'manage:assistant_chat' %}" class="m-nav__link {% if active == 'assistant' %}is-active{% endif %}">{% include "manage/assistant/_orb.html" with orb_class="m-orb--sm" %}AI{% if pending_drafts %} <span class="m-badge m-badge--alert">{{ pending_drafts }}</span>{% endif %}</a></li>
             <li class="m-nav__dropdown">
                 <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'settings' or active == 'menus' %}is-active{% endif %}">Inställningar ▾</button>
@@ -105,6 +106,7 @@ innehåll och inställningar i ett rutnät under.
         <a href="{% url 'manage:board' %}"{% if active == 'board' %} class="is-active" aria-current="page"{% endif %}>Tavlan</a>
         <a href="{% url 'manage:customer_list' %}"{% if active == 'customers' %} class="is-active" aria-current="page"{% endif %}>Kunder</a>
         <a href="{% url 'manage:drift' %}"{% if active == 'drift' %} class="is-active" aria-current="page"{% endif %}>Drift</a>
+        <a href="{% url 'manage:flamingo_overview' %}"{% if active == 'flamingo' %} class="is-active" aria-current="page"{% endif %}>Flamingo</a>
         <a href="{% url 'manage:assistant_chat' %}"{% if active == 'assistant' %} class="is-active" aria-current="page"{% endif %}><span>AI{% if pending_drafts %}<span class="m-badge m-badge--alert">{{ pending_drafts }}</span>{% endif %}</span></a>
     </nav>
 

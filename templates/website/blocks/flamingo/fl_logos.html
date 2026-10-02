@@ -1,0 +1,16 @@
+{% comment %}ADX Flamingos integrationsrad: ljus remsa i full bredd. data: label
+(mono-etikett), items[] (strängar), more_label (sist, i lila), anchor.
+Stil: static/css/flamingo-blocks.css.{% endcomment %}
+{% if label or items or more_label %}
+<section class="fl-sec fl-logos"{% if anchor %} id="{{ anchor|slugify }}"{% endif %}>
+    <div class="fl-wrap fl-logos__in">
+        {% if label %}<p class="fl-logos__label">{{ label }}</p>{% endif %}
+        {% if items or more_label %}
+        <ul class="fl-logos__items">
+            {% for item in items %}<li>{{ item }}</li>{% endfor %}
+            {% if more_label %}<li class="fl-logos__more">{{ more_label }}</li>{% endif %}
+        </ul>
+        {% endif %}
+    </div>
+</section>
+{% endif %}

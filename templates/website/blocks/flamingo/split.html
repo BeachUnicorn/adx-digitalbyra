@@ -1,0 +1,32 @@
+{% load static website_tags %}
+{% comment %}ADX Flamingos bild + text - samma data som website/blocks/split.html:
+kicker, title, body, bullets[], image_id, image_side (left/right). Bilden
+står en gång i markupen; sidan väljs med fl-split--right i CSS (under 900 px
+ligger bilden alltid överst). Fokuspunkten blir klasser i steg om 5 %
+(fl-fx-N/fl-fy-N i flamingo.css) i stället för ett style-attribut. Utan
+bild: en pastellyta med bandet, aldrig en tom ruta.{% endcomment %}
+{% media image_id as split_img %}
+<section class="fl-sec fl-split-sec">
+    <div class="fl-wrap">
+        <div class="fl-split{% if image_side == "right" %} fl-split--right{% endif %}">
+            <div class="fl-split__body">
+                {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+                {% if title %}<h2 class="fl-split__title">{{ title }}</h2>{% endif %}
+                {% if body %}<p class="fl-split__text">{{ body|linebreaksbr }}</p>{% endif %}
+                {% if bullets %}
+                <ul class="fl-checks">
+                    {% for b in bullets %}<li>{{ b }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            <div class="fl-split__media">
+                {% if split_img %}
+                {% widthratio split_img.focal_x 5 1 as focal_x %}{% widthratio split_img.focal_y 5 1 as focal_y %}
+                <img class="fl-split__img fl-fx-{{ focal_x }} fl-fy-{{ focal_y }}" src="{{ split_img.file.url }}" alt="{{ split_img.alt_text }}"{% if split_img.width and split_img.height %} width="{{ split_img.width }}" height="{{ split_img.height }}"{% endif %} loading="lazy" decoding="async">
+                {% else %}
+                <div class="fl-split__deco" aria-hidden="true"><img class="fl-ribbon fl-split__ribbon" src="{% static 'images/flamingo/ribbon.webp' %}" alt="" width="1392" height="975" loading="lazy" decoding="async"></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>

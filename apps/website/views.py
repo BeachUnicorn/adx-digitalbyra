@@ -28,9 +28,15 @@ def homepage(request):
     """Render the homepage."""
     settings = SiteSettings.load()
     page = settings.homepage if settings else None
+    if page and page.is_flamingo:
+        page = None  # en Flamingo-sida är aldrig sajtens startsida
     if not page:
         # Fallback: first published page
-        page = BlockPage.objects.filter(is_published=True).order_by("order").first()
+        page = (
+            BlockPage.objects.filter(is_published=True, design=BlockPage.DESIGN_ADX)
+            .order_by("order")
+            .first()
+        )
     if not page:
         raise Http404
 
@@ -45,8 +51,10 @@ def homepage(request):
 
 
 def page_detail(request, slug):
-    """Render a page by slug."""
-    page = BlockPage.objects.filter(slug=slug, is_published=True).first()
+    """Render a page by slug. Bara ADX-sidor - Flamingo-sidor bor under /flamingo/."""
+    page = BlockPage.objects.filter(
+        slug=slug, is_published=True, design=BlockPage.DESIGN_ADX
+    ).first()
     if not page:
         raise Http404
 

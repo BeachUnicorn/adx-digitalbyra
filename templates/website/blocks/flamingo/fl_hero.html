@@ -1,0 +1,42 @@
+{% load static website_tags %}
+{% comment %}ADX Flamingos hero (första sektionen). data: badge,
+badge_text, title, title_accent (i färgtoning direkt efter title), lead,
+primary/secondary {label,url}, checks[] (strängar), cards[{title,kicker,meta,
+note}] (högst två ritas), anchor. Bandet till höger är fast dekor och inget
+innehåll. Under 900 px lägger korten sig under texten i stället för att sväva.
+Stil: static/css/flamingo-blocks.css.{% endcomment %}
+<section class="fl-sec fl-hero{% if cards %} fl-hero--cards{% endif %}"{% if anchor %} id="{{ anchor|slugify }}"{% endif %} data-analytics-position="hero">
+    <div class="fl-wrap fl-hero__in">
+        <img class="fl-ribbon fl-hero__ribbon" src="{% static 'images/flamingo/ribbon.webp' %}" alt="" aria-hidden="true" width="1392" height="975" decoding="async">
+        <div class="fl-hero__text">
+            {% if badge or badge_text %}<p class="fl-hero__badge">{% if badge %}<b>{{ badge }}</b>{% endif %}{% if badge_text %}<span>{{ badge_text }}</span>{% endif %}</p>{% endif %}
+            {% if title or title_accent %}<h1 class="fl-h1 fl-hero__title">{{ title }}{% if title and title_accent %} {% endif %}{% if title_accent %}<span class="fl-grad">{{ title_accent }}</span>{% endif %}</h1>{% endif %}
+            {% if lead %}<p class="fl-lead fl-hero__lead">{{ lead|linebreaksbr }}</p>{% endif %}
+            {% resolve_link primary.url as primary_link %}
+            {% resolve_link secondary.url as secondary_link %}
+            {% if primary.label and primary_link or secondary.label and secondary_link %}
+            <div class="fl-hero__actions">
+                {% if primary.label and primary_link %}<a class="fl-btn" href="{{ primary_link.href }}">{{ primary.label }}</a>{% endif %}
+                {% if secondary.label and secondary_link %}<a class="fl-btn fl-btn--ghost" href="{{ secondary_link.href }}">{{ secondary.label }}</a>{% endif %}
+            </div>
+            {% endif %}
+            {% if checks %}
+            <ul class="fl-hero__checks">
+                {% for check in checks %}<li><svg class="fl-hero__tick" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>{{ check }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+        </div>
+        {% if cards %}
+        <div class="fl-hero__cards">
+            {% for card in cards|slice:":2" %}
+            <div class="fl-hero__card">
+                {% if card.kicker %}<div class="fl-hero__card-kicker"><i aria-hidden="true"></i>{{ card.kicker }}</div>{% endif %}
+                <div class="fl-hero__card-title">{{ card.title }}</div>
+                {% if card.meta %}<div class="fl-hero__card-meta">{{ card.meta }}</div>{% endif %}
+                {% if card.note %}<div class="fl-hero__card-note">{{ card.note }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>

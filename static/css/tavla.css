@@ -287,6 +287,14 @@ body.is-dragging-any{cursor:grabbing}
 .pt-nav .m-nav__links{display:flex}
 .pt-brand{font-family:var(--s-grot);font-weight:700;letter-spacing:.02em;font-size:13px}
 .pt-user{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--m-text-muted);margin-right:10px}
+/* ADX Flamingo: vägen in för kunder som har det (apps/flamingo). Bandets
+   färger bara som accent - resten är portalens. */
+.pt-flamingo{font-family:var(--s-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;text-decoration:none;color:var(--m-text);border-radius:999px;padding:7px 12px;margin-right:10px;border:1.5px solid transparent;background:linear-gradient(var(--s-solid),var(--s-solid)) padding-box,linear-gradient(90deg,#9EC3FF,#8365F3 30%,#F27AD9 60%,#FD7C5A 82%,#FE9F30) border-box;white-space:nowrap}
+.pt-flamingo:hover{color:var(--m-text);filter:brightness(.97)}
+.pt-flamingo-card{display:flex;flex-direction:column;gap:6px;margin:0 0 22px;padding:18px 22px;border-radius:var(--m-radius);text-decoration:none;color:var(--m-text);background:linear-gradient(120deg,#EEF3FF,#F4EEFF 45%,#FFEFF8 75%,#FFF3E6);border:1px solid rgba(131,101,243,.25)}
+.pt-flamingo-card b{font-size:18px;font-weight:600;line-height:1.35}
+.pt-flamingo-card__k{font-family:var(--s-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#4A2FC9;font-weight:600}
+.pt-flamingo-card__go{font-size:16px;text-decoration:underline;text-underline-offset:3px}
 .pt-nav .m-nav__right{display:flex;align-items:center;gap:4px}
 .pt-nav .m-nav__right form{margin:0}
 .pt-nav button.m-nav__view-site{font:inherit;font-family:var(--s-mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;border:0}

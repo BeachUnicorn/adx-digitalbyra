@@ -17,9 +17,10 @@
     <div class="m-list__row">
         <a class="m-list__main" href="{% url 'manage:faq_detail' section.slug %}">
             <div class="m-list__title">{{ section.title }}</div>
-            <div class="m-list__meta">/faq/{{ section.slug }}/ · {{ section.items.count }} frågor</div>
+            <div class="m-list__meta">{% if section.design %}Bara på Flamingo-sidor{% else %}/faq/{{ section.slug }}/{% endif %} · {{ section.items.count }} frågor</div>
         </a>
         <div class="m-row-actions">
+            {% if section.design %}<span class="m-badge m-badge--flamingo">ADX Flamingo</span>{% endif %}
             {% if not section.is_active %}<span class="m-badge m-badge--draft">Inaktiv</span>{% endif %}
             <a href="{% url 'manage:faq_detail' section.slug %}" class="m-btn m-btn--small">Redigera frågor</a>
             <a href="{% url 'manage:faq_section_edit' section.slug %}" class="m-btn m-btn--ghost m-btn--small">Inställningar</a>

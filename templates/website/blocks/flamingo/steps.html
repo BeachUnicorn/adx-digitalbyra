@@ -1,0 +1,25 @@
+{% comment %}ADX Flamingos steg - samma data som website/blocks/steps.html:
+sec-head (kicker, title, intro) + steps[{title,text}]. Numrerade kort.
+Stil: static/css/flamingo.css (.fl-steps).{% endcomment %}
+<section class="fl-sec fl-steps-sec">
+    <div class="fl-wrap">
+        {% if kicker or title or intro %}
+        <div class="fl-sec-head">
+            {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+            {% if title %}<h2 class="fl-h2">{{ title }}</h2>{% endif %}
+            {% if intro %}<p class="fl-lead">{{ intro|linebreaksbr }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% if steps %}
+        <ol class="fl-steps" role="list">
+            {% for step in steps %}
+            <li class="fl-step">
+                <span class="fl-step__num" aria-hidden="true">{{ forloop.counter|stringformat:"02d" }}</span>
+                {% if step.title %}<h3 class="fl-step__title">{{ step.title }}</h3>{% endif %}
+                {% if step.text %}<p class="fl-step__text">{{ step.text|linebreaksbr }}</p>{% endif %}
+            </li>
+            {% endfor %}
+        </ol>
+        {% endif %}
+    </div>
+</section>

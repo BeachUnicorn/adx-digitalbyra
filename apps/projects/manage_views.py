@@ -828,6 +828,11 @@ def customer_list(request):
         ).distinct()
 
     open_counts, last_seen, seconds = _customer_facts()
+    from apps.flamingo.models import FlamingoAccount
+
+    flamingo_ids = set(
+        FlamingoAccount.objects.filter(is_enabled=True).values_list("customer_id", flat=True)
+    )
     rows = [
         {
             "customer": c,
@@ -837,6 +842,7 @@ def customer_list(request):
             "projects": len(c.projects.all()),
             "domains": [d.name for d in c.domains.all()],
             "last_seen": last_seen.get(c.pk),
+            "flamingo": c.pk in flamingo_ids,
         }
         for c in base
     ]
@@ -869,6 +875,7 @@ def customer_list(request):
 @staff_required
 def customer_detail(request, pk):
     from apps.cloud.card import aws_card_context
+    from apps.flamingo.manage_views import flamingo_card_context
 
     customer = get_object_or_404(Customer, pk=pk)
     form = CustomerForm(request.POST or None, instance=customer)
@@ -908,6 +915,7 @@ def customer_detail(request, pk):
             "quotes": quotes,
             "monitor_domains": customer.domains.all(),
             **aws_card_context(customer),
+            **flamingo_card_context(customer),
             "monitor_fields": [
                 {"name": f.name, "label": f.verbose_name, "value": getattr(monitor, f.name)}
                 for f in monitor._meta.fields

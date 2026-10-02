@@ -1,6 +1,7 @@
 {% load website_tags %}
 {% comment %}
-Mallvägen härleds ur blocktypen via schemat - EN registrering per typ
+Mallvägen härleds ur blocktypen och sidans design (block_schema.template_names:
+Flamingo-mallen först, ADX-mallen som reserv) - EN registrering per typ
 (block_schema.py), aldrig if/elif-grenar (antikatalogen: en bortglömd gren
 renderar tyst ingenting). Okänd typ renderar inget men loggas inte här -
 synkvakten i testsviten fångar den vid bygget i stället.
@@ -10,5 +11,5 @@ sina fält direkt. Byrån (inte inloggade kunder) får redigeringspennan ovanpå
 {% if user|is_agency %}<div class="block-edit-wrap has-edit-orb">
 {% url 'manage:block_edit' block.id as block_edit_url %}
 {% edit_orb url=block_edit_url label="Redigera block" %}{% endif %}
-{% if block_type|known_block_type %}{% include "website/blocks/"|add:block_type|add:".html" %}{% endif %}
+{% if block_allowed %}{% include block_templates %}{% endif %}
 {% if user|is_agency %}</div>{% endif %}

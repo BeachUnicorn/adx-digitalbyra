@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.monitor",
     "apps.aidocs",
     "apps.cloud",
+    "apps.flamingo",
     "reversion",
     "apps.assistant",
 ]
@@ -66,6 +67,9 @@ MIDDLEWARE = [
     # Versionerar alla skrivande /manage/-requests (apps/assistant/revisions.py).
     "apps.assistant.revisions.ManageRevisionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    # ADX Flamingo: obehöriga routas som om /flamingo/ inte fanns (apps/flamingo).
+    # Efter Messages: kundvyns skrivskydd lämnar ett meddelande.
+    "apps.flamingo.middleware.FlamingoGateMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.analytics.middleware.AnalyticsMiddleware",
 ]
@@ -122,6 +126,11 @@ def _refuse_foreign_database(name):
 
 
 _refuse_foreign_database(DATABASES["default"].get("NAME", ""))
+
+# Parallella testkörningar (flera agenter samtidigt) krockar annars på samma
+# testdatabas: den ena droppar den andras mitt i körningen.
+if env("TEST_DB_NAME", default=""):
+    DATABASES["default"]["TEST"] = {"NAME": env("TEST_DB_NAME")}
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

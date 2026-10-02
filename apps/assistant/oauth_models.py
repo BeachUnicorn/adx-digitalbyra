@@ -189,6 +189,9 @@ class OAuthToken(models.Model):
         )
         if token is None or not token.is_valid or not token.user.is_active:
             return None
+        # Bara byrån (staff) får använda en token, även en utfärdad tidigare.
+        if not token.user.is_staff:
+            return None
         return token
 
     def revoke(self):

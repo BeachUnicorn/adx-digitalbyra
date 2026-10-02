@@ -71,6 +71,10 @@ def _render_public(url):
     # redigeringsdocken (pennorna) ovanpå sidan, och det är inte vad kunden
     # ska ta ställning till - frågan är hur BESÖKAREN kommer att se sidan.
     request.user = AnonymousUser()
+    # ADX Flamingo-sidor ligger bakom behörighet; förhandsvisningen ska ändå
+    # visa dem som en besökare MED behörighet ser dem (apps/flamingo/access.py).
+    # Attributet sätts bara här, på en syntetisk förfrågan - aldrig utifrån.
+    request.adx_preview = True
     try:
         response = match.func(request, *match.args, **match.kwargs)
     except Http404 as exc:

@@ -4,18 +4,20 @@ from django.shortcuts import get_object_or_404, render
 
 from apps.website.views import _get_site_context
 
-from .models import FAQSection
+from .visibility import public_sections
 
 
 def section_list(request):
-    sections = FAQSection.objects.filter(is_active=True)
+    # Bara publika sektioner: en sektion som bara används av ADX Flamingo
+    # ligger bakom Flamingos behörighet (visibility.py).
+    sections = public_sections()
     context = _get_site_context()
     context["sections"] = sections
     return render(request, "faq/section_list.html", context)
 
 
 def section_detail(request, slug):
-    section = get_object_or_404(FAQSection, slug=slug, is_active=True)
+    section = get_object_or_404(public_sections(), slug=slug)
     items = section.items.filter(is_active=True)
     context = _get_site_context()
     context.update({"section": section, "faq_items": items, "owner_links": _owner_links(section)})
@@ -37,8 +39,10 @@ def _owner_links(section):
     from apps.website.models import Block
 
     links = []
+    # Bara ADX-sidor: en Flamingo-sida ligger bakom behörighet och får inte
+    # länkas från den publika FAQ:n.
     faq_blocks = Block.objects.filter(
-        block_type="faq", is_visible=True, page__is_published=True
+        block_type="faq", is_visible=True, page__is_published=True, page__design=""
     ).select_related("page")
     for block in faq_blocks:
         # Seedvägen lagrar id:t som sträng, /manage/-formulär kan ge int.

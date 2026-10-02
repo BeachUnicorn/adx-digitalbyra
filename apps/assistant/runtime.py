@@ -133,7 +133,15 @@ def run_operation(user, job_getter, name, arguments):
     anropas bara när ett utkast faktiskt ska skapas, så en ren läs-session
     inte lämnar tomma jobb efter sig.
     """
+    from apps.projects.access import is_agency_user
+
     from .draft import propose
+
+    # Första spärren, för alla verktyg: bara byrån. Sid-, FAQ- och
+    # innehållsverktygen saknade egen kontroll och läste allt, även ADX
+    # Flamingos utkast, för den som hade en nyckel (granskning 2026-10-03).
+    if not is_agency_user(user):
+        raise OperationError("Verktygen är bara för byrån.")
 
     op = REGISTRY.get(name)
     if op is None:

@@ -7,7 +7,7 @@
     <p class="m-crumb-row"><a href="{% url 'manage:page_list' %}">Blocksidor</a> /</p>
     <h1 class="m-page-head__title">{% if instance %}Redigera: {{ instance.title }}{% else %}Ny sida{% endif %}</h1>
     {% if instance %}
-    <p class="m-page-head__subtitle"><a href="/{{ instance.slug }}/" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a></p>
+    <p class="m-page-head__subtitle"><a href="{{ instance.get_absolute_url }}" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a></p>
     {% else %}
     <p class="m-page-head__subtitle">Skapa sidan först - sedan lägger du till innehållsblock.</p>
     {% endif %}
@@ -34,6 +34,12 @@
         <div class="m-field">
             <label for="{{ form.meta_description.id_for_label }}">{{ form.meta_description.label }}</label>
             {{ form.meta_description }}
+        </div>
+        <div class="m-field">
+            <label for="{{ form.design.id_for_label }}">{{ form.design.label }}</label>
+            {{ form.design }}
+            <div class="m-field-help">{{ form.design.help_text }}</div>
+            {% if form.design.errors %}<div class="m-field-error">{{ form.design.errors|join:", " }}</div>{% endif %}
         </div>
         <div class="m-field-inline m-field-inline--foot">
             <label>{{ form.is_published }} {{ form.is_published.label }}</label>

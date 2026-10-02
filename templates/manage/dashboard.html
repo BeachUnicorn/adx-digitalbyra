@@ -122,7 +122,7 @@
     <div class="m-list__row">
         <div>
             <div class="m-list__title">{{ page.title }}</div>
-            <div class="m-list__meta">/{{ page.slug }}/ · uppdaterad {{ page.updated_at|date:"j M Y, H:i" }}</div>
+            <div class="m-list__meta">{{ page.get_absolute_url }} · uppdaterad {{ page.updated_at|date:"j M Y, H:i" }}</div>
         </div>
         {% if page.is_published %}
         <span class="m-badge m-badge--published">Publicerad</span>

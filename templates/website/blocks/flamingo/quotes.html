@@ -1,0 +1,25 @@
+{% comment %}ADX Flamingos kundcitat - samma data som website/blocks/quotes.html:
+sec-head + quotes[{text,who}]. Citattecknet är dekor (CSS-mask i bandets
+färger). Stil: static/css/flamingo.css (.fl-quotes).{% endcomment %}
+<section class="fl-sec fl-quotes-sec">
+    <div class="fl-wrap">
+        {% if kicker or title or intro %}
+        <div class="fl-sec-head">
+            {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+            {% if title %}<h2 class="fl-h2">{{ title }}</h2>{% endif %}
+            {% if intro %}<p class="fl-lead">{{ intro|linebreaksbr }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% if quotes %}
+        <div class="fl-quotes">
+            {% for q in quotes %}
+            <figure class="fl-quote">
+                <span class="fl-quote__mark" aria-hidden="true"></span>
+                {% if q.text %}<blockquote class="fl-quote__text"><p>{{ q.text|linebreaksbr }}</p></blockquote>{% endif %}
+                {% if q.who %}<figcaption class="fl-quote__who">{{ q.who }}</figcaption>{% endif %}
+            </figure>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>

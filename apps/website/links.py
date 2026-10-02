@@ -97,7 +97,7 @@ def parse_href(value):
 
     slug = path.strip("/")
     if "/" not in slug:
-        page = BlockPage.objects.filter(slug=slug).first()
+        page = BlockPage.objects.filter(slug=slug, design=BlockPage.DESIGN_ADX).first()
         if page:
             return {"kind": "page", "id": page.pk}
     return {"kind": "path", "path": value}
@@ -125,7 +125,18 @@ def _resolve_path_status(path):
     if view_name == "page_detail":
         from apps.website.models import BlockPage
 
-        page = BlockPage.objects.filter(slug=match.kwargs.get("slug")).first()
+        # Flamingo-sidor svarar aldrig på /<slug>/ (de bor under /flamingo/).
+        page = BlockPage.objects.filter(
+            slug=match.kwargs.get("slug"), design=BlockPage.DESIGN_ADX
+        ).first()
+        if page is None:
+            return MISSING
+        return OK if page.is_published else UNPUBLISHED
+    if view_name == "flamingo_page":
+        from apps.website.models import BlockPage
+
+        slug = match.kwargs.get("slug") or BlockPage.FLAMINGO_HOME_SLUG
+        page = BlockPage.objects.filter(slug=slug, design=BlockPage.DESIGN_FLAMINGO).first()
         if page is None:
             return MISSING
         return OK if page.is_published else UNPUBLISHED
@@ -154,6 +165,11 @@ def resolve_link(value):
         page = BlockPage.objects.filter(pk=value.get("id")).first()
         if page is None:
             return ResolvedLink(status=MISSING)
+        if page.is_flamingo:
+            # En sidlänk till ADX Flamingo ritas aldrig: den leder de flesta
+            # till en 404. Väljaren erbjuder dem inte; en gammal eller
+            # handskriven länk flaggas som död i stället för att visas.
+            return ResolvedLink(status=MISSING, label=page.title)
         home = _homepage()
         href = "/" if home and home.pk == page.pk else page.get_absolute_url()
         return ResolvedLink(
@@ -331,7 +347,9 @@ def linkable_targets():
     from apps.website.models import BlockPage, SiteSettings
 
     targets = []
-    for page in BlockPage.objects.order_by("order", "title"):
+    # Flamingo-sidor väljs inte här: en länk till dem från en publik sida
+    # leder besökaren till en 404. Flamingo-block länkar med adress.
+    for page in BlockPage.objects.filter(design=BlockPage.DESIGN_ADX).order_by("order", "title"):
         link = {"kind": "page", "id": page.pk}
         targets.append(
             {

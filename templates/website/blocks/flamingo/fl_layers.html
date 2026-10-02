@@ -1,0 +1,34 @@
+{% load static website_tags %}
+{% comment %}ADX Flamingos lager: sektionshuvud + stora kort i rutnät. data:
+kicker, title, intro, cards[{title,kicker,text,variant,details}], anchor.
+variant: soft (standard), dark (med det spegelvända bandet), pastel, line.
+details: en rad per punkt, ritas som små rader längst ner i kortet.
+Stil: static/css/flamingo-blocks.css.{% endcomment %}
+<section class="fl-sec fl-layers"{% if anchor %} id="{{ anchor|slugify }}"{% endif %}>
+    <div class="fl-wrap">
+        {% if kicker or title or intro %}
+        <div class="fl-sec-head">
+            {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+            {% if title %}<h2 class="fl-h2 fl-blk-title">{{ title }}</h2>{% endif %}
+            {% if intro %}<p class="fl-lead">{{ intro|linebreaksbr }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% if cards %}
+        <div class="fl-layers__grid">
+            {% for card in cards %}
+            <article class="fl-card fl-layer{% if card.variant == 'dark' %} fl-card--dark fl-layer--dark{% elif card.variant == 'pastel' %} fl-card--pastel fl-layer--pastel{% elif card.variant == 'line' %} fl-layer--line{% else %} fl-card--soft fl-layer--soft{% endif %}">
+                {% if card.variant == "dark" %}<img class="fl-ribbon fl-layer__ribbon" src="{% static 'images/flamingo/ribbon-flip.webp' %}" alt="" aria-hidden="true" width="1392" height="975" loading="lazy" decoding="async">{% endif %}
+                {% if card.kicker %}<p class="fl-kicker fl-layer__kicker">{{ card.kicker }}</p>{% endif %}
+                <h3 class="fl-layer__title">{{ card.title }}</h3>
+                {% if card.text %}<p class="fl-layer__text">{{ card.text|linebreaksbr }}</p>{% endif %}
+                {% if card.details %}
+                <ul class="fl-layer__details">
+                    {% for line in card.details|split_lines %}<li>{{ line }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>

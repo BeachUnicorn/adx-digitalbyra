@@ -1,0 +1,46 @@
+{% load static website_tags %}
+{% comment %}ADX Flamingos paketkort - samma data som website/blocks/plans.html:
+sec-head + plans[{mini,title,desc,price,price_note,features (en per rad),
+cta_label,cta_url}]. Som i ADX lyfts det andra paketet: här blir det mörkt,
+med ett svagt band, och minimiraden blir en vit bricka ("Populärast").
+Stil: static/css/flamingo.css (.fl-plans).{% endcomment %}
+<section class="fl-sec fl-plans-sec">
+    <div class="fl-wrap">
+        {% if kicker or title or intro %}
+        <div class="fl-sec-head">
+            {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+            {% if title %}<h2 class="fl-h2">{{ title }}</h2>{% endif %}
+            {% if intro %}<p class="fl-lead">{{ intro|linebreaksbr }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% if plans %}
+        <div class="fl-plans">
+            {% for plan in plans %}
+            <article class="fl-card fl-plan{% if forloop.counter == 2 %} fl-card--dark fl-plan--featured{% endif %}">
+                {% if forloop.counter == 2 %}<img class="fl-ribbon fl-plan__ribbon" src="{% static 'images/flamingo/ribbon.webp' %}" alt="" aria-hidden="true" width="1392" height="975" loading="lazy" decoding="async">{% endif %}
+                {% if plan.title or plan.mini %}
+                <div class="fl-plan__head">
+                    {% if plan.title %}<h3 class="fl-plan__title">{{ plan.title }}</h3>{% endif %}
+                    {% if plan.mini %}<span class="fl-plan__mini">{{ plan.mini }}</span>{% endif %}
+                </div>
+                {% endif %}
+                {% if plan.price or plan.price_note %}
+                <div class="fl-plan__price">
+                    {% if plan.price %}<p class="fl-plan__amount">{{ plan.price }}</p>{% endif %}
+                    {% if plan.price_note %}<p class="fl-plan__note">{{ plan.price_note }}</p>{% endif %}
+                </div>
+                {% endif %}
+                {% if plan.desc %}<p class="fl-plan__desc">{{ plan.desc|linebreaksbr }}</p>{% endif %}
+                {% if plan.features %}
+                <ul class="fl-checks fl-plan__features">
+                    {% for feature in plan.features|split_lines %}<li>{{ feature }}</li>{% endfor %}
+                </ul>
+                {% endif %}
+                {% resolve_link plan.cta_url as plan_link %}
+                {% if plan.cta_label and plan_link %}<a class="fl-btn {% if forloop.counter == 2 %}fl-btn--light{% else %}fl-btn--ghost{% endif %} fl-plan__cta" href="{{ plan_link.href }}">{{ plan.cta_label }}</a>{% endif %}
+            </article>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>

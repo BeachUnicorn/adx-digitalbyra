@@ -1,0 +1,7 @@
+{% extends "flamingo/base.html" %}
+{% load website_tags %}
+{% block title %}{% with page_title=page.meta_title|default:page.title %}{{ page_title }}{% if page_title != "ADX Flamingo" %} - ADX Flamingo{% endif %}{% endwith %}{% endblock %}
+{% block content %}
+{% if not page.is_published %}<div class="fl-wrap"><p class="fl-draftnote"><b>Utkast</b> Bara byrån ser den här sidan.</p></div>{% endif %}
+{% for block in blocks %}{% render_block block %}{% endfor %}
+{% endblock %}

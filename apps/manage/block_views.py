@@ -15,10 +15,15 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.translation import gettext as _
 from django.views.decorators.http import require_POST
 
-from apps.faq.models import FAQSection
+from apps.faq.visibility import sections_for_design
 from apps.website.models import Block, BlockPage, BlockType, MediaFile, SiteSettings
 
-from .block_schema import BLOCK_EDIT_SCHEMA, build_form_context, clean_block_data
+from .block_schema import (
+    BLOCK_EDIT_SCHEMA,
+    build_form_context,
+    clean_block_data,
+    types_for_design,
+)
 from .forms import BlockPageForm
 
 
@@ -89,10 +94,13 @@ def page_detail(request, pk):
             }
         )
     # Block types that can be added + edited through this UI.
+    # Bara typerna som finns i sidans design: Flamingo-block går inte att
+    # lägga på ADX-sidor, och tvärtom.
+    allowed = set(types_for_design(page.design))
     add_types = [
         {"value": bt.value, "label": BLOCK_EDIT_SCHEMA[bt.value]["label"]}
         for bt in BlockType
-        if bt.value in BLOCK_EDIT_SCHEMA
+        if bt.value in allowed
     ]
     return render(
         request,
@@ -107,7 +115,7 @@ def block_add(request, pk):
     """Append a new block of the chosen type to a page, then open its editor."""
     page = get_object_or_404(BlockPage, pk=pk)
     block_type = request.POST.get("block_type", "")
-    if block_type not in BLOCK_EDIT_SCHEMA:
+    if block_type not in types_for_design(page.design):
         messages.error(request, _("Okänd blocktyp."))
         return redirect("manage:page_detail", pk=page.pk)
 
@@ -148,7 +156,8 @@ def block_edit(request, pk):
             block_obj=block,
             form=form,
             all_media=MediaFile.objects.all(),
-            all_faq_sections=FAQSection.objects.all(),
+            # ADX-sidor kan bara välja ADX-sektioner; Flamingo-sidor båda.
+            all_faq_sections=sections_for_design(block.page.design),
         ),
     )
 

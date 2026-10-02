@@ -1,0 +1,271 @@
+/* ============================================================
+   site-tools.css - byråns verktygslager, oberoende av design.
+
+   Flyttat ur site.css (dess TILLÄGG utanför guiden) 2026-10-03 så att
+   samma lager fungerar i alla grundmallar, även de med egen design som
+   aldrig laddar site.css. Reglerna är oförändrade. Orbens fokusring läser
+   sajtens --fg och har en mörk reserv för sidor utan den. .skip-link
+   läser --color-accent och --radius-sm, som ingen definierar - fokusläget
+   blir därför genomskinligt. Det är orört för att sajten ska se ut exakt
+   som förut.
+
+   1) a11y: skip-länken (osynlig tills fokus) och .sr-only.
+   2) Redigeringsoverlayen (orbar + dock) - självförsörjande lager
+      portat från systersajten, ärver aldrig sidans tema
+      (mönsterkatalogen §3: redigeringspennor).
+   3) Botskyddets honeypot-fält (.bc-field) - utanför skärmen,
+      aldrig display:none (en del botar hoppar över dolda fält).
+   ============================================================ */
+
+.skip-link {
+    position: absolute; top: -100%; left: 16px;
+    background: var(--color-accent); color: #fff;
+    padding: 8px 16px; border-radius: var(--radius-sm);
+    z-index: 9999; font-weight: 600; font-size: 0.875rem;
+}
+.skip-link:focus { top: 16px; }
+.sr-only {
+    position: absolute; width: 1px; height: 1px;
+    padding: 0; margin: -1px; overflow: hidden;
+    clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}
+
+
+.c-admin-dock {
+    position: fixed;
+    left: 20px;
+    bottom: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Knappen är orbens låda: ingen egen bakgrund, ingen skugga - allt
+   utseende kommer från orben inuti. Var en gul cirkel med ett kugghjul
+   fram till 2026-08-30. */
+.c-admin-dock__toggle {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border: none;
+    border-radius: 50%;
+    background: none;
+    padding: 0;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.18s ease;
+}
+.c-admin-dock__toggle:hover { transform: translateY(-2px) scale(1.04); }
+
+/* CSS-orben under canvasen. Den syns när WebGL saknas eller innan
+   shadern hunnit rita - knappen ska aldrig vara en tom ruta. */
+.c-admin-dock__orb {
+    position: absolute; inset: 0; border-radius: 50%;
+    background:
+        radial-gradient(circle at 34% 28%, rgba(255,245,210,0.55), transparent 42%),
+        radial-gradient(circle at 62% 68%, rgba(255,122,24,0.9), transparent 58%),
+        radial-gradient(circle at 40% 55%, rgba(255,190,60,0.95), rgba(70,32,6,0.95) 74%);
+    box-shadow: 0 0 20px rgba(255, 150, 40, 0.45), 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.c-admin-dock__canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    display: none;
+    /* Klicket hör till knappen. Utan detta äter canvasen upp det. */
+    pointer-events: none;
+    /* Ingen drop-shadow: shadern ritar sin egen glod, och ett filter
+       ovanpa den breder ut alfan till ett synligt sudd bakom orben. */
+}
+
+/* Shadern ritar samma yta, fast levande. Klassen sätts på DOCKEN och inte
+   på canvasen: fallbacken ligger före canvasen i markupen, och en
+   syskonselektor kan bara peka framåt. */
+.c-admin-dock.orb-live .c-admin-dock__canvas { display: block; }
+.c-admin-dock.orb-live .c-admin-dock__orb { opacity: 0; }
+.c-admin-dock__toggle:focus-visible {
+    outline: 2px solid #000;
+    outline-offset: 2px;
+}
+.c-admin-dock.is-open .c-admin-dock__toggle svg {
+    transform: rotate(45deg);
+    transition: transform 0.2s;
+}
+
+/* Unread badge on the icon */
+.c-admin-dock__dot {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: #e11d48;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+    box-shadow: 0 0 0 2px #fff;
+}
+
+/* Pop-up menu */
+.c-admin-dock__menu {
+    display: none;
+    flex-direction: column;
+    min-width: 210px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 6px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.c-admin-dock.is-open .c-admin-dock__menu {
+    display: flex;
+    animation: admin-dock-in 0.14s ease-out;
+}
+@keyframes admin-dock-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.c-admin-dock__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 500;
+    color: #1a1d21;
+    text-decoration: none;
+    text-transform: none;
+    letter-spacing: 0;
+    transition: background 0.12s;
+}
+.c-admin-dock__item:hover {
+    background: #f4f5f7;
+    opacity: 1;
+}
+
+.c-admin-dock__badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #e11d48;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+}
+
+@media print {
+    .c-admin-dock { display: none; }
+}
+
+
+.bc-field{position:absolute !important;left:-9999px !important;top:auto !important;width:1px;height:1px;overflow:hidden}
+
+/* ===========================================================================
+   Redigeringsorben (inloggad personal på den publika sajten)
+   ---------------------------------------------------------------------------
+   Ersätter penna-ikonen 2026-08-30. Den gamla .edit-pencil hade INGEN CSS
+   alls - varken den eller sin wrapper - så den låg ostilad i elementets övre
+   vänstra hörn i normalt flöde. Nu: absolut positionerad till vänster,
+   lodrätt centrerad, som en liten gul-orange aura.
+
+   Ren CSS, samma teknik som AI-orben i manage.css: en roterande
+   conic-gradient maskad till en ring, plus två suddade moln som rör sig i
+   OLIKA takt. Samma takt läser som ett hjul; olika takt läser som ljus.
+   Inga bilder, inga nätverksanrop, ingen WebGL-kontext per element - det
+   sista spelar roll när sidan har trettio block.
+   =========================================================================== */
+.has-edit-orb { position: relative; }
+
+.edit-orb {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 15;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: block;
+    isolation: isolate;
+    text-decoration: none;
+    opacity: 0.75;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.edit-orb:hover,
+.edit-orb:focus-visible {
+    opacity: 1;
+    transform: translateY(-50%) scale(1.25);
+}
+.edit-orb:focus-visible {
+    outline: 2px solid var(--fg, #14121C);
+    outline-offset: 3px;
+}
+
+/* Glöden fyller lådan och dör före kanten, så den aldrig får en hård kant
+   när en förälder klipper (samma lärdom som AI-orben, 2026-08-21). */
+.edit-orb::after {
+    content: ""; position: absolute; inset: -60%; z-index: -1;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        rgba(255, 176, 32, 0.45) 22%,
+        rgba(255, 122, 24, 0.20) 46%,
+        transparent 70%);
+}
+/* Färgringen: gul -> orange -> bärnsten, maskad till en ring. */
+.edit-orb::before {
+    content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg,
+        #ffd23f, #ff9f1c, #ff7a18, #ffc93c, #ffd23f);
+    -webkit-mask: radial-gradient(farthest-side, transparent 34%, #000 56%, #000 82%, transparent 99%);
+    mask: radial-gradient(farthest-side, transparent 34%, #000 56%, #000 82%, transparent 99%);
+    filter: saturate(1.35);
+    animation: edit-orb-spin 7s linear infinite;
+}
+.edit-orb__cloud {
+    position: absolute; inset: 16%;
+    border-radius: 50%;
+    filter: blur(2px) saturate(1.35);
+    opacity: 0.7;
+    will-change: transform;
+}
+.edit-orb__cloud--a {
+    background: radial-gradient(circle at 32% 30%, rgba(255, 214, 90, 0.9), transparent 58%);
+    animation: edit-orb-spin 10s linear infinite;
+}
+.edit-orb__cloud--b {
+    background: radial-gradient(circle at 66% 64%, rgba(255, 122, 24, 0.75), transparent 55%);
+    animation: edit-orb-spin 15s linear infinite reverse;
+}
+.edit-orb__gloss {
+    position: absolute; inset: 22%; border-radius: 50%;
+    background: radial-gradient(circle at 34% 26%, rgba(255, 255, 255, 0.7), transparent 44%);
+}
+@keyframes edit-orb-spin { to { transform: rotate(360deg); } }
+
+/* Rörelsen är dekor, inte information - den ska gå att stänga av. */
+@media (prefers-reduced-motion: reduce) {
+    .edit-orb::before,
+    .edit-orb__cloud { animation: none; }
+    .edit-orb:hover, .edit-orb:focus-visible { transform: translateY(-50%); }
+}
+
+/* På smala skärmar krockar orben med innehållet - flytta in den i kanten. */
+@media (max-width: 700px) {
+    .edit-orb { left: 4px; width: 18px; height: 18px; }
+}

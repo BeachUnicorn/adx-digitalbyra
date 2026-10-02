@@ -1,0 +1,30 @@
+{% load website_tags %}
+{% comment %}ADX Flamingos sidtyper: sektionshuvud + kort med en färgad list
+överst. data: kicker, title, intro, cards[{title,text,accent,link_label,url}],
+anchor. accent blue/violet/orange/pink blir en modifierklass (färgen sätts i
+CSS:en, aldrig inline). Med länk blir hela kortet en länk, som folio-korten.
+Stil: static/css/flamingo-blocks.css.{% endcomment %}
+<section class="fl-sec fl-archetypes"{% if anchor %} id="{{ anchor|slugify }}"{% endif %}>
+    <div class="fl-wrap">
+        {% if kicker or title or intro %}
+        <div class="fl-sec-head">
+            {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+            {% if title %}<h2 class="fl-h2 fl-blk-title">{{ title }}</h2>{% endif %}
+            {% if intro %}<p class="fl-lead">{{ intro|linebreaksbr }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% if cards %}
+        <div class="fl-archetypes__grid">
+            {% for card in cards %}
+            {% resolve_link card.url as card_link %}
+            {% if card_link %}<a class="fl-arch{% if card.accent == 'violet' %} fl-arch--violet{% elif card.accent == 'orange' %} fl-arch--orange{% elif card.accent == 'pink' %} fl-arch--pink{% else %} fl-arch--blue{% endif %}" href="{{ card_link.href }}">{% else %}<div class="fl-arch{% if card.accent == 'violet' %} fl-arch--violet{% elif card.accent == 'orange' %} fl-arch--orange{% elif card.accent == 'pink' %} fl-arch--pink{% else %} fl-arch--blue{% endif %}">{% endif %}
+                <span class="fl-arch__bar" aria-hidden="true"></span>
+                <h3 class="fl-arch__title">{{ card.title }}</h3>
+                {% if card.text %}<p class="fl-arch__text">{{ card.text|linebreaksbr }}</p>{% endif %}
+                {% if card_link %}<span class="fl-arch__more">{{ card.link_label|default:"Läs mer" }} <span aria-hidden="true">&rarr;</span></span>{% endif %}
+            {% if card_link %}</a>{% else %}</div>{% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</section>

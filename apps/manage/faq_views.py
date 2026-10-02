@@ -39,7 +39,15 @@ def _ctx(**extra):
 class FAQSectionForm(forms.ModelForm):
     class Meta:
         model = FAQSection
-        fields = ["title", "slug", "description", "meta_description", "is_active", "order"]
+        fields = [
+            "title",
+            "slug",
+            "description",
+            "meta_description",
+            "design",
+            "is_active",
+            "order",
+        ]
         widgets = {
             "title": forms.TextInput(),
             "slug": forms.TextInput(attrs={"placeholder": "genereras automatiskt"}),
@@ -51,6 +59,7 @@ class FAQSectionForm(forms.ModelForm):
             "slug": "Webbadress (slug)",
             "description": "Beskrivning",
             "meta_description": "Metabeskrivning (SEO)",
+            "design": "Design",
             "is_active": "Aktiv",
             "order": "Sortering",
         }

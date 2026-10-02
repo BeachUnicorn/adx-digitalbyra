@@ -42,7 +42,9 @@ def ring_links(page, count=RING_SIZE):
     if not page.category:
         return []
     rows = list(
-        BlockPage.objects.filter(category=page.category, is_published=True)
+        BlockPage.objects.filter(
+            category=page.category, is_published=True, design=BlockPage.DESIGN_ADX
+        )
         .exclude(pk=page.pk)
         .order_by("slug")
         .values_list("slug", "title")

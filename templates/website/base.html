@@ -14,6 +14,7 @@
     strict-design-guide.html; rör du utseendet: ändra guiden först.
     {% endcomment %}
     <link rel="stylesheet" href="{% static 'css/site.css' %}?v={{ site_css_version }}">
+    <link rel="stylesheet" href="{% static 'css/site-tools.css' %}?v={{ static_version }}">
     {% if site_settings.ga_enabled and site_settings.ga_tracking_id %}
     <script async src="https://www.googletagmanager.com/gtag/js?id={{ site_settings.ga_tracking_id }}"></script>
     <script>

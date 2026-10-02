@@ -1,0 +1,15 @@
+{% load static website_tags %}
+{% comment %}ADX Flamingos avslutande uppmaning - samma data som
+website/blocks/bar.html: label, note, link{label,url}. Den stora rundade
+ytan med det spegelvända bandet. Stil: static/css/flamingo.css (.fl-cta).{% endcomment %}
+<section class="fl-sec fl-cta-sec">
+    <div class="fl-wrap">
+        <div class="fl-cta" data-analytics-position="cta">
+            <img class="fl-ribbon fl-cta__ribbon" src="{% static 'images/flamingo/ribbon-flip.webp' %}" alt="" aria-hidden="true" width="1392" height="975" loading="lazy" decoding="async">
+            {% if label %}<h2 class="fl-cta__title">{{ label }}</h2>{% endif %}
+            {% if note %}<p class="fl-cta__note">{{ note }}</p>{% endif %}
+            {% resolve_link link.url as bar_link %}
+            {% if link.label and bar_link %}<a class="fl-btn fl-btn--lg" href="{{ bar_link.href }}">{{ link.label }}</a>{% endif %}
+        </div>
+    </div>
+</section>

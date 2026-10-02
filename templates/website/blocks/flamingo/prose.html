@@ -1,0 +1,12 @@
+{% load render_context %}
+{% comment %}ADX Flamingos löptext - samma data som website/blocks/prose.html:
+title, body (rich, via render_with_context_rich: sanering + variabler).
+En läsbar spalt på högst 720 px. Stil: static/css/flamingo.css (.fl-prose).{% endcomment %}
+<section class="fl-sec fl-prose-sec">
+    <div class="fl-wrap">
+        <div class="fl-prose">
+            {% if title %}<h2>{{ title }}</h2>{% endif %}
+            {% render_with_context_rich body %}
+        </div>
+    </div>
+</section>

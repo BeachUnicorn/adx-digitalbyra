@@ -1,0 +1,14 @@
+{% extends "flamingo/base.html" %}
+{% load static %}
+{% block title %}Sidan finns inte - ADX Flamingo{% endblock %}
+{% block content %}
+<section class="fl-sec fl-404">
+  <img class="fl-ribbon fl-404__ribbon" src="{% static 'images/flamingo/ribbon-flip.webp' %}" alt="" aria-hidden="true" width="1392" height="975" decoding="async">
+  <div class="fl-wrap fl-404__in">
+    <p class="fl-kicker">404</p>
+    <h1 class="fl-h1">Sidan finns inte</h1>
+    <p class="fl-lead">Adressen <code class="fl-404__path">{{ path }}</code> leder ingenstans i Flamingo.</p>
+    <p class="fl-404__actions"><a class="fl-btn" href="{% url 'flamingo:home' %}">Till Flamingos startsida</a></p>
+  </div>
+</section>
+{% endblock %}

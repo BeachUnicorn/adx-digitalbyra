@@ -35,6 +35,9 @@ urlpatterns = [
     path("forfragan/", include("apps.inquiries.urls")),
     # Kundportalen (apps/projects). Före sajtens slug-catchall.
     path("kund/", include("apps.projects.portal_urls")),
+    # ADX Flamingo, bakom behörighet (apps/flamingo). Före sajtens slug-catchall,
+    # annars skulle en Flamingo-sida kunna nås obehörigt via /<slug>/.
+    path("flamingo/", include("apps.flamingo.urls")),
     # JSON-API för Mac-appen ADX Fokus (apps/projects/api.py).
     path("api/v1/", include("apps.projects.api_urls")),
     # Offertlänkarna till kund. Före sajtens slug-catchall.

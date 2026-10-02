@@ -4,6 +4,7 @@ from apps.aidocs import manage_views as aidocs_views
 from apps.assistant import history_views, oauth_views
 from apps.assistant import views as assistant_views
 from apps.cloud import manage_views as cloud_views
+from apps.flamingo import manage_views as flamingo_views
 from apps.monitor import manage_views as monitor_views
 from apps.offers import manage_views as offer_views
 from apps.projects import manage_views as project_views
@@ -85,6 +86,14 @@ urlpatterns = [
     path("aws/<int:pk>/", cloud_views.account_update, name="aws_account_update"),
     path("aws/<int:pk>/lasroll.json", cloud_views.role_file, name="aws_role_file"),
     path("aws/faktura/<int:pk>/", cloud_views.invoice_pdf, name="aws_invoice_pdf"),
+    # ADX Flamingo (apps/flamingo)
+    path("flamingo/", flamingo_views.overview, name="flamingo_overview"),
+    path(
+        "kunder/<int:pk>/flamingo/",
+        flamingo_views.customer_update,
+        name="flamingo_customer_update",
+    ),
+    path("kunder/<int:pk>/flamingo/visa/", flamingo_views.view_as, name="flamingo_view_as"),
     # Övervakning (apps/monitor)
     path("drift/", monitor_views.drift, name="drift"),
     path("kunder/<int:pk>/overvakning/", monitor_views.monitor_update, name="monitor_update"),

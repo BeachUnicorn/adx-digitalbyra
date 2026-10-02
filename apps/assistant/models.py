@@ -227,7 +227,9 @@ class AssistantToken(models.Model):
             return None
         token = (
             cls.objects.select_related("user")
-            .filter(key_hash=cls._hash(raw), is_active=True, user__is_active=True)
+            .filter(
+                key_hash=cls._hash(raw), is_active=True, user__is_active=True, user__is_staff=True
+            )
             .first()
         )
         if token is None:

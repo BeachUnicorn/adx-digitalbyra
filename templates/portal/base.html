@@ -1,4 +1,4 @@
-{% load static cloud_tags %}<!DOCTYPE html>
+{% load static cloud_tags flamingo_tags %}<!DOCTYPE html>
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
@@ -12,6 +12,7 @@
 </head>
 <body class="m-body pt-body">
 {% has_aws_invoices request.customer as show_invoices %}
+{% show_flamingo request as show_flamingo %}
 {% comment %}
 Kundportalen i samma skinn som panelen: samma tokens, samma kort. Ingen
 hamburgare - två länkar får plats på alla skärmar. Det som INTE finns
@@ -32,6 +33,8 @@ här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
             {% endif %}
         </ul>
         <div class="m-nav__right">
+            {# ADX Flamingo: inte i raden (vakten tillåter högst sju länkar) utan här och i mobilmenyn. #}
+            {% if show_flamingo %}<a href="{% url 'flamingo:home' %}" class="pt-flamingo">ADX Flamingo</a>{% endif %}
             {% if request.viewing_as %}
             <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="m-nav__view-site">Lämna kundvyn</button></form>
             {% elif request.customer %}
@@ -67,6 +70,7 @@ hamburgaren (menu.js). Stängs med krysset, Esc eller en länk.
         <a href="{% url 'portal:reports' %}"{% if active == 'reports' %} class="is-active" aria-current="page"{% endif %}>Rapporter</a>
         <a href="{% url 'portal:log' %}"{% if active == 'log' %} class="is-active" aria-current="page"{% endif %}>Logg</a>
         {% if show_invoices %}<a href="{% url 'portal:invoices' %}"{% if active == 'invoices' %} class="is-active" aria-current="page"{% endif %}>Fakturor</a>{% endif %}
+        {% if show_flamingo %}<a href="{% url 'flamingo:home' %}">ADX Flamingo</a>{% endif %}
     </nav>
     {% if not request.viewing_as %}
     <a href="{% url 'portal:issue_create' %}" class="mob-menu__cta">Nytt ärende</a>

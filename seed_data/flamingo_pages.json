@@ -1,0 +1,282 @@
+[
+  {
+    "sida": "flamingo",
+    "title": "ADX Flamingo",
+    "design": "flamingo",
+    "meta_title": "ADX Flamingo",
+    "meta_description": "Annonser i Google sök, en sida per tjänst och förfrågningarna i en inkorg, mätt hela vägen till affär. En person på ADX granskar allt innan något publiceras.",
+    "blocks": [
+      {
+        "type": "fl_hero",
+        "data": {
+          "badge": "Nytt",
+          "badge_text": "För dig som är kund hos ADX",
+          "title": "Fler kunder från Google.",
+          "title_accent": "Och vad de gav.",
+          "lead": "ADX Flamingo bygger annonser i Google sök och en sida per tjänst utifrån din hemsida. En person på ADX granskar allt innan det går ut, och du ser vad varje ny kund kostade. Annonskontot är ditt.",
+          "primary": {"label": "Kom igång", "url": "/flamingo/app/"},
+          "secondary": {"label": "", "url": ""},
+          "anchor": "",
+          "checks": [
+            "Ingen bindningstid",
+            "Inget påslag på annonspengarna",
+            "Du godkänner allt"
+          ],
+          "cards": [
+            {
+              "kicker": "Ny förfrågan",
+              "title": "Badrumsrenovering",
+              "meta": "Google sök - formulär med bilder",
+              "note": "Sms till dig, kvitto till den som frågade"
+            },
+            {
+              "kicker": "Granskat av ADX",
+              "title": "Klart för ditt godkännande",
+              "meta": "Annonser, sökord och sidan",
+              "note": "Inget går ut innan du sagt ja"
+            }
+          ]
+        }
+      },
+      {
+        "type": "fl_logos",
+        "data": {
+          "label": "Det här kopplar ADX Flamingo ihop",
+          "items": [
+            "Google Ads",
+            "Googles företagsuppgifter",
+            "Sms via 46elks"
+          ],
+          "more_label": "+ fler kopplingar senare",
+          "anchor": ""
+        }
+      },
+      {
+        "type": "fl_layers",
+        "data": {
+          "kicker": "Vad du får",
+          "title": "Annonserna, sidorna och mätningen. Med en människa emellan.",
+          "intro": "Allt det här ingår i den fasta månadsavgiften. Annonspengarna betalar du direkt till Google.",
+          "anchor": "vad-du-far",
+          "cards": [
+            {
+              "kicker": "01 - Annonserna",
+              "title": "Google sök, en kampanj per tjänst.",
+              "text": "Kampanjen byggs utifrån hur du säljer, var du jobbar och vad du vill lägga per dag.",
+              "variant": "dark",
+              "details": "Rubriker och beskrivningar från dina uppgifter\nSökord och negativa sökord\nOmråde och budget per dag"
+            },
+            {
+              "kicker": "02 - Sidorna och förfrågningarna",
+              "title": "En sida per tjänst. En inkorg för allt.",
+              "text": "Sidorna ligger på din egen subdomän och är byggda för mobilen. Varje förfrågan sparas med vilken annons och vilket sökord den kom från.",
+              "variant": "soft",
+              "details": "Spårat telefonnummer\nSms till dig vid ny förfrågan\nAutosvar med en text du har godkänt\nStatus och belopp i inkorgen"
+            },
+            {
+              "kicker": "03 - Mätningen och människan",
+              "title": "Kronor per affär, inte bara klick.",
+              "text": "Markera en förfrågan som vunnen och skriv beloppet. Affären skickas tillbaka till Google, och översikten visar vad varje ny kund kostade.",
+              "variant": "pastel",
+              "details": "Kronor per förfrågan\nKronor per affär\nAffärsvärde\nEn person på ADX granskar före publicering"
+            },
+            {
+              "kicker": "04 - Du godkänner allt",
+              "title": "Inget går ut utan ditt ja.",
+              "text": "En person på ADX granskar varje förslag och varje ändring. Du ser vad som ändrades och varför, och först när du har godkänt går det till Google och sidan.",
+              "variant": "line",
+              "details": "Granskat av ADX\nÄndringar med motivering\nDitt godkännande\nVarje ändring loggas"
+            },
+            {
+              "kicker": "05 - Bara det du bekräftat",
+              "title": "Inga påhittade priser eller löften.",
+              "text": "Uppgifterna om ditt företag hämtas från din hemsida och Google. Du bekräftar, rättar eller stryker dem, och texterna får bara använda det som står där.",
+              "variant": "pastel",
+              "details": "Varje uppgift visar sin källa\nSaknas ett pris skrivs inget pris"
+            },
+            {
+              "kicker": "06 - Kontot är ditt",
+              "title": "Ditt konto, ditt kort, ingen bindning.",
+              "text": "Google Ads-kontot står i ditt företags namn och du betalar Google direkt. Historiken i kontot stannar hos dig.",
+              "variant": "soft",
+              "details": "Du är administratör i kontot\nIngen bindningstid"
+            }
+          ]
+        }
+      },
+      {
+        "type": "steps",
+        "data": {
+          "kicker": "Så går det till",
+          "title": "Förslag, granskning, godkännande, mätning.",
+          "intro": "Samma väg för första kampanjen och för varje ändring efteråt.",
+          "steps": [
+            {
+              "title": "Förslaget",
+              "text": "Du anger din hemsida. Vi läser ut tjänster, telefon och uppgifter om företaget och föreslår annonser, sökord och en sida per tjänst. Inget publiceras."
+            },
+            {
+              "title": "Granskningen",
+              "text": "En person på ADX går igenom förslaget bredvid din egen sajt, rättar det som behövs och skriver varför."
+            },
+            {
+              "title": "Godkännandet",
+              "text": "Du ser vad som ändrades och godkänner. Först då går annonserna ut och sidan publiceras."
+            },
+            {
+              "title": "Mätningen",
+              "text": "Förfrågningarna samlas i inkorgen. Markera affärerna du vinner med belopp, så ser du kronor per affär och Google får veta vilka klick som blev affärer."
+            }
+          ]
+        }
+      },
+      {
+        "type": "fl_band",
+        "data": {
+          "kicker": "Hela vägen",
+          "title": "Från visning till affär, i kronor.",
+          "intro": "Bandet visar var kunderna faller bort på vägen. Siffrorna räknas ur dina annonser och det du markerar i inkorgen, inte av AI.",
+          "note": "Exempeldata.",
+          "anchor": "",
+          "stages": [
+            {"label": "Visningar", "value": "9 800"},
+            {"label": "Klick", "value": "212"},
+            {"label": "Förfrågningar", "value": "23"},
+            {"label": "Affärer", "value": "7"},
+            {"label": "Affärsvärde", "value": "412 000 kr"}
+          ]
+        }
+      },
+      {
+        "type": "fl_archetypes",
+        "data": {
+          "kicker": "Sidan anpassar sig",
+          "title": "Olika tjänster säljs olika. Därför ser sidorna olika ut.",
+          "intro": "När du skapar en kampanj väljer du hur kunderna köper tjänsten. Valet styr sidans upplägg och formuläret.",
+          "anchor": "",
+          "cards": [
+            {
+              "title": "Ringer direkt",
+              "text": "Telefonen först och formuläret sist. För jour och jobb där kunden hellre ringer än skriver.",
+              "accent": "orange",
+              "link_label": "",
+              "url": ""
+            },
+            {
+              "title": "Vill ha offert",
+              "text": "Frågor om jobbet och plats för bilder, så att du får underlag för en offert. För renoveringar och större jobb.",
+              "accent": "violet",
+              "link_label": "",
+              "url": ""
+            },
+            {
+              "title": "Vill boka tid",
+              "text": "Kunden anger önskad dag och tid, och du bekräftar. För service, behandlingar och besök. Inget bokningssystem behövs.",
+              "accent": "blue",
+              "link_label": "",
+              "url": ""
+            }
+          ]
+        }
+      },
+      {
+        "type": "compare",
+        "data": {
+          "kicker": "Jämför",
+          "title": "Varför inte en offertsajt, eller Google Ads på egen hand?",
+          "col1": "Offertsajt",
+          "col2": "Google Ads på egen hand",
+          "col3": "ADX Flamingo",
+          "rows": [
+            {"label": "Ditt namn på annonser och sidor", "v1": "-", "v2": "+", "v3": "+"},
+            {"label": "Förfrågan går bara till dig", "v1": "Delas ofta", "v2": "+", "v3": "+"},
+            {"label": "Annonskontot är ditt", "v1": "-", "v2": "+", "v3": "+"},
+            {"label": "En sida per tjänst", "v1": "-", "v2": "Bygger du själv", "v3": "+"},
+            {"label": "En person granskar före publicering", "v1": "-", "v2": "-", "v3": "+"},
+            {"label": "Vunna affärer tillbaka till Google", "v1": "-", "v2": "Sätter du upp själv", "v3": "+"},
+            {"label": "Kronor per affär", "v1": "-", "v2": "Räknar du själv", "v3": "+"},
+            {"label": "Kostnad", "v1": "Ofta per förfrågan", "v2": "Din egen tid", "v3": "Fast pris per månad"}
+          ]
+        }
+      },
+      {
+        "type": "plans",
+        "data": {
+          "kicker": "Vad det kostar",
+          "title": "Två saker att betala.",
+          "intro": "Annonspengarna går direkt till Google. Till ADX betalar du en fast avgift per månad.",
+          "plans": [
+            {
+              "mini": "Till Google",
+              "title": "Annonspengarna",
+              "desc": "Betalas direkt från ditt kort till Google. ADX ser aldrig kortet och tar inget påslag.",
+              "price": "Din budget",
+              "price_note": "Per dag, som du själv bestämmer",
+              "features": "Du väljer budget per dag\nDu kan ändra budgeten\nFakturor och kvitton kommer från Google",
+              "cta_label": "",
+              "cta_url": ""
+            },
+            {
+              "mini": "Till ADX",
+              "title": "ADX Flamingo",
+              "desc": "Samma avgift oavsett hur många förfrågningar som kommer in. Du får priset innan du godkänner något.",
+              "price": "Fast pris per månad",
+              "price_note": "Inget per förfrågan, inget påslag",
+              "features": "Annonser i Google sök\nEn sida per tjänst\nInkorg, sms och autosvar\nÖversikt med kronor per affär\nGranskning av en person på ADX\nIngen bindningstid",
+              "cta_label": "Kom igång",
+              "cta_url": "/flamingo/app/"
+            }
+          ]
+        }
+      },
+      {
+        "type": "faq",
+        "data": {
+          "kicker": "Frågor och svar",
+          "title": "Innan du börjar.",
+          "faq_verbatim": [
+            {
+              "q": "Vem äger annonskontot?",
+              "a": "Du gör. Google Ads-kontot står i ditt företags namn och du lägger in betalningen direkt hos Google. ADX kopplar kontot till vårt förvaltarkonto för att kunna sköta kampanjerna. Har du redan ett konto använder vi det."
+            },
+            {
+              "q": "Vad kostar det?",
+              "a": "Två saker. Annonspengarna betalar du direkt till Google, med en budget per dag som du själv bestämmer. Till ADX betalar du en fast avgift per månad. Vi tar inget påslag på annonspengarna och ingen avgift per förfrågan."
+            },
+            {
+              "q": "Vilka annonser ingår?",
+              "a": "Annonser i Google sök: en kampanj per tjänst, med sökord, negativa sökord, område och budget. Andra kanaler, som Facebook och Instagram, ingår inte i den här versionen."
+            },
+            {
+              "q": "Vem skriver texterna?",
+              "a": "Kampanjernas uppbyggnad följer fasta regler. Rubriker, beskrivningar och sidtext skrivs utifrån de uppgifter du har bekräftat om företaget, och saknas ett pris skriver vi inget pris. En person på ADX läser allt innan du får det för godkännande."
+            },
+            {
+              "q": "Kan jag ändra själv?",
+              "a": "Ja. Du kan ändra i förslaget innan det skickas till granskning, och be om ändringar när kampanjen är igång. Varje ändring går samma väg: ADX granskar och du godkänner innan något publiceras."
+            },
+            {
+              "q": "Vad händer när någon skickar en förfrågan?",
+              "a": "Förfrågan hamnar i inkorgen tillsammans med var den kom ifrån: vilken annons och vilket sökord. Du kan få ett sms om den, och den som frågade kan få ett autosvar med en text som du själv har godkänt. Ingen AI pratar med dina kunder."
+            },
+            {
+              "q": "Vad händer med mina kunders uppgifter?",
+              "a": "Förfrågningarna innehåller personuppgifter. ADX behandlar dem för din räkning enligt ett personuppgiftsbiträdesavtal som du godkänner när du börjar, och de används till din inkorg och din mätning. När du markerar en affär som vunnen skickas den till Google kopplad till annonsklicket, tillsammans med beloppet."
+            },
+            {
+              "q": "Kan jag avsluta?",
+              "a": "Ja, det finns ingen bindningstid. Annonskontot är ditt och stannar hos dig."
+            }
+          ]
+        }
+      },
+      {
+        "type": "bar",
+        "data": {
+          "label": "Se vad ADX Flamingo skulle göra för ditt företag.",
+          "link": {"label": "Kom igång", "url": "/flamingo/app/"}
+        }
+      }
+    ]
+  }
+]

@@ -45,6 +45,16 @@ def _f(key, type_, label, **extra):
 
 _SIDE_CHOICES = [["left", "Bild till vänster"], ["right", "Bild till höger"]]
 
+#: Designerna en blocktyp finns i (BlockPage.design). En post utan nyckeln
+#: "designs" finns bara i ADX-designen. Typer som delas har samma fält och
+#: samma redigering i båda, men varje design har sin egen mall:
+#: templates/website/blocks/<typ>.html för ADX och
+#: templates/website/blocks/flamingo/<typ>.html för ADX Flamingo.
+ADX_ONLY = ("",)
+SHARED_DESIGNS = ("", "flamingo")
+FLAMINGO_ONLY = ("flamingo",)
+
+
 # ADX-designens komponentbibliotek (strict-design-guide.html). Varje posts
 # fält speglar exakt vad blockmallen läser - mallvägen härleds ur typnamnet
 # i _wrapper.html, så en ny typ = en post här + en mall, ingenting annat.
@@ -156,6 +166,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "steps": {
         "label": "Steg",
+        "designs": SHARED_DESIGNS,
         "purpose": (
             "Numrerad arbetsgång, t.ex. 'Så går det till'. Varje steg har "
             "rubrik och text i listan 'steps'."
@@ -179,6 +190,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "quotes": {
         "label": "Citat",
+        "designs": SHARED_DESIGNS,
         "purpose": (
             "Kundcitat med namn eller roll under. Två till tre citat räcker; de "
             "ligger i listan 'quotes'."
@@ -223,6 +235,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "bar": {
         "label": "CTA-rad",
+        "designs": SHARED_DESIGNS,
         "purpose": (
             "Smal avslutande uppmaningsrad (CTA): text till vänster, länkknapp "
             "till höger. Ligger SIST på nästan varje sida."
@@ -236,6 +249,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "split": {
         "label": "Bild + text",
+        "designs": SHARED_DESIGNS,
         "purpose": (
             "Bild bredvid text i två spalter, med valfria punkter under texten "
             "(listan 'bullets'). Fältet image_side väljer vilken sida bilden "
@@ -287,6 +301,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "plans": {
         "label": "Paket",
+        "designs": SHARED_DESIGNS,
         "purpose": (
             "Prispaket bredvid varandra: namn, pris, beskrivning och "
             "punktlista. Paketen ligger i listan 'plans'; 'features' skrivs som "
@@ -317,6 +332,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "compare": {
         "label": "Jämförelsetabell",
+        "designs": SHARED_DESIGNS,
         "purpose": (
             "Jämförelsetabell med tre kolumner - en rad per egenskap i listan "
             "'rows'. Använd '+' och '-' i cellerna för ja och nej."
@@ -367,6 +383,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "faq": {
         "label": "FAQ",
+        "designs": SHARED_DESIGNS,
         "purpose": (
             "Visar en FAQ-sektions frågor som utfällbara rader. Sektionen väljs "
             "med faq_section (sektionens slug) - frågorna hämtas därifrån och "
@@ -381,6 +398,7 @@ BLOCK_EDIT_SCHEMA = {
     },
     "prose": {
         "label": "SEO-text",
+        "designs": SHARED_DESIGNS,
         "purpose": (
             "Löpande brödtext med rubrik - SEO-texten. Enda blocket som tar "
             "formaterad text (fetstil, kursiv, länkar). Sidor har ofta två i "
@@ -456,11 +474,209 @@ BLOCK_EDIT_SCHEMA = {
     },
     "spacer": {
         "label": "Mellanrum",
+        "designs": SHARED_DESIGNS,
         "purpose": ("Tomt vertikalt utrymme. Använd bara när två sektioner behöver luft emellan."),
         "fields": [
             _f("height", "length", "Höjd (t.ex. 4rem eller 48px)"),
         ],
         "lists": [],
+    },
+    # ADX Flamingos egna sektioner (adx-marketing/nara-mockup/index.html).
+    # Mallarna ligger i templates/website/blocks/flamingo/ och stilen i
+    # static/css/flamingo-blocks.css. Radlistornas första fält är det som
+    # måste vara ifyllt för att raden ska sparas, därför står rubriken först.
+    "fl_hero": {
+        "label": "Flamingo hero",
+        "designs": FLAMINGO_ONLY,
+        "purpose": (
+            "Bara för ADX Flamingo-sidor. Sidans första block: ett litet märke "
+            "överst (badge, t.ex. 'Nytt', följt av badge_text), stor rubrik (H1) "
+            "där title_accent skrivs direkt efter title i färgtoning, ingress, "
+            "upp till två knappar och korta förtroenderader med bock (listan "
+            "'checks'). Färgbandet till höger är fast dekor. På breda skärmar "
+            "svävar högst två exempelkort bredvid texten (listan 'cards'); på "
+            "smala skärmar hamnar de under."
+        ),
+        "fields": [
+            _f("badge", "plain", "Märke (t.ex. Nytt)", help="Kort ord i den svarta pillen."),
+            _f("badge_text", "plain", "Text efter märket"),
+            _f("title", "plain", "Rubrik"),
+            _f(
+                "title_accent",
+                "plain",
+                "Rubrikens slut i färgtoning",
+                help="Skrivs direkt efter rubriken, t.ex. 'på autopilot.'",
+            ),
+            _f("lead", "text", "Ingress"),
+            _f("primary.label", "plain", "Primär knapp - text"),
+            _f("primary.url", "link", "Primär knapp - länk"),
+            _f("secondary.label", "plain", "Sekundär knapp - text"),
+            _f("secondary.url", "link", "Sekundär knapp - länk"),
+            _f("anchor", "plain", "Ankar-id (valfritt)", help=ANCHOR_HELP),
+        ],
+        "lists": [
+            {
+                "key": "checks",
+                "label": "Förtroenderader",
+                "singular": "rad",
+                "simple": True,
+                "fields": [
+                    _f("text", "plain", "Rad (t.ex. Ingen bindningstid)"),
+                ],
+            },
+            {
+                "key": "cards",
+                "label": "Svävande kort (högst två visas)",
+                "singular": "kort",
+                "fields": [
+                    _f("title", "plain", "Rubrik"),
+                    _f("kicker", "plain", "Kicker (t.ex. Ny förfrågan)"),
+                    _f("meta", "plain", "Metarad (t.ex. Trollbäcken - Google sök)"),
+                    _f("note", "plain", "Notis i lila (valfri)"),
+                ],
+            },
+        ],
+    },
+    "fl_logos": {
+        "label": "Flamingo integrationsrad",
+        "designs": FLAMINGO_ONLY,
+        "purpose": (
+            "Bara för ADX Flamingo-sidor. En ljus remsa i full bredd med en "
+            "liten etikett (label) följd av namnen på tjänster och system som "
+            "går att koppla in (listan 'items'), t.ex. Google Ads, Meta och "
+            "Fortnox. more_label skrivs sist i lila, t.ex. '+ fler'. Ligger "
+            "oftast direkt under fl_hero."
+        ),
+        "fields": [
+            _f("label", "plain", "Etikett (t.ex. Koppla in på ett klick)"),
+            _f("more_label", "plain", "Sista text i lila (valfri, t.ex. + fler)"),
+            _f("anchor", "plain", "Ankar-id (valfritt)", help=ANCHOR_HELP),
+        ],
+        "lists": [
+            {
+                "key": "items",
+                "label": "Namn",
+                "singular": "namn",
+                "simple": True,
+                "fields": [
+                    _f("text", "plain", "Namn (t.ex. Google Ads)"),
+                ],
+            },
+        ],
+    },
+    "fl_layers": {
+        "label": "Flamingo lager",
+        "designs": FLAMINGO_ONLY,
+        "purpose": (
+            "Bara för ADX Flamingo-sidor. Sektionshuvud och stora kort i ett "
+            "rutnät, ett kort per del av tjänsten (listan 'cards'). Varje kort "
+            "har kicker, rubrik, text och en variant: dark (mörkt med "
+            "färgbandet), soft (ljusgrått), pastel (pastellton) eller line "
+            "(vitt med kant). 'details' skrivs en rad per punkt och visas som "
+            "små rader längst ner i kortet."
+        ),
+        "fields": [
+            _f("kicker", "plain", "Kicker"),
+            _f("title", "plain", "Rubrik"),
+            _f("intro", "text", "Introtext"),
+            _f("anchor", "plain", "Ankar-id (valfritt)", help=ANCHOR_HELP),
+        ],
+        "lists": [
+            {
+                "key": "cards",
+                "label": "Kort",
+                "singular": "kort",
+                "fields": [
+                    _f("title", "plain", "Rubrik"),
+                    _f("kicker", "plain", "Kicker (t.ex. 01 - Kör åt mig)"),
+                    _f("text", "text", "Text"),
+                    _f(
+                        "variant",
+                        "choice",
+                        "Utseende",
+                        choices=[
+                            ["soft", "Ljusgrått"],
+                            ["dark", "Mörkt med färgband"],
+                            ["pastel", "Pastell"],
+                            ["line", "Vitt med kant"],
+                        ],
+                    ),
+                    _f("details", "text", "Rader längst ner - en per rad (valfria)"),
+                ],
+            },
+        ],
+    },
+    "fl_band": {
+        "label": "Flamingo bandet",
+        "designs": FLAMINGO_ONLY,
+        "purpose": (
+            "Bara för ADX Flamingo-sidor. Sektionshuvud och ett färgband som "
+            "smalnar av från vänster till höger som en tratt, delat av vita "
+            "linjer mellan stegen. Under bandet står varje stegs namn och värde "
+            "(listan 'stages', 2 till 6 steg, t.ex. Visningar 12 400, Besök 274, "
+            "Affärer 9). Sista värdet ritas i färgtoning. Fältet note står "
+            "under bandet; skriv 'Exempeldata.' när siffrorna inte är kundens "
+            "egna."
+        ),
+        "fields": [
+            _f("kicker", "plain", "Kicker"),
+            _f("title", "plain", "Rubrik"),
+            _f("intro", "text", "Introtext"),
+            _f("note", "plain", "Not under bandet (t.ex. Exempeldata.)"),
+            _f("anchor", "plain", "Ankar-id (valfritt)", help=ANCHOR_HELP),
+        ],
+        "lists": [
+            {
+                "key": "stages",
+                "label": "Steg (2 till 6 visas)",
+                "singular": "steg",
+                "fields": [
+                    _f("label", "plain", "Steg (t.ex. Visningar)"),
+                    _f("value", "plain", "Värde (t.ex. 12 400)"),
+                ],
+            },
+        ],
+    },
+    "fl_archetypes": {
+        "label": "Flamingo sidtyper",
+        "designs": FLAMINGO_ONLY,
+        "purpose": (
+            "Bara för ADX Flamingo-sidor. Sektionshuvud och ett rutnät av "
+            "mindre kort med en färgad list överst (listan 'cards'), t.ex. ett "
+            "kort per sätt att sälja: Boka, Offert, Akut, Abonnemang. Varje "
+            "kort har rubrik, text, en accentfärg (blue, violet, orange, pink) "
+            "och en valfri länk; med länk blir hela kortet klickbart."
+        ),
+        "fields": [
+            _f("kicker", "plain", "Kicker"),
+            _f("title", "plain", "Rubrik"),
+            _f("intro", "text", "Introtext"),
+            _f("anchor", "plain", "Ankar-id (valfritt)", help=ANCHOR_HELP),
+        ],
+        "lists": [
+            {
+                "key": "cards",
+                "label": "Kort",
+                "singular": "kort",
+                "fields": [
+                    _f("title", "plain", "Rubrik"),
+                    _f("text", "text", "Text"),
+                    _f(
+                        "accent",
+                        "choice",
+                        "Accentfärg",
+                        choices=[
+                            ["blue", "Blå"],
+                            ["violet", "Lila"],
+                            ["orange", "Orange"],
+                            ["pink", "Rosa"],
+                        ],
+                    ),
+                    _f("link_label", "plain", "Länktext (t.ex. Se exempel)"),
+                    _f("url", "link", "Länk (valfri)"),
+                ],
+            },
+        ],
     },
 }
 
@@ -758,3 +974,28 @@ def build_form_context(block):
         )
 
     return {"type_label": schema["label"], "fields": fields, "lists": lists}
+
+
+def designs_for(block_type):
+    """Designerna blocktypen finns i - tom tuple för okända typer."""
+    schema = BLOCK_EDIT_SCHEMA.get(block_type)
+    if schema is None:
+        return ()
+    return tuple(schema.get("designs", ADX_ONLY))
+
+
+def types_for_design(design):
+    """Blocktyperna som går att lägga på en sida med den här designen."""
+    return [key for key in BLOCK_EDIT_SCHEMA if design in designs_for(key)]
+
+
+def template_names(block_type, design):
+    """
+    Mallarna för en blocktyp på en sida med given design, i sökordning.
+    Flamingo-mallen först och ADX-mallen som reserv; registervakten i
+    testsviten ser till att varje deklarerad design har sin mall.
+    """
+    names = [f"website/blocks/{block_type}.html"]
+    if design:
+        names.insert(0, f"website/blocks/{design}/{block_type}.html")
+    return names

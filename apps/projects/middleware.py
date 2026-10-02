@@ -22,8 +22,8 @@ class PortalGateMiddleware:
             user is not None
             and user.is_authenticated
             and not is_agency_user(user)
-            and request.path.startswith(("/manage/", "/admin/"))
-            and not request.path.startswith("/manage/logout/")
+            and request.path_info.startswith(("/manage/", "/admin/"))
+            and not request.path_info.startswith("/manage/logout/")
         ):
             return redirect("portal:home")
         return self.get_response(request)

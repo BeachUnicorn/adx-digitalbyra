@@ -43,6 +43,7 @@ ingången till kundkortet, där projekt, kontakter, logg och övervakning bor.
         <td>
           <a href="{% url 'manage:customer_detail' r.customer.pk %}" class="tv-link"><b>{{ r.customer.name }}</b></a>
           {% if not r.customer.is_active %} <span class="m-badge">inaktiv</span>{% endif %}
+          {% if r.flamingo %} <span class="m-badge m-badge--flamingo">Flamingo</span>{% endif %}
           {% if r.customer.org_number %}<div class="tv-muted tv-cell-sub">{{ r.customer.org_number }}</div>{% endif %}
         </td>
         <td class="tv-muted">{% for d in r.domains %}<a class="tv-link" href="https://{{ d }}/" target="_blank" rel="noopener">{{ d }}</a>{% if not forloop.last %}<br>{% endif %}{% empty %}-{% endfor %}</td>

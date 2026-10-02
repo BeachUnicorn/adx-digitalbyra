@@ -1,0 +1,12 @@
+{% comment %}ADX Flamingos mellanrum - samma data och standard som
+website/blocks/spacer.html: height (px, rem eller em), annars 4rem. Höjden
+blir en klass i steg om 4 px (fl-sp-N i flamingo.css, 0-400 px) i stället
+för ett style-attribut: 4rem = 64 px = fl-sp-16, 48px = fl-sp-12. Ett värde
+som inte går att räkna om (procent, var(), utanför skalan) ger 4rem.{% endcomment %}
+{% with h=height|default:"4rem" %}
+{% if h|slice:"-3:" == "rem" %}{% widthratio h|slice:":-3" 1 4 as spacer_steps %}
+{% elif h|slice:"-2:" == "em" %}{% widthratio h|slice:":-2" 1 4 as spacer_steps %}
+{% elif h|slice:"-2:" == "px" %}{% widthratio h|slice:":-2" 4 1 as spacer_steps %}
+{% endif %}
+<div class="fl-spacer{% if spacer_steps %} fl-sp-{{ spacer_steps }}{% endif %}" aria-hidden="true"></div>
+{% endwith %}

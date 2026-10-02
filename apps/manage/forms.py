@@ -26,6 +26,7 @@ class BlockPageForm(forms.ModelForm):
             "slug",
             "meta_title",
             "meta_description",
+            "design",
             "is_published",
             "order",
         ]
@@ -42,15 +43,25 @@ class BlockPageForm(forms.ModelForm):
             "meta_description": _("Metabeskrivning (SEO)"),
             "is_published": _("Publicerad"),
             "order": _("Ordning"),
+            "design": _("Design"),
         }
         help_texts = {
             "slug": _("Lämna tomt så skapas den automatiskt från titeln."),
+            "design": _(
+                "ADX: publik sida på adx.se. ADX Flamingo: egen design under /flamingo/, "
+                "syns bara för kunder med Flamingo aktiverat (och byrån). Startsidan har "
+                "adressen flamingo. Byter du en publicerad Flamingo-sida till ADX blir den "
+                "publik direkt."
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Slug is auto-generated from the title when left blank.
         self.fields["slug"].required = False
+        # Inte obligatoriskt: AI:ns skapa_sida skickar inte fältet och ska
+        # få en vanlig ADX-sida.
+        self.fields["design"].required = False
 
     def clean_title(self):
         return sanitize_plain_text(self.cleaned_data.get("title", ""), max_length=255)
@@ -78,6 +89,42 @@ class BlockPageForm(forms.ModelForm):
             candidate = f"{base}-{i}"
             i += 1
         return candidate
+
+    #: Adresser som en sida med den här designen inte kan få, eftersom en
+    #: annan rutt redan äger dem: /flamingo/ är Flamingos område, och
+    #: /flamingo/app/ är verktyget.
+    RESERVED_SLUGS = {
+        BlockPage.DESIGN_ADX: {BlockPage.FLAMINGO_HOME_SLUG},
+        BlockPage.DESIGN_FLAMINGO: {"app"},
+    }
+
+    def clean(self):
+        cleaned = super().clean()
+        design = cleaned.get("design") or BlockPage.DESIGN_ADX
+        cleaned["design"] = design
+        slug = cleaned.get("slug")
+        if slug and slug in self.RESERVED_SLUGS.get(design, set()):
+            self.add_error("slug", _("Adressen %(slug)s är reserverad.") % {"slug": slug})
+        # Byte av design på en sida med block: bara om alla block finns i den
+        # nya designen. Annars renderas de inte (och en ADX Flamingo-sida
+        # som byts till ADX blir dessutom publik).
+        if self.instance.pk and design != (self.instance.design or ""):
+            from .block_schema import types_for_design
+
+            allowed = set(types_for_design(design))
+            foreign = sorted(
+                set(self.instance.blocks.values_list("block_type", flat=True)) - allowed
+            )
+            if foreign:
+                self.add_error(
+                    "design",
+                    _(
+                        "Sidan har block som inte finns i den designen (%(types)s). "
+                        "Ta bort dem först."
+                    )
+                    % {"types": ", ".join(foreign)},
+                )
+        return cleaned
 
 
 class SiteSettingsForm(forms.ModelForm):
@@ -153,6 +200,14 @@ class SiteSettingsForm(forms.ModelForm):
         # Server-side sanitization is the security boundary - never trust the
         # HTML the editor submits.
         return sanitize_rich_html(self.cleaned_data.get("footer_about", ""))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Sidfotens blocksida är en del av den publika sajten: aldrig en
+        # ADX Flamingo-sida (de ligger bakom behörighet).
+        field = self.fields.get("footer_component_page")
+        if field is not None:
+            field.queryset = BlockPage.objects.filter(design=BlockPage.DESIGN_ADX)
 
 
 # ---------------------------------------------------------------------------
@@ -315,7 +370,9 @@ class MenuItemForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["page"].required = False
-        self.fields["page"].queryset = BlockPage.objects.order_by("title")
+        self.fields["page"].queryset = BlockPage.objects.filter(
+            design=BlockPage.DESIGN_ADX
+        ).order_by("title")
         self.fields["url"].required = False
 
     def clean_label(self):

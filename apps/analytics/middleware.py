@@ -46,6 +46,9 @@ _SKIP_PREFIXES = (
     # AI-guiderna bär åtkomstkoden i adressen - den får aldrig hamna i PageView.path.
     "/aiz/",
     "/status/",
+    # ADX Flamingo ligger bakom behörighet; dess sidor räknas inte som
+    # besök på den publika sajten.
+    "/flamingo/",
 )
 
 _TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)

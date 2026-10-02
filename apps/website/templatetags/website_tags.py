@@ -19,11 +19,20 @@ def render_block(context, block):
 
     Unpacks block.data into the template context alongside the block itself.
     """
+    from apps.manage.block_schema import template_names, types_for_design
+
     request = context.get("request")
     user = context.get("user") or getattr(request, "user", None)
+    # Sidans design väljer mallkatalogen. block.page är redan laddad när
+    # blocken hämtas via page.blocks (Djangos kända relaterade objekt).
+    design = getattr(getattr(block, "page", None), "design", "") or ""
     block_context = {
         "block": block,
         "block_type": block.block_type,
+        "block_templates": template_names(block.block_type, design),
+        # Skyddsnät: ett block som inte finns i sidans design renderas inte
+        # alls (i stället för TemplateDoesNotExist och 500).
+        "block_allowed": block.block_type in types_for_design(design),
         "request": request,
         "user": user,
         # Variable substitution (render_with_context) reads site_settings
@@ -160,15 +169,22 @@ def split_lines(value):
     return [line.strip() for line in (value or "").splitlines() if line.strip()]
 
 
-@register.simple_tag
-def faq_section(section_id):
-    """Slå upp en aktiv FAQ-sektion till FAQ-blocket (eller None)."""
+@register.simple_tag(takes_context=True)
+def faq_section(context, section_id):
+    """Slå upp en aktiv FAQ-sektion till FAQ-blocket (eller None).
+
+    Sidans design avgör vilka sektioner som får visas: en ADX-sida visar
+    aldrig en Flamingo-sektion, så Flamingos frågor kan inte hamna publikt.
+    """
     from apps.faq.models import FAQSection
+    from apps.faq.visibility import sections_for_design
 
     if not section_id:
         return None
+    block = context.get("block")
+    design = getattr(getattr(block, "page", None), "design", "") or ""
     try:
-        return FAQSection.objects.get(pk=section_id, is_active=True)
+        return sections_for_design(design).get(pk=section_id, is_active=True)
     except (FAQSection.DoesNotExist, ValueError, TypeError):
         return None
 

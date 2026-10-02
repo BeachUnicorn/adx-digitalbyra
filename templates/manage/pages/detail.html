@@ -7,7 +7,7 @@
     <p class="m-crumb-row"><a href="{% url 'manage:page_list' %}">Blocksidor</a> /</p>
     <h1 class="m-page-head__title">{{ page.title }}</h1>
     <p class="m-page-head__subtitle">
-        <a href="/{{ page.slug }}/" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a>
+        <a href="{{ page.get_absolute_url }}" rel="noopener" class="m-btn m-btn--ghost m-btn--small">Visa sidan ↗</a>
         <a href="{% url 'manage:page_edit' page.id %}" class="m-btn m-btn--ghost m-btn--small">Sidinställningar</a>
         <a href="{% url 'manage:history' 'website' 'blockpage' page.id %}?next={{ request.get_full_path|urlencode }}" class="m-btn m-btn--ghost m-btn--small">Historik</a>
     </p>

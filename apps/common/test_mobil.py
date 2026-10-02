@@ -113,6 +113,7 @@ class ViewportGuardTests(TestCase):
             "portal/base.html",
             "website/base.html",
             "errors/_standalone.html",
+            "flamingo/base.html",
         ):
             text = (TEMPLATES / base).read_text(encoding="utf-8")
             self.assertIn("width=device-width", text, base)

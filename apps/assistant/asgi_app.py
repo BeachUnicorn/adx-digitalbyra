@@ -126,17 +126,23 @@ class AuthenticatedMCPApp:
             return None
 
         def _lookup():
+            from apps.projects.access import is_agency_user
+
             # Personlig nyckel har eget prefix - billigast att testa först.
             if raw.startswith(AssistantToken.PREFIX):
                 token = AssistantToken.authenticate(raw)
-                return token.user if token else None
-            row = OAuthToken.lookup(OAuthToken.Kind.ACCESS, raw)
-            if row is None:
-                return None
-            from django.utils import timezone
+                user = token.user if token else None
+            else:
+                row = OAuthToken.lookup(OAuthToken.Kind.ACCESS, raw)
+                if row is None:
+                    return None
+                from django.utils import timezone
 
-            OAuthToken.objects.filter(pk=row.pk).update(last_used_at=timezone.now())
-            return row.user
+                OAuthToken.objects.filter(pk=row.pk).update(last_used_at=timezone.now())
+                user = row.user
+            # Bara byrån: en nyckel som tillhör någon som inte (längre) är
+            # staff - en kundkontakt, ett nedgraderat konto - öppnar inget.
+            return user if user is not None and is_agency_user(user) else None
 
         return await sync_to_async(_lookup, thread_sensitive=True)()
 

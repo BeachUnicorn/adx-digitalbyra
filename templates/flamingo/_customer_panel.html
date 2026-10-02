@@ -1,0 +1,23 @@
+{% comment %}
+Kundkortets ADX Flamingo-panel (apps/flamingo). Aktiveringen gäller direkt:
+kundens kontakter ser Flamingo på /flamingo/ och via portalen. Ingen mejlas.
+{% endcomment %}
+<div class="m-panel tv-panel" id="flamingo">
+  <div class="tv-sec-title">ADX Flamingo{% if flamingo_enabled %} <span class="m-badge m-badge--flamingo">Aktiverat</span>{% endif %}</div>
+  <p class="tv-prop__note">Annonser, sidor och förfrågningar, mätt till affär. Bara kunder med Flamingo aktiverat ser det; alla andra får en vanlig 404.</p>
+  <form method="post" action="{% url 'manage:flamingo_customer_update' customer.pk %}" class="tv-row">{% csrf_token %}
+    <label class="tv-checklabel"><input type="checkbox" name="is_enabled"{% if flamingo_enabled %} checked{% endif %}> Kunden ser ADX Flamingo</label>
+    <button type="submit" class="m-btn m-btn--small">Spara</button>
+  </form>
+  {% if flamingo_account.enabled_at and flamingo_enabled %}
+  <p class="tv-muted">Aktiverat {{ flamingo_account.enabled_at|date:"j M Y" }}{% if flamingo_account.enabled_by %} av {{ flamingo_account.enabled_by.first_name|default:flamingo_account.enabled_by.get_username }}{% endif %}.</p>
+  {% endif %}
+  {% if flamingo_enabled and not flamingo_contact_count %}
+  <p class="tv-prop__note">Kunden har inga portalkontakter än. Bjud in en kontakt nedan så att någon kan logga in.</p>
+  {% endif %}
+  {% if customer.is_active %}
+  <form method="post" action="{% url 'manage:flamingo_view_as' customer.pk %}">{% csrf_token %}
+    <button type="submit" class="m-btn m-btn--small m-btn--ghost">Visa Flamingo som kunden</button>
+  </form>
+  {% endif %}
+</div>

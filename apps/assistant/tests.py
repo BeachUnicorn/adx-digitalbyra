@@ -3581,3 +3581,23 @@ class OffertMcpTests(TestCase):
             REGISTRY["lista_offerter"].read(contact)
         with self.assertRaises(OperationError):
             REGISTRY["skapa_offert"].run(contact, kund_namn="X")
+
+
+class StaffOnlyToolsTests(TestCase):
+    """Granskningen 2026-10-03: sidverktygen saknade egen byråkontroll."""
+
+    def test_non_staff_tokens_open_nothing_and_operations_refuse(self):
+        from asgiref.sync import async_to_sync
+
+        from apps.assistant.asgi_app import AuthenticatedMCPApp
+        from apps.assistant.operations.base import OperationError
+        from apps.assistant.runtime import run_operation
+
+        staff = get_user_model().objects.create_user("st", password="x", is_staff=True)
+        _, raw = AssistantToken.issue(staff)
+        self.assertEqual(async_to_sync(AuthenticatedMCPApp._resolve_user)(raw), staff)
+        get_user_model().objects.filter(pk=staff.pk).update(is_staff=False)
+        self.assertIsNone(async_to_sync(AuthenticatedMCPApp._resolve_user)(raw))
+        staff.refresh_from_db()
+        with self.assertRaises(OperationError):
+            run_operation(staff, lambda: None, "lista_sidor", {})

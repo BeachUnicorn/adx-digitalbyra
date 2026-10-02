@@ -32,6 +32,18 @@ class FAQSection(models.Model):
         help_text=_("SEO-beskrivning (max 160 tecken)."),
     )
     is_active = models.BooleanField(_("Aktiv"), default=True)
+    #: Samma designval som blocksidorna (BlockPage.design). En sektion för
+    #: ADX Flamingo är aldrig publik: inte på /faq/, inte i sitemapen och
+    #: inte i FAQ-block på ADX-sidor. Uttryckligt, inte härlett ur var den
+    #: används - en härledning ändrades av vanliga redigeringssteg.
+    design = models.CharField(
+        _("Design"),
+        max_length=20,
+        blank=True,
+        default="",
+        choices=[("", "ADX"), ("flamingo", "ADX Flamingo")],
+        help_text=_("ADX Flamingo: visas bara på Flamingo-sidor, aldrig publikt."),
+    )
     order = models.PositiveIntegerField(_("Sortering"), default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

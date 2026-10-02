@@ -18,9 +18,10 @@
     <div class="m-list__row">
         <a class="m-list__main m-list__row--link" href="{% url 'manage:page_detail' page.id %}">
             <div class="m-list__title">{{ page.title }}</div>
-            <div class="m-list__meta">/{{ page.slug }}/ · {{ page.blocks.count }} block</div>
+            <div class="m-list__meta">{{ page.get_absolute_url }} · {{ page.blocks.count }} block</div>
         </a>
         <div class="m-row-actions">
+            {% if page.is_flamingo %}<span class="m-badge m-badge--flamingo">ADX Flamingo</span>{% endif %}
             {% if page.is_published %}
             <span class="m-badge m-badge--published">Publicerad</span>
             {% else %}

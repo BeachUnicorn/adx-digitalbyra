@@ -1,0 +1,50 @@
+{% comment %}ADX Flamingos band: sektionshuvud + färgbandet som smalnar av som
+en tratt. data: kicker, title, intro, stages[{label,value}], note, anchor.
+Högst sex steg ritas. Tratten är en fast form; de vita skiljelinjerna räknas
+fram ur antalet steg (x = steg / antal * 1200 i viewBoxen) så att de hamnar
+mellan kolumnerna under bandet. Sista värdet i färgtoning.
+Stil: static/css/flamingo-blocks.css.{% endcomment %}
+{% with shown=stages|slice:":6" %}
+<section class="fl-sec fl-band"{% if anchor %} id="{{ anchor|slugify }}"{% endif %}>
+    <div class="fl-wrap">
+        {% if kicker or title or intro %}
+        <div class="fl-band__head">
+            {% if kicker or title %}
+            <div class="fl-sec-head fl-band__headline">
+                {% if kicker %}<p class="fl-kicker">{{ kicker }}</p>{% endif %}
+                {% if title %}<h2 class="fl-h2 fl-blk-title">{{ title }}</h2>{% endif %}
+            </div>
+            {% endif %}
+            {% if intro %}<p class="fl-band__intro">{{ intro|linebreaksbr }}</p>{% endif %}
+        </div>
+        {% endif %}
+        {% if shown %}
+        <div class="fl-band__panel">
+            <svg class="fl-band__svg" viewBox="0 0 1200 260" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+                <defs>
+                    <linearGradient id="fl-band-grad-{{ block.pk|default:'0' }}" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0" stop-color="#9EC3FF"/>
+                        <stop offset="0.3" stop-color="#8365F3"/>
+                        <stop offset="0.6" stop-color="#F27AD9"/>
+                        <stop offset="0.82" stop-color="#FD7C5A"/>
+                        <stop offset="1" stop-color="#FE9F30"/>
+                    </linearGradient>
+                </defs>
+                <path d="M0 10 C 200 10, 260 50, 300 60 C 420 90, 520 100, 600 108 C 720 118, 820 120, 900 122 C 1020 124, 1120 124, 1200 125 L 1200 139 C 1120 139, 1020 140, 900 144 C 820 147, 720 150, 600 162 C 520 170, 420 180, 300 205 C 260 213, 200 250, 0 250 Z" fill="url(#fl-band-grad-{{ block.pk|default:'0' }})"/>
+                {% for stage in shown %}{% if not forloop.last %}
+                <line x1="{% widthratio forloop.counter shown|length 1200 %}" y1="0" x2="{% widthratio forloop.counter shown|length 1200 %}" y2="260" stroke="#FFFFFF" stroke-width="2" vector-effect="non-scaling-stroke"/>{% endif %}{% endfor %}
+            </svg>
+            <dl class="fl-band__stages fl-band__stages--n{{ shown|length }}">
+                {% for stage in shown %}
+                <div class="fl-band__stage">
+                    <dt>{{ stage.label }}</dt>
+                    {% if stage.value %}<dd{% if forloop.last %} class="fl-grad"{% endif %}>{{ stage.value }}</dd>{% endif %}
+                </div>
+                {% endfor %}
+            </dl>
+            {% if note %}<p class="fl-band__note">{{ note }}</p>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endwith %}
