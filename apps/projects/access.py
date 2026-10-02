@@ -22,16 +22,15 @@ from .models import Issue
 
 def is_agency_user(user):
     """
-    Byrån = inloggad OCH inte kundkontakt. is_staff räcker alltid, men
-    /manage/ har historiskt släppt in alla inloggade (login_required), och
-    Giovannis befintliga konton ska inte låsas ute för att de saknar
-    staff-flaggan. Gränsen som skyddar kunderna är kundmedlemskapet.
+    Byrån = inloggad med staff-flaggan. Inget annat räcker.
+
+    Fram till 2026-10-03 räknades alla inloggade UTAN kundmedlemskap som
+    byrån, för att äldre konton saknade flaggan. Det lämnade ett hål: en
+    kontakt som togs bort från sin sista kund medan hen var inloggad blev
+    "byrån" och kom in i /manage/ tills sessionen gick ut. Alla byråkonton
+    har flaggan (kontrollerat i prod samma dag), så regeln är nu strikt.
     """
-    if not user.is_authenticated:
-        return False
-    if user.is_staff:
-        return True
-    return not user.customers.exists()
+    return bool(user and user.is_authenticated and user.is_staff)
 
 
 def customer_for(user):

@@ -45,7 +45,9 @@ def make_quote(**kwargs):
 class StaffClientMixin:
     @classmethod
     def setUpTestData(cls):
-        cls.user = get_user_model().objects.create_user("byggare", password="hemligt123")
+        cls.user = get_user_model().objects.create_user(
+            "byggare", password="hemligt123", is_staff=True
+        )
 
     def staff(self):
         client = Client()
@@ -208,7 +210,9 @@ class PublicPageTests(TestCase):
         self.assertEqual(quote.opened_at, first_opened)
 
     def test_a_logged_in_preview_does_not_count_as_opened(self):
-        user = get_user_model().objects.create_user("giovanni2", password="x12345678")
+        user = get_user_model().objects.create_user(
+            "giovanni2", password="x12345678", is_staff=True
+        )
         quote = make_quote(status=QuoteStatus.SENT)
         client = Client()
         client.force_login(user)

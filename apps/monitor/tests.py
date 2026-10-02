@@ -272,8 +272,14 @@ class PortalTests(Fixture):
         self.assertIn("snabbare disk", html)
 
     def test_status_page_has_the_30_day_strip_and_one_row_per_check(self):
-        self._seed()
-        html = self.as_contact().get("/kund/status/").content.decode()
+        # Mitt på dagen: kontrollerna sprids över 45 minuter bakåt, och strax
+        # efter midnatt hamnade de på två dygn (då ritas en sidokolumn).
+        noon = timezone.make_aware(
+            timezone.datetime.combine(timezone.localdate(), timezone.datetime.min.time())
+        ) + timedelta(hours=12)
+        with mock.patch("django.utils.timezone.now", return_value=noon):
+            self._seed()
+            html = self.as_contact().get("/kund/status/").content.decode()
         self.assertEqual(html.count('class="st-day '), 30)
         self.assertIn("is-bad", html)  # en av tio kontroller föll i dag: 90 %
         self.assertEqual(html.count('<details class="st-row'), 2)  # SSL och domän

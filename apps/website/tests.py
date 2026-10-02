@@ -227,7 +227,7 @@ class LinkIntegrityTests(TestCase):
         from apps.website.models import BlockPage
 
         BlockPage.objects.filter(slug="paket").update(is_published=False)
-        user = get_user_model().objects.create_user("redaktor", password="x")
+        user = get_user_model().objects.create_user("redaktor", password="x", is_staff=True)
         client = Client()
         client.force_login(user)
         response = client.get("/manage/")
@@ -372,7 +372,9 @@ class LinkPickerEndpointTests(TestCase):
         from django.contrib.auth import get_user_model
 
         self.client = Client()
-        self.client.force_login(get_user_model().objects.create_user("redaktor", password="x"))
+        self.client.force_login(
+            get_user_model().objects.create_user("redaktor", password="x", is_staff=True)
+        )
 
     def test_options_require_login(self):
         self.assertEqual(Client().get("/manage/lankar/val/").status_code, 302)
@@ -454,7 +456,9 @@ class RawDescriptorLeakGuardTests(TestCase):
         from apps.website.models import Block, BlockPage
 
         client = Client()
-        client.force_login(get_user_model().objects.create_user("redaktor", password="x"))
+        client.force_login(
+            get_user_model().objects.create_user("redaktor", password="x", is_staff=True)
+        )
         for page in BlockPage.objects.all():
             html = client.get(f"/manage/pages/{page.pk}/").content.decode()
             self.assert_no_leak(html, f"/manage/pages/{page.pk}/")
@@ -489,7 +493,9 @@ class RawDescriptorLeakGuardTests(TestCase):
         block = Block.objects.filter(block_type="bar", page__slug="hem").first()
         target = resolve_link(block.data["link"]["url"])
         client = Client()
-        client.force_login(get_user_model().objects.create_user("redaktor", password="x"))
+        client.force_login(
+            get_user_model().objects.create_user("redaktor", password="x", is_staff=True)
+        )
         html = client.get(f"/manage/blocks/{block.pk}/").content.decode()
         self.assertIn(target.label, html)
         self.assertIn("Byt länk", html)
@@ -1073,7 +1079,7 @@ class EditOrbTests(TestCase):
     def setUp(self):
         from django.contrib.auth import get_user_model
 
-        self.user = get_user_model().objects.create_user("orbuser", password="x")
+        self.user = get_user_model().objects.create_user("orbuser", password="x", is_staff=True)
         call_command("seed_site", verbosity=0)
 
     def test_no_orb_for_visitors(self):

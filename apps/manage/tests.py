@@ -344,7 +344,9 @@ class FocalPointTests(TestCase):
     def setUp(self):
         from apps.website.models import MediaFile
 
-        self.user = get_user_model().objects.create_user(username="redaktor", password="testpass")
+        self.user = get_user_model().objects.create_user(
+            username="redaktor", password="testpass", is_staff=True
+        )
         self.client = Client()
         self.client.force_login(self.user)
         self.media = MediaFile.objects.create(
@@ -422,7 +424,9 @@ class AutoOptimizeTests(TestCase):
         self._media_override.enable()
         self.addCleanup(self._media_override.disable)
 
-        self.user = get_user_model().objects.create_user(username="optimerare", password="testpass")
+        self.user = get_user_model().objects.create_user(
+            username="optimerare", password="testpass", is_staff=True
+        )
         self.client = Client()
         self.client.force_login(self.user)
 

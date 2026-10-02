@@ -134,9 +134,12 @@ class ViewTests(TestCase):
         response = self.client.get(reverse("manage:hemsidekollen"))
         self.assertEqual(response.status_code, 302)
 
-    def test_non_staff_gets_404(self):
+    def test_non_staff_never_reaches_the_tool(self):
+        """Portalgrinden släpper bara in staff i /manage/ (sedan 2026-10-03)."""
         self.client.force_login(self.visitor)
-        self.assertEqual(self.client.get(reverse("manage:hemsidekollen")).status_code, 404)
+        response = self.client.get(reverse("manage:hemsidekollen"))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response["Location"].startswith("/kund/"))
 
     def test_not_in_the_sitemap_and_blocked_by_robots(self):
         """Publicering är ett beslut, inte en bieffekt."""

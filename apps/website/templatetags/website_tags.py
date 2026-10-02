@@ -40,7 +40,7 @@ def render_block(context, block):
 @register.inclusion_tag("website/partials/edit_orb.html", takes_context=True)
 def edit_orb(context, url, label="Redigera"):
     """
-    Render the edit orb that links into /manage/ - only for logged-in users.
+    Render the edit orb that links into /manage/ - only for the agency.
 
     Place inside a container with .has-edit-orb; the orb positions itself to
     the left, vertically centred. Hette edit_pencil och ritade en penna-SVG
@@ -51,8 +51,10 @@ def edit_orb(context, url, label="Redigera"):
     if user is None:
         request = context.get("request")
         user = getattr(request, "user", None)
+    from apps.projects.access import is_agency_user
+
     return {
-        "show": bool(user and user.is_authenticated and url),
+        "show": bool(is_agency_user(user) and url),
         "url": url,
         "label": label,
     }
@@ -134,6 +136,14 @@ def do_resolve_color(parser, token):
     color_ref = parser.compile_filter(bits[1])
     var_name = bits[3]
     return ResolveColorNode(color_ref, var_name)
+
+
+@register.filter
+def is_agency(user):
+    """Byrån och bara byrån - samma regel som portalgrinden (access.is_agency_user)."""
+    from apps.projects.access import is_agency_user
+
+    return is_agency_user(user)
 
 
 @register.filter

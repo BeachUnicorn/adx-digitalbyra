@@ -655,6 +655,41 @@ class BoardTests(PortalFixtureMixin, TestCase):
         self.assertIn("ACME-1", html)
 
 
+class AgencyGateTests(PortalFixtureMixin, TestCase):
+    """Bara staff är byrån. Hålet som stängdes 2026-10-03."""
+
+    def test_a_contact_removed_from_their_last_customer_stays_out_of_manage(self):
+        client = self.as_contact()
+        self.acme.users.remove(self.contact)
+        response = client.get("/manage/")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response["Location"].startswith("/kund/"))
+        self.assertNotEqual(client.get("/manage/kunder/").status_code, 200)
+
+    def test_a_logged_in_user_without_staff_is_not_the_agency(self):
+        from django.contrib.auth.models import AnonymousUser
+
+        from .access import is_agency_user
+
+        loner = get_user_model().objects.create_user("ensam", password="x12345678")
+        self.assertFalse(is_agency_user(loner))
+        self.assertFalse(is_agency_user(AnonymousUser()))
+        self.assertFalse(is_agency_user(None))
+        self.assertTrue(is_agency_user(self.staff))
+
+    def test_a_customer_on_the_public_site_sees_no_dock_and_no_edit_orbs(self):
+        from apps.website.models import Block, BlockPage
+
+        page = BlockPage.objects.create(title="Om oss", slug="om-oss-test", is_published=True)
+        Block.objects.create(page=page, block_type="prose", data={"title": "Hej"}, order=0)
+        customer_html = self.as_contact().get("/om-oss-test/").content.decode()
+        self.assertNotIn("c-admin-dock", customer_html)
+        self.assertNotIn("edit-orb", customer_html)
+        self.assertNotIn("/manage/blocks/", customer_html)
+        staff_html = self.as_staff().get("/om-oss-test/").content.decode()
+        self.assertIn("/manage/blocks/", staff_html)
+
+
 class CustomerFirstBoardTests(PortalFixtureMixin, TestCase):
     """Kund först, projekt sedan; Alla är överblick, sorterad på datum."""
 
@@ -897,10 +932,16 @@ class DrawerTests(PortalFixtureMixin, TestCase):
         self.assertEqual(self.hidden.time_entries.count(), 0)
 
     def test_today_summary_counts_finished_and_running_time(self):
+        from datetime import datetime, time
+        from unittest import mock
+
         from .board import today_seconds
 
-        TimeEntry.log(self.visible, self.staff, 30)
-        self.assertEqual(today_seconds(self.staff), 1800)
+        # Mitt på dagen: 30 minuter bakåt från strax efter midnatt är i går.
+        noon = timezone.make_aware(datetime.combine(timezone.localdate(), time(12)))
+        with mock.patch("django.utils.timezone.now", return_value=noon):
+            TimeEntry.log(self.visible, self.staff, 30)
+            self.assertEqual(today_seconds(self.staff), 1800)
         self.visible.start_timer(self.staff)
         self.assertGreaterEqual(today_seconds(self.staff), 1800)
         stats = self._post(f"/manage/arenden/{self.visible.pk}/timer/", {}).json()["stats"]

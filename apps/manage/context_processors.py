@@ -8,16 +8,20 @@ def inquiry_badge(request):
     """
     Expose the unread-inquiry count + an admin-dock flag to templates.
 
-    Runs for authenticated staff on any page (the public site shows a floating
-    admin dock; /manage/ shows the nav badge). Anonymous visitors get nothing,
-    so the public site stays query-free for them.
+    Runs for agency users on any page (the public site shows a floating
+    admin dock; /manage/ shows the nav badge). Anonymous visitors and
+    customer contacts get nothing, so the public site stays query-free for them.
 
     The pending-draft count rides along here for the same reason: the AI can
     leave work waiting while the customer is anywhere in /manage/, and a badge
     is what turns "go find it" into "one click".
     """
+    from apps.projects.access import is_agency_user
+
     user = getattr(request, "user", None)
-    if not user or not user.is_authenticated:
+    # Bara byrån: en inloggad kund på sajten ska varken se dockan eller
+    # hur många förfrågningar byrån har oläst.
+    if not is_agency_user(user):
         return {}
     return {
         "unread_inquiries": Inquiry.objects.filter(is_read=False).count(),
