@@ -1,6 +1,7 @@
 """
 Google Ads API (REST) för ADX Flamingo: den enda modulen som pratar HTTP med
-Google Ads och med Googles inloggning (OAuth).
+Google Ads, Data Manager API (konverteringarna) och Googles inloggning
+(OAuth).
 
 Alla anrop görs som ADX: genom förvaltarkontot (MCC, headern
 login-customer-id) och med den inloggning byrån gjort i /manage/
@@ -16,6 +17,12 @@ GOOGLE_ADS_DEVELOPER_TOKEN är satt, och krävs inte.
 Andra moduler bygger sina anrop på request(), search() och mutate() och
 fångar GoogleAdsError. Felets message är skriven på svenska för byrån, säger
 vad som ska göras och innehåller aldrig en nyckel.
+
+Data Manager API (datamanager_request) har en egen värd och en egen
+behörighet (DATAMANAGER_SCOPE) men samma inloggning, samma kortlivade nyckel
+och samma skydd. Behörigheterna Google gav sparas när byrån kopplar och när
+nyckeln förnyas (GoogleAdsConnection.granted_scopes), så att
+datamanager_scope_state() vet om konverteringarna får skickas den vägen.
 
 Säkerhet:
 
@@ -37,6 +44,7 @@ Tester: patcha apps.flamingo.google_ads.urlopen. Allt HTTP går genom _http().
 import base64
 import binascii
 import hashlib
+import hmac
 import json
 import logging
 import re
@@ -49,20 +57,32 @@ from django.conf import settings
 from django.core.cache import cache
 from django.utils import timezone
 
-from .models import GoogleAdsConnection
+from .models import GoogleAdsConnection, normalize_scopes, token_fingerprint
 
 logger = logging.getLogger(__name__)
 
 API_HOST = "googleads.googleapis.com"
 OAUTH_HOST = "oauth2.googleapis.com"
+#: Data Manager API, konverteringarna (google_conversions.upload_via_data_manager).
+#: developers.google.com/data-manager/api/reference/rest/v1/events/ingest
+DATAMANAGER_HOST = "datamanager.googleapis.com"
+DATAMANAGER_VERSION = "v1"
 #: De enda värdarna modulen anropar. Inloggningssidan (AUTH_URL) anropas
 #: aldrig härifrån: byråns webbläsare skickas dit.
-ALLOWED_HOSTS = frozenset({API_HOST, OAUTH_HOST})
+ALLOWED_HOSTS = frozenset({API_HOST, OAUTH_HOST, DATAMANAGER_HOST})
 AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 TOKEN_URL = f"https://{OAUTH_HOST}/token"
 REVOKE_URL = f"https://{OAUTH_HOST}/revoke"
 ADWORDS_SCOPE = "https://www.googleapis.com/auth/adwords"
-SCOPE = f"{ADWORDS_SCOPE} openid email"
+#: Behörigheten för Data Manager API (Authorization scopes på events.ingest).
+DATAMANAGER_SCOPE = "https://www.googleapis.com/auth/datamanager"
+SCOPE = f"{ADWORDS_SCOPE} {DATAMANAGER_SCOPE} openid email"
+
+#: datamanager_scope_state(): har nyckeln som används behörigheten för Data
+#: Manager API? Okänt när Google inte sagt det för just den nyckeln.
+SCOPE_GRANTED = "granted"
+SCOPE_MISSING = "missing"
+SCOPE_UNKNOWN = "unknown"
 
 #: Den senaste versionen 2026-10-03 (v25.2). Varje version har ett slutdatum
 #: hos Google (Deprecation and sunset): byt innan dess, med
@@ -157,6 +177,22 @@ MSG_SERVICE_DISABLED = (
     "Google Ads API är inte påslaget i Google Cloud-projektet. Slå på det under API:er "
     "och tjänster i projektet som OAuth-klienten hör till."
 )
+MSG_DM_SERVICE_DISABLED = (
+    "Data Manager API är inte påslaget i Google Cloud-projektet. Slå på det under API:er "
+    "och tjänster i samma projekt som OAuth-klienten hör till."
+)
+MSG_DM_SCOPE_MISSING = (
+    "Inloggningen saknar behörigheten för Data Manager API. Koppla om med Google för att "
+    "skicka konverteringar."
+)
+MSG_DM_NOT_FOUND = "Data Manager API känner inte igen adressen."
+#: Texterna för Data Manager API där Googles kod betyder något annat än för
+#: Google Ads API.
+DATAMANAGER_MESSAGES = {
+    "SERVICE_DISABLED": MSG_DM_SERVICE_DISABLED,
+    "PROJECT_DISABLED": MSG_DM_SERVICE_DISABLED,
+    "ACCESS_TOKEN_SCOPE_INSUFFICIENT": MSG_DM_SCOPE_MISSING,
+}
 
 #: Googles felkoder (utan grupp) och vad byrån ska göra. Okända fel visas
 #: med Googles egen text.
@@ -308,7 +344,11 @@ class GoogleAdsError(Exception):
     @property
     def is_auth_error(self):
         """Felet gäller ADX:s koppling (inloggningen, token, projektet), inte
-        en enskild kund. Sparas på GoogleAdsConnection."""
+        en enskild kund. Sparas på GoogleAdsConnection. Inte när
+        konverteringarna stoppats för en väg (UPLOAD_NOT_ALLOWED): det
+        stoppar bara den vägen, inte resten av synken."""
+        if self.status == "UPLOAD_NOT_ALLOWED":
+            return False
         if self.status == "UNAUTHENTICATED":
             return True
         return any(name in _CONNECTION_CODES for name in self.code_names)
@@ -363,6 +403,15 @@ def google_datetime(moment):
     local = moment.astimezone(STOCKHOLM)
     offset = local.strftime("%z")
     return local.strftime("%Y-%m-%d %H:%M:%S") + f"{offset[:3]}:{offset[3:]}"
+
+
+def rfc3339(moment):
+    """En tidpunkt i svensk tid som RFC 3339 med offset, på sekunden:
+    '2026-10-03T14:05:00+02:00' (eventTimestamp i Data Manager API). Samma
+    sekund som google_datetime och CSV-filen."""
+    if timezone.is_naive(moment):
+        moment = timezone.make_aware(moment, STOCKHOLM)
+    return moment.astimezone(STOCKHOLM).replace(microsecond=0).isoformat()
 
 
 def ensure_not_demo(account):
@@ -449,6 +498,12 @@ def _scrub(text, *secrets):
     return " ".join(text.split())
 
 
+def scrub(text):
+    """Text från Google som en annan modul sparar: utan nycklar och utan
+    radbrytningar."""
+    return _scrub(text)
+
+
 def _http(method, url, *, data=None, headers=None, max_bytes=MAX_RESPONSE_BYTES):
     """Ett anrop till Google. Returnerar (HTTP-status, svaret som dict).
 
@@ -517,8 +572,10 @@ def _location(location):
     return index, ".".join(path)
 
 
-def _message_for(code_names, status, http_status, fallback):
+def _message_for(code_names, status, http_status, fallback, overrides=None):
     for name in code_names:
+        if overrides and name in overrides:
+            return overrides[name]
         if name in CODE_MESSAGES:
             return CODE_MESSAGES[name]
         if name.endswith("NOT_ACTIVE"):
@@ -541,10 +598,33 @@ def _message_for(code_names, status, http_status, fallback):
     return "Okänt fel från Google."
 
 
-def error_from(error, http_status=None, request_id="", secrets=()):
+def _field_violations(detail, secrets):
+    """Felen per fält ur google.rpc.BadRequest (Data Manager API), som
+    errors-poster. Fältets sökväg står kvar ("events.events[2].ad_identifiers.gclid");
+    google_conversions läser ut vilken händelse den gäller."""
+    found = []
+    for violation in detail.get("fieldViolations") or []:
+        if not isinstance(violation, dict):
+            continue
+        reason = re.sub(r"[^A-Z0-9_]", "", str(violation.get("reason") or "").upper())[:80]
+        found.append(
+            {
+                "code": f"badRequest.{reason}" if reason else "",
+                "message": _scrub(violation.get("description"), *secrets)[:TEXT_MAX],
+                "index": None,
+                "field_path": _scrub(violation.get("field"), *secrets)[:TEXT_MAX],
+            }
+        )
+    return found
+
+
+def error_from(error, http_status=None, request_id="", secrets=(), overrides=None):
     """GoogleAdsError ur Googles felobjekt {"code", "message", "status",
     "details"}: från ett HTTP-fel eller ur partialFailureError i ett lyckat
-    svar (mutate med partial_failure, uploadClickConversions)."""
+    svar (mutate med partial_failure, uploadClickConversions). Data Manager
+    API:s fel (google.rpc.ErrorInfo, BadRequest med fältens fel,
+    RequestInfo) läses också. overrides är texter per kod som går före
+    CODE_MESSAGES."""
     error = error if isinstance(error, dict) else {}
     status = str(error.get("status") or "")
     codes, errors = [], []
@@ -552,7 +632,14 @@ def error_from(error, http_status=None, request_id="", secrets=()):
         if not isinstance(detail, dict):
             continue
         kind = str(detail.get("@type") or "")
-        if kind.endswith("GoogleAdsFailure"):
+        if kind.endswith("google.rpc.BadRequest"):
+            for item in _field_violations(detail, secrets):
+                if item["code"]:
+                    codes.append(item["code"])
+                errors.append(item)
+        elif kind.endswith("google.rpc.RequestInfo"):
+            request_id = request_id or str(detail.get("requestId") or "")
+        elif kind.endswith("GoogleAdsFailure"):
             request_id = request_id or str(detail.get("requestId") or "")
             for item in detail.get("errors") or []:
                 if not isinstance(item, dict):
@@ -573,7 +660,7 @@ def error_from(error, http_status=None, request_id="", secrets=()):
             codes.append(f"errorInfo.{detail['reason']}")
     names = [code.rsplit(".", 1)[-1] for code in codes]
     fallback = errors[0]["message"] if errors else _scrub(error.get("message"), *secrets)
-    message = _message_for(names, status, http_status, fallback)
+    message = _message_for(names, status, http_status, fallback, overrides)
     if len(errors) > 1:
         message = f"{message} ({len(errors) - 1} fel till)"
     return GoogleAdsError(
@@ -710,11 +797,14 @@ def _email_from_id_token(id_token):
 
 
 def exchange_code(code, redirect_uri):
-    """Byt koden från Googles inloggning mot (refresh token, e-post eller "").
+    """Byt koden från Googles inloggning mot (refresh token, e-post eller "",
+    behörigheterna). Behörigheterna är svarets "scope" (de byrån lät vara
+    ikryssade), sorterade; GoogleAdsConnection.set_refresh_token sparar dem.
 
     Kastar GoogleAdsError om Google säger nej, om ingen långlivad nyckel
     kom, eller om behörigheten för Google Ads inte kryssades i (då återkallas
-    nyckeln direkt)."""
+    nyckeln direkt). Saknas bara behörigheten för Data Manager API sparas
+    kopplingen ändå: konverteringarna går då som CSV tills byrån kopplar om."""
     if not oauth_configured():
         raise GoogleAdsError(MSG_NO_CLIENT, status="NOT_CONFIGURED")
     if not str(code or "").strip():
@@ -746,9 +836,10 @@ def exchange_code(code, redirect_uri):
     if not token:
         raise GoogleAdsError(MSG_NO_REFRESH_TOKEN, status="NO_REFRESH_TOKEN")
     email = _email_from_id_token(payload.get("id_token"))
+    scopes = normalize_scopes(payload.get("scope"))
     _cache_access_token(token, payload)
     payload = None
-    return token, email
+    return token, email, scopes
 
 
 def revoke(token):
@@ -812,9 +903,68 @@ def access_token(force_refresh=False):
             _record_auth_failure(error)
         token = None
         raise error
+    _remember_scopes(token, payload.get("scope"))
     access = _cache_access_token(token, payload)
     payload = token = None
     return access
+
+
+# ---------------------------------------------------------------------------
+# Behörigheterna (scopes)
+# ---------------------------------------------------------------------------
+
+
+def _remember_scopes(token, scope):
+    """Spara behörigheterna Google gav för nyckeln (svarets "scope" när den
+    förnyas), med nyckelns avtryck. Inget sparas om Google inte skickade
+    några. Nyckeln själv sparas eller loggas aldrig här."""
+    scopes = normalize_scopes(scope)
+    if not scopes:
+        return
+    fingerprint = token_fingerprint(token)
+    GoogleAdsConnection.objects.get_or_create(pk=GoogleAdsConnection.SOLO_PK)
+    GoogleAdsConnection.objects.filter(pk=GoogleAdsConnection.SOLO_PK).exclude(
+        granted_scopes=scopes, scopes_for=fingerprint
+    ).update(granted_scopes=scopes, scopes_for=fingerprint)
+
+
+def granted_scopes():
+    """Behörigheterna för nyckeln som används nu, som mängd, eller None när
+    de inte är kända: ingen nyckel, nyckeln i miljön innan den förnyats här,
+    eller en koppling som gjordes innan behörigheterna sparades."""
+    token = _current_refresh_token()
+    if not token:
+        return None
+    connection = GoogleAdsConnection.objects.filter(pk=GoogleAdsConnection.SOLO_PK).first()
+    if connection is None or not connection.scopes_for:
+        return None
+    if not hmac.compare_digest(connection.scopes_for, token_fingerprint(token)):
+        return None
+    return set(connection.granted_scopes.split())
+
+
+def datamanager_scope_state():
+    """SCOPE_GRANTED när nyckeln har behörigheten för Data Manager API,
+    SCOPE_MISSING när Google sagt att den saknas, annars SCOPE_UNKNOWN."""
+    scopes = granted_scopes()
+    if scopes is None:
+        return SCOPE_UNKNOWN
+    return SCOPE_GRANTED if DATAMANAGER_SCOPE in scopes else SCOPE_MISSING
+
+
+def forget_datamanager_scope():
+    """Google sa att nyckeln saknar behörigheten för Data Manager API
+    (ACCESS_TOKEN_SCOPE_INSUFFICIENT): spara det, så att Google-sidan ber
+    byrån koppla om och inget mer skickas den vägen."""
+    token = _current_refresh_token()
+    if not token:
+        return
+    scopes = granted_scopes() or set()
+    scopes.discard(DATAMANAGER_SCOPE)
+    GoogleAdsConnection.objects.get_or_create(pk=GoogleAdsConnection.SOLO_PK)
+    GoogleAdsConnection.objects.filter(pk=GoogleAdsConnection.SOLO_PK).update(
+        granted_scopes=normalize_scopes(" ".join(scopes)), scopes_for=token_fingerprint(token)
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -934,3 +1084,69 @@ def mutate(
     return request(
         "POST", f"customers/{_customer(customer_id)}/googleAds:mutate", body, login_customer_id
     )
+
+
+# ---------------------------------------------------------------------------
+# Data Manager API
+# ---------------------------------------------------------------------------
+
+
+def _datamanager_url(path, params=None):
+    path = str(path or "").lstrip("/")
+    if not re.fullmatch(r"[A-Za-z0-9_\-/:.~]+", path) or ".." in path or "//" in path:
+        raise GoogleAdsError("Ogiltig sökväg till Data Manager API.", status="BAD_URL")
+    url = f"https://{DATAMANAGER_HOST}/{DATAMANAGER_VERSION}/{path}"
+    if params:
+        url += "?" + urlencode(params, quote_via=quote)
+    return url
+
+
+def _datamanager_headers(token):
+    """Bara nyckeln. Ingen utvecklartoken och ingen login-customer-id: Data
+    Manager bortser från headers när data skickas, och kontona står i
+    anropets destinations (data-manager/api/devguides/concepts/destinations)."""
+    return {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+
+
+def datamanager_request(method, path, body=None, params=None):
+    """Ett anrop till Data Manager API: path efter versionen, till exempel
+    "events:ingest" (POST med body) eller "requestStatus:retrieve" (GET med
+    params). Samma skydd som request(): fast värd, https, tidsgräns, tak för
+    svaret och tvättade fel, med samma inloggning och kortlivade nyckel.
+
+    Returnerar svaret som dict; kastar GoogleAdsError. Ett 401 prövas en gång
+    till med en ny nyckel. Ett fel i ADX:s inloggning sparas som för Google
+    Ads; ett nej som bara gäller Data Manager (behörigheten, API:t avslaget i
+    projektet) gör det inte, och lyckade anrop rör inte Google Ads-läget."""
+    url = _datamanager_url(path, params)
+    method = method.upper()
+    data = json.dumps(body).encode() if body is not None else None
+    for attempt in (1, 2):
+        token = access_token(force_refresh=attempt == 2)
+        status, payload = _http(method, url, data=data, headers=_datamanager_headers(token))
+        if status != 401:
+            break
+    if 200 <= status < 300:
+        token = None
+        return payload
+    error = error_from(
+        payload.get("error"), http_status=status, secrets=(token,), overrides=DATAMANAGER_MESSAGES
+    )
+    token = None
+    if status == 404 and not error.codes:
+        error = GoogleAdsError(MSG_DM_NOT_FOUND, status=error.status, http_status=status)
+    logger.warning(
+        "Data Manager: %s %s gav HTTP %s %s (request %s)",
+        method,
+        urlsplit(url).path,
+        status,
+        error.codes,
+        error.request_id or "-",
+    )
+    if status == 401 or error.status == "UNAUTHENTICATED":
+        _record_auth_failure(error)
+    raise error

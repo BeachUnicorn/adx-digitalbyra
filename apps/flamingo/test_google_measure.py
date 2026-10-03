@@ -458,9 +458,10 @@ def partial_failure(*items):
     }
 
 
-#: Uppladdningen med API:t är av från början (Google tar inte emot nya
-#: användare av uploadClickConversions sedan 2026-06-15).
-UPLOADS_ON = {**CONFIGURED, "GOOGLE_ADS_UPLOAD_CONVERSIONS": True}
+#: Den gamla vägen, uploadClickConversions (Google tar inte emot nya
+#: användare av den sedan 2026-06-15). Data Manager API, standardvägen,
+#: testas i test_google_datamanager.py.
+UPLOADS_ON = {**CONFIGURED, "FLAMINGO_CONVERSIONS_UPLOAD": "googleads"}
 
 
 @override_settings(**UPLOADS_ON)
@@ -580,8 +581,13 @@ class UploadTests(MeasureFixture, TestCase):
         sent, expired, recent, already = rows
         self.assertEqual(sent.status, ConversionUpload.STATUS_SENT)
         self.assertEqual(sent.response["job_id"], "42")
-        self.assertEqual(expired.status, ConversionUpload.STATUS_FAILED)
+        # Ingen konvertering tappas: nejet lämnar raden i kö (och i filen)
+        # med felet, och nästa försök väntar.
+        self.assertEqual(expired.status, ConversionUpload.STATUS_QUEUED)
         self.assertIn("för gammalt", expired.error)
+        self.assertEqual(expired.attempts, 1)
+        self.assertIsNotNone(expired.next_attempt_at)
+        self.assertIn(expired, manage_review.queued_uploads())
         self.assertEqual(recent.status, ConversionUpload.STATUS_QUEUED)
         self.assertIn("nyss", recent.error)
         self.assertEqual(already.status, ConversionUpload.STATUS_SENT)
@@ -615,7 +621,7 @@ class UploadTests(MeasureFixture, TestCase):
         self.assertEqual(row.status, ConversionUpload.STATUS_QUEUED)
         self.assertIn("kvoten", row.error)
 
-    @override_settings(GOOGLE_ADS_UPLOAD_CONVERSIONS=False)
+    @override_settings(FLAMINGO_CONVERSIONS_UPLOAD="off")
     def test_uploads_are_off_unless_turned_on(self):
         row = self.queued("lead")
         fake = FakeGoogle()

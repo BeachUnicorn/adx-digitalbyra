@@ -157,7 +157,17 @@ class LeadAdmin(admin.ModelAdmin):
 
 @admin.register(ConversionUpload)
 class ConversionUploadAdmin(admin.ModelAdmin):
-    list_display = ("lead", "kind", "value_kr", "status", "exported_at", "sent_at", "created_at")
+    list_display = (
+        "lead",
+        "kind",
+        "value_kr",
+        "status",
+        "attempts",
+        "downloaded_at",
+        "exported_at",
+        "sent_at",
+        "created_at",
+    )
     list_filter = ("kind", "status")
     raw_id_fields = ("lead",)
 
@@ -175,6 +185,9 @@ class GoogleAdsConnectionAdmin(admin.ModelAdmin):
         "connected_at",
         "last_ok_at",
         "last_error",
+        "granted_scopes",
+        "conversion_upload_blocked_at",
+        "conversion_upload_error",
         "updated_at",
     )
     readonly_fields = fields

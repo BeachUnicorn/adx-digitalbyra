@@ -67,15 +67,40 @@ saknas visas, aldrig värdena, och den sparade nyckeln visas aldrig.
 <h2 class="m-section-title mf-section" id="konverteringar">Konverteringarna</h2>
 <section class="m-panel m-form-panel" aria-labelledby="mf-g-conv">
     <h3 class="m-form-section" id="mf-g-conv">Uppladdningen till Google</h3>
-    {% if upload_blocked %}
-    <p class="mf-state"><span class="m-badge m-badge--draft">Stoppad</span> {{ upload_blocked }}</p>
-    <form method="post" action="{% url 'manage:flamingo_google_uploads_retry' %}">{% csrf_token %}
-        <button type="submit" class="m-btn m-btn--small m-btn--ghost">Försök ladda upp igen</button>
-    </form>
-    {% elif uploads_via_api %}
-    <p class="mf-state"><span class="m-badge m-badge--published">På</span> flamingo_google_sync laddar upp konverteringarna till konton som ligger under ADX förvaltarkonto.</p>
+    {% comment %}
+    google_conversions.upload_status(): vägen (FLAMINGO_CONVERSIONS_UPLOAD), om
+    API:t laddar upp nu och annars varför. Ett nej från Google för hela vägen
+    står här en gång, med knappen för ett nytt försök.
+    {% endcomment %}
+    {% if conversions.active %}
+    <p class="mf-state"><span class="m-badge m-badge--published">På</span> flamingo_google_sync skickar konverteringarna med {{ conversions.path_label }} till konton som ligger under ADX förvaltarkonto. Det Google inte tar emot står kvar i kön, med felet, och kan laddas upp med CSV-filen.</p>
+    {% elif conversions.blocked %}
+    <p class="mf-state"><span class="m-badge m-badge--draft">Stoppad</span> {{ conversions.blocked }}</p>
     {% else %}
-    <p class="mf-state"><span class="m-badge m-badge--draft">Som CSV</span> Konverteringarna exporteras som CSV i kön och laddas upp i kundens konto för hand.{% if not uploads_setting %} Google tar inte emot nya användare av uploadClickConversions sedan 2026-06-15; GOOGLE_ADS_UPLOAD_CONVERSIONS slås på bara om ADX bevisat har tillgång.{% endif %}</p>
+    <p class="mf-state"><span class="m-badge m-badge--draft">Som CSV</span> {{ conversions.reason|default:"Konverteringarna exporteras som CSV i kön och laddas upp i kundens konto för hand." }}</p>
+    {% endif %}
+    <dl class="mf-dl">
+        <dt>Väg</dt><dd>{{ conversions.path_label }} (<code>FLAMINGO_CONVERSIONS_UPLOAD</code>)</dd>
+        {% if conversions.path == "datamanager" %}
+        <dt>Behörighet</dt><dd>{% if conversions.scope_state == "granted" %}Inloggningen får skicka konverteringar med Data Manager API{% elif conversions.scope_state == "missing" %}Saknas för Data Manager API{% elif conversions.env_token %}Okänd för nyckeln i miljön tills den används{% elif conversions.needs_reconnect %}Okänd: inloggningen gjordes innan behörigheten sparades{% else %}Ingen inloggning än{% endif %}</dd>
+        {% endif %}
+        {% if scopes %}<dt>Google gav</dt><dd>{{ scopes }}</dd>{% endif %}
+        {% if conversions.awaiting %}<dt>Väntar på Googles besked</dt><dd>{{ conversions.awaiting }} skickade, som Google ännu inte sagt om de gick fram</dd>{% endif %}
+        {% if conversions.stalled %}<dt>Väntar på CSV-filen</dt><dd>{{ conversions.stalled }} som API:t slutat försöka med efter {{ conversions.max_attempts }} försök</dd>{% endif %}
+    </dl>
+    {% if conversions.needs_reconnect or conversions.blocked or conversions.stalled %}
+    <div class="mf-actions">
+        {% if conversions.needs_reconnect and not conversions.env_token and oauth_configured %}
+        <form method="post" action="{% url 'manage:flamingo_google_connect' %}">{% csrf_token %}
+            <button type="submit" class="m-btn m-btn--small">Koppla om med Google</button>
+        </form>
+        {% endif %}
+        {% if conversions.blocked or conversions.stalled %}
+        <form method="post" action="{% url 'manage:flamingo_google_uploads_retry' %}">{% csrf_token %}
+            <button type="submit" class="m-btn m-btn--small m-btn--ghost">Försök ladda upp igen</button>
+        </form>
+        {% endif %}
+    </div>
     {% endif %}
 </section>
 
@@ -84,11 +109,13 @@ saknas visas, aldrig värdena, och den sparade nyckeln visas aldrig.
     <h3 class="m-form-section" id="mf-g-cloud">Projektet och OAuth-klienten</h3>
     <ol class="mf-steps">
         <li>Google Cloud Console, projektet som ska äga OAuth-klienten: slå på Google Ads API under API:er och tjänster. Projektet börjar med Test-åtkomst, som bara når testkonton.</li>
+        <li>Slå på Data Manager API i samma projekt. Konverteringarna går den vägen; utan den går de som CSV.</li>
         <li>Ansök om Explorer på sidan Google Ads API Overview för projektet (inte i förvaltarkontots API Center, där behandlas inget längre). Explorer når riktiga konton men får inte skapa konton åt kunder.</li>
         <li>För "Skapa ett konto åt kunden": verifiera projektets varumärke och ansök om Basic på samma sida.</li>
         <li>Skapa en OAuth-klient av typen webbapp och lägg till adressen nedan som godkänd omdirigering (Authorized redirect URI), exakt som den står.</li>
         <li>Lägg klientens id och hemlighet i miljön som GOOGLE_ADS_CLIENT_ID och GOOGLE_ADS_CLIENT_SECRET. Utvecklartoken behövs inte: Google bortser från den sedan 2026-09-09.</li>
-        <li>Koppla med Google här, med ett Google-konto som har åtkomst till förvaltarkontot.</li>
+        <li>På samtyckesskärmen (OAuth consent screen) ska behörigheterna för Google Ads API och Data Manager API finnas med. Data Manager-behörigheten är känslig: med användartypen Extern ska appen verifieras av Google innan den används i produktion. Med Intern, inom en Google Workspace-organisation, behövs ingen verifiering.</li>
+        <li>Koppla med Google här, med ett Google-konto som har åtkomst till förvaltarkontot, och låt rutorna för Google Ads och Data Manager vara ikryssade. En koppling från innan Data Manager API kopplas om en gång.</li>
     </ol>
     <p class="m-field-help">Omdirigeringen att registrera:</p>
     <p class="mf-note"><code>{{ redirect_uri }}</code></p>

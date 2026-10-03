@@ -378,7 +378,9 @@ class OAuthTests(GoogleAdsBase):
                 "client_id": CONFIGURED["GOOGLE_ADS_CLIENT_ID"],
                 "redirect_uri": "https://adx.se/manage/google/klar/",
                 "response_type": "code",
-                "scope": "https://www.googleapis.com/auth/adwords openid email",
+                # Data Manager API (konverteringarna) bredvid Google Ads.
+                "scope": "https://www.googleapis.com/auth/adwords "
+                "https://www.googleapis.com/auth/datamanager openid email",
                 "access_type": "offline",
                 "prompt": "consent",
                 "state": "slumpad-state",
@@ -389,7 +391,7 @@ class OAuthTests(GoogleAdsBase):
             with self.assertRaises(google_ads.GoogleAdsError):
                 google_ads.authorization_url("s", "https://adx.se/")
 
-    def test_exchange_code_returns_the_token_and_the_email(self):
+    def test_exchange_code_returns_the_token_the_email_and_the_scopes(self):
         fake = FakeGoogle(
             (
                 200,
@@ -404,8 +406,14 @@ class OAuthTests(GoogleAdsBase):
             )
         )
         with patch_http(fake):
-            token, email = google_ads.exchange_code("4/kod", "https://adx.se/klar/")
+            token, email, scopes = google_ads.exchange_code("4/kod", "https://adx.se/klar/")
             self.assertEqual((token, email), (REFRESH, "ads@adx.se"))
+            # Svarets "scope", sorterat: det byrån lät vara ikryssat.
+            self.assertEqual(
+                scopes,
+                "https://www.googleapis.com/auth/adwords "
+                "https://www.googleapis.com/auth/userinfo.email openid",
+            )
             # Den kortlivade nyckeln ur samma svar cachas.
             self.assertEqual(google_ads.access_token(), ACCESS)
         self.assertEqual(len(fake.requests), 1)

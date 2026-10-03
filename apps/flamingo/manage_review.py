@@ -17,8 +17,9 @@ Byråns granskning av ADX Flamingo (/manage/flamingo/...), i panelens design
                    "Tillbaka till granskning" för en godkänd kampanj som
                    inte är publicerad (Google sa nej till innehållet)
     editor_csv     kampanjen som Google Ads Editor-fil (exports.py)
-    conversions_csv  offline-konverteringarna i kö som CSV (GET), och
-                   "Markera som exporterade" (POST)
+    conversions_csv  offline-konverteringarna i kö som CSV (GET; filen tar
+                   sina rader från API:t), och "Markera som exporterade"
+                   (POST, bara rader som varit med i en fil)
     google_update  kundkortets Google-koppling: status, kontots id, notering
 
 Alla vyer kräver byrån (staff_required). Ingen vy här mejlar kunden: kunden
@@ -1316,12 +1317,16 @@ def _customer_param(request):
 @require_http_methods(["GET", "POST"])
 def conversions_csv(request):
     """GET: konverteringarna i kö som Googles importfil (alla kunder, eller
-    ?kund=<pk>). Ingenting ändras av en nedladdning.
+    ?kund=<pk>). Nedladdningen ändrar en sak: raderna i filen får
+    downloaded_at och skickas aldrig med API:t (google_conversions._due), så
+    att ingen konvertering räknas två gånger. En rad som API:t håller på att
+    skicka är låst och hoppas över (SKIP LOCKED); den kommer med i nästa fil
+    om Google inte tar emot den.
 
     POST: "Markera som exporterade" för raderna i formuläret (upload=<pk>,
-    samma kundfilter). Bara rader som fortfarande står i kö ändras, så en
-    affär som kommit in efter nedladdningen inte markeras utan att ha varit
-    med i filen."""
+    samma kundfilter). Bara rader som står i kö och har varit med i en
+    nedladdad fil ändras, så en förfrågan som kommit in efter nedladdningen
+    aldrig markeras utan att ha varit med i filen."""
     customer_pk = _customer_param(request)
     if customer_pk is not None and not Customer.objects.filter(pk=customer_pk).exists():
         raise Http404
@@ -1335,17 +1340,30 @@ def conversions_csv(request):
         if not ids:
             messages.error(request, "Inga rader valda. Inget markerades.")
             return redirect(reverse("manage:flamingo_queue") + "#konverteringar")
+        chosen = uploads.filter(pk__in=ids)
         with transaction.atomic():
-            count = uploads.filter(pk__in=ids).update(
+            count = chosen.filter(downloaded_at__isnull=False).update(
                 status=ConversionUpload.STATUS_EXPORTED,
                 exported_at=timezone.now(),
                 response={"export": filename, "by": request.user.get_username()},
             )
         word = "konvertering" if count == 1 else "konverteringar"
         messages.success(request, f"{count} {word} markerade som exporterade.")
+        never = chosen.filter(downloaded_at__isnull=True).count()
+        if never:
+            messages.warning(
+                request,
+                f"{never} har inte varit med i en nedladdad fil och står kvar i kö. Ladda ner "
+                "filen och ladda upp den i Google Ads först.",
+            )
         return redirect(reverse("manage:flamingo_queue") + "#konverteringar")
 
-    return _csv_response(exports.offline_conversions_csv(uploads), filename)
+    with transaction.atomic():
+        rows = list(uploads.select_for_update(skip_locked=True, of=("self",)))
+        ConversionUpload.objects.filter(
+            pk__in=[row.pk for row in rows], downloaded_at__isnull=True
+        ).update(downloaded_at=timezone.now())
+    return _csv_response(exports.offline_conversions_csv(rows), filename)
 
 
 # ---------------------------------------------------------------------------

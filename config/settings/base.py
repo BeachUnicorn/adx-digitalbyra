@@ -271,11 +271,12 @@ GOOGLE_ADS_CLIENT_SECRET = env.str("GOOGLE_ADS_CLIENT_SECRET", default="")
 GOOGLE_ADS_REFRESH_TOKEN = env.str("GOOGLE_ADS_REFRESH_TOKEN", default="")
 # Tomt = google_ads.DEFAULT_VERSION (v25). Varje version har ett slutdatum hos Google.
 GOOGLE_ADS_API_VERSION = env.str("GOOGLE_ADS_API_VERSION", default="")
-# Av från början: konverteringarna laddas upp med uploadClickConversions bara
-# när detta är på. Google tar inte emot nya användare av den vägen sedan
-# 2026-06-15 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE); utan den exporterar
-# byrån CSV-filen. Slå på bara om ADX bevisat har tillgång.
-GOOGLE_ADS_UPLOAD_CONVERSIONS = env.bool("GOOGLE_ADS_UPLOAD_CONVERSIONS", default=False)
+# Konverteringarnas väg till Google (apps/flamingo/google_conversions.py):
+# "datamanager" (standard) Data Manager API, som kräver att API:t är påslaget
+# i Cloud-projektet och att inloggningen har behörigheten; "googleads" den
+# gamla uploadClickConversions, som Google inte öppnar för nya användare sedan
+# 2026-06-15; "off" bara CSV-filen. Det som inte går fram står kvar för filen.
+FLAMINGO_CONVERSIONS_UPLOAD = env.str("FLAMINGO_CONVERSIONS_UPLOAD", default="datamanager")
 # Av från början: ADX Cloud-projekt står inte på Googles tillåtelselista för
 # att bjuda in en administratör när ett konto skapas (createCustomerClient,
 # emailAddress). Slå på bara när Google bekräftat det.

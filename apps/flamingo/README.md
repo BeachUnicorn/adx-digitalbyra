@@ -37,7 +37,7 @@ De här gäller före äldre beskrivningar:
 | Verktyget | `/flamingo/app/...` | Flamingo, appläge | `app_views/`, `templates/flamingo/app/` |
 | Kundens landningssidor | `/lp/<slug>/`, `/lp/<slug>/tack/`, `/lp/<slug>/ring/` (POST) | Neutral, kundens namn | `public_views.py`, `templates/flamingo/lp/`, `static/js/flamingo-lp.js` |
 | Byråns sida | `/manage/flamingo/...` | Panelens | `manage_views.py`, `manage_review.py`, `manage_google.py`, `templates/manage/flamingo/` |
-| Google Ads API | (ingen adress) | | `google_ads.py` (den enda HTTP-klienten), `google_publish.py`, `google_accounts.py`, `google_conversions.py`, `google_reports.py`, `flamingo_google_sync` |
+| Google Ads API och Data Manager API | (ingen adress) | | `google_ads.py` (den enda HTTP-klienten), `google_publish.py`, `google_accounts.py`, `google_conversions.py`, `google_reports.py`, `flamingo_google_sync` |
 
 Verktygets sidor:
 
@@ -70,8 +70,8 @@ Byråns sidor:
 | `/manage/flamingo/granska/` | Kön: att granska (bara de där kunden bad om granskning), godkända som inte är publicerade (med orsaken), hos kunden, live, konverteringar. Demokunden bara med `?demo=1` ("Visa demokunden") |
 | `/manage/flamingo/granska/<pk>/` | En kampanj: granska (rätta och skriv varför), "Kunden bad om granskning", publicera (API, eller för hand också med API:t), pausa, återuppta, "Tillbaka till granskning" för en godkänd kampanj som Google sagt nej till |
 | `/manage/flamingo/kampanj/<pk>/editor.csv` | Kampanjen som Google Ads Editor-fil |
-| `/manage/flamingo/konverteringar.csv` | Förfrågningar, klick på numret och vunna affärer som Googles importfil (GET), "Markera som exporterade" (POST). Aldrig demokundens rader |
-| `/manage/flamingo/google/` | ADX:s inloggning hos Google: vad som saknas, adressen att registrera, koppla, testa, koppla från, konverteringarnas uppladdning (och "Försök ladda upp igen"), alla kunders Google-läge |
+| `/manage/flamingo/konverteringar.csv` | Förfrågningar, klick på numret och vunna affärer i kö som Googles importfil (GET; filen tar sina rader från API:t), "Markera som exporterade" (POST, bara rader som varit i en fil). Aldrig demokundens rader |
+| `/manage/flamingo/google/` | ADX:s inloggning hos Google: vad som saknas, adressen att registrera, koppla, testa, koppla från, konverteringarnas väg och om de får skickas ("Koppla om med Google för att skicka konverteringar" när behörigheten saknas, "Försök ladda upp igen"), alla kunders Google-läge |
 | `/manage/flamingo/google/tillbaka/` | Googles omdirigering efter inloggningen (OAuth) |
 | `/manage/kunder/<pk>/flamingo/google/api/` (POST) | Kundkortets knappar: kopplingsförfrågan, nytt konto, läget från Google |
 | Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering, knapparna med API:t), kampanjerna |
@@ -220,8 +220,10 @@ formulär hämtas med `account=account`.
     en förfrågan själv (ett samtal). En förfrågan och ett klick på numret
     med gclid köas som konverteringar när de kommer in, och vunnen med
     belopp som en affär (`ConversionUpload`, sorterna lead, call och deal).
-    Skräp tar bort en köad förfrågan eller ett köat klick. Med API:t laddar
-    `flamingo_google_sync` upp dem; utan exporterar byrån CSV per kund.
+    Skräp tar bort en köad förfrågan eller ett köat klick. Med API:t skickar
+    `flamingo_google_sync` dem med Data Manager API (se Konverteringarna);
+    det som inte går fram, och allt utan API:t, exporterar byrån som CSV per
+    kund.
 12. **Översikten** (`app_views/overview.py`, `rules.py`): förfrågningar,
     affärer och affärsvärde för 30 dagar (kalenderdagar i svensk tid, i dag
     medräknad, samma dagar som Googles kostnad), bandet från förfrågan till affär,
@@ -236,9 +238,10 @@ formulär hämtas med `account=account`.
 
 ### Grunden (`google_ads.py`)
 
-`google_ads.py` är den enda modulen som pratar HTTP med Google Ads och med
-Googles inloggning (OAuth). Den anropar bara fasta adresser hos Google
-(`googleads.googleapis.com` och `oauth2.googleapis.com`), alltid över https,
+`google_ads.py` är den enda modulen som pratar HTTP med Google Ads, Data
+Manager API (konverteringarna) och Googles inloggning (OAuth). Den anropar
+bara fasta adresser hos Google (`googleads.googleapis.com`,
+`datamanager.googleapis.com` och `oauth2.googleapis.com`), alltid över https,
 med en tidsgräns och ett tak för svarets storlek. Inloggningssidan
 (`accounts.google.com`) anropas aldrig härifrån: byråns webbläsare skickas
 dit.
@@ -269,8 +272,9 @@ modul ovanpå prövar `is_demo` innan något anrop.
 
 ### Koppla ADX:s Google (en gång, i produktion)
 
-1. **Google Cloud-projektet**: slå på Google Ads API i projektet som ska
-   äga OAuth-klienten. Ett nytt projekt har Test-åtkomst, som bara når
+1. **Google Cloud-projektet**: slå på Google Ads API och **Data Manager
+   API** i projektet som ska äga OAuth-klienten (konverteringarna går genom
+   Data Manager API; utan det går de som CSV). Ett nytt projekt har Test-åtkomst, som bara når
    testkonton (CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION mot riktiga
    konton). Ansök om **Explorer** på sidan Google Ads API Overview för
    projektet i Google Cloud Console, inte i förvaltarkontots API Center (där
@@ -290,13 +294,19 @@ modul ovanpå prövar `is_demo` innan något anrop.
    Google-kontot hör till en Google Workspace-organisation. Annars Extern,
    och då måste appen ställas i produktion: i läget Testning går den
    långlivade nyckeln ut efter sju dagar, och kopplingen slutar fungera.
-   Behörigheterna är `https://www.googleapis.com/auth/adwords`, `openid`
-   och `email`.
+   Behörigheterna är `https://www.googleapis.com/auth/adwords`,
+   `https://www.googleapis.com/auth/datamanager`, `openid` och `email`.
+   Data Manager-behörigheten är känslig: med Extern ska appen verifieras av
+   Google (OAuth app verification, kan ta veckor) innan den används i
+   produktion; Intern behöver ingen verifiering.
 5. Lägg in värdena i `../.env` på servern (aldrig i koden, aldrig i ett
    mejl), starta om tjänsten, öppna `/manage/flamingo/google/` och klicka
    "Koppla med Google" med det Google-konto som har åtkomst till
-   förvaltarkontot. "Testa kopplingen" visar hur många konton inloggningen
-   når och om förvaltarkontot är ett av dem. `FLAMINGO_TOKEN_KEY` är
+   förvaltarkontot, och låt rutorna för Google Ads och Data Manager vara
+   ikryssade. "Testa kopplingen" visar hur många konton inloggningen
+   når och om förvaltarkontot är ett av dem. En koppling som gjordes innan
+   Data Manager API kom med kopplas om en gång ("Koppla om med Google" på
+   sidan). `FLAMINGO_TOKEN_KEY` är
    valfri; sätts den, gör det innan kopplingen.
 
 ### Inloggningen och kundens konto (`manage_google.py`, `google_accounts.py`)
@@ -305,7 +315,13 @@ modul ovanpå prövar `is_demo` innan något anrop.
   webbläsaren till Googles inloggning. När Google skickar tillbaka prövas
   state en gång, i konstant tid, högst 15 minuter gammal och för samma
   person. Koden byts mot en långlivad nyckel som sparas krypterad och aldrig
-  visas. "Koppla från" återkallar nyckeln hos Google och glömmer den här.
+  visas. Behörigheterna Google gav (svarets `scope`) sparas i
+  `GoogleAdsConnection.granted_scopes`, med ett avtryck av nyckeln de gäller
+  (`scopes_for`, HMAC, aldrig nyckeln), och förnyas varje gång den
+  kortlivade nyckeln hämtas, också för nyckeln i miljön. Saknas Google Ads
+  stoppas kopplingen; saknas bara Data Manager sparas den, och sidan säger
+  "Koppla om med Google för att skicka konverteringar".
+  "Koppla från" återkallar nyckeln hos Google och glömmer den här.
   Med `GOOGLE_ADS_REFRESH_TOKEN` i miljön används den nyckeln och knappen
   behövs inte.
 - `request_link`: kopplingsförfrågan från förvaltarkontot, sparad med id:t
@@ -403,10 +419,79 @@ senare.
 
 - Allt med gclid köas: förfrågan (lead), klick på numret (call) och vunnen
   affär med belopp (deal). Högst en av varje sort per förfrågan.
-- gbraid och wbraid sparas men laddas inte upp: konverteringarna räknas en
-  gång per klick (ONE_PER_CLICK), och sådana tar Google inte emot med
-  braid-id:n. Att stödja dem kräver en andra uppsättning åtgärder som
-  räknas flera gånger per klick. Inkorgen säger det till kunden.
+- **Vägen** väljs med `FLAMINGO_CONVERSIONS_UPLOAD`: `datamanager` (tomt,
+  standard) skickar med Data Manager API; `googleads` med Google Ads API:s
+  uploadClickConversions, som Google inte öppnar för nya användare sedan
+  2026-06-15 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE); `off` bara CSV.
+  Ett okänt värde räknas som `off`. Kön och Google-sidan säger vilken väg
+  som gäller och, när den inte går, varför.
+- **Data Manager API används bara när** Google Ads API är inkopplat,
+  inloggningen har behörigheten `datamanager` (sparad vid kopplingen eller
+  när nyckeln förnyas), kontot ligger under ADX förvaltarkonto, kontot inte
+  är demo, och konverteringsåtgärden för radens sort finns i kundens konto.
+  Annars går raden som CSV. `ensure_conversion_actions` skapar åtgärderna
+  med Google Ads API.
+- **Anropet** (developers.google.com/data-manager/api, läst 2026-10-03):
+  `POST https://datamanager.googleapis.com/v1/events:ingest`, bara nyckeln
+  som header (Google bortser från headers i ett ingest-anrop). En
+  destination: `operatingAccount` kundens konto och `loginAccount`
+  förvaltarkontot (båda `accountType` GOOGLE_ADS, tio siffror) och
+  `productDestinationId` konverteringsåtgärdens id. En händelse:
+  `transactionId` (`adx-flamingo-<förfrågan>-<sort>`, samma vid varje
+  försök och samma som `orderId` på den gamla vägen), `eventTimestamp` (RFC
+  3339 i svensk tid med offset, samma sekund som CSV-filen), `eventSource`
+  WEB, `adIdentifiers.gclid`, `conversionValue` och `currency` SEK bara för
+  affärer, och `consent.adUserData` (CONSENT_GRANTED eller CONSENT_DENIED)
+  bara när `Lead.ad_consent` är "granted" eller "denied" (det är tomt i dag
+  och hittas aldrig på). `validateOnly` false; `flamingo_google_sync
+  --prova` skickar true och ändrar inget.
+- **En konvertering per anrop.** Google tar högst 2 000 händelser och 10
+  destinationer per anrop, men tar emot allt eller inget (fast-fail), och
+  bearbetningens besked (`requestStatus:retrieve`) säger bara antal per
+  orsak och destination, inte vilken händelse. Med en per anrop gäller
+  varje besked exakt en rad. Högst 100 per konto och körning; Googles gräns
+  är 300 anrop i minuten per Cloud-projekt.
+- **Ingen konvertering tappas.** En rad står i kö, och i CSV-filen, tills
+  Google tagit emot den (svaret har ett `requestId`). Ett nej för en
+  händelse lämnar raden i kö med felet, som kön visar ("Senaste
+  försöket"), och nästa rad skickas. Nästa försök väntar 1, 2, 4, 8, 16 och
+  sedan 24 timmar; efter 8 försök (eller direkt, för ett fel som ett nytt
+  försök inte ändrar) skickar API:t den inte själv längre, och den väntar
+  på CSV-filen eller "Försök ladda upp igen". Ett fel för kundens konto
+  (behörighet, villkor) eller ett tillfälligt fel hos Google stoppar
+  kontots körning; inloggningen eller kvoten stoppar hela körningen. Ett
+  nej till konverteringsåtgärden glömmer den, så skapas den igen.
+- **Googles besked** läses efter minst 30 minuter (bearbetningen kan ta
+  upp till ett dygn), oavsett vald väg: SUCCESS, eller bara dubbletter
+  (DUPLICATE_TRANSACTION_ID, DUPLICATE_GCLID), är klart; FAILED lägger
+  raden tillbaka i kön med orsaken (och den kan då exporteras); utan
+  slutligt besked på tre dygn står raden kvar som skickad med en
+  anteckning. Google-sidan visar hur många som väntar på besked.
+- **Ingen konvertering räknas två gånger.** En rad går bara en väg: en
+  nedladdad CSV-fil tar sina rader (`ConversionUpload.downloaded_at`), och
+  API:t skickar dem aldrig; en rad som API:t skickat står inte i kö och
+  kommer aldrig med i en fil. "Markera som exporterade" gäller bara rader
+  som varit i en nedladdad fil. Raderna låses medan de skickas, och
+  nedladdningen hoppar över en låst rad. Med API:t på visas därför inte
+  länken "Alla kunder i en fil".
+- **Nej till hela vägen**: Data Manager API avslaget i Cloud-projektet
+  (SERVICE_DISABLED) eller NOT_ALLOWLISTED stoppar vägen för alla konton
+  (`GoogleAdsConnection.conversion_upload_blocked_at`, med vägen i
+  `conversion_upload_blocked_path`), raderna står orörda i kö för CSV-filen,
+  och Google-sidan och kön säger varför en gång; kommandot räknar det inte
+  som ett fel för kontot. "Försök ladda upp igen" häver stoppet.
+  ACCESS_TOKEN_SCOPE_INSUFFICIENT markerar behörigheten som saknad, och
+  sidan ber byrån koppla om. Den gamla vägen stoppas på samma sätt av
+  CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE.
+- **gbraid och wbraid** sparas men skickas inte. Data Manager API tar emot
+  dem i `adIdentifiers`, men Flamingos åtgärder räknas en gång per klick
+  (ONE_PER_CLICK, Googles råd för förfrågningar), och en sådan åtgärd tar
+  inte emot braid-id:n: Data Manager API svarar
+  PROCESSING_ERROR_REASON_ONE_PER_CLICK_CONVERSION_ACTION_NOT_PERMITTED_WITH_BRAID.
+  Därför krävs gclid, och bara gclid skickas även när förfrågan har båda.
+  Att stödja klick med bara ett braid-id kräver en andra uppsättning
+  åtgärder som räknas flera gånger per klick. Inkorgen säger det till
+  kunden.
 - `ensure_conversion_actions` skapar "ADX Flamingo förfrågan", "ADX
   Flamingo samtal" och affären (`FLAMINGO_CONVERSION_NAME`) i kundens konto,
   som import av klick. En som redan finns med samma namn återanvänds.
@@ -414,22 +499,8 @@ senare.
   affär kan alla räknas i kolumnen Konverteringar för samma klick. Gör
   affären sekundär, eller gå över till budgivning på värde, innan
   budgivningen styrs av konverteringar.
-- **Uppladdningen med API:t är av från början** (`GOOGLE_ADS_UPLOAD_CONVERSIONS`,
-  `google_conversions.upload_enabled`). Google tar inte emot nya användare
-  av uploadClickConversions sedan 2026-06-15: utan tidigare uppladdningar
-  svarar Google CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, och Googles väg
-  framåt är Data Manager API. Tills uppladdningen bevisat fungerar går
-  konverteringarna som CSV, också med API:t inkopplat.
-- `upload_queued` (när den är på) skickar raderna med uploadClickConversions:
-  svensk tid med offset, SEK, värde bara för affärer, och `consent` bara när
-  `Lead.ad_consent` är "granted" eller "denied". Raderna väntar tills
-  förfrågan är sex timmar gammal (Googles krav). "Försök igen senare"
-  lämnar raden i kö, en rad som redan finns hos Google räknas som skickad,
-  andra fel gör raden misslyckad med en kort svensk text i byråns kö.
-  Svarar Google NOT_ALLOWLISTED (för anropet eller en rad) stoppas
-  uppladdningen för alla konton (`GoogleAdsConnection.conversion_upload_blocked_at`),
-  raderna står kvar i kö för CSV-filen, och kön och Google-sidan säger det;
-  "Försök ladda upp igen" på Google-sidan häver stoppet.
+- Raderna väntar tills förfrågan är sex timmar gammal (Google tar inte
+  emot för nya klick).
 - CSV-exporten skriver alla tre sorterna med sina namn och kolumnen "Ad
   User Data" (tom när inget svar finns). Namnen måste då finnas i kundens
   konto som import av klick; med API:t skapar `flamingo_google_sync` dem.
@@ -443,15 +514,20 @@ sparar dem som `CampaignDayStats`. Kontot måste ha valutan SEK.
 
 För varje aktiverat konto (inte demo) hos en aktiv kund, med ett Google
 Ads-id: `sync_account_status`, och för konton under ADX förvaltarkonto
-konverteringsåtgärderna, kön (bara när uppladdningen är på) och rapporten.
+konverteringsåtgärderna, kön den valda vägen (bara när uppladdningen är
+på), Googles besked om det som skickats med Data Manager API (oavsett väg)
+och rapporten.
 Stegen körs var för sig: ett fel i konverteringarna (till exempel en
 konvertering med samma namn som inte är en import av klick) stoppar inte
 uppladdningen av de andra eller rapporten. Felen sparas tillsammans i
 `google_sync_error` ("Konverteringarna: ...", "Rapporten: ...") och kontot
 räknas som misslyckat, men de andra kontona körs. Ett fel i ADX:s egen
 koppling eller slut kvot stoppar körningen, också från lägesläsningen.
+Googles nej till hela vägen för konverteringarna skrivs en gång
+("Konverteringarna stoppade: ...") och räknas inte som ett fel för kontot.
 Utan API:t skriver kommandot en rad och gör inget. Inga mejl. Kommandot
-publicerar inga kampanjer.
+publicerar inga kampanjer. `--prova` låter Google pröva raderna i kö
+(`validateOnly`) och skriver vad Google sa, utan att något skickas.
 
 Cron som djangouser, varje timme, samma mönster som de andra raderna i
 djangousers crontab (lägg till de nycklar de raderna tar med, om de är
@@ -504,9 +580,10 @@ finns i `.env.example`.
 | Google Places | `GOOGLE_PLACES_API_KEY` | Byggt, slås på av nyckeln | Uppgifter från hemsidan och kunden |
 | 46elks sms | `ELKS_API_USERNAME`, `ELKS_API_PASSWORD`, `ELKS_SENDER` (alla tre) | Byggt, slås på av nycklarna | Inget sms, loggat som "inte inkopplat" |
 | Google Ads API | `GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, och inloggningen i panelen (eller `GOOGLE_ADS_REFRESH_TOKEN`); projektet behöver Explorer (Basic för nya konton) | Byggt: koppling, kundens konto, publicering direkt efter kundens godkännande, paus, konverteringsåtgärder och rapporter. Inte prövat mot ett riktigt konto | Editor-CSV och "Markera som live", koppling och "betalning klar" bockas av i panelen, konverteringar som CSV |
+| Data Manager API (konverteringarna) | Samma inloggning; API:t påslaget i samma Cloud-projekt och behörigheten `datamanager` (koppla om en gång) | Byggt, standardvägen. Inte prövat mot ett riktigt konto | CSV-exporten |
 | Utvecklartoken | `GOOGLE_ADS_DEVELOPER_TOKEN` | Valfri, avvecklad hos Google 2026-09-09 | Ingen header (det normala) |
 | API-versionen | `GOOGLE_ADS_API_VERSION` | Byggt | v25 (den senaste 2026-10-03). Varje version har ett slutdatum hos Google (Deprecation and sunset): byt `DEFAULT_VERSION` och testernas `API` innan dess |
-| Konverteringar med API:t | `GOOGLE_ADS_UPLOAD_CONVERSIONS` | Byggt, av | CSV-exporten (Google tar inte emot nya användare av uploadClickConversions) |
+| Konverteringarnas väg | `FLAMINGO_CONVERSIONS_UPLOAD` | Byggt: `datamanager` (tomt), `googleads` (bara med Googles tillåtelse), `off` | CSV-exporten. `GOOGLE_ADS_UPLOAD_CONVERSIONS` läses inte längre |
 | Inbjudan när ett konto skapas | `GOOGLE_ADS_INVITE_ON_CREATE` | Byggt, av | Byrån bjuder in kunden i Google Ads efteråt |
 | Krypteringen av Google-nyckeln | `FLAMINGO_TOKEN_KEY` | Byggt, valfri | Härledd ur `SECRET_KEY` |
 | Landningssidornas domän i Editor-filen och annonsen | `FLAMINGO_LANDING_BASE_URL` | Byggt | `https://adx.se` |
@@ -522,15 +599,20 @@ att Google mejlar administratörerna om en kopplingsförfrågan, och att ADX
 förvaltarkonto får skicka inbjudan med `createCustomerClient` (Google
 anger en tillåtelselista). Gör den första publiceringen med byrån bredvid.
 
+Data Manager API är byggt efter Googles referens och guider (events:ingest,
+destinations, understand-errors, diagnostics, limits) men inte prövat:
+felens exakta form (vilken ErrorInfo-orsak ett avslaget API eller en
+saknad behörighet ger), att `eventSource` WEB passar en vunnen affär, och
+att ett förvaltarkonto med Explorer-åtkomst får skicka. Kör
+`flamingo_google_sync --prova` mot ett riktigt konto först.
+
 ## Inte byggt än
 
 - Spårade eller vidarekopplade telefonnummer och riktiga samtal som
   förfrågningar (beslut: klicket på numret räcker tills vidare).
 - Frågan om samtycke på landningssidan (`Lead.ad_consent` finns, tomt).
-- Konverteringar genom Data Manager API (`ingestEvents`), Googles väg för
-  offline-konverteringar sedan uploadClickConversions stängdes för nya
-  användare 2026-06-15. Till dess går de som CSV.
-- Konverteringar för klick med bara gbraid eller wbraid (iOS).
+- Konverteringar för klick med bara gbraid eller wbraid (iOS): kräver
+  åtgärder som räknas flera gånger per klick (se Konverteringarna).
 - Tillbakadragning av en konvertering som redan skickats, när förfrågan
   sedan blir skräp (uploadConversionAdjustments).
 - Publicering av sig själv när ett konto blir kopplat efter kundens
@@ -552,6 +634,20 @@ Det skriver över blocken och frågorna på Flamingos sidor, också ändringar
 som gjorts i /manage/ sedan förra seeden; publiceringen rörs inte.
 Migreringen 0007 stoppar (med kontonas nummer) om två Flamingo-konton har
 samma Google Ads-id: rätta det först.
+
+Konverteringarna genom Data Manager API (migreringen 0008):
+
+1. Slå på Data Manager API i samma Google Cloud-projekt som OAuth-klienten,
+   och lägg till behörigheten för Data Manager API på samtyckesskärmen
+   (känslig: Extern kräver Googles verifiering, Intern inte).
+2. Ta bort `GOOGLE_ADS_UPLOAD_CONVERSIONS` ur `../.env` (läses inte
+   längre). `FLAMINGO_CONVERSIONS_UPLOAD` behövs inte: tomt är
+   `datamanager`.
+3. Öppna `/manage/flamingo/google/` och "Koppla om med Google", med rutan
+   för Data Manager ikryssad. Med `GOOGLE_ADS_REFRESH_TOKEN` i miljön:
+   skapa en ny nyckel med båda behörigheterna.
+4. Kör `flamingo_google_sync --prova` och se att Google godkänner raderna,
+   sedan går cron som vanligt.
 
 ## Lokalt
 

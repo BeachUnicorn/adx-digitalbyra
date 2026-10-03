@@ -25,6 +25,7 @@ Europe/Stockholm (Django gör det med USE_TZ och TIME_ZONE).
 
 import base64
 import hashlib
+import hmac
 import logging
 import re
 
@@ -193,6 +194,23 @@ def decrypt_secret(value):
         return ""
 
 
+def token_fingerprint(token):
+    """Ett kort avtryck av en nyckel (HMAC-SHA256 med SECRET_KEY, 16 tecken),
+    eller "". Säger vilken nyckel sparade behörigheter gäller
+    (GoogleAdsConnection.scopes_for) utan att avslöja nyckeln."""
+    token = str(token or "")
+    if not token:
+        return ""
+    key = _TOKEN_KEY_CONTEXT + str(settings.SECRET_KEY).encode()
+    return hmac.new(key, b"scopes:" + token.encode(), hashlib.sha256).hexdigest()[:16]
+
+
+def normalize_scopes(scope):
+    """Googles "scope" (behörigheter med mellanslag emellan) sorterat och
+    utan dubbletter."""
+    return " ".join(sorted(set(str(scope or "").split())))
+
+
 class GoogleAdsConnection(models.Model):
     """ADX:s egen inloggning hos Google Ads (OAuth), som alla anrop via
     förvaltarkontot görs med. En enda rad: get_solo().
@@ -217,14 +235,29 @@ class GoogleAdsConnection(models.Model):
     connected_at = models.DateTimeField("Kopplad", null=True, blank=True)
     last_ok_at = models.DateTimeField("Senaste lyckade anropet", null=True, blank=True)
     last_error = models.CharField("Senaste felet", max_length=300, blank=True)
-    #: Google tog inte emot konverteringar med uploadClickConversions
-    #: (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE): inga fler försök förrän
-    #: byrån ber om det på Google-sidan. Raderna står kvar för CSV-filen.
+    #: Behörigheterna (OAuth scopes) som Google gav, med mellanslag emellan:
+    #: svarets "scope" när byrån kopplar, och när nyckeln förnyas
+    #: (google_ads.access_token). scopes_for är avtrycket av nyckeln de gäller
+    #: (token_fingerprint), så att nyckeln i miljön och den sparade aldrig
+    #: blandas ihop. Tomt avtryck: okänt (kopplat före Data Manager API).
+    granted_scopes = models.TextField("Behörigheter hos Google", blank=True)
+    scopes_for = models.CharField(
+        "Behörigheterna gäller nyckeln", max_length=16, blank=True, editable=False
+    )
+    #: Google tog inte emot konverteringarna för hela vägen (till exempel
+    #: CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE med uploadClickConversions,
+    #: eller Data Manager API avslaget i Cloud-projektet): inga fler försök
+    #: på den vägen förrän byrån ber om det på Google-sidan. Raderna står kvar
+    #: för CSV-filen. conversion_upload_blocked_path är vägen
+    #: (google_conversions.PATH_*); tomt är uploadClickConversions.
     conversion_upload_blocked_at = models.DateTimeField(
         "Uppladdningen av konverteringar stoppad", null=True, blank=True
     )
     conversion_upload_error = models.CharField(
         "Varför uppladdningen stoppades", max_length=300, blank=True
+    )
+    conversion_upload_blocked_path = models.CharField(
+        "Vägen som stoppades", max_length=20, blank=True
     )
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -255,8 +288,9 @@ class GoogleAdsConnection(models.Model):
         FLAMINGO_TOKEN_KEY har bytts. Byrån kopplar Google igen."""
         return self.is_connected and not self.refresh_token()
 
-    def set_refresh_token(self, token, email="", user=None):
-        """Spara en ny koppling (efter Googles inloggning)."""
+    def set_refresh_token(self, token, email="", user=None, scopes=""):
+        """Spara en ny koppling (efter Googles inloggning). scopes är
+        behörigheterna Google gav (svarets "scope"); utan dem är de okända."""
         token = str(token or "").strip()
         if not token:
             raise ValueError("Google skickade ingen nyckel.")
@@ -265,6 +299,8 @@ class GoogleAdsConnection(models.Model):
         self.connected_by = user if getattr(user, "pk", None) else None
         self.connected_at = timezone.now()
         self.last_error = ""
+        self.granted_scopes = normalize_scopes(scopes)
+        self.scopes_for = token_fingerprint(token) if self.granted_scopes else ""
         self.save()
         return self
 
@@ -285,6 +321,8 @@ class GoogleAdsConnection(models.Model):
         self.connected_at = None
         self.last_ok_at = None
         self.last_error = ""
+        self.granted_scopes = ""
+        self.scopes_for = ""
         self.save()
         return self
 
@@ -908,7 +946,8 @@ class Lead(models.Model):
     #: landningssidan frågar inte (beslut 2026-10-03, konverteringarna går
     #: till Google ändå). Fältet finns kvar för en fråga senare, och
     #: konverteringen får samtycket med sig bara när det är "granted" eller
-    #: "denied" (google_conversions.click_conversion). Fylls aldrig i av oss.
+    #: "denied" (google_conversions.conversion_event och click_conversion).
+    #: Fylls aldrig i av oss.
     CONSENT_UNKNOWN = ""
     CONSENT_GRANTED = "granted"
     CONSENT_DENIED = "denied"
@@ -1015,10 +1054,13 @@ class Lead(models.Model):
     @property
     def can_send_to_google(self):
         """Kan förfrågan bli en konvertering hos Google? Det kräver ett
-        gclid: Flamingos konverteringar räknas en gång per klick, och sådana
-        tar Google inte emot med gbraid eller wbraid (iOS). De sparas på
-        förfrågan men laddas inte upp. Samtycket (ad_consent) avgör inte:
-        konverteringarna skickas utan fråga på sidan (beslut 2026-10-03)."""
+        gclid: Flamingos konverteringar räknas en gång per klick
+        (ONE_PER_CLICK), och sådana tar Google inte emot med gbraid eller
+        wbraid (iOS), varken med Google Ads API eller Data Manager API
+        (PROCESSING_ERROR_REASON_ONE_PER_CLICK_CONVERSION_ACTION_NOT_PERMITTED_WITH_BRAID).
+        De sparas på förfrågan men laddas inte upp. Samtycket (ad_consent)
+        avgör inte: konverteringarna skickas utan fråga på sidan (beslut
+        2026-10-03)."""
         return bool(self.gclid)
 
     @property
@@ -1102,8 +1144,21 @@ class Lead(models.Model):
 class ConversionUpload(models.Model):
     """En konvertering på väg till Google som offline-konvertering: en
     förfrågan, ett klick på telefonnumret eller en vunnen affär (med värde).
-    Högst en av varje sort per förfrågan. Med API laddas den upp; utan
-    exporterar byrån affärerna som CSV (/manage/flamingo/)."""
+    Högst en av varje sort per förfrågan. Med API laddas den upp
+    (google_conversions.py); annars, och så länge den står i kö, exporterar
+    byrån den som CSV (/manage/flamingo/granska/).
+
+    En rad står i kö tills Google tagit emot den. Ett nej lämnar den i kö
+    med felet (error), räknar attempts och väntar till next_attempt_at.
+    Efter MAX_ATTEMPTS skickas den inte längre med API:t av sig själv, men
+    finns kvar för CSV-filen.
+
+    En rad går bara en väg: kommer den med i en nedladdad CSV-fil
+    (downloaded_at) skickar API:t den aldrig, och en rad som API:t skickat
+    står inte längre i kö och kommer aldrig med i en fil."""
+
+    #: Försök med API:t innan raden lämnas åt CSV-filen.
+    MAX_ATTEMPTS = 8
 
     KIND_LEAD = "lead"
     KIND_CALL = "call"
@@ -1135,6 +1190,19 @@ class ConversionUpload(models.Model):
     exported_at = models.DateTimeField("Exporterad", null=True, blank=True)
     sent_at = models.DateTimeField("Skickad", null=True, blank=True)
     error = models.CharField("Fel", max_length=300, blank=True)
+    #: Hur många gånger ett försök med API:t inte gick fram (Googles nej,
+    #: inget svar). Nästa försök tidigast next_attempt_at.
+    attempts = models.PositiveSmallIntegerField("Försök som inte gick fram", default=0)
+    next_attempt_at = models.DateTimeField("Nästa försök", null=True, blank=True)
+    #: Data Manager API: id:t för sändningen som Google tog emot (requestId),
+    #: och när Googles besked om den lästes (google_conversions.check_sent).
+    request_id = models.CharField("Sändningens id hos Google", max_length=100, blank=True)
+    checked_at = models.DateTimeField("Googles besked läst", null=True, blank=True)
+    #: När raden först kom med i en nedladdad CSV-fil
+    #: (manage_review.conversions_csv). En rad i en fil skickas aldrig med
+    #: API:t (google_conversions._due), och bara rader som varit i en fil
+    #: kan markeras som exporterade.
+    downloaded_at = models.DateTimeField("I en nedladdad fil", null=True, blank=True)
     #: Svaret från Google (eller exportens filnamn) för felsökning.
     response = models.JSONField("Svar", default=dict, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -1153,6 +1221,24 @@ class ConversionUpload(models.Model):
             f"{self.lead.display_name}: {self.get_kind_display()}{value}"
             f" ({self.get_status_display()})"
         )
+
+    @property
+    def transaction_id(self):
+        """Konverteringens id hos Google (transactionId i Data Manager API,
+        orderId i Google Ads API): samma för förfrågan och sort vid varje
+        försök, så att Google aldrig räknar den två gånger."""
+        return f"adx-flamingo-{self.lead_id}-{self.kind}"
+
+    @property
+    def api_gave_up(self):
+        """API:t har försökt MAX_ATTEMPTS gånger: raden väntar på CSV-filen
+        eller på "Försök ladda upp igen"."""
+        return self.attempts >= self.MAX_ATTEMPTS
+
+    @property
+    def in_file(self):
+        """Raden har varit med i en nedladdad CSV-fil: den går den vägen."""
+        return self.downloaded_at is not None
 
 
 class SmsLog(models.Model):

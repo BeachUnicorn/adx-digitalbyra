@@ -880,7 +880,7 @@ class ConversionCsvTests(StaffFixture, TestCase):
         )
         self.assertIn("'=HYPERLINK(1),", text)
 
-    def test_download_filters_by_customer_and_changes_nothing(self):
+    def test_download_filters_by_customer_and_only_takes_its_rows_from_the_api(self):
         client = self.staff_client()
         url = reverse("manage:flamingo_conversions_csv")
         response = client.get(url, {"kund": self.other.pk})
@@ -895,6 +895,9 @@ class ConversionCsvTests(StaffFixture, TestCase):
         self.assertEqual(
             ConversionUpload.objects.filter(status=ConversionUpload.STATUS_QUEUED).count(), 2
         )
+        # Raden i filen skickas inte med API:t; den andra kundens rad är orörd.
+        self.assertIsNotNone(ConversionUpload.objects.get(lead=self.other_won).downloaded_at)
+        self.assertIsNone(ConversionUpload.objects.get(lead=self.won).downloaded_at)
         self.assertEqual(client.get(url, {"kund": "abc"}).status_code, 404)
         self.assertEqual(client.get(url, {"kund": 999999}).status_code, 404)
 
@@ -903,6 +906,13 @@ class ConversionCsvTests(StaffFixture, TestCase):
         url = reverse("manage:flamingo_conversions_csv")
         mine = ConversionUpload.objects.get(lead=self.won)
         theirs = ConversionUpload.objects.get(lead=self.other_won)
+        # Utan nedladdning markeras ingenting: raden har inte varit i en fil.
+        response = client.post(url, {"kund": self.acme.pk, "upload": [mine.pk]}, follow=True)
+        self.assertContains(response, "har inte varit med i en nedladdad fil")
+        mine.refresh_from_db()
+        self.assertEqual(mine.status, ConversionUpload.STATUS_QUEUED)
+        client.get(url, {"kund": self.acme.pk})
+        client.get(url, {"kund": self.other.pk})
         # Formuläret för Lindqvist, men någon har lagt till Hemligs rad i POST:en.
         response = client.post(url, {"kund": self.acme.pk, "upload": [mine.pk, theirs.pk]})
         self.assertRedirects(

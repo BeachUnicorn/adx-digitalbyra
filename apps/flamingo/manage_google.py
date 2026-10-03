@@ -16,7 +16,12 @@ kundkortets knappar mot Google Ads API:
                        konto åt kunden och läget från Google (google_accounts.py)
 
     google_uploads_retry  "Försök ladda upp igen" (POST): häver spärren när
-                       Google inte tog emot konverteringarna
+                       Google inte tog emot konverteringarna, och raderna som
+                       väntar efter ett nej skickas vid nästa körning
+
+Google-sidan visar också konverteringarnas väg (FLAMINGO_CONVERSIONS_UPLOAD),
+om API:t laddar upp dem nu och, när inloggningen saknar behörigheten för
+Data Manager API, "Koppla om med Google för att skicka konverteringar".
 
 Alla vyer kräver byrån (staff_required). Nyckeln visas aldrig, inte heller
 i ett felmeddelande. ADX mejlar aldrig kunden härifrån; Google mejlar
@@ -132,26 +137,46 @@ def google_page(request):
             "mcc": format_google_ads_id(google_ads.mcc_id()) or "",
             "api_version": google_ads.api_version(),
             "accounts": accounts,
-            "uploads_setting": bool(getattr(settings, "GOOGLE_ADS_UPLOAD_CONVERSIONS", False)),
-            "uploads_via_api": google_conversions.upload_enabled(),
-            "upload_blocked": google_conversions.upload_blocked(),
+            "conversions": google_conversions.upload_status(),
+            "scopes": scope_labels(connection),
             "invite_allowed": google_accounts.invite_allowed(),
         },
     )
 
 
+#: Behörigheterna som Google-sidan visar, i klartext.
+SCOPE_LABELS = {
+    google_ads.ADWORDS_SCOPE: "Google Ads",
+    google_ads.DATAMANAGER_SCOPE: "Data Manager",
+}
+
+
+def scope_labels(connection):
+    """Behörigheterna för den sparade kopplingen som Google gav dem, i
+    klartext ("Google Ads, Data Manager"), eller "" när de inte är kända."""
+    if connection is None or not connection.scopes_for or not connection.granted_scopes:
+        return ""
+    granted = connection.granted_scopes.split()
+    return ", ".join(label for scope, label in SCOPE_LABELS.items() if scope in granted)
+
+
 @staff_required
 @require_POST
 def google_uploads_retry(request):
-    """Häv spärren efter att Google inte tog emot konverteringarna. Nästa
-    körning av flamingo_google_sync försöker igen; svarar Google samma sak
-    stoppas den igen. Raderna har stått kvar i kö hela tiden."""
+    """Häv spärren efter att Google inte tog emot konverteringarna, och låt
+    raderna som väntar efter ett nej (eller som API:t gett upp om) skickas
+    vid nästa körning av flamingo_google_sync. Svarar Google samma sak
+    stoppas vägen igen. Raderna har stått kvar i kö hela tiden."""
     google_conversions.unblock_uploads()
-    messages.success(
-        request,
+    count = google_conversions.retry_now()
+    text = (
         "Uppladdningen försöks igen vid nästa körning av flamingo_google_sync. Säger Google "
-        "nej igen stoppas den, och raderna står kvar för CSV-filen.",
+        "nej igen stoppas den, och raderna står kvar för CSV-filen."
     )
+    if count:
+        word = "konvertering" if count == 1 else "konverteringar"
+        text += f" {count} {word} som väntade efter ett nej är med."
+    messages.success(request, text)
     return _page()
 
 
@@ -217,11 +242,13 @@ def google_callback(request):
             messages.error(request, f"Google avbröt inloggningen ({code}). Inget ändrades.")
         return _page()
     try:
-        token, email = google_ads.exchange_code(request.GET.get("code", ""), redirect_uri(request))
+        token, email, scopes = google_ads.exchange_code(
+            request.GET.get("code", ""), redirect_uri(request)
+        )
     except GoogleAdsError as exc:
         messages.error(request, exc.message)
         return _page()
-    GoogleAdsConnection.get_solo().set_refresh_token(token, email, request.user)
+    GoogleAdsConnection.get_solo().set_refresh_token(token, email, request.user, scopes=scopes)
     token = None
     logger.info("Flamingo: ADX:s Google-konto kopplat av användare %s", request.user.pk)
     text = f"ADX:s Google-konto är kopplat{f' som {email}' if email else ''}."
@@ -229,6 +256,11 @@ def google_callback(request):
         text += " GOOGLE_ADS_REFRESH_TOKEN i miljön används ändå, eftersom den vinner."
     else:
         text += " Testa kopplingen för att se att förvaltarkontot nås."
+        if google_ads.DATAMANAGER_SCOPE not in scopes.split():
+            text += (
+                " Behörigheten för Data Manager API kryssades inte i, så konverteringarna går "
+                "som CSV. Koppla om med Google för att skicka konverteringar."
+            )
     messages.success(request, text)
     return _page()
 

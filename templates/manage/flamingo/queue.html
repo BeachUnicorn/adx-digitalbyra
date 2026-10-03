@@ -125,19 +125,25 @@ orsaken. Demokunden är inte med förrän ?demo=1 (include_demo).
 {% comment %}
 Konverteringarna (apps/flamingo/google_conversions.py, exports.py): allt med
 Googles klick-id (gclid). Sidan frågar inte om samtycke (beslut 2026-10-03).
-Filen är vägen tills uppladdningen med API:t bevisat fungerar
-(uploads_via_api, GOOGLE_ADS_UPLOAD_CONVERSIONS av från början: Google tar
-inte emot nya användare av uploadClickConversions). Demokundens rader är
-aldrig med.
+Vägen väljs med FLAMINGO_CONVERSIONS_UPLOAD (Data Manager API från början,
+conversions_upload). En rad står här tills Google tagit emot den, också när
+API:t laddar upp: det som inte gått fram har sitt senaste fel och kan alltid
+laddas upp med filen. En nedladdad fil tar sina rader från API:t
+(downloaded_at), så att ingen konvertering räknas två gånger, och bara rader
+som varit i en fil kan markeras som exporterade. Demokundens rader är aldrig
+med.
 {% endcomment %}
 {% if upload_blocked %}
 <p class="m-form-error mf-before" role="status"><b>Uppladdningen med API:t är stoppad.</b> {{ upload_blocked }} <a class="mf-strong" href="{% url 'manage:flamingo_google' %}#konverteringar">Google-sidan</a></p>
+{% elif conversions_upload.needs_reconnect and google_api_on %}
+<p class="m-form-error mf-before" role="status"><b>Konverteringarna går som CSV.</b> {{ conversions_upload.reason }} <a class="mf-strong" href="{% url 'manage:flamingo_google' %}#konverteringar">Google-sidan</a></p>
 {% endif %}
 {% if uploads_via_api %}
-<p class="m-field-help mf-before">Uppladdningen med API:t är på: kommandot <code>flamingo_google_sync</code> laddar upp konverteringarna till konton som ligger under ADX förvaltarkonto. Filen nedan behövs bara för konton som inte är kopplade så.</p>
+<p class="m-field-help mf-before">Uppladdningen med API:t är på ({{ conversions_upload.path_label }}): kommandot <code>flamingo_google_sync</code> skickar konverteringarna till konton som ligger under ADX förvaltarkonto. Det Google inte tar emot står kvar här med felet och försöks igen senare. Filen nedan behövs för konton som inte är kopplade så, och för rader som inte gått fram. En nedladdad fil tar sina rader från API:t, så att ingen konvertering räknas två gånger: ladda ner den bara när du laddar upp den i Google Ads.</p>
 {% else %}
 <p class="m-field-help mf-before">Förfrågningar, klick på telefonnumret och vunna affärer från annonsklick (med Googles gclid). Varje kund har sitt eget Google Ads-konto: ladda ner kundens fil, ladda upp den i kontot (Mål, Konverteringar, Uppladdningar) och markera raderna som exporterade.</p>
 {% endif %}
+<p class="m-field-help mf-before">Vägen: {{ conversions_upload.path_label }} (<code>FLAMINGO_CONVERSIONS_UPLOAD</code>).{% if conversions_upload.path == "datamanager" and not uploads_via_api %} För att skicka med API:t: slå på Data Manager API i samma Google Cloud-projekt som OAuth-klienten och koppla om med Google, så att inloggningen får behörigheten. <a class="mf-strong" href="{% url 'manage:flamingo_google' %}#konverteringar">Google-sidan</a> visar vad som saknas.{% endif %}</p>
 <p class="m-field-help mf-before">Namnen i filen, som måste finnas exakt så i kundens konto (som import av klick): {% for label, name in conversion_names %}{{ label|lower }} <code>{{ name }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
 {% if upload_groups %}
 <div class="m-panel m-table-wrap">
@@ -164,11 +170,11 @@ aldrig med.
         </tbody>
     </table>
 </div>
-<p class="m-field-help mf-after">Totalt {{ uploads|length }} konvertering{{ uploads|length|pluralize:"ar" }}, affärerna värda {{ upload_total|kr }}. <a href="{% url 'manage:flamingo_conversions_csv' %}">Alla kunder i en fil</a> (bara för kontroll: Google tar emot en fil per konto).</p>
+<p class="m-field-help mf-after">Totalt {{ uploads|length }} konvertering{{ uploads|length|pluralize:"ar" }}, affärerna värda {{ upload_total|kr }}.{% if not uploads_via_api %} <a href="{% url 'manage:flamingo_conversions_csv' %}">Alla kunder i en fil</a> (bara för kontroll: Google tar emot en fil per konto).{% endif %}</p>
 
 <div class="m-panel m-table-wrap mf-gap">
     <table class="m-table">
-        <thead><tr><th>Förfrågan</th><th>Kund</th><th>Sort</th><th>När</th><th>Värde</th></tr></thead>
+        <thead><tr><th>Förfrågan</th><th>Kund</th><th>Sort</th><th>När</th><th>Värde</th><th>Senaste försöket</th></tr></thead>
         <tbody>
         {% for u in uploads %}
             <tr>
@@ -177,6 +183,7 @@ aldrig med.
                 <td>{{ u.get_kind_display }}{% if u.lead.service_name %}<br><span class="m-muted">{{ u.lead.service_name }}</span>{% endif %}</td>
                 <td class="m-num">{% if u.kind == "deal" %}{{ u.lead.won_at|default:u.created_at|date:"j b Y" }}{% else %}{{ u.lead.created_at|date:"j b Y" }}{% endif %}</td>
                 <td class="m-num">{% if u.value_kr is not None %}{{ u.value_kr|kr }}{% else %}-{% endif %}</td>
+                <td>{% if u.error %}{{ u.error }}{% endif %}{% if u.in_file %}{% if u.error %}<br>{% endif %}<span class="m-muted">I en nedladdad fil {{ u.downloaded_at|date:"j b H:i" }}: API:t skickar den inte.</span>{% elif u.error %}{% if u.api_gave_up %}<br><span class="m-muted">API:t har slutat försöka: ladda upp den med filen.</span>{% elif u.next_attempt_at %}<br><span class="m-muted">Försök {{ u.attempts }} av {{ u.MAX_ATTEMPTS }}, nästa tidigast {{ u.next_attempt_at|date:"j b H:i" }}</span>{% endif %}{% else %}-{% endif %}</td>
             </tr>
         {% endfor %}
         </tbody>
