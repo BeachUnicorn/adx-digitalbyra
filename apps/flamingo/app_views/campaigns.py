@@ -47,7 +47,6 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
-from apps.projects.access import is_agency_user
 
 from .. import checks, generator, google_publish
 from ..alerts import send_agency_alert
@@ -723,8 +722,9 @@ def _review_context(campaign):
     reviewer = _first_name(latest.reviewer)
     reviewer_text = f"{reviewer} på ADX" if reviewer else "ADX"
     # Byrån kan ta tillbaka en godkänd kampanj till granskning (Google sa nej
-    # till något): då skickade inte kunden den.
-    taken_back = latest.submitted_by is not None and is_agency_user(latest.submitted_by)
+    # till något): då skickade inte kunden den. Byrån som skickar in i
+    # kundvyn skickar som kunden och räknas inte hit.
+    taken_back = latest.taken_back
     timeline = [
         {
             "state": "done",

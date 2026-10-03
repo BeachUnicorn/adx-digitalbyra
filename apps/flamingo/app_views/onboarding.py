@@ -14,9 +14,9 @@ Kom igång (kundresan steg 2, 4 och 5) och inställningarna.
     app/installningar/  Sms till kunden vid ny förfrågan och autosvaret.
 
 Allt hämtas via kontot (app_view): ett id ur formuläret slås alltid upp med
-account=account, så en annan kunds rad ger 404. Byrån i kundvyn är
-skrivskyddad; grinden stoppar en POST innan den når hit, och mallarna visar
-inga formulär när read_only är satt.
+account=account, så en annan kunds rad ger 404. Byrån i kundvyn gör samma
+sak som kunden och sparas i byråns namn; bara utkastförhandsvisningen i
+/manage/ är skrivskyddad (read_only).
 
 Inget här skickar mejl eller sms. Sms-valen är kundens egna och används först
 när 46elks är inkopplat (ELKS_API_USERNAME, ELKS_API_PASSWORD och

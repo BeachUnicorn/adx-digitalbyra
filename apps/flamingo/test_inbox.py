@@ -722,21 +722,20 @@ class InboxTests(InboxFixture, TestCase):
                 self.assertTemplateUsed(response, "flamingo/app/staff_index.html")
                 self.assertContains(response, "Visa som kunden")
 
-    def test_staff_viewing_as_reads_but_cannot_write(self):
+    def test_staff_viewing_as_works_like_the_customer(self):
+        """Giovanni 2026-10-03: "visa som kund" ska visa det kunden ser. Byrån
+        i kundvyn har kundens formulär, och det byrån sparar gäller."""
         lead = self.lead_for()
         staff = self.client_for(self.staff, view_as=self.acme)
         response = staff.get(self.detail(lead))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "skrivskyddad")
-        self.assertNotContains(response, ">Spara</button>")
-        response = staff.post(self.detail(lead), {"status": Lead.STATUS_WON, "value_kr": "100"})
-        self.assertEqual(response.status_code, 302)
+        self.assertNotContains(response, "skrivskyddad")
+        self.assertContains(response, "gäller på riktigt")
+        staff.post(self.detail(lead), {"status": Lead.STATUS_CONTACTED})
         lead.refresh_from_db()
-        self.assertEqual(lead.status, Lead.STATUS_NEW)
-        staff.post(reverse("flamingo:app_inbox"), {"name": "Byråns test"})
-        self.assertFalse(Lead.objects.filter(name="Byråns test").exists())
+        self.assertEqual(lead.status, Lead.STATUS_CONTACTED)
         list_html = staff.get(reverse("flamingo:app_inbox")).content.decode()
-        self.assertNotIn('id="lagg-till"', list_html)
+        self.assertIn('id="lagg-till"', list_html)
 
     def test_the_filter_chips_count_per_status(self):
         self.lead_for(status=Lead.STATUS_WON, value_kr=100)

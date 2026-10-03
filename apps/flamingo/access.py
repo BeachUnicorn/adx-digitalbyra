@@ -2,8 +2,10 @@
 Vem får se ADX Flamingo. Reglerna bor här och ingen annanstans.
 
     byrån (staff)              allt, även opublicerade sidor
-    byrån i kundvyn            som kunden, skrivskyddat; en notis om kunden
-                               saknar Flamingo (kunden själv får 404)
+    byrån i kundvyn            exakt som kunden, med samma formulär; det
+                               byrån sparar gäller på riktigt och sparas i
+                               byråns namn. En notis om kunden saknar
+                               Flamingo (kunden själv får 404)
     kontakt hos en kund med    Flamingo-sidorna och verktyget för den kunden
     Flamingo aktiverat
     alla andra                 samma 404 som för vilken okänd adress som helst
@@ -49,8 +51,10 @@ class FlamingoAccess:
 
     @property
     def read_only(self):
-        """Byrån i kundvyn ändrar aldrig något som kunden (som portalen)."""
-        return self.mode in (VIEWING_AS, PREVIEW)
+        """Bara utkastförhandsvisningen i /manage/ är skrivskyddad. Byrån i
+        kundvyn ser och gör det kunden ser och gör (Giovanni 2026-10-03:
+        "visa som kund" ska visa det kunden ser)."""
+        return self.mode == PREVIEW
 
     @property
     def sees_drafts(self):

@@ -923,32 +923,22 @@ class AccessTests(Fixture, TestCase):
         reverse("flamingo:app_settings"),
     )
 
-    def test_staff_viewing_as_the_customer_reads_but_cannot_write(self):
+    def test_staff_viewing_as_the_customer_does_what_the_customer_does(self):
+        """Giovanni 2026-10-03: "visa som kund" ska visa det kunden ser. Byrån
+        i kundvyn har kundens formulär, och det byrån sparar gäller."""
         fact = Fact.objects.create(account=self.account, key="telefon", label="T", value="08-1")
         client = self.staff_client(view_as=self.acme)
-        posts = {
-            self.urls[0]: {"action": "scan", "website_url": "lindqvistror.se"},
-            self.urls[1]: {"action": "confirm_all"},
-            self.urls[2]: {"action": "new"},
-            self.urls[3]: {"notify_phone": "0701234567", "notify_sms": "1"},
-        }
-        fetch = mock.Mock()
-        with mock.patch.object(scan, "fetch", fetch):
-            for url in self.urls:
-                with self.subTest(url=url):
-                    page = client.get(url)
-                    self.assertEqual(page.status_code, 200)
-                    self.assertNotContains(page, 'name="action"')
-                    response = client.post(url, posts[url])
-                    self.assertEqual(response.status_code, 302)
-                    self.assertEqual(response["Location"], url)
-        fetch.assert_not_called()
+        for url in self.urls:
+            with self.subTest(url=url):
+                page = client.get(url)
+                self.assertEqual(page.status_code, 200)
+                self.assertContains(page, "gäller på riktigt")
+        client.post(self.urls[1], {"action": "confirm_all"})
+        client.post(self.urls[3], {"notify_phone": "0701234567", "notify_sms": "1"})
         fact.refresh_from_db()
         self.account.refresh_from_db()
-        self.assertFalse(fact.confirmed)
-        self.assertEqual(self.account.google_status, FlamingoAccount.GOOGLE_NOT_STARTED)
-        self.assertFalse(self.account.notify_sms)
-        self.assertEqual(self.account.scan_status, FlamingoAccount.SCAN_NONE)
+        self.assertTrue(fact.confirmed)
+        self.assertTrue(self.account.notify_sms)
 
     def test_staff_without_view_as_gets_the_customer_list(self):
         client = self.staff_client()

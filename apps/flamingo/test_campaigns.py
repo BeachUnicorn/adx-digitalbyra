@@ -725,27 +725,20 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
         self.assertFalse(Campaign.objects.filter(account=self.account).exists())
         self.assertEqual(self.secret_service.campaigns.count(), 1)
 
-    def test_staff_viewing_as_the_customer_reads_only(self):
+    def test_staff_viewing_as_the_customer_does_what_the_customer_does(self):
+        """Giovanni 2026-10-03: "visa som kund" ska visa det kunden ser. Byrån
+        i kundvyn har kundens formulär, och det byrån sparar gäller."""
         campaign, _ = self.proposal_for(self.badrum)
         client = self.client_for(self.staff, view_as=self.acme)
-        page = client.get(self.url(campaign, "annonser"))
+        page = client.get(self.url(campaign, "sidan"))
         self.assertEqual(page.status_code, 200)
-        self.assertNotContains(page, 'name="section"')
-        self.assertNotContains(page, "Skicka till granskning")
+        self.assertContains(page, "Spara sidan")
+        self.assertContains(page, "gäller på riktigt")
         self.assertContains(page, reverse("manage:flamingo_review", args=[campaign.pk]))
-        before = list(campaign.headlines)
-        response = client.post(self.url(campaign), {"section": "ads", "headline": ["A", "B", "C"]})
-        self.assertEqual(response.status_code, 302)
-        submit = reverse("flamingo:app_campaign_submit", args=[campaign.pk])
-        response = client.post(submit)
-        # Grinden skickar tillbaka till adressen; en GET där visar kampanjen.
-        self.assertRedirects(
-            client.get(response["Location"]), self.url(campaign), fetch_redirect_response=False
-        )
+        client.post(self.url(campaign), {"section": "ads", "headline": ["Ny", "Nyare", "Nyast"]})
         campaign.refresh_from_db()
-        self.assertEqual(campaign.headlines, before)
-        self.assertEqual(campaign.status, Campaign.STATUS_DRAFT)
-        self.assertNotContains(
+        self.assertEqual(campaign.headlines, ["Ny", "Nyare", "Nyast"])
+        self.assertContains(
             client.get(reverse("flamingo:app_campaign_new")), "Skapa förslag</button>"
         )
 

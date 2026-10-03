@@ -83,14 +83,15 @@ class GateTests(FlamingoFixture, TestCase):
                             want = b.get(header, "").replace("finns-inte", "flamingo")
                             self.assertEqual(a.get(header, ""), want, header)
 
-    def test_staff_viewing_as_cannot_write(self):
+    def test_staff_viewing_as_reaches_the_view(self):
+        """Kundvyn är inte längre skrivskyddad: grinden släpper fram en POST
+        till vyn (Giovanni 2026-10-03, "visa som kund")."""
         client = self.client_for(self.staff)
         session = client.session
         session[VIEW_AS_KEY] = self.acme.pk
         session.save()
         response = client.post("/flamingo/app/", {"x": "1"})
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response["Location"], "/flamingo/app/")
+        self.assertNotEqual(response.get("Location"), "/flamingo/app/")
 
     def test_a_contact_with_flamingo_sees_published_pages_only(self):
         client = self.client_for(self.anna)

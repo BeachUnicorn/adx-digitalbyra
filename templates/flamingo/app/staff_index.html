@@ -1,7 +1,8 @@
 {% extends "flamingo/app/base.html" %}
 {% comment %}
 Byrån utan kundvy: verktyget visar alltid en kunds data, så här väljs
-kunden. "Visa som kunden" öppnar samma skrivskyddade kundvy som portalen.
+kunden. "Visa som kunden" öppnar verktyget precis som kunden ser det, med
+samma formulär; det byrån sparar där gäller på riktigt.
 Arbetet (granskning, publicering, Google-kopplingen) görs i panelen.
 {% endcomment %}
 {% block app_title %}Flamingo-kunderna{% endblock %}
@@ -12,7 +13,7 @@ Arbetet (granskning, publicering, Google-kopplingen) görs i panelen.
   <div class="fl-app-head__text">
     <p class="fl-kicker">Byråns vy</p>
     <h1 class="fl-app-title">Flamingo-kunderna</h1>
-    <p class="fl-app-lead">Verktyget visar alltid en kund. Välj vem du vill se som; kundvyn är skrivskyddad.</p>
+    <p class="fl-app-lead">Verktyget visar alltid en kund. Välj vem du vill se som. I kundvyn ser och gör du det kunden ser och gör.</p>
   </div>
   <div class="fl-app-head__actions">
     <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'manage:flamingo_queue' %}">Granskningskön</a>

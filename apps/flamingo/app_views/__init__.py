@@ -21,8 +21,9 @@ Varje vy i verktyget skrivs så här:
 - Byrån utan kundvy har ingen kund: den får listan över Flamingo-kunder med
   "Visa som kunden" i stället för vyn (staff_index.html). Byrån i kundvyn
   på en kund som aldrig haft Flamingo får no_account.html.
-- Byrån i kundvyn är skrivskyddad. Grinden (middleware) skickar tillbaka en
-  POST innan den når vyn; mallarna kan dölja knappar med {{ read_only }}.
+- Byrån i kundvyn ser och gör det kunden ser och gör; det sparas i byråns
+  namn. Bara utkastförhandsvisningen i /manage/ är skrivskyddad: grinden
+  skickar då tillbaka en POST och mallarna döljer knappar med {{ read_only }}.
 - render_app lägger på sidomenyns kontext (app_context). Ingen
   kontextprocessor: bara verktygets sidor betalar för frågorna.
 """

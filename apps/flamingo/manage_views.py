@@ -73,7 +73,8 @@ def _flamingo_next(request):
 @staff_required
 @require_POST
 def view_as(request, pk):
-    """Öppna Flamingo med kundens ögon (samma skrivskyddade kundvy som portalen).
+    """Öppna Flamingo med kundens ögon: samma sidor, formulär och knappar som
+    kunden har. Det byrån sparar gäller på riktigt, i byråns namn.
 
     Knapparna i verktygets kundlista och i granskningen skickar next, så att
     byrån hamnar i verktyget eller på kampanjen i stället för på startsidan."""

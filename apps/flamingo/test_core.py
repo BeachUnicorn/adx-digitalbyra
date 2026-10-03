@@ -279,14 +279,17 @@ class GateTests(CoreFixture, TestCase):
         self.assertIn("Visa som kunden", html)
         self.assertNotIn("Sara Holm", html)
 
-    def test_staff_viewing_as_sees_the_customer_read_only(self):
+    def test_staff_viewing_as_sees_the_customer(self):
+        """Giovanni 2026-10-03: "visa som kund" ska visa det kunden ser. Byrån
+        i kundvyn har kundens formulär, och det byrån sparar gäller."""
         client = self.client_for(self.staff, view_as=self.acme)
         response = client.get(reverse("flamingo:app"))
         self.assertContains(response, "Lindqvist Rör AB")
         self.assertNotContains(response, "Hemlig")
+        self.assertContains(response, "gäller på riktigt")
         url = reverse("flamingo:app_campaign_submit", args=[self.draft.pk])
         response = client.post(url)
-        self.assertEqual(response["Location"], url)
+        self.assertNotEqual(response.get("Location"), url)
 
     def test_staff_viewing_as_a_customer_without_flamingo_gets_a_notice(self):
         client = self.client_for(self.staff, view_as=self.plain)

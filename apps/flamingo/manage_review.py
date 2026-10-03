@@ -1194,6 +1194,7 @@ def _return_to_review(request, pk):
             round=campaign.next_round(),
             submitted_by=request.user,
             snapshot=campaign.content_snapshot(),
+            taken_back=True,
         )
         campaign.status = Campaign.STATUS_IN_REVIEW
         campaign.approved_at = None

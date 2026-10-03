@@ -33,7 +33,7 @@ class FlamingoGateMiddleware:
             return self.get_response(request)
         request.flamingo = access
         if access.read_only and request.method not in SAFE_METHODS:
-            messages.info(request, "Kundvyn är skrivskyddad. Ändra från panelen i stället.")
+            messages.info(request, "Förhandsvisningen är skrivskyddad.")
             return redirect(request.path_info)
         response = self.get_response(request)
         response["X-Robots-Tag"] = "noindex, nofollow"

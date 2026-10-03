@@ -1082,20 +1082,16 @@ class CustomerPageTests(Base):
         self.assertIn("Kopplat, och betalningen är klar.", html)
         self.assertNotIn("Öppna Googles betalning", html)
 
-    def test_staff_in_view_as_is_read_only(self):
+    def test_staff_in_view_as_has_the_customers_form(self):
+        """Giovanni 2026-10-03: "visa som kund" ska visa det kunden ser. Byrån
+        i kundvyn har kundens formulär, och det byrån sparar gäller."""
         client = self.staff_client()
         session = client.session
         session[VIEW_AS_KEY] = self.acme.pk
         session.save()
-        FlamingoAccount.objects.filter(pk=self.account.pk).update(
-            google_link_requested_at=timezone.now()
-        )
         response = client.get(self.url)
-        self.assertContains(response, "Förfrågan skickad")
-        self.assertNotContains(response, 'name="action"')
-        client.post(self.url, {"action": "id", "google_ads_customer_id": "111-222-3333"})
-        self.account.refresh_from_db()
-        self.assertEqual(self.account.google_ads_customer_id, "987-654-3210")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "gäller på riktigt")
 
     def test_a_refused_request_does_not_ask_the_customer_to_approve(self):
         FlamingoAccount.objects.filter(pk=self.account.pk).update(

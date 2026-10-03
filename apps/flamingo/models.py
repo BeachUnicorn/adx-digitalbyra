@@ -911,6 +911,10 @@ class Review(models.Model):
     snapshot = models.JSONField("Inskickat innehåll", default=dict, blank=True)
     changes = models.JSONField("Ändringar", default=list, blank=True)
     note = models.TextField("Meddelande till kunden", blank=True)
+    #: Byrån tog tillbaka en godkänd kampanj till granskning (manage_review,
+    #: "Tillbaka till granskning"). Inte samma sak som att byrån skickade in
+    #: i kundvyn: där skickar byrån som kunden.
+    taken_back = models.BooleanField("ADX tog tillbaka kampanjen", default=False)
 
     class Meta:
         ordering = ["-round"]

@@ -85,9 +85,10 @@ som slår upp kundens `FlamingoAccount`, och varje id ur adressen eller ett
 formulär hämtas med `account=account`.
 
 - Kontakt: sin Flamingo-kund (väljare om flera).
-- Byrån i kundvyn: som kunden, **skrivskyddat** (grinden skickar tillbaka
-  varje POST, mallarna döljer formulären). Kunden utan Flamingo-konto ger
-  `app/no_account.html`.
+- Byrån i kundvyn: exakt som kunden, med samma formulär och knappar. Det
+  byrån sparar gäller på riktigt och sparas i byråns namn (remsan överst
+  säger det). Bara utkastförhandsvisningen i /manage/ är skrivskyddad.
+  Kunden utan Flamingo-konto ger `app/no_account.html`.
 - Byrån utan kundvy: verktyget visar Flamingo-kunderna med "Visa som
   kunden" (`app/staff_index.html`). Knappen skickar `next`, så kundvyn
   öppnas i verktyget; granskningens knapp öppnar kampanjen.
