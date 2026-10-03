@@ -2,8 +2,10 @@
 {% load static flamingo_app %}
 {% comment %}
 Översikten (kundresan steg 12). Bara riktiga siffror: annonspengarna och
-kronor per förfrågan/affär visas först när Google-rapporterna är kopplade,
-och bandet ritas bara när det finns förfrågningar att rita.
+kronor per förfrågan/affär visas först när Google-rapporterna är kopplade
+(numbers.spend_kr är None tills kontot fått en rapport), och bandet ritas
+bara när det finns förfrågningar att rita. Klick på telefonnumret räknas
+som förfrågningar.
 {% endcomment %}
 {% block app_title %}Översikt{% endblock %}
 {% block app_content %}
@@ -43,7 +45,7 @@ och bandet ritas bara när det finns förfrågningar att rita.
       <p class="fl-kpi__label">Annonspengar</p>
       {% if numbers.spend_kr is not None %}
       <p class="fl-kpi__value">{{ numbers.spend_kr|kr }}</p>
-      <p class="fl-kpi__note">Senaste {{ period_days }} dagarna</p>
+      <p class="fl-kpi__note">Senaste {{ period_days }} dagarna, enligt Google</p>
       {% else %}
       <p class="fl-kpi__note">Kopplas när Google-rapporterna är på</p>
       {% endif %}
@@ -67,6 +69,9 @@ och bandet ritas bara när det finns förfrågningar att rita.
       <p class="fl-kpi__label">Kr per förfrågan</p>
       {% if numbers.kr_per_lead is not None %}
       <p class="fl-kpi__value">{{ numbers.kr_per_lead|kr }}</p>
+      <p class="fl-kpi__note">Annonspengarna delat med förfrågningarna</p>
+      {% elif numbers.spend_kr is not None %}
+      <p class="fl-kpi__note">Ingen förfrågan att räkna på än</p>
       {% else %}
       <p class="fl-kpi__note">Kopplas när Google-rapporterna är på</p>
       {% endif %}
@@ -75,6 +80,9 @@ och bandet ritas bara när det finns förfrågningar att rita.
       <p class="fl-kpi__label">Kr per affär</p>
       {% if numbers.kr_per_deal is not None %}
       <p class="fl-kpi__value">{{ numbers.kr_per_deal|kr }}</p>
+      <p class="fl-kpi__note">Annonspengarna delat med affärerna</p>
+      {% elif numbers.spend_kr is not None %}
+      <p class="fl-kpi__note">Ingen affär att räkna på än</p>
       {% else %}
       <p class="fl-kpi__note">Kopplas när Google-rapporterna är på</p>
       {% endif %}
@@ -93,7 +101,7 @@ och bandet ritas bara när det finns förfrågningar att rita.
     <div><dt>Förfrågningar</dt><dd>{{ numbers.leads }}</dd></div>
     <div><dt>Blev affärer</dt><dd>{{ numbers.cohort_deals }}{% if numbers.cohort_percent is not None %} ({{ numbers.cohort_percent }} %){% endif %}</dd></div>
   </dl>
-  <p class="fl-panel__note">Förfrågningarna de senaste {{ period_days }} dagarna och hur många av dem som blivit affärer. Visningar och klick kommer när Google-rapporterna är på.</p>
+  <p class="fl-panel__note">Förfrågningarna de senaste {{ period_days }} dagarna och hur många av dem som blivit affärer. {% if numbers.clicks is not None %}Annonserna visades {{ numbers.impressions|tal }} gånger och fick {{ numbers.clicks|tal }} klick enligt Google.{% else %}Visningar och klick kommer när Google-rapporterna är på.{% endif %}</p>
 </section>
 {% endif %}
 
@@ -118,7 +126,7 @@ och bandet ritas bara när det finns förfrågningar att rita.
     {% else %}
     <div class="fl-empty">
       <p class="fl-empty__title">Inga förfrågningar än</p>
-      <p class="fl-empty__text">De hamnar här när en kampanj är live och någon fyller i formuläret på sidan.</p>
+      <p class="fl-empty__text">De hamnar här när en kampanj är live och någon fyller i formuläret eller trycker på numret på sidan.</p>
     </div>
     {% endif %}
   </section>

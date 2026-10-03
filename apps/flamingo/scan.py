@@ -34,6 +34,10 @@ Felet kunden ser är ett av läsningens egna (ScanError) eller en allmän text
 (READ_FAILED). Hämtningens egna fel (HTTP-status, nätverksfel, "internt nät")
 visas aldrig: de skulle berätta något om vad som finns bakom en adress.
 Hur ofta en läsning får göras avgörs av limits.reserve_scan (i vyn).
+
+Ett demokonto (FlamingoAccount.is_demo) läser aldrig av någon hemsida:
+företaget är påhittat. Vyn frågar demo_refusal före spärren, och
+scan_website vägrar själv också, utan att röra kontot.
 """
 
 import json
@@ -118,6 +122,18 @@ READ_FAILED = (
     "Vi kunde inte läsa hemsidan. Kontrollera att adressen stämmer och att sidan "
     "går att öppna i en webbläsare."
 )
+
+#: Det kunden (byrån i demot) ser när läsningen startas på ett demokonto.
+DEMO_REFUSED = (
+    "Det här är ett demokonto, så ingen hemsida läses av. Uppgifterna och "
+    "tjänsterna i demot är påhittade."
+)
+
+
+def demo_refusal(account):
+    """DEMO_REFUSED för ett demokonto, annars "" (läsningen får startas)."""
+    return DEMO_REFUSED if getattr(account, "is_demo", False) else ""
+
 
 SALES_SHORT = {
     Service.SALES_CALL: "ringer",
@@ -1149,7 +1165,12 @@ def _fail(account, message):
 
 def scan_website(account, url, *, user=None, budget=TIME_BUDGET):
     """Läs kundens hemsida och spara förslaget (obekräftat). Se modulens
-    beskrivning. Skickar ingenting till någon och publicerar ingenting."""
+    beskrivning. Skickar ingenting till någon och publicerar ingenting.
+
+    Ett demokonto läses aldrig: inget hämtas och kontot ändras inte."""
+    refused = demo_refusal(account)
+    if refused:
+        return ScanResult(ok=False, error=refused)
     deadline = time.monotonic() + budget
     try:
         url = normalize_url(url)

@@ -1,7 +1,7 @@
 """
 Filerna byrån laddar ner när Google Ads API inte är inkopplat (README,
-steg 8 och 11): kampanjen som Google Ads Editor-fil och vunna affärer som
-offline-konverteringar.
+steg 8 och 11): kampanjen som Google Ads Editor-fil, och förfrågningar,
+klick på numret och vunna affärer som offline-konverteringar.
 
 Båda är ren text (str). Vyerna i manage_review.py gör svaret av dem; här
 finns ingen databasskrivning och inget nätverk.
@@ -61,10 +61,20 @@ Offline-konverteringar (offline_conversions_csv)
 Googles mall för import av konverteringar från annonsklick: första raden
 "Parameters:TimeZone=Europe/Stockholm", sedan rubrikraden
 "Google Click ID,Conversion Name,Conversion Time,Conversion Value,
-Conversion Currency". Tiden skrivs yyyy-MM-dd HH:mm:ss i svensk tid (det
-tidszonen på första raden säger), värdet i hela kronor och valutan SEK.
-Konverteringens namn måste vara exakt det som finns i kundens Google
-Ads-konto: settings.FLAMINGO_CONVERSION_NAME, annars "ADX Flamingo affär".
+Conversion Currency,Ad User Data". Tiden skrivs yyyy-MM-dd HH:mm:ss i svensk
+tid (det tidszonen på första raden säger), värdet i hela kronor (bara
+affärer har ett) och valutan SEK. Ad User Data är besökarens samtycke
+(Granted/Denied, Googles mall för EU-samtycke), bara när Lead.ad_consent
+har ett riktigt svar; annars är cellen tom. Sidan frågar inte i dag, så
+cellen är tom och raderna köas ändå (beslut 2026-10-03).
+
+En rad per konvertering, med namnet för sin sort (conversion_names()):
+förfrågan "ADX Flamingo förfrågan", klick på numret "ADX Flamingo samtal"
+och affären settings.FLAMINGO_CONVERSION_NAME, annars "ADX Flamingo affär".
+Namnen måste finnas exakt så i kundens Google Ads-konto (med API:t skapar
+google_conversions.ensure_conversion_actions dem). Tiden är densamma som
+API:t skickar (conversion_moment), så Google känner igen en konvertering
+som redan kommit in den andra vägen.
 """
 
 import csv
@@ -81,6 +91,8 @@ from .models import (
     MATCH_BROAD,
     MATCH_EXACT,
     MATCH_PHRASE,
+    ConversionUpload,
+    Lead,
 )
 
 STOCKHOLM = ZoneInfo("Europe/Stockholm")
@@ -89,6 +101,10 @@ STOCKHOLM = ZoneInfo("Europe/Stockholm")
 FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 DEFAULT_CONVERSION_NAME = "ADX Flamingo affär"
+#: Konverteringarnas namn i kundens Google Ads-konto för förfrågan och klick
+#: på numret (affären heter conversion_name()).
+LEAD_CONVERSION_NAME = "ADX Flamingo förfrågan"
+CALL_CONVERSION_NAME = "ADX Flamingo samtal"
 DEFAULT_LANDING_BASE_URL = "https://adx.se"
 
 CONVERSIONS_PARAMETERS = "Parameters:TimeZone=Europe/Stockholm"
@@ -98,7 +114,10 @@ CONVERSIONS_HEADER = [
     "Conversion Time",
     "Conversion Value",
     "Conversion Currency",
+    "Ad User Data",
 ]
+#: Lead.ad_consent som Googles mall skriver det.
+CONSENT_CELLS = {Lead.CONSENT_GRANTED: "Granted", Lead.CONSENT_DENIED: "Denied"}
 CONVERSION_CURRENCY = "SEK"
 CONVERSION_TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -264,34 +283,55 @@ def google_ads_editor_csv(campaign):
 # ---------------------------------------------------------------------------
 
 
-def conversion_name():
-    return getattr(settings, "FLAMINGO_CONVERSION_NAME", "") or DEFAULT_CONVERSION_NAME
+def conversion_name(kind=ConversionUpload.KIND_DEAL):
+    """Konverteringens namn i kundens Google Ads-konto för sorten."""
+    return conversion_names()[kind]
+
+
+def conversion_names():
+    """{sort: namn} för förfrågan, klick på numret och affär."""
+    return {
+        ConversionUpload.KIND_LEAD: LEAD_CONVERSION_NAME,
+        ConversionUpload.KIND_CALL: CALL_CONVERSION_NAME,
+        ConversionUpload.KIND_DEAL: getattr(settings, "FLAMINGO_CONVERSION_NAME", "")
+        or DEFAULT_CONVERSION_NAME,
+    }
+
+
+def conversion_moment(upload):
+    """När konverteringen hände: affären när den blev vunnen (annars när
+    den köades), förfrågan och klicket när de kom in. Samma tid i filen och
+    i API:t."""
+    if upload.kind == ConversionUpload.KIND_DEAL:
+        return upload.lead.won_at or upload.created_at
+    return upload.lead.created_at
 
 
 def conversion_time(upload):
-    """När affären blev vunnen (annars när den köades), i svensk tid."""
-    moment = upload.lead.won_at or upload.created_at
-    return timezone.localtime(moment, STOCKHOLM).strftime(CONVERSION_TIME_FORMAT)
+    """conversion_moment i svensk tid, som filen vill ha den."""
+    return timezone.localtime(conversion_moment(upload), STOCKHOLM).strftime(CONVERSION_TIME_FORMAT)
 
 
 def offline_conversions_csv(uploads):
     """Konverteringarna i Googles importformat för klick-konverteringar.
 
-    uploads är ConversionUpload-rader (med lead). En rad utan klick-id kan
+    uploads är ConversionUpload-rader (med lead). En rad utan gclid kan
     Google inte koppla till ett klick och hoppas över."""
-    name = conversion_name()
+    names = conversion_names()
     rows = [[CONVERSIONS_PARAMETERS], CONVERSIONS_HEADER]
     for upload in uploads:
         gclid = (upload.lead.gclid or "").strip()
-        if not gclid:
+        if not gclid or upload.kind not in names:
             continue
+        value = upload.value_kr if upload.kind == ConversionUpload.KIND_DEAL else None
         rows.append(
             [
                 gclid,
-                name,
+                names[upload.kind],
                 conversion_time(upload),
-                int(upload.value_kr),
+                "" if value is None else int(value),
                 CONVERSION_CURRENCY,
+                CONSENT_CELLS.get(upload.lead.ad_consent, ""),
             ]
         )
     return _write(rows)

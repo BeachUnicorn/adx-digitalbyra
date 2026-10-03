@@ -84,11 +84,13 @@ def view_as(request, pk):
 
 @staff_required
 def overview(request):
-    """Kunderna med ADX Flamingo och vägarna till sidorna och verktyget."""
+    """Kunderna med ADX Flamingo och vägarna till sidorna och verktyget.
+    Demokunden står sist i listan, med en etikett, och räknas inte i
+    siffrorna (de är byråns riktiga arbete)."""
     accounts = (
         FlamingoAccount.objects.filter(is_enabled=True)
         .select_related("customer", "enabled_by")
-        .order_by("customer__name")
+        .order_by("is_demo", "customer__name")
     )
     pages = BlockPage.objects.filter(design=BlockPage.DESIGN_FLAMINGO).order_by("order", "title")
     return render(
@@ -98,6 +100,7 @@ def overview(request):
             "active": "flamingo",
             "title": "ADX Flamingo",
             "accounts": accounts,
+            "customer_count": sum(1 for account in accounts if not account.is_demo),
             "pages": pages,
             "home_page": pages.filter(slug=BlockPage.FLAMINGO_HOME_SLUG).first(),
             "candidates": Customer.objects.filter(is_active=True)

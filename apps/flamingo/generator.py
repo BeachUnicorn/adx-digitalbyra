@@ -25,7 +25,7 @@ påstående som inte går att belägga eller ett löfte om tid. Räcker det som
 blir kvar inte fylls det på från mallarna.
 
 Inget publiceras och inget skickas härifrån: förslaget är ett utkast tills
-kunden skickat det och ADX granskat det.
+kunden skickat det (och ADX granskat det, om kunden bad om granskning).
 """
 
 import json

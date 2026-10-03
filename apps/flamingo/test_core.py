@@ -3,13 +3,10 @@ kundväljaren, översikten och reglerna för "tre saker"."""
 
 import re
 from datetime import timedelta
-from io import StringIO
 
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.core.management import call_command
-from django.core.management.base import CommandError
-from django.test import Client, TestCase, override_settings
+from django.test import Client, TestCase
 from django.urls import reverse
 from django.utils import timezone
 
@@ -27,7 +24,6 @@ from .models import (
     Lead,
     Review,
     Service,
-    SmsLog,
     company_slug,
     format_google_ads_id,
     make_page_slug,
@@ -185,7 +181,9 @@ class ModelTests(CoreFixture, TestCase):
         self.assertTrue(account.autoreply_text)
 
     def test_won_with_a_click_id_queues_a_conversion(self):
-        lead = Lead.objects.create(account=self.account, name="Erik", gclid="abc")
+        lead = Lead.objects.create(
+            account=self.account, name="Erik", gclid="abc", ad_consent=Lead.CONSENT_GRANTED
+        )
         lead.set_status(Lead.STATUS_WON, value_kr=4800)
         upload = ConversionUpload.objects.get(lead=lead)
         self.assertEqual((upload.value_kr, upload.status), (4800, ConversionUpload.STATUS_QUEUED))
@@ -198,7 +196,9 @@ class ModelTests(CoreFixture, TestCase):
         self.assertIsNone(lead.won_at)
 
     def test_a_sent_conversion_is_never_touched(self):
-        lead = Lead.objects.create(account=self.account, name="Erik", gclid="abc")
+        lead = Lead.objects.create(
+            account=self.account, name="Erik", gclid="abc", ad_consent=Lead.CONSENT_GRANTED
+        )
         lead.set_status(Lead.STATUS_WON, value_kr=100)
         ConversionUpload.objects.filter(lead=lead).update(status=ConversionUpload.STATUS_SENT)
         lead.set_status(Lead.STATUS_LOST)
@@ -450,14 +450,12 @@ class OverviewTests(CoreFixture, TestCase):
             account=self.account, key="tel", label="Telefon", value="1", confirmed=True
         )
         html = self.client_for(self.anna).get(reverse("flamingo:app")).content.decode()
-        # Kopplat men utan betalning: Google-steget är kvar (kundresan 05).
-        self.assertIn('class="fl-steps"', html)
-        self.assertIn("Lägg in betalning hos Google", html)
-        FlamingoAccount.objects.filter(pk=self.account.pk).update(
-            google_status=FlamingoAccount.GOOGLE_BILLING_OK
-        )
-        html = self.client_for(self.anna).get(reverse("flamingo:app")).content.decode()
+        # Kopplat räcker för Google-steget: betalningen stoppar ingen kampanj
+        # (beslut 2026-10-03) och står kvar som en påminnelse bland "tre saker".
         self.assertNotIn('class="fl-steps"', html)
+        self.account.refresh_from_db()
+        keys = [t.key for t in rules.onboarding_things(self.account, None)]
+        self.assertIn("google_billing", keys)
 
     def test_the_inbox_badge_counts_new_leads(self):
         html = self.client_for(self.anna).get(reverse("flamingo:app")).content.decode()
@@ -564,9 +562,10 @@ class RulesTests(CoreFixture, TestCase):
         self.assertFalse(onboarding.complete)
         self.assertEqual(onboarding.steps[0].url, reverse("flamingo:app_proposal"))
 
-    def test_google_is_done_only_when_billing_is(self):
-        """Kopplat men utan betalning: kunden har ett steg kvar (kundresan 05),
-        och ingen kampanj kan gå live förrän det är gjort."""
+    def test_google_is_done_when_linked_and_billing_stays_a_reminder(self):
+        """Kopplat men utan betalning: Google-steget är klart (en kampanj kan
+        gå live, beslut 2026-10-03), men betalningen står kvar bland "tre
+        saker" tills ADX bockat av den."""
         Fact.objects.create(
             account=self.account, key="tel", label="Telefon", value="1", confirmed=True
         )
@@ -575,10 +574,10 @@ class RulesTests(CoreFixture, TestCase):
         )
         self.account.refresh_from_db()
         google = rules.onboarding_for(self.account).steps[2]
-        self.assertEqual(google.state, "now")
-        self.assertIn("betalning", google.note)
-        keys = [t.key for t in rules.onboarding_things(self.account, None)]
-        self.assertIn("google_billing", keys)
+        self.assertEqual(google.state, "done")
+        things = rules.onboarding_things(self.account, None)
+        self.assertEqual([t.key for t in things], ["google_billing"])
+        self.assertIn("Annonserna visas först", things[0].text)
         FlamingoAccount.objects.filter(pk=self.account.pk).update(
             google_status=FlamingoAccount.GOOGLE_BILLING_OK
         )
@@ -601,48 +600,3 @@ class RulesTests(CoreFixture, TestCase):
         self.assertTrue(rules.when_text(now - timedelta(days=1), now).startswith("i går "))
         self.assertEqual(rules.count_word(1, "sak", "saker"), "1 sak")
         self.assertEqual(rules.count_word(2, "sak", "saker"), "2 saker")
-
-
-# ---------------------------------------------------------------------------
-# Demodatan
-# ---------------------------------------------------------------------------
-
-
-class DemoCommandTests(TestCase):
-    def test_refuses_without_debug(self):
-        with self.assertRaises(CommandError):
-            call_command("flamingo_demo", stdout=StringIO())
-        self.assertFalse(Customer.objects.filter(name__contains="(demo)").exists())
-
-    @override_settings(DEBUG=True)
-    def test_builds_the_demo_idempotently_and_sends_nothing(self):
-        out = StringIO()
-        call_command("flamingo_demo", stdout=out)
-        call_command("flamingo_demo", stdout=out)
-        customer = Customer.objects.get(name="Lindqvist Rör AB (demo)")
-        account = customer.flamingo
-        self.assertTrue(account.is_enabled)
-        self.assertEqual(account.services.count(), 3)
-        self.assertEqual(
-            sorted(account.campaigns.values_list("status", flat=True)),
-            sorted(["draft", "in_review", "needs_customer", "live"]),
-        )
-        self.assertEqual(account.leads.count(), 8)
-        self.assertEqual(account.leads.filter(status=Lead.STATUS_WON).count(), 2)
-        self.assertEqual(ConversionUpload.objects.filter(lead__account=account).count(), 1)
-        self.assertTrue(account.sms_log.filter(status=SmsLog.STATUS_NOT_CONFIGURED).exists())
-        needs = account.campaigns.get(status=Campaign.STATUS_NEEDS_CUSTOMER)
-        self.assertEqual(len(needs.reviews.get().changes), 3)
-        in_review = account.campaigns.get(status=Campaign.STATUS_IN_REVIEW)
-        self.assertEqual(in_review.reviews.get().state, Review.STATE_PENDING)
-        contact = User.objects.get(username="demo@lindqvistror.se")
-        self.assertFalse(contact.has_usable_password())
-        self.assertIn("/flamingo/app/", out.getvalue())
-        self.assertEqual(mail.outbox, [])
-        # Kontakten ser översikten med demodatan.
-        client = Client()
-        client.force_login(contact)
-        response = client.get(reverse("flamingo:app"))
-        self.assertContains(response, "Godkänn Badrumsrenovering")
-        live = account.campaigns.get(status=Campaign.STATUS_LIVE)
-        self.assertEqual(Client().get(live.landing_url).status_code, 200)

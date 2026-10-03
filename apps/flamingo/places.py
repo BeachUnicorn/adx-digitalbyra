@@ -155,9 +155,11 @@ def _address(place):
 def update_from_google(account):
     """Slå upp företaget hos Google och spara det som hittas, obekräftat.
 
-    None när Places inte är konfigurerat (inget anrop görs). Annars ett
+    None när Places inte är konfigurerat eller kontot är ett demokonto
+    (inget anrop görs: demot pratar aldrig med Google, och läsningen av
+    hemsidan som anropar hit stoppas redan av scan.demo_refusal). Annars ett
     PlaceResult; fel loggas och ger found=False, aldrig ett undantag."""
-    if not is_configured():
+    if not is_configured() or getattr(account, "is_demo", False):
         return None
     try:
         place = search(_query(account))

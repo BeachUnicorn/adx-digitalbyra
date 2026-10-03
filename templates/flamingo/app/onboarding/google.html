@@ -2,10 +2,12 @@
 {% comment %}
 Google (kundresan steg 5). Kontext från app_views/onboarding.google:
 id_form (GoogleIdForm), timeline [{state, title, meta, billing_link,
-campaign_link, campaigns_link}].
-Kunden äger kontot och betalar Google direkt. Byrån bockar av "kopplat" och
-"betalning klar" i /manage/flamingo/; inloggning med Google (OAuth) kommer
-med Google Ads API och finns inte här än.
+campaign_link, campaigns_link}], google_state {tone, text} eller None,
+adx_note (byråns notering, utan den som bara upprepar läget).
+Kunden äger kontot och betalar Google direkt. Byrån skickar en
+kopplingsförfrågan eller skapar kontot med Google Ads API, eller bockar av
+för hand; läget här är det som senast lästes från Google. Betalningen
+stoppar inte kampanjerna. Kunden loggar aldrig in hos Google genom oss.
 {% endcomment %}
 {% block app_title %}Google{% endblock %}
 {% block app_content %}
@@ -17,8 +19,8 @@ med Google Ads API och finns inte här än.
   </div>
 </header>
 
-{% if account.google_note %}
-<p class="fl-notice fl-notice--info"><span><b>Från ADX:</b> {{ account.google_note }}</span></p>
+{% if adx_note %}
+<p class="fl-notice fl-notice--info"><span><b>Från ADX:</b> {{ adx_note }}</span></p>
 {% endif %}
 
 {% if not account.google_linked %}
@@ -46,7 +48,7 @@ med Google Ads API och finns inte här än.
 
   <section class="fl-panel fl-panel--accent" aria-labelledby="fl-onb-g-new">
     <h2 class="fl-panel__title" id="fl-onb-g-new">Skapa ett åt mig</h2>
-    <p class="fl-panel__text">Vi skapar kontot i ditt namn. Du får en inbjudan från Google och äger kontot från första dagen.</p>
+    <p class="fl-panel__text">Vi skapar kontot i ditt namn och ger dig tillgång till det som administratör. Du äger kontot från första dagen.</p>
     {% if account.google_status == "requested_new" %}
     <p class="fl-onb-state fl-onb-state--ok">Beställt</p>
     {% elif not read_only %}
@@ -65,6 +67,9 @@ med Google Ads API och finns inte här än.
     <h2 class="fl-panel__title" id="fl-onb-g-status">Läget</h2>
     <span class="fl-panel__note">{{ account.get_google_status_display }}</span>
   </div>
+  {% if google_state %}
+  <p class="fl-notice fl-notice--{{ google_state.tone }}"><span>{{ google_state.text }}</span></p>
+  {% endif %}
   <ol class="fl-timeline">
     {% for item in timeline %}
     <li class="fl-timeline__item is-{{ item.state }}">

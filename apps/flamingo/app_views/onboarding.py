@@ -7,8 +7,10 @@ Kom igång (kundresan steg 2, 4 och 5) och inställningarna.
                         rättar eller stryker, och tjänsterna.
     app/google/         Google: kundens eget Google Ads-konto, kopplat under
                         ADX. Kunden anger kontots id eller ber om ett nytt;
-                        byrån bockar av "kopplat" och "betalning klar" i
-                        /manage/flamingo/.
+                        byrån skickar kopplingsförfrågan eller skapar kontot
+                        (google_accounts.py), eller bockar av för hand.
+                        Betalningen stoppar ingenting: utan den visar Google
+                        bara inte annonserna.
     app/installningar/  Sms till kunden vid ny förfrågan och autosvaret.
 
 Allt hämtas via kontot (app_view): ett id ur formuläret slås alltid upp med
@@ -26,6 +28,7 @@ import math
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError, transaction
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -35,13 +38,14 @@ from django.utils.text import slugify
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 from apps.tools.analyzer import AnalysError, normalize_url
 
-from .. import checks, exports, generator, limits, places, scan, sms
+from .. import checks, exports, generator, google_accounts, limits, places, scan, sms
 from ..models import (
     AUTOREPLY_DEFAULT,
     Fact,
     FlamingoAccount,
     Service,
     format_google_ads_id,
+    google_id_taken,
 )
 from ..rules import when_text
 from . import app_view, render_app
@@ -437,8 +441,8 @@ def proposal(request, account):
                 # Spärren först: en läsning åt gången, inte för tätt och
                 # högst limits.SCAN_DAILY_MAX om dagen (varje läsning tar en
                 # arbetare i upp till scan.TIME_BUDGET sekunder och kan kosta
-                # ett AI-anrop).
-                refused = limits.reserve_scan(account)
+                # ett AI-anrop). Ett demokonto läses aldrig (scan.demo_refusal).
+                refused = scan.demo_refusal(account) or limits.reserve_scan(account)
                 if refused:
                     messages.info(request, refused)
                     return redirect("flamingo:app_proposal")
@@ -653,10 +657,61 @@ def business(request, account):
 # ---------------------------------------------------------------------------
 
 
-def _link_note(status):
+#: Ett id som ett annat Flamingo-konto har. Säger inte vems (inget läckage
+#: av vilka konton ADX förvaltar).
+GOOGLE_ID_TAKEN = (
+    "Det id:t går inte att använda här. Kontrollera att det är ditt kontos id, eller skriv "
+    "till ADX."
+)
+
+
+def _link_note(account):
+    if account.google_status == FlamingoAccount.GOOGLE_REQUESTED_NEW:
+        return "ADX skapar kontot i ditt namn och ger dig tillgång till det som administratör."
+    if account.google_link_requested_at:
+        return (
+            f"ADX skickade förfrågan {when_text(account.google_link_requested_at)}. Godkänn den "
+            f"i Google Ads under {google_accounts.MANAGERS_PATH}."
+        )
+    return (
+        "Du får en förfrågan om att koppla kontot till ADX. Godkänn den i Google Ads under "
+        f"{google_accounts.MANAGERS_PATH}."
+    )
+
+
+def _billing_note(account):
+    if account.google_ready:
+        return "Klart. Pengarna går direkt till Google."
+    if account.google_linked and account.google_billing_status == "PENDING":
+        return "Google granskar betalningen. Annonserna visas när den är godkänd."
+    if account.google_linked:
+        # Läget överst säger redan att betalningen inte stoppar kampanjerna.
+        return "Pengarna går direkt till Google, med ditt eget kort."
+    return "Pengarna går direkt till Google. Annonserna visas först när betalningen är inlagd."
+
+
+def _google_state(account):
+    """Läget i klartext överst: {tone, text}, eller None innan kunden valt."""
+    status = account.google_status
+    if account.google_ready:
+        return {"tone": "ok", "text": "Kopplat, och betalningen är klar."}
+    if account.google_linked:
+        return {
+            "tone": "warn",
+            "text": "Kopplat. Betalning saknas: annonserna visas först när betalningen är "
+            "inlagd hos Google. Det stoppar inte kampanjerna, de kan gå live ändå.",
+        }
+    if status == FlamingoAccount.GOOGLE_ID_GIVEN and account.google_link_requested_at:
+        return {
+            "tone": "warn",
+            "text": "Förfrågan skickad: godkänn ADX:s förfrågan i Google Ads under "
+            f"{google_accounts.MANAGERS_PATH}.",
+        }
+    if status == FlamingoAccount.GOOGLE_ID_GIVEN:
+        return {"tone": "info", "text": "ADX har kontots id och kopplar det under förvaltarkontot."}
     if status == FlamingoAccount.GOOGLE_REQUESTED_NEW:
-        return "Du får en inbjudan från Google. Godkänn den, så är kontot ditt."
-    return "Du får en förfrågan från Google om att koppla kontot till ADX. Godkänn den."
+        return {"tone": "info", "text": "ADX skapar ett konto i ditt namn."}
+    return None
 
 
 def _google_timeline(account, campaign_count=0):
@@ -677,35 +732,62 @@ def _google_timeline(account, campaign_count=0):
         first = ("Kontot är valt", "ADX har kontots uppgifter. Du är administratör.")
     else:
         first = ("Välj ett av sätten ovan", "Har du ett konto, eller ska vi skapa ett?")
+    # Betalningen stoppar inte kampanjerna: när kontot är kopplat kan de
+    # skapas och gå live. Annonserna visas när betalningen finns.
     if campaign_count:
         last = {
-            "state": "done" if ready else "todo",
+            "state": "done" if linked else "todo",
             "title": "Kampanjerna",
             "meta": f"Du har {campaign_count} {'kampanj' if campaign_count == 1 else 'kampanjer'}.",
             "campaigns_link": True,
         }
     else:
         last = {
-            "state": "done" if ready else "todo",
+            "state": "done" if linked else "todo",
             "title": "Redo att skapa första kampanjen",
             "meta": "",
-            "campaign_link": ready,
+            "campaign_link": linked,
         }
+    pending = status == FlamingoAccount.GOOGLE_ID_GIVEN and account.google_link_requested_at
     return [
         {"state": "done" if started else "now", "title": first[0], "meta": first[1]},
         {
             "state": "done" if linked else ("now" if started else "todo"),
-            "title": "ADX kopplar kontot under förvaltarkontot",
-            "meta": "Klart." if linked else _link_note(status),
+            "title": "Godkänn ADX:s förfrågan i Google Ads"
+            if pending
+            else "ADX kopplar kontot under förvaltarkontot",
+            "meta": "Klart." if linked else _link_note(account),
         },
         {
             "state": "done" if ready else ("now" if linked else "todo"),
             "title": "Lägg in betalning hos Google",
-            "meta": "Pengarna går direkt till Google. ADX bockar av här när betalningen syns.",
+            "meta": _billing_note(account),
             "billing_link": linked and not ready,
         },
         last,
     ]
+
+
+def _save_google_id(account, new_id, changed):
+    """Spara kundens id. False om ett annat konto hann ta id:t (databasens
+    regel), och då sparas ingenting."""
+    fields = ["google_ads_customer_id", "google_status"]
+    if changed:
+        # Betalningen, förfrågan och läsningen gällde det förra kontot.
+        fields += google_accounts.forget_previous_account(account)
+    account.google_ads_customer_id = new_id
+    if changed or not account.google_linked:
+        # Ett nytt id betyder en ny koppling, även efter en gammal.
+        account.google_status = FlamingoAccount.GOOGLE_ID_GIVEN
+    try:
+        with transaction.atomic():
+            account.save(update_fields=[*fields, "updated_at"])
+    except IntegrityError:
+        account.refresh_from_db()
+        return False
+    if changed:
+        google_accounts.clear_campaign_errors(account)
+    return True
 
 
 @app_view
@@ -718,32 +800,36 @@ def google(request, account):
             if id_form.is_valid():
                 new_id = id_form.cleaned_data["google_ads_customer_id"]
                 changed = new_id != account.google_ads_customer_id
-                account.google_ads_customer_id = new_id
-                if changed or not account.google_linked:
-                    # Ett nytt id betyder en ny koppling, även efter en gammal.
-                    account.google_status = FlamingoAccount.GOOGLE_ID_GIVEN
-                account.save(
-                    update_fields=["google_ads_customer_id", "google_status", "updated_at"]
-                )
-                messages.success(
-                    request,
-                    "Tack. ADX kopplar kontot under förvaltarkontot och bockar av här när "
-                    "det är gjort.",
-                )
-                return redirect("flamingo:app_google")
+                # Ett Google Ads-konto hör till en kund: ett id som ett annat
+                # Flamingo-konto har tas aldrig emot (också en regel i databasen).
+                if changed and not account.is_demo and google_id_taken(new_id, account.pk):
+                    id_form.add_error("google_ads_customer_id", GOOGLE_ID_TAKEN)
+                elif _save_google_id(account, new_id, changed):
+                    messages.success(
+                        request,
+                        "Tack. ADX kopplar kontot under förvaltarkontot, och läget syns här.",
+                    )
+                    return redirect("flamingo:app_google")
+                else:
+                    id_form.add_error("google_ads_customer_id", GOOGLE_ID_TAKEN)
         elif action == "new":
             if not account.google_linked:
                 account.google_status = FlamingoAccount.GOOGLE_REQUESTED_NEW
                 account.save(update_fields=["google_status", "updated_at"])
                 messages.success(
                     request,
-                    "Tack. ADX skapar kontot i ditt namn, och du får en inbjudan från Google.",
+                    "Tack. ADX skapar kontot i ditt namn och ger dig tillgång till det.",
                 )
             return redirect("flamingo:app_google")
         else:
             return redirect("flamingo:app_google")
     if id_form is None:
         id_form = GoogleIdForm(initial={"google_ads_customer_id": account.google_ads_customer_id})
+    state = _google_state(account)
+    # Förfrågans notering säger samma sak som läget överst.
+    note = account.google_note
+    if state and note == google_accounts.NOTE_LINK:
+        note = ""
     return render_app(
         request,
         "flamingo/app/onboarding/google.html",
@@ -751,6 +837,8 @@ def google(request, account):
         {
             "id_form": id_form,
             "timeline": _google_timeline(account, account.campaigns.count()),
+            "google_state": state,
+            "adx_note": note,
             "show_steps": True,
         },
     )

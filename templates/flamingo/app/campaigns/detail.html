@@ -5,7 +5,11 @@ Kampanjen (kundresan 07 och 08): flikarna Annonser, Sökord, Sidan och
 Granskning. Kunden ändrar bara i utkast och efter granskningen (can_edit);
 en ändring efter granskningen gör kampanjen till ett utkast igen. Problemen
 från checks.validate står vid fälten, och inskicket syns först när de är
-rättade. Kontext: se app_views/campaigns.campaign_detail.
+rättade. Vid inskicket väljer kunden om ADX ska granska (kryssrutan review,
+av från början); texten och knappen säger vad som händer, efter
+approval_path (google_publish.approval_path), med :has() i
+flamingo-app-campaigns.css och en allmän text utan stöd. Kontext: se
+app_views/campaigns.campaign_detail.
 {% endcomment %}
 {% block app_title %}{{ campaign.name }}{% endblock %}
 {% block app_content %}
@@ -38,14 +42,14 @@ rättade. Kontext: se app_views/campaigns.campaign_detail.
   {% if tab != "granskning" %}<a class="fl-btn" href="?flik=granskning">Se granskningen</a>{% endif %}
 </section>
 {% elif is_approved %}
-<p class="fl-notice fl-notice--ok"><span>Godkänd av dig {{ campaign.approved_at|date:"j F H:i" }}. ADX publicerar kampanjen, och du ser här när den är live.</span></p>
+<p class="fl-notice fl-notice--ok"><span>{% if campaign.review_requested %}Godkänd{% else %}Skickad{% endif %} av dig {{ campaign.approved_at|date:"j F H:i" }}. {% if google_linked %}ADX publicerar kampanjen, och du ser här när den är live.{% else %}ADX publicerar kampanjen när ditt Google Ads-konto är kopplat under ADX.{% endif %}</span>{% if not google_linked %}<a href="{% url 'flamingo:app_google' %}">Google</a>{% endif %}</p>
 {% elif campaign.status == "live" %}
 <p class="fl-notice fl-notice--ok"><span>Kampanjen är live{% if campaign.published_at %} sedan {{ campaign.published_at|date:"j F" }}{% endif %}.{% if landing %} Sidan: <a href="{{ landing.href }}">{{ landing.text }}</a>.{% endif %} Förfrågningarna från sidan hamnar i <a href="{% url 'flamingo:app_inbox' %}">inkorgen</a>.</span></p>
 {% elif campaign.status == "paused" %}
 <p class="fl-notice fl-notice--warn"><span>Kampanjen är pausad. Annonserna visas inte.</span></p>
 {% endif %}
-{% if not google_ready and campaign.status != "live" and campaign.status != "paused" %}
-<p class="fl-notice fl-notice--warn"><span>Kampanjen kan gå live först när ditt Google Ads-konto är kopplat och betalningen är klar.</span><a href="{% url 'flamingo:app_google' %}">Google</a></p>
+{% if not google_linked and not is_approved and campaign.status != "live" and campaign.status != "paused" %}
+<p class="fl-notice fl-notice--warn"><span>Kampanjen kan gå live först när ditt Google Ads-konto är kopplat under ADX.</span><a href="{% url 'flamingo:app_google' %}">Google</a></p>
 {% endif %}
 
 <section class="fl-panel fl-panel--soft fl-camp-settings" id="camp-settings" aria-labelledby="camp-settings-title">
@@ -95,7 +99,7 @@ rättade. Kontext: se app_views/campaigns.campaign_detail.
 </nav>
 
 {% if can_edit and campaign.status == "needs_customer" and tab != "granskning" %}
-<p class="fl-notice fl-notice--warn"><span>ADX har granskat det här. Sparar du en ändring blir kampanjen ett utkast igen och går en ny granskning.</span></p>
+<p class="fl-notice fl-notice--warn"><span>{% if campaign.review_requested %}ADX har granskat det här. Sparar du en ändring blir kampanjen ett utkast igen och går en ny granskning.{% else %}Kampanjen är skickad. Sparar du en ändring blir den ett utkast igen, och du skickar den på nytt.{% endif %}</span></p>
 {% endif %}
 <div class="fl-camp-tab">
   {% if tab == "annonser" %}{% include "flamingo/app/campaigns/_tab_ads.html" %}
@@ -104,7 +108,7 @@ rättade. Kontext: se app_views/campaigns.campaign_detail.
   {% else %}{% include "flamingo/app/campaigns/_tab_review.html" %}{% endif %}
 </div>
 
-{% if campaign.status == "draft" and tab != "granskning" %}
+{% if campaign.status == "draft" %}
 <section class="fl-panel fl-camp-submit" aria-labelledby="camp-submit">
   {% if problems %}
   <h2 class="fl-panel__title" id="camp-submit">Rätta det här innan du skickar</h2>
@@ -114,18 +118,22 @@ rättade. Kontext: se app_views/campaigns.campaign_detail.
     {% endfor %}
   </ul>
   {% else %}
-  <div class="fl-camp-submit__row">
+  {% if can_edit %}<form method="post" action="{% url 'flamingo:app_campaign_submit' campaign.pk %}" class="fl-camp-submit__form">
+    {% csrf_token %}{% else %}<div class="fl-camp-submit__form">{% endif %}
     <div class="fl-camp-submit__text">
       <h2 class="fl-panel__title" id="camp-submit">Klart att skicka</h2>
-      <p class="fl-panel__note">{{ campaign.headlines|length }} rubriker och {{ campaign.descriptions|length }} beskrivningar. Google testar kombinationerna. En person på ADX läser allt innan något publiceras.</p>
+      <p class="fl-panel__note">{{ campaign.headlines|length }} rubriker och {{ campaign.descriptions|length }} beskrivningar. Kontrollerna är gröna, och Google testar kombinationerna.</p>
     </div>
     {% if can_edit %}
-    <form method="post" action="{% url 'flamingo:app_campaign_submit' campaign.pk %}">
-      {% csrf_token %}
-      <button type="submit" class="fl-btn">Skicka till granskning</button>
-    </form>
+    <label class="fl-check fl-camp-submit__choice"><input type="checkbox" name="review" value="1"><span>Jag vill att ADX granskar kampanjen innan den publiceras</span></label>
+    <p class="fl-panel__note fl-camp-submit__any">Utan granskning går kampanjen vidare till publicering som den är. Med granskning går ADX igenom den först, och du godkänner ändringarna innan den publiceras. Google granskar också varje annons innan den visas.</p>
+    <p class="fl-panel__note fl-camp-submit__direct">{% if approval_path == "live" %}Kampanjen publiceras direkt, eftersom kontrollerna är gröna. Google granskar också varje annons innan den visas.{% elif approval_path == "not_linked" %}Kampanjen publiceras som den är när ditt Google Ads-konto är kopplat under ADX. Google granskar också varje annons innan den visas.{% else %}ADX publicerar kampanjen som den är, utan att granska den. Google granskar också varje annons innan den visas.{% endif %}</p>
+    <p class="fl-panel__note fl-camp-submit__review">ADX går igenom kampanjen och rättar det som behövs, och du godkänner ändringarna innan den publiceras.</p>
+    <div class="fl-camp-submit__actions">
+      <button type="submit" class="fl-btn"><span class="fl-camp-submit__any">Skicka</span><span class="fl-camp-submit__direct">{% if approval_path == "live" %}Publicera{% else %}Skicka för publicering{% endif %}</span><span class="fl-camp-submit__review">Skicka till granskning</span></button>
+    </div>
     {% endif %}
-  </div>
+  {% if can_edit %}</form>{% else %}</div>{% endif %}
   {% endif %}
 </section>
 {% endif %}

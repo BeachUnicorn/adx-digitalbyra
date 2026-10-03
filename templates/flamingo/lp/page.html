@@ -6,12 +6,14 @@ Landningssidan (kundresan steg 09). Ordningen följer hur tjänsten säljs:
 questions (med bound-fältet), tracking (klick-id och utm som följer med i
 dolda fält), honeypot, action.
 {% endcomment %}
+{% load static %}
+{% block scripts %}<script src="{% static 'js/flamingo-lp.js' %}?v={{ static_version }}" defer></script>{% endblock %}
 {% block content %}
 <div class="lp-wrap lp-grid">
   <section class="lp-intro" aria-labelledby="lp-title">
     <h1 class="lp-title" id="lp-title">{{ content.title }}</h1>
     {% if content.mode == "call" and content.phone %}
-    <a class="lp-call" href="{{ content.tel }}">
+    <a class="lp-call" href="{{ content.tel }}" data-fl-call>
       <svg class="lp-call__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>
       <span>Ring {{ content.phone }}</span>
     </a>
@@ -102,7 +104,7 @@ dolda fält), honeypot, action.
     </section>
 
     {% if content.mode != "call" and content.phone %}
-    <p class="lp-or">eller ring <a href="{{ content.tel }}">{{ content.phone }}</a></p>
+    <p class="lp-or">eller ring <a href="{{ content.tel }}" data-fl-call>{{ content.phone }}</a></p>
     {% endif %}
     {% if content.mode != "call" and content.note %}
     <p class="lp-after">{{ content.note|linebreaksbr }}</p>

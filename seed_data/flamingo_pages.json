@@ -4,7 +4,7 @@
     "title": "ADX Flamingo",
     "design": "flamingo",
     "meta_title": "ADX Flamingo",
-    "meta_description": "Annonser i Google sök, en sida per tjänst och förfrågningarna i en inkorg, mätt hela vägen till affär. En person på ADX granskar allt innan något publiceras.",
+    "meta_description": "Annonser i Google sök, en sida per tjänst och förfrågningarna i en inkorg, mätt hela vägen till affär. Granskning av en person på ADX när du vill.",
     "blocks": [
       {
         "type": "fl_hero",
@@ -13,7 +13,7 @@
           "badge_text": "För dig som är kund hos ADX",
           "title": "Fler kunder från Google.",
           "title_accent": "Och vad de gav.",
-          "lead": "ADX Flamingo bygger annonser i Google sök och en sida per tjänst utifrån din hemsida. En person på ADX granskar allt innan det går ut, och du ser vad varje ny kund kostade. Annonskontot är ditt.",
+          "lead": "ADX Flamingo bygger annonser i Google sök och en sida per tjänst utifrån din hemsida. Inget går ut innan du skickat det, du väljer om en person på ADX ska granska först, och du ser vad varje ny kund kostade. Annonskontot är ditt.",
           "primary": {"label": "Kom igång", "url": "/flamingo/app/"},
           "secondary": {"label": "", "url": ""},
           "anchor": "",
@@ -55,7 +55,7 @@
         "type": "fl_layers",
         "data": {
           "kicker": "Vad du får",
-          "title": "Annonserna, sidorna och mätningen. Med en människa emellan.",
+          "title": "Annonserna, sidorna och mätningen. Med en människa när du vill.",
           "intro": "Allt det här ingår i den fasta månadsavgiften. Annonspengarna betalar du direkt till Google.",
           "anchor": "vad-du-far",
           "cards": [
@@ -69,23 +69,23 @@
             {
               "kicker": "02 - Sidorna och förfrågningarna",
               "title": "En sida per tjänst. En inkorg för allt.",
-              "text": "Sidorna ligger på din egen subdomän och är byggda för mobilen. Varje förfrågan sparas med vilken annons och vilket sökord den kom från.",
+              "text": "En sida per tjänst, i ditt namn och byggd för mobilen. Varje förfrågan sparas med vilken annons och vilket sökord den kom från.",
               "variant": "soft",
-              "details": "Spårat telefonnummer\nSms till dig vid ny förfrågan\nAutosvar med en text du har godkänt\nStatus och belopp i inkorgen"
+              "details": "Klick på numret räknas som förfrågan\nSms till dig vid ny förfrågan\nAutosvar med en text du har godkänt\nStatus och belopp i inkorgen"
             },
             {
               "kicker": "03 - Mätningen och människan",
               "title": "Kronor per affär, inte bara klick.",
               "text": "Markera en förfrågan som vunnen och skriv beloppet. Affären skickas tillbaka till Google, och översikten visar vad varje ny kund kostade.",
               "variant": "pastel",
-              "details": "Kronor per förfrågan\nKronor per affär\nAffärsvärde\nEn person på ADX granskar före publicering"
+              "details": "Kronor per förfrågan\nKronor per affär\nAffärsvärde\nEn person på ADX granskar om du vill"
             },
             {
               "kicker": "04 - Du godkänner allt",
               "title": "Inget går ut utan ditt ja.",
-              "text": "En person på ADX granskar varje förslag och varje ändring. Du ser vad som ändrades och varför, och först när du har godkänt går det till Google och sidan.",
+              "text": "Inget går till Google eller sidan innan du skickat det. Vill du att en person på ADX granskar först kryssar du i det: då ser du vad som ändrades och varför, och godkänner innan något publiceras.",
               "variant": "line",
-              "details": "Granskat av ADX\nÄndringar med motivering\nDitt godkännande\nVarje ändring loggas"
+              "details": "Granskning av ADX om du vill\nÄndringar med motivering\nDitt godkännande\nVarje ändring loggas"
             },
             {
               "kicker": "05 - Bara det du bekräftat",
@@ -108,7 +108,7 @@
         "type": "steps",
         "data": {
           "kicker": "Så går det till",
-          "title": "Förslag, granskning, godkännande, mätning.",
+          "title": "Förslag, granskning om du vill, godkännande, mätning.",
           "intro": "Samma väg för första kampanjen och för varje ändring efteråt.",
           "steps": [
             {
@@ -116,12 +116,12 @@
               "text": "Du anger din hemsida. Vi läser ut tjänster, telefon och uppgifter om företaget och föreslår annonser, sökord och en sida per tjänst. Inget publiceras."
             },
             {
-              "title": "Granskningen",
-              "text": "En person på ADX går igenom förslaget bredvid din egen sajt, rättar det som behövs och skriver varför."
+              "title": "Granskningen, om du vill",
+              "text": "Kryssar du i att ADX ska granska går en person på ADX igenom förslaget bredvid din egen sajt, rättar det som behövs och skriver varför."
             },
             {
               "title": "Godkännandet",
-              "text": "Du ser vad som ändrades och godkänner. Först då går annonserna ut och sidan publiceras."
+              "text": "Du skickar kampanjen, eller godkänner det ADX ändrat. Först då går annonserna ut och sidan publiceras."
             },
             {
               "title": "Mätningen",
@@ -192,7 +192,7 @@
             {"label": "Förfrågan går bara till dig", "v1": "Delas ofta", "v2": "+", "v3": "+"},
             {"label": "Annonskontot är ditt", "v1": "-", "v2": "+", "v3": "+"},
             {"label": "En sida per tjänst", "v1": "-", "v2": "Bygger du själv", "v3": "+"},
-            {"label": "En person granskar före publicering", "v1": "-", "v2": "-", "v3": "+"},
+            {"label": "En person granskar före publicering, om du vill", "v1": "-", "v2": "-", "v3": "+"},
             {"label": "Vunna affärer tillbaka till Google", "v1": "-", "v2": "Sätter du upp själv", "v3": "+"},
             {"label": "Kronor per affär", "v1": "-", "v2": "Räknar du själv", "v3": "+"},
             {"label": "Kostnad", "v1": "Ofta per förfrågan", "v2": "Din egen tid", "v3": "Fast pris per månad"}
@@ -222,7 +222,7 @@
               "desc": "Samma avgift oavsett hur många förfrågningar som kommer in. Du får priset innan du godkänner något.",
               "price": "Fast pris per månad",
               "price_note": "Inget per förfrågan, inget påslag",
-              "features": "Annonser i Google sök\nEn sida per tjänst\nInkorg, sms och autosvar\nÖversikt med kronor per affär\nGranskning av en person på ADX\nIngen bindningstid",
+              "features": "Annonser i Google sök\nEn sida per tjänst\nInkorg, sms och autosvar\nÖversikt med kronor per affär\nGranskning av en person på ADX när du vill\nIngen bindningstid",
               "cta_label": "Kom igång",
               "cta_url": "/flamingo/app/"
             }
@@ -249,11 +249,11 @@
             },
             {
               "q": "Vem skriver texterna?",
-              "a": "Kampanjernas uppbyggnad följer fasta regler. Rubriker, beskrivningar och sidtext skrivs utifrån de uppgifter du har bekräftat om företaget, och saknas ett pris skriver vi inget pris. En person på ADX läser allt innan du får det för godkännande."
+              "a": "Kampanjernas uppbyggnad följer fasta regler. Rubriker, beskrivningar och sidtext skrivs utifrån de uppgifter du har bekräftat om företaget, och saknas ett pris skriver vi inget pris. Vill du att en person på ADX läser allt innan det publiceras kryssar du i det när du skickar kampanjen."
             },
             {
               "q": "Kan jag ändra själv?",
-              "a": "Ja. Du kan ändra i förslaget innan det skickas till granskning, och be om ändringar när kampanjen är igång. Varje ändring går samma väg: ADX granskar och du godkänner innan något publiceras."
+              "a": "Ja. Du kan ändra i förslaget innan du skickar det, och be om ändringar när kampanjen är igång. Varje ändring går samma väg: du väljer om ADX ska granska den, och inget publiceras innan du skickat eller godkänt den."
             },
             {
               "q": "Vad händer när någon skickar en förfrågan?",
@@ -261,7 +261,7 @@
             },
             {
               "q": "Vad händer med mina kunders uppgifter?",
-              "a": "Förfrågningarna innehåller personuppgifter. ADX behandlar dem för din räkning enligt ett personuppgiftsbiträdesavtal som du godkänner när du börjar, och de används till din inkorg och din mätning. När du markerar en affär som vunnen skickas den till Google kopplad till annonsklicket, tillsammans med beloppet."
+              "a": "Förfrågningarna innehåller personuppgifter. ADX behandlar dem för din räkning enligt ett personuppgiftsbiträdesavtal som du godkänner när du börjar, och de används till din inkorg och din mätning. Förfrågningar och klick på numret som kom från en annons, och affärer du markerar som vunna, skickas till Google kopplade till annonsklicket, affärerna med beloppet."
             },
             {
               "q": "Kan jag avsluta?",

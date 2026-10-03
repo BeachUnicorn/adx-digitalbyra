@@ -11,6 +11,7 @@ from unittest import mock
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.messages import get_messages
 from django.core import mail
 from django.http import QueryDict
 from django.template.defaultfilters import date as date_filter
@@ -114,11 +115,14 @@ class StaffFixture:
 
     @staticmethod
     def _campaign(account, service, name, status):
+        # Kampanjerna här har gått en granskningsrunda: kunden bad om den
+        # (granskningen är kundens val, Campaign.review_requested).
         return Campaign.objects.create(
             account=account,
             service=service,
             name=name,
             status=status,
+            review_requested=status != Campaign.STATUS_DRAFT,
             area="Nacka + 15 km",
             radius_km=15,
             daily_budget_kr=200,
@@ -651,9 +655,10 @@ class PublishTests(StaffFixture, TestCase):
         self.assertEqual(self.approved.google_campaign_id, "12345678")
         self.assertEqual(mail.outbox, [])
 
-    def test_publish_waits_for_google_billing(self):
+    def test_publish_waits_for_the_google_link_but_not_for_billing(self):
+        """Betalningen stoppar inte (beslut 2026-10-03), kopplingen gör det."""
         FlamingoAccount.objects.filter(pk=self.account.pk).update(
-            google_status=FlamingoAccount.GOOGLE_LINKED
+            google_status=FlamingoAccount.GOOGLE_ID_GIVEN
         )
         self.post(self.approved, action="publish")
         self.approved.refresh_from_db()
@@ -661,6 +666,14 @@ class PublishTests(StaffFixture, TestCase):
         page = self.staff_client().get(reverse("manage:flamingo_review", args=[self.approved.pk]))
         self.assertContains(page, "Kan inte markeras som live")
         self.assertNotContains(page, "Markera som live</button>")
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(
+            google_status=FlamingoAccount.GOOGLE_LINKED
+        )
+        page = self.staff_client().get(reverse("manage:flamingo_review", args=[self.approved.pk]))
+        self.assertContains(page, "Annonserna visas först när kunden lagt in betalning")
+        self.post(self.approved, action="publish")
+        self.approved.refresh_from_db()
+        self.assertEqual(self.approved.status, Campaign.STATUS_LIVE)
 
     def test_a_new_round_blocks_publishing(self):
         Review.objects.create(campaign=self.approved, round=2)
@@ -694,11 +707,14 @@ class PublishTests(StaffFixture, TestCase):
             response, reverse("manage:flamingo_editor_csv", args=[self.approved.pk])
         )
         self.assertContains(response, "Markera som live")
+        # Bara utvecklartoken räcker inte: API:t behöver hela kopplingen
+        # (test_google_publish.py prövar vägen med API:t).
         with override_settings(GOOGLE_ADS_DEVELOPER_TOKEN="dev-token"):
             response = self.staff_client().get(
                 reverse("manage:flamingo_review", args=[self.approved.pk])
             )
-        self.assertContains(response, "publicering via API är inte byggd än")
+        self.assertContains(response, "Google Ads API är inte inkopplat")
+        self.assertContains(response, "Markera som live</button>")
 
     def test_unknown_action_is_404(self):
         response = self.post(self.approved, action="radera")
@@ -811,13 +827,19 @@ class ConversionCsvTests(StaffFixture, TestCase):
     def setUpTestData(cls):
         super().setUpTestData()
         cls.won = Lead.objects.create(
-            account=cls.account, name="Sara Holm", gclid="Cj0KCQjw-abc_123"
+            account=cls.account,
+            name="Sara Holm",
+            gclid="Cj0KCQjw-abc_123",
+            ad_consent=Lead.CONSENT_GRANTED,
         )
         cls.won.set_status(
             Lead.STATUS_WON, value_kr=186000, now=datetime(2026, 10, 1, 10, 0, tzinfo=UTC)
         )
         cls.other_won = Lead.objects.create(
-            account=cls.other_account, name="Bo", gclid="EAIaIQobChMI"
+            account=cls.other_account,
+            name="Bo",
+            gclid="EAIaIQobChMI",
+            ad_consent=Lead.CONSENT_GRANTED,
         )
         cls.other_won.set_status(
             Lead.STATUS_WON, value_kr=45000, now=datetime(2026, 1, 15, 8, 30, tzinfo=UTC)
@@ -832,15 +854,16 @@ class ConversionCsvTests(StaffFixture, TestCase):
         self.assertEqual(lines[0], "Parameters:TimeZone=Europe/Stockholm")
         self.assertEqual(
             lines[1],
-            "Google Click ID,Conversion Name,Conversion Time,Conversion Value,Conversion Currency",
+            "Google Click ID,Conversion Name,Conversion Time,Conversion Value,"
+            "Conversion Currency,Ad User Data",
         )
         self.assertEqual(
             sorted(lines[2:]),
             sorted(
                 [
                     # 10:00 UTC är 12:00 i svensk sommartid, 08:30 UTC 09:30 på vintern.
-                    "Cj0KCQjw-abc_123,ADX Flamingo affär,2026-10-01 12:00:00,186000,SEK",
-                    "EAIaIQobChMI,ADX Flamingo affär,2026-01-15 09:30:00,45000,SEK",
+                    "Cj0KCQjw-abc_123,ADX Flamingo affär,2026-10-01 12:00:00,186000,SEK,Granted",
+                    "EAIaIQobChMI,ADX Flamingo affär,2026-01-15 09:30:00,45000,SEK,Granted",
                 ]
             ),
         )
@@ -924,7 +947,7 @@ class GoogleUpdateTests(StaffFixture, TestCase):
         )
 
     def test_the_id_is_ten_digits_stored_with_dashes(self):
-        for raw in ("1234567890", "123 456 7890", "123-456-7890"):
+        for raw in ("2223334444", "222 333 4444", "222-333-4444"):
             with self.subTest(raw=raw):
                 response = self.post(
                     google_status="linked", google_ads_customer_id=raw, google_note="Kopplat"
@@ -935,7 +958,7 @@ class GoogleUpdateTests(StaffFixture, TestCase):
                     fetch_redirect_response=False,
                 )
                 self.other_account.refresh_from_db()
-                self.assertEqual(self.other_account.google_ads_customer_id, "123-456-7890")
+                self.assertEqual(self.other_account.google_ads_customer_id, "222-333-4444")
                 self.assertEqual(self.other_account.google_status, "linked")
                 self.assertEqual(self.other_account.google_note, "Kopplat")
         self.assertEqual(mail.outbox, [])
@@ -954,9 +977,29 @@ class GoogleUpdateTests(StaffFixture, TestCase):
                 self.assertEqual(self.other_account.google_status, "not_started")
                 self.assertEqual(self.other_account.google_ads_customer_id, "")
 
+    def test_an_id_another_customer_has_is_refused(self):
+        # Acme har 123-456-7890. Ett Google Ads-konto hör till en kund.
+        response = self.post(google_status="linked", google_ads_customer_id="1234567890")
+        self.assertEqual(response.status_code, 302)
+        self.other_account.refresh_from_db()
+        self.assertEqual(self.other_account.google_ads_customer_id, "")
+        self.assertEqual(self.other_account.google_status, "not_started")
+        text = " ".join(str(m) for m in get_messages(response.wsgi_request))
+        self.assertIn("används redan av Lindqvist Rör AB", text)
+
+    def test_a_new_id_clears_old_google_errors_on_unpublished_campaigns(self):
+        campaign = self.approved
+        Campaign.objects.filter(pk=campaign.pk).update(google_error="Kontots valuta är EUR.")
+        self.staff_client().post(
+            reverse("manage:flamingo_google_update", args=[self.acme.pk]),
+            {"google_status": "id_given", "google_ads_customer_id": "999-888-7777"},
+        )
+        campaign.refresh_from_db()
+        self.assertEqual(campaign.google_error, "")
+
     def test_the_id_can_be_cleared_while_not_linked(self):
         FlamingoAccount.objects.filter(pk=self.other_account.pk).update(
-            google_ads_customer_id="123-456-7890", google_status="id_given"
+            google_ads_customer_id="222-333-4444", google_status="id_given"
         )
         self.post(google_status="requested_new", google_ads_customer_id="")
         self.other_account.refresh_from_db()
@@ -995,6 +1038,21 @@ class GoogleUpdateTests(StaffFixture, TestCase):
 # ---------------------------------------------------------------------------
 # Mallarna
 # ---------------------------------------------------------------------------
+
+
+class CustomerPanelTextTests(TestCase):
+    def test_the_flamingo_panel_text_is_16px(self):
+        # Löptexten i kundkortets Flamingo-panel (bland den vad Google mejlar)
+        # är 16 px; resten av kundkortet behåller sina små noteringar.
+        base = Path(settings.BASE_DIR)
+        panel = (base / "templates" / "flamingo" / "_customer_panel.html").read_text("utf-8")
+        self.assertIn('class="m-panel tv-panel tv-panel--read" id="flamingo"', panel)
+        css = (base / "static" / "css" / "tavla.css").read_text("utf-8")
+        self.assertRegex(
+            css,
+            r"\.tv-panel--read \.tv-prop__note,\.tv-panel--read \.tv-checklabel--box"
+            r"\{font-size:16px",
+        )
 
 
 class TemplateGuardTests(TestCase):

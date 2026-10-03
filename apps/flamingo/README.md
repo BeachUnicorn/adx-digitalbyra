@@ -1,11 +1,33 @@
 # ADX Flamingo
 
 Annonser i Google sök, en sida per tjänst och förfrågningar i en inkorg,
-mätt hela vägen till affär. En person på ADX granskar allt innan något
-publiceras. Godkänd kundresa: `adx-marketing/kundresa-mvp.html` (steg 02-12).
+mätt hela vägen till affär. Kunden väljer vid inskicket om en person på ADX
+ska granska kampanjen innan den publiceras (beslut 2026-10-03). Godkänd
+kundresa: `adx-marketing/kundresa-mvp.html` (steg 02-12).
 
 Tjänsten är stängd: bara kunder som byrån aktiverat på kundkortet ser den.
 Kundens konto skapas av byrån (kontakt i kundportalen), inte av kunden själv.
+
+## Beslut 2026-10-03 (Giovanni)
+
+De här gäller före äldre beskrivningar:
+
+1. **Betalningen stoppar aldrig publiceringen.** En kampanj kostar ADX
+   ingenting innan annonserna visas, och ADX fakturerar i efterhand. En
+   kampanj behöver kontot kopplat under ADX, inte betalningen. Utan
+   betalning visar Google bara inte annonserna; det står som en påminnelse.
+2. **Granskningen är kundens val.** Vid inskicket kan kunden bocka i "Jag
+   vill att ADX granskar kampanjen innan den publiceras" (av från början).
+   Utan rutan publiceras kampanjen direkt när kontrollerna är gröna. Ingen
+   tvingad granskning av den första kampanjen.
+3. **Konverteringarna går till Google utan fråga på landningssidan.**
+   Samtycket hittas aldrig på: `consent` skickas bara när `Lead.ad_consent`
+   faktiskt är "granted" eller "denied" (det är tomt i dag).
+4. **Ett klick på numret eller ringknappen på /lp/ är en förfrågan och en
+   konvertering.** Inga spårade eller vidarekopplade nummer.
+5. **Demokunden finns i produktion** (`flamingo_demo --prod`), syns aldrig
+   publikt, anropar aldrig Google och skickar aldrig något.
+6. **ADX larmas med mejl vid inskick och godkännande**, med vad som hände.
 
 ## Delar
 
@@ -13,8 +35,9 @@ Kundens konto skapas av byrån (kontakt i kundportalen), inte av kunden själv.
 |---|---|---|---|
 | Sidorna (marknadsföring) | `/flamingo/`, `/flamingo/<slug>/` | Flamingo | Blocksidor med `design="flamingo"`, redigeras i /manage/, seed: `seed_flamingo` |
 | Verktyget | `/flamingo/app/...` | Flamingo, appläge | `app_views/`, `templates/flamingo/app/` |
-| Kundens landningssidor | `/lp/<slug>/`, `/lp/<slug>/tack/` | Neutral, kundens namn | `public_views.py`, `templates/flamingo/lp/` |
-| Byråns sida | `/manage/flamingo/...` | Panelens | `manage_views.py`, `manage_review.py`, `templates/manage/flamingo/` |
+| Kundens landningssidor | `/lp/<slug>/`, `/lp/<slug>/tack/`, `/lp/<slug>/ring/` (POST) | Neutral, kundens namn | `public_views.py`, `templates/flamingo/lp/`, `static/js/flamingo-lp.js` |
+| Byråns sida | `/manage/flamingo/...` | Panelens | `manage_views.py`, `manage_review.py`, `manage_google.py`, `templates/manage/flamingo/` |
+| Google Ads API | (ingen adress) | | `google_ads.py` (den enda HTTP-klienten), `google_publish.py`, `google_accounts.py`, `google_conversions.py`, `google_reports.py`, `flamingo_google_sync` |
 
 Verktygets sidor:
 
@@ -23,8 +46,8 @@ Verktygets sidor:
 | `app/` | Översikten: siffror, bandet, "tre saker", senaste förfrågningar och kampanjer | 12 |
 | `app/forslag/` | Förslaget: hemsidan läses av, kunden väljer tjänster, en exempelannons (mallarna, bara bekräftade uppgifter) och föreslagen start (formulärets förval) | 02 |
 | `app/foretaget/` | Företaget: uppgifter med källa (bekräfta, rätta, stryk) och tjänsterna | 04 |
-| `app/google/` | Google: kontots id eller "skapa ett åt mig", läget i en tidslinje | 05 |
-| `app/kampanjer/`, `ny/`, `<pk>/` | Kampanjerna, ny kampanj, förslaget i flikarna Annonser, Sökord, Sidan och Granskning | 06-08 |
+| `app/google/` | Google: kontots id eller "skapa ett åt mig", läget i klartext och en tidslinje | 05 |
+| `app/kampanjer/`, `ny/`, `<pk>/` | Kampanjerna, ny kampanj, förslaget i flikarna Annonser, Sökord, Sidan och Granskning, och inskicket med valet om granskning | 06-08 |
 | `app/inkorg/`, `<pk>/` | Inkorgen och en förfrågan: varifrån, status och belopp | 10-11 |
 | `app/installningar/` | Sms till kunden och autosvaret (båda av från början) | 10 |
 | `app/kund/` (POST) | Kundväljaren för en kontakt i flera Flamingo-kunder | |
@@ -32,19 +55,26 @@ Verktygets sidor:
 Kom-igång-stegen (`rules.onboarding_for`) visas ovanför Förslaget,
 Företaget, Google och översikten tills alla fyra är klara: Förslaget
 (hemsidan läst eller tjänster finns), Företaget (minst en uppgift och
-ingen obekräftad), Google (kopplat och betalningen klar, "hos ADX" medan
-byrån kopplar) och Första kampanjen (en kampanj som lämnat utkastläget).
+ingen obekräftad), Google (klart när kontot är kopplat under ADX;
+betalningen stoppar inte) och Första kampanjen (en kampanj som lämnat
+utkastläget). Google-steget står "hos ADX" medan byrån kopplar, men när ADX
+skickat en kopplingsförfrågan (`google_link_requested_at`) är det kundens
+tur: steget säger "Godkänn ADX:s förfrågan i Google Ads" och samma sak står
+bland "tre saker" (`FlamingoAccount.google_waiting_on_customer`).
 
 Byråns sidor:
 
 | Adress | Vad |
 |---|---|
-| `/manage/flamingo/` | Kunderna med Flamingo, köns siffror, sidorna |
-| `/manage/flamingo/granska/` | Kön: att granska, godkända som inte är publicerade, hos kunden, live, konverteringar |
-| `/manage/flamingo/granska/<pk>/` | En kampanj: granska (rätta och skriv varför), publicera, pausa, återuppta |
+| `/manage/flamingo/` | Kunderna med Flamingo (demokunden sist, med etikett, utanför siffrorna), köns siffror, sidorna, läget för Google Ads API |
+| `/manage/flamingo/granska/` | Kön: att granska (bara de där kunden bad om granskning), godkända som inte är publicerade (med orsaken), hos kunden, live, konverteringar. Demokunden bara med `?demo=1` ("Visa demokunden") |
+| `/manage/flamingo/granska/<pk>/` | En kampanj: granska (rätta och skriv varför), "Kunden bad om granskning", publicera (API, eller för hand också med API:t), pausa, återuppta, "Tillbaka till granskning" för en godkänd kampanj som Google sagt nej till |
 | `/manage/flamingo/kampanj/<pk>/editor.csv` | Kampanjen som Google Ads Editor-fil |
-| `/manage/flamingo/konverteringar.csv` | Vunna affärer som Googles importfil (GET), "Markera som exporterade" (POST) |
-| Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering), kampanjerna |
+| `/manage/flamingo/konverteringar.csv` | Förfrågningar, klick på numret och vunna affärer som Googles importfil (GET), "Markera som exporterade" (POST). Aldrig demokundens rader |
+| `/manage/flamingo/google/` | ADX:s inloggning hos Google: vad som saknas, adressen att registrera, koppla, testa, koppla från, konverteringarnas uppladdning (och "Försök ladda upp igen"), alla kunders Google-läge |
+| `/manage/flamingo/google/tillbaka/` | Googles omdirigering efter inloggningen (OAuth) |
+| `/manage/kunder/<pk>/flamingo/google/api/` (POST) | Kundkortets knappar: kopplingsförfrågan, nytt konto, läget från Google |
+| Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering, knapparna med API:t), kampanjerna |
 
 ## Behörighet
 
@@ -62,7 +92,16 @@ formulär hämtas med `account=account`.
   kunden" (`app/staff_index.html`). Knappen skickar `next`, så kundvyn
   öppnas i verktyget; granskningens knapp öppnar kampanjen.
 - Kundens landningssidor (`/lp/`) är publika när kampanjen är live; byrån
-  kan förhandsvisa alla med en remsa överst.
+  kan förhandsvisa alla med en remsa överst. Ett demokonto har aldrig en
+  publik sida.
+- Byråns Google-sidor kräver byrån (`staff_required`). Nycklarna visas
+  aldrig, bara namnen på inställningar som saknas.
+- Ett Google Ads-konto hör till en kund: ett id som ett annat (riktigt)
+  Flamingo-konto har tas aldrig emot, varken av kunden eller byrån, och
+  databasen har en regel för det (`flamingo_google_id_unique`, demot
+  undantaget). Kunden skriver själv sitt id, så id:t bevisar ingenting:
+  kontot blir kopplat av sig självt bara efter ADX:s förfrågan från just det
+  kontot (se Inloggningen och kundens konto).
 
 ## Flödet (kundresan, steg 2-12)
 
@@ -76,13 +115,17 @@ formulär hämtas med `account=account`.
    med AI (`apps/assistant/llm`, ett verktyg med fast schema, varje förslag
    prövas mot sidtexten) eller regler; betyg och omdömen tas aldrig från
    hemsidan. Allt sparas obekräftat. Med `GOOGLE_PLACES_API_KEY` läggs adress, telefon,
-   betyg och öppettider från Google till, också obekräftade.
+   betyg och öppettider från Google till, också obekräftade (aldrig för ett
+   demokonto).
 2. **Företaget**: `Fact`-rader med källa (hemsidan, Google, kunden, ADX).
    Kunden bekräftar, rättar eller stryker. En vald tjänst får en tom
    prisrad; ett tomt pris skrivs aldrig som en gissning.
-3. **Google**: kunden anger kontots id eller ber om ett nytt. Byrån kopplar
-   kontot under förvaltarkontot och bockar av "kopplat" och "betalning
-   klar" på kundkortet. Kunden ser läget och byråns notering.
+3. **Google**: kunden anger kontots id (aldrig ett som en annan kund har)
+   eller ber om ett nytt. Med Google Ads API skickar byrån en
+   kopplingsförfrågan från förvaltarkontot eller skapar ett konto åt kunden,
+   och läget läses från Google (se Google Ads API nedan). Utan API:t bockar byrån av "kopplat" och "betalning klar" på
+   kundkortet. Kunden ser läget och byråns notering. Kopplat räcker för att
+   kampanjerna ska kunna gå live; betalningen är en påminnelse.
 4. **Kampanj** (`app/kampanjer/ny/`): tjänst, sätt att sälja (ringer /
    offert / boka tid), ort och radie, budget per dag (50-5 000 kr).
 5. **Förslag** (`generator.py`): sökord (tjänst och verbform gånger orterna,
@@ -99,24 +142,64 @@ formulär hämtas med `account=account`.
    uppgifterna, inga förbjudna påståenden eller löften om tider, ingen
    text eller tjänst som börjar med = + - @ (Editor-filen), sökord mot negativa,
    budget, område) stoppar inskicket och samma kontroller
-   körs på granskarens version.
-6. **Granskning**: inskicket skapar en `Review`-runda med en
-   ögonblicksbild. Byrån rättar i `/manage/flamingo/granska/<pk>/` och
-   skriver varför per del; ändringarna sparas som diff och kampanjen går
-   till kunden. Byrån larmas med mejl vid inskick och godkännande
-   (`INQUIRY_NOTIFICATION_EMAIL`); kunden mejlas aldrig.
-7. **Godkännande**: kunden ser ändringarna och skälen i fliken Granskning
-   och godkänner. En ändring efter granskningen gör kampanjen till ett
-   utkast igen (ny runda).
-8. **Publicering**: för hand. Byrån laddar ner Editor-filen, importerar den
-   i Google Ads Editor, och markerar kampanjen som live (kräver kundens
-   godkännande och "betalning klar"). Då öppnas `/lp/<slug>/`. Pausa och
-   återuppta stänger och öppnar sidan.
+   körs på granskarens version och före publiceringen.
+6. **Inskicket, med eller utan granskning** (`app_views/campaigns.campaign_submit`):
+   bara från utkast och bara när kontrollerna är gröna. Kunden väljer med
+   kryssrutan "Jag vill att ADX granskar kampanjen innan den publiceras"
+   (av från början, `Campaign.review_requested`). Texten under rutan och
+   knappen säger vad som händer, med `:has()` i CSS (utan stöd står en
+   allmän text och knappen "Skicka"):
+   - **Utan rutan** är inskicket kundens godkännande: `approved_at` och
+     `approved_by` sätts till kunden, ingen granskningsrunda skapas, och
+     `google_publish.publish_approved` publicerar direkt (steg 8). Texten
+     säger "publiceras direkt, eftersom kontrollerna är gröna" när API:t
+     är inkopplat och kontot kopplat, annars att ADX publicerar, eller att
+     den publiceras när kontot är kopplat. Google granskar också varje
+     annons innan den visas.
+   - **Med rutan**: som förut. Inskicket skapar en `Review`-runda med en
+     ögonblicksbild och status "hos ADX". Byrån rättar i
+     `/manage/flamingo/granska/<pk>/` och skriver varför per del;
+     ändringarna sparas som diff och kampanjen går till kunden.
+   Byrån larmas med mejl vid inskick och godkännande
+   (`INQUIRY_NOTIFICATION_EMAIL`), med vad som hände: live hos Google,
+   Googles nej med orsaken, kontot inte kopplat, eller API:t inte
+   inkopplat. Kunden mejlas aldrig. Ett demokonto larmar inte.
+7. **Godkännande** (efter granskning): kunden ser ändringarna och skälen i
+   fliken Granskning och godkänner. Godkännandet publicerar direkt på samma
+   sätt (steg 8). En ändring efter inskicket eller godkännandet gör
+   kampanjen till ett utkast igen, och kunden skickar den på nytt.
+8. **Publicering** (`google_publish.py`):
+   - Efter kundens godkännande (eller inskicket utan granskning), med API:t
+     inkopplat, kontot kopplat under ADX med ett id och inte demo:
+     `go_live` direkt. Lyckas det blir kampanjen live och `/lp/<slug>/`
+     öppnas. Säger Google eller kontrollerna nej står kampanjen kvar som
+     godkänd men inte publicerad, med orsaken i `Campaign.google_error`,
+     och kunden ser "ADX publicerar kampanjen, och du ser här när den är
+     live" (inga tider).
+   - Annars (API:t inte inkopplat, kontot inte kopplat, eller ett fel):
+     kampanjen hamnar i byråns kö under "Godkända, ej publicerade" med
+     orsaken, och byrån publicerar därifrån: "Publicera hos Google" med
+     API:t, eller för hand med Editor-filen och "Markera som live" (kräver
+     kundens godkännande och ett kopplat konto, inte betalningen). Vägen för
+     hand finns också med API:t ("Publicera för hand i stället", öppen när
+     Google sagt nej). Sa Google nej till innehållet (en policy för ett
+     sökord eller en annons) tar byrån kampanjen "Tillbaka till granskning":
+     en ny runda hos ADX, kundens godkännande nollställs, byrån rättar och
+     kunden godkänner igen. Kunden mejlas inte.
+   - Spärrar efter kunden: ett nytt inskick inom 15 minuter efter ett
+     misslyckat försök anropar inte Google (`RETRY_AFTER`), högst 10 försök
+     per konto och dygn (`limits.reserve_publish`), och samma larm om samma
+     kampanj går till byrån högst en gång i timmen (`alerts.py`). Byrån
+     publicerar från kön utan gräns.
+   - Pausa och återuppta stänger och öppnar sidan, hos Google först för en
+     kampanj som publicerats med API:t.
 9. **Förfrågan** (`public_views.py`, `leads.py`): formuläret skapar en
-   `Lead` med klick-id (gclid, gbraid, wbraid) och utm ur adressen. Skydd:
-   CSRF, honungsfält, högst 10 i timmen per besökare och kampanj och högst
-   30 i timmen per kampanj (`limits.py`, räknat ur Lead-raderna; besökarens
-   IP sparas bara som HMAC i `Lead.ip_hash`). IP:n är X-Real-IP från nginx
+   `Lead` med klick-id (gclid, gbraid, wbraid i egna fält) och utm ur
+   adressen. Ett klick på numret eller ringknappen blir också en `Lead`
+   (källa "Klick på telefonnumret", se Mätningen). Skydd: CSRF, honungsfält,
+   högst 10 i timmen per besökare och kampanj och högst 30 i timmen per
+   kampanj (`limits.py`, räknat ur Lead-raderna; besökarens IP sparas bara
+   som HMAC i `Lead.ip_hash`). IP:n är X-Real-IP från nginx
    (`apps/common/net.py`), aldrig den första posten i X-Forwarded-For. Ett
    betyg på sidan måste vara bekräftat och komma från Google (eller ADX).
    Sidorna räknas inte i adx.se:s besöksstatistik och får inga ADX-kakor.
@@ -128,19 +211,287 @@ formulär hämtas med `account=account`.
     Högst ett autosvar per nummer och dygn och högst 50 sms per konto och
     dag. Gränserna prövas med kontot låst och raden sparas som "sending"
     innan 46elks anropas, så två förfrågningar samtidigt kan inte båda få
-    ett autosvar. Ett stoppat sms loggas som "disabled" med orsaken. Varje sms, eller varför det inte skickades,
-    blir en `SmsLog`-rad som syns på förfrågan. Inga mejl.
+    ett autosvar. Ett stoppat sms loggas som "disabled" med orsaken. Varje
+    sms, eller varför det inte skickades, blir en `SmsLog`-rad som syns på
+    förfrågan. Inga mejl. Ett klick på numret ger inget sms (ägaren får
+    samtalet), och ett demokonto skickar aldrig sms.
 11. **Inkorg**: filter per status, status (kontaktad, offert skickad,
     vunnen, förlorad, skräp) och belopp i hela kronor. Kunden kan lägga in
-    en förfrågan själv (ett samtal). Vunnen med belopp och klick-id blir en
-    `ConversionUpload` i kö; byrån exporterar CSV per kund för Googles
-    import av offline-konverteringar.
+    en förfrågan själv (ett samtal). En förfrågan och ett klick på numret
+    med gclid köas som konverteringar när de kommer in, och vunnen med
+    belopp som en affär (`ConversionUpload`, sorterna lead, call och deal).
+    Skräp tar bort en köad förfrågan eller ett köat klick. Med API:t laddar
+    `flamingo_google_sync` upp dem; utan exporterar byrån CSV per kund.
 12. **Översikten** (`app_views/overview.py`, `rules.py`): förfrågningar,
-    affärer och affärsvärde för 30 dagar, bandet från förfrågan till affär,
+    affärer och affärsvärde för 30 dagar (kalenderdagar i svensk tid, i dag
+    medräknad, samma dagar som Googles kostnad), bandet från förfrågan till affär,
     och högst tre saker ur regler: väntande förfrågningar, kampanjer att
-    godkänna, förfrågningar utan status, kom-igång-steg (även "lägg in
-    betalning hos Google"). Annonspengar och kr per förfrågan/affär står
-    som "kopplas när Google-rapporterna är på" tills de finns.
+    godkänna, förfrågningar utan status, kom-igång-steg (även "godkänn
+    ADX:s förfrågan i Google Ads" och "lägg in betalning hos Google").
+    Annonspengar, visningar, klick och kr per förfrågan/affär kommer från
+    Googles rapporter (`CampaignDayStats`); innan kontot fått en rapport
+    står "kopplas när Google-rapporterna är på".
+
+## Google Ads API
+
+### Grunden (`google_ads.py`)
+
+`google_ads.py` är den enda modulen som pratar HTTP med Google Ads och med
+Googles inloggning (OAuth). Den anropar bara fasta adresser hos Google
+(`googleads.googleapis.com` och `oauth2.googleapis.com`), alltid över https,
+med en tidsgräns och ett tak för svarets storlek. Inloggningssidan
+(`accounts.google.com`) anropas aldrig härifrån: byråns webbläsare skickas
+dit.
+
+Alla anrop görs som ADX: genom förvaltarkontot (headern
+`login-customer-id`, bara siffror) och med en kortlivad nyckel som hämtas
+med ADX:s långlivade nyckel (refresh token). Åtkomsten (Test, Explorer,
+Basic, Standard) hör till Google Cloud-projektet som äger OAuth-klienten.
+Utvecklartoken är avvecklad hos Google sedan 2026-09-09 (headern ignoreras):
+den krävs inte och skickas bara om `GOOGLE_ADS_DEVELOPER_TOKEN` är satt.
+Google aviserar att den nekas i en senare version, så låt den vara tom. Den långlivade nyckeln
+kommer i första hand från `GOOGLE_ADS_REFRESH_TOKEN` i miljön; annars den
+byrån fått genom att koppla Google i panelen, sparad krypterad (Fernet) i
+`GoogleAdsConnection` (en rad, `get_solo()`). Nyckeln för krypteringen är
+`FLAMINGO_TOKEN_KEY`, eller härleds ur `SECRET_KEY`; byts den kopplar byrån
+Google igen. Den kortlivade nyckeln cachas under sin livstid minus fem
+minuter (per process, ingen delad cache).
+
+Nycklarna visas aldrig i admin, i loggar eller i ett felmeddelande. Varje
+text från Google tvättas innan den sparas eller visas, och Sentry maskar
+Googles nycklar (`apps/common/sentry.py`). Felen kommer som
+`GoogleAdsError` med en svensk text för byrån (`message`), Googles koder
+(`codes`, `errors` med operationens plats) och `request_id`. Fel i själva
+kopplingen sparas som `GoogleAdsConnection.last_error`.
+
+Demokonton anropar aldrig Google: `google_ads.ensure_not_demo` och varje
+modul ovanpå prövar `is_demo` innan något anrop.
+
+### Koppla ADX:s Google (en gång, i produktion)
+
+1. **Google Cloud-projektet**: slå på Google Ads API i projektet som ska
+   äga OAuth-klienten. Ett nytt projekt har Test-åtkomst, som bara når
+   testkonton (CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION mot riktiga
+   konton). Ansök om **Explorer** på sidan Google Ads API Overview för
+   projektet i Google Cloud Console, inte i förvaltarkontots API Center (där
+   behandlas inga ansökningar längre). Explorer når riktiga konton men får
+   inte skapa konton (CreateCustomerClient): för "Skapa ett konto åt
+   kunden" krävs **Basic**, som kräver att projektets varumärke verifierats.
+   Förvaltarkontots id (tio siffror): `GOOGLE_ADS_LOGIN_CUSTOMER_ID`.
+2. **OAuth-klient** av typen Webbprogram i samma projekt:
+   `GOOGLE_ADS_CLIENT_ID` och `GOOGLE_ADS_CLIENT_SECRET`. En API-nyckel
+   (AIza...) duger inte: Google Ads kräver OAuth. Ingen utvecklartoken
+   behövs.
+3. **Godkänd omdirigering** på OAuth-klienten, exakt:
+   `https://adx.se/manage/flamingo/google/tillbaka/`. Sidan
+   `/manage/flamingo/google/` visar adressen som gäller för den sajt du är
+   på (lokalt en annan).
+4. **Samtyckesskärmen** (OAuth consent screen): användartypen Intern om
+   Google-kontot hör till en Google Workspace-organisation. Annars Extern,
+   och då måste appen ställas i produktion: i läget Testning går den
+   långlivade nyckeln ut efter sju dagar, och kopplingen slutar fungera.
+   Behörigheterna är `https://www.googleapis.com/auth/adwords`, `openid`
+   och `email`.
+5. Lägg in värdena i `../.env` på servern (aldrig i koden, aldrig i ett
+   mejl), starta om tjänsten, öppna `/manage/flamingo/google/` och klicka
+   "Koppla med Google" med det Google-konto som har åtkomst till
+   förvaltarkontot. "Testa kopplingen" visar hur många konton inloggningen
+   når och om förvaltarkontot är ett av dem. `FLAMINGO_TOKEN_KEY` är
+   valfri; sätts den, gör det innan kopplingen.
+
+### Inloggningen och kundens konto (`manage_google.py`, `google_accounts.py`)
+
+- "Koppla med Google": state slumpas och sparas i sessionen, sedan går
+  webbläsaren till Googles inloggning. När Google skickar tillbaka prövas
+  state en gång, i konstant tid, högst 15 minuter gammal och för samma
+  person. Koden byts mot en långlivad nyckel som sparas krypterad och aldrig
+  visas. "Koppla från" återkallar nyckeln hos Google och glömmer den här.
+  Med `GOOGLE_ADS_REFRESH_TOKEN` i miljön används den nyckeln och knappen
+  behövs inte.
+- `request_link`: kopplingsförfrågan från förvaltarkontot, sparad med id:t
+  den gällde (`google_link_requested_for`). Kontot står kvar som "Konto-id
+  angivet" tills kunden godkänt den i Google Ads under Administratör >
+  Åtkomst och säkerhet > Förvaltare; under tiden är det kundens tur i
+  kom-igång-stegen. Knappen säger att Google kan mejla kontots
+  administratörer om förfrågan. Ligger kontot redan under förvaltarkontot
+  (ALREADY_MANAGED) sparas ingenting: byrån kontrollerar att kontot är
+  kundens och bockar av det för hand.
+- `create_client_account`: nytt konto under förvaltarkontot,
+  "<kund> (ADX Flamingo)", SEK och svensk tid (kräver Basic-åtkomst).
+  `emailAddress` och `accessRole` är bara för Googles tillåtelselista, så
+  rutan för inbjudan finns bara med `GOOGLE_ADS_INVITE_ON_CREATE`; utan den
+  bjuder byrån in kunden i Google Ads efteråt (Google mejlar kunden då).
+  Kontoraden är låst under anropet, så ett dubbelklick ger ett konto.
+- `sync_account_status`: läget från Google. ACTIVE blir kopplat bara när
+  ADX skickade förfrågan från det här kontot till det här id:t (eller
+  skapade kontot); annars står kontot kvar och byrån ser att det ska
+  kontrolleras och bockas av för hand. PENDING är kundens tur (också en
+  förfrågan som skickats från Google Ads), och ett besvarat läge (godkänt,
+  nekat, tillbakadraget, avslutat) tömmer förfrågan; nekad eller avslutad
+  ger en notering. Betalningen APPROVED blir "betalning klar"; automatisk
+  taggning och en varning om kontot inte är i SEK. Allt sparas bara om
+  kontots id är detsamma som det som lästes. Ett fel sparas i
+  `google_sync_error`; ett fel i ADX:s koppling eller slut kvot kastas
+  också. Utan API:t ändras ingenting. Byts kontots id töms det som gällde
+  det förra kontot (`forget_previous_account`), även
+  konverteringsåtgärderna och kampanjernas gamla fel från Google.
+
+ADX mejlar aldrig kunden härifrån. Google meddelar kontots administratörer
+om en kopplingsförfrågan, och mejlar en inbjudan bara när rutan är ibockad
+(och den finns bara med tillåtelselistan).
+
+### Publiceringen (`google_publish.py`)
+
+`go_live` gör så här:
+
+1. Kontrollerna (`checks.validate`) ska vara tomma, kontot kopplat under
+   ADX med sitt eget id (inget annat Flamingo-konto har det), och området
+   ska ge minst en ort. Betalningen krävs inte.
+2. Spärren `google_publish_started_at` tas med en egen UPDATE innan Google
+   anropas, tillsammans med vad försöket skickar (`google_publish_sent`:
+   namnet och en hash av hela anropet), och kampanjraden låses (`FOR NO KEY
+   UPDATE NOWAIT`) under anropet. Två klick, eller kundens godkännande och
+   byråns klick samtidigt, ger aldrig två kampanjer: den andra får "pågår
+   redan". Fick ett försök inget svar säger felet att kampanjen kan vara
+   igång hos Google medan sidan är stängd, och nästa försök letar upp den
+   på namnet (det gamla och det nya). Den tas över bara om innehållet är
+   detsamma; har kunden ändrat något sedan dess pausas den gamla hos
+   Google och byrån tar bort den där innan den publicerar igen. Finns inget
+   hos Google börjar försöket om med en ny spärr.
+3. Kundens konto måste ha valutan SEK; automatisk taggning slås på, så att
+   klickets gclid når landningssidan.
+4. Allt skapas i ett anrop (googleAds:mutate), allt eller inget: budget per
+   dag, kampanjen "Flamingo: <namn> #<pk>" (Sök, bara Google sök, Maximera
+   klick, platsinriktning på närvaro, svenska), en radie per ort, de
+   negativa sökorden, en annonsgrupp med sökorden och en responsiv
+   sökannons till landningssidan.
+5. Kampanjen blir live och landningssidan öppnas först när Google svarat.
+
+Ett fel ändrar inte kampanjen: felet sparas i `Campaign.google_error` och
+visas i panelen och i kön med vilken ändring det gällde.
+`publish_approved` är samma väg efter kundens godkännande, kastar aldrig,
+och ger ett `Outcome` (live, failed, not_linked, manual, demo) som larmet
+till byrån och kundens besked bygger på. Pausa och återuppta går till
+Google först för kampanjer som publicerats med API:t; en kampanj som
+publicerats för hand pausas för hand.
+
+### Mätningen: klick på numret och konverteringarna
+
+**Klicket** (`public_views.call_click`, `static/js/flamingo-lp.js`): varje
+tel:-länk på landningssidan har `data-fl-call`. Skriptet skickar ett
+sendBeacon till `POST /lp/<slug>/ring/` med CSRF, klick-id, utm och sökord,
+och håller aldrig upp samtalet. Bara live-sidor räknas (inte
+förhandsvisningen eller demot), svaret är 204. Det blir en Lead med källan
+`call_click`, utan namn och nummer. Spärrar (`limits.create_call_click_lead`):
+en gång per besökare, annonsklick och kampanj och timme (två personer bakom
+operatörens gemensamma adress med var sitt gclid räknas båda), inte alls om
+besökaren skickat formuläret från samma annonsklick den timmen, högst 5 i
+timmen per besökare och 30 i timmen per kampanj. En IPv6-adress räknas som
+sitt /64-nät (`limits.ip_bucket`), också för formulärets spärrar. Nås
+kampanjens gräns får byrån ett larm, högst ett i timmen per kampanj. Byråns
+klick räknas inte (remsan säger det), och tel:-länkarna på tacksidan räknas
+inte. Utan skript räknas inget, och länken fungerar ändå. Förfrågningarna
+räknas med ett lås per kampanj i Postgres (`pg_advisory_xact_lock`), inte
+kampanjens rad, så ett klick väntar aldrig på en paus hos Google.
+
+**Samtycket**: sidan frågar inte (beslut 2026-10-03), har ingen remsa,
+inget dolt fält och ingen lagring i webbläsaren. Ett `ad_consent` i det som
+postas läses aldrig. `Lead.ad_consent` finns kvar, tomt, för en fråga
+senare.
+
+**Konverteringarna** (`google_conversions.py`):
+
+- Allt med gclid köas: förfrågan (lead), klick på numret (call) och vunnen
+  affär med belopp (deal). Högst en av varje sort per förfrågan.
+- gbraid och wbraid sparas men laddas inte upp: konverteringarna räknas en
+  gång per klick (ONE_PER_CLICK), och sådana tar Google inte emot med
+  braid-id:n. Att stödja dem kräver en andra uppsättning åtgärder som
+  räknas flera gånger per klick. Inkorgen säger det till kunden.
+- `ensure_conversion_actions` skapar "ADX Flamingo förfrågan", "ADX
+  Flamingo samtal" och affären (`FLAMINGO_CONVERSION_NAME`) i kundens konto,
+  som import av klick. En som redan finns med samma namn återanvänds.
+  De skapas med Googles standard för primaryForGoal: förfrågan, samtal och
+  affär kan alla räknas i kolumnen Konverteringar för samma klick. Gör
+  affären sekundär, eller gå över till budgivning på värde, innan
+  budgivningen styrs av konverteringar.
+- **Uppladdningen med API:t är av från början** (`GOOGLE_ADS_UPLOAD_CONVERSIONS`,
+  `google_conversions.upload_enabled`). Google tar inte emot nya användare
+  av uploadClickConversions sedan 2026-06-15: utan tidigare uppladdningar
+  svarar Google CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE, och Googles väg
+  framåt är Data Manager API. Tills uppladdningen bevisat fungerar går
+  konverteringarna som CSV, också med API:t inkopplat.
+- `upload_queued` (när den är på) skickar raderna med uploadClickConversions:
+  svensk tid med offset, SEK, värde bara för affärer, och `consent` bara när
+  `Lead.ad_consent` är "granted" eller "denied". Raderna väntar tills
+  förfrågan är sex timmar gammal (Googles krav). "Försök igen senare"
+  lämnar raden i kö, en rad som redan finns hos Google räknas som skickad,
+  andra fel gör raden misslyckad med en kort svensk text i byråns kö.
+  Svarar Google NOT_ALLOWLISTED (för anropet eller en rad) stoppas
+  uppladdningen för alla konton (`GoogleAdsConnection.conversion_upload_blocked_at`),
+  raderna står kvar i kö för CSV-filen, och kön och Google-sidan säger det;
+  "Försök ladda upp igen" på Google-sidan häver stoppet.
+- CSV-exporten skriver alla tre sorterna med sina namn och kolumnen "Ad
+  User Data" (tom när inget svar finns). Namnen måste då finnas i kundens
+  konto som import av klick; med API:t skapar `flamingo_google_sync` dem.
+- Demokundens rader skickas och exporteras aldrig.
+
+**Rapporterna** (`google_reports.py`): `sync_stats` läser kostnad, visningar,
+klick och konverteringar per kampanj och dag för de senaste 30 dagarna och
+sparar dem som `CampaignDayStats`. Kontot måste ha valutan SEK.
+
+### Kommandot `flamingo_google_sync` (cron)
+
+För varje aktiverat konto (inte demo) hos en aktiv kund, med ett Google
+Ads-id: `sync_account_status`, och för konton under ADX förvaltarkonto
+konverteringsåtgärderna, kön (bara när uppladdningen är på) och rapporten.
+Stegen körs var för sig: ett fel i konverteringarna (till exempel en
+konvertering med samma namn som inte är en import av klick) stoppar inte
+uppladdningen av de andra eller rapporten. Felen sparas tillsammans i
+`google_sync_error` ("Konverteringarna: ...", "Rapporten: ...") och kontot
+räknas som misslyckat, men de andra kontona körs. Ett fel i ADX:s egen
+koppling eller slut kvot stoppar körningen, också från lägesläsningen.
+Utan API:t skriver kommandot en rad och gör inget. Inga mejl. Kommandot
+publicerar inga kampanjer.
+
+Cron som djangouser, varje timme, samma mönster som de andra raderna i
+djangousers crontab (lägg till de nycklar de raderna tar med, om de är
+fler):
+
+    17 * * * *  cd /home/djangouser/sites/adx/app && env $(grep -E "^(SECRET_KEY|DATABASE_URL|ALLOWED_HOSTS|SENTRY_DSN|GOOGLE_ADS_|FLAMINGO_)" ../.env | xargs) DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python manage.py flamingo_google_sync >> /home/djangouser/sites/adx/backups/flamingo-google.log 2>&1
+
+Django läser också `../.env` själv (`config/settings/base.py`). Med
+`--konto <id>` körs bara ett Flamingo-konto, med `--dagar 7` en kortare
+rapport.
+
+## Demokunden (`flamingo_demo`), också i produktion
+
+    uv run python manage.py flamingo_demo           # lokalt, med DEBUG
+    uv run python manage.py flamingo_demo --prod    # i produktion
+
+Utan DEBUG vägrar kommandot om inte `--prod` anges. Det skapar eller
+uppdaterar "Exempelrör AB (demo)", ett påhittat företag: hemsidan och
+e-posten under den reserverade toppdomänen `.example`, telefonnumren ur PTS
+serier för fiktiva nummer (08-465 004 00-99, 070-174 06 05-99) och
+Google Ads-id 000-000-0000. Kontot har `FlamingoAccount.is_demo` på. Data på
+varje sida: uppgifter från alla källor, tjänster, kampanjer i alla lägen
+(en av dem skickad utan granskning),
+granskningar med ändringar och skäl, förfrågningar i alla statusar och från
+alla källor (klick på numret, en vunnen affär med klick-id), sms-rader och
+Googles siffror per dag för 30 dagar. Kör det igen så byggs innehållet om;
+inget dubbleras. En annan kund med samma namn rörs aldrig.
+
+I produktion finns ingen användare som kan logga in på demokunden. Byrån
+öppnar den med "Visa Flamingo som kunden" på kundkortet. Lokalt finns
+kontakten demo@exempelror.example, utan lösenord.
+
+Ett demokonto skickar aldrig något: `/lp/` är 404 för alla utom byrån,
+hemsidan läses aldrig av (`scan.demo_refusal`), Google Places frågas aldrig
+(`places.update_from_google`), inga sms (`sms.NOTE_DEMO`), inga anrop till
+Google, inga larm till byrån, och affärerna exporteras eller laddas aldrig
+upp. Demokundens kampanjer och konverteringar är inte med i byråns kö eller
+siffror förrän byrån ber om det (`?demo=1`, "Visa demokunden" i kön);
+kundkortet länkar ändå till dem. `test_demo.py` fäller bygget om en ny väg
+i panelen eller en ny Google-modul glömmer `is_demo`.
 
 ## Integrationer och nycklar
 
@@ -152,26 +503,74 @@ finns i `.env.example`.
 | AI-texter och läsningen av hemsidan | samma som assistenten (`ASSISTANT_PROVIDER`, Bedrock) | Byggt, går i produktion | Mallar och regler |
 | Google Places | `GOOGLE_PLACES_API_KEY` | Byggt, slås på av nyckeln | Uppgifter från hemsidan och kunden |
 | 46elks sms | `ELKS_API_USERNAME`, `ELKS_API_PASSWORD`, `ELKS_SENDER` (alla tre) | Byggt, slås på av nycklarna | Inget sms, loggat som "inte inkopplat" |
-| Google Ads API | `GOOGLE_ADS_DEVELOPER_TOKEN`, `GOOGLE_ADS_LOGIN_CUSTOMER_ID` | **Inte byggt.** Token ändrar bara en text på publiceringen | Editor-CSV, koppling och "betalning klar" bockas av i panelen, konverteringar som CSV |
-| Landningssidornas domän i Editor-filen | `FLAMINGO_LANDING_BASE_URL` | Byggt | `https://adx.se` |
-| Konverteringens namn i Google | `FLAMINGO_CONVERSION_NAME` | Byggt | "ADX Flamingo affär" |
+| Google Ads API | `GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, och inloggningen i panelen (eller `GOOGLE_ADS_REFRESH_TOKEN`); projektet behöver Explorer (Basic för nya konton) | Byggt: koppling, kundens konto, publicering direkt efter kundens godkännande, paus, konverteringsåtgärder och rapporter. Inte prövat mot ett riktigt konto | Editor-CSV och "Markera som live", koppling och "betalning klar" bockas av i panelen, konverteringar som CSV |
+| Utvecklartoken | `GOOGLE_ADS_DEVELOPER_TOKEN` | Valfri, avvecklad hos Google 2026-09-09 | Ingen header (det normala) |
+| API-versionen | `GOOGLE_ADS_API_VERSION` | Byggt | v25 (den senaste 2026-10-03). Varje version har ett slutdatum hos Google (Deprecation and sunset): byt `DEFAULT_VERSION` och testernas `API` innan dess |
+| Konverteringar med API:t | `GOOGLE_ADS_UPLOAD_CONVERSIONS` | Byggt, av | CSV-exporten (Google tar inte emot nya användare av uploadClickConversions) |
+| Inbjudan när ett konto skapas | `GOOGLE_ADS_INVITE_ON_CREATE` | Byggt, av | Byrån bjuder in kunden i Google Ads efteråt |
+| Krypteringen av Google-nyckeln | `FLAMINGO_TOKEN_KEY` | Byggt, valfri | Härledd ur `SECRET_KEY` |
+| Landningssidornas domän i Editor-filen och annonsen | `FLAMINGO_LANDING_BASE_URL` | Byggt | `https://adx.se` |
+| Affärens konvertering i Google | `FLAMINGO_CONVERSION_NAME` | Byggt | "ADX Flamingo affär" (förfrågan och samtal har fasta namn) |
+
+Inte prövat mot ett riktigt Google Ads-konto (inga nycklar i utvecklingen,
+allt HTTP är attrapper i testerna): REST-fältens namn mot v25 (adresserna
+stämmer med v25:s http-regler), radie per
+ort på adress (`cityName` och SE), `languageConstants/1015`, budgetens namn
+(samma som kampanjens; en gammal budget med samma namn ger
+DUPLICATE_NAME), länken in i Google Ads (Google dokumenterar inga sådana),
+att Google mejlar administratörerna om en kopplingsförfrågan, och att ADX
+förvaltarkonto får skicka inbjudan med `createCustomerClient` (Google
+anger en tillåtelselista). Gör den första publiceringen med byrån bredvid.
 
 ## Inte byggt än
 
-- Google Ads API: publicering, rapporter (annonspengar, visningar, klick,
-  kr per förfrågan och affär), uppladdning av konverteringar och
-  Google-inloggning (OAuth) för kopplingen.
-- Landningssidor på kundens egen subdomän, spårade telefonnummer och samtal
-  som förfrågningar, bilduppladdning i formuläret.
+- Spårade eller vidarekopplade telefonnummer och riktiga samtal som
+  förfrågningar (beslut: klicket på numret räcker tills vidare).
+- Frågan om samtycke på landningssidan (`Lead.ad_consent` finns, tomt).
+- Konverteringar genom Data Manager API (`ingestEvents`), Googles väg för
+  offline-konverteringar sedan uploadClickConversions stängdes för nya
+  användare 2026-06-15. Till dess går de som CSV.
+- Konverteringar för klick med bara gbraid eller wbraid (iOS).
+- Tillbakadragning av en konvertering som redan skickats, när förfrågan
+  sedan blir skräp (uploadConversionAdjustments).
+- Publicering av sig själv när ett konto blir kopplat efter kundens
+  godkännande: byrån publicerar då från kön.
+- Landningssidor på kundens egen subdomän, bilduppladdning i formuläret.
 - Sms-svaret "VANN 186000" från ägaren.
+
+## Driftsättning av den här ändringen
+
+Sidan `/flamingo/` (och FAQ-sektionen `flamingo-fragor`) ligger i databasen
+och byggs av `seed_flamingo`, som körs för hand, aldrig av `./deploy`.
+Texterna ändrades 2026-10-03 (granskningen är kundens val, klick på numret
+i stället för spårade nummer, ingen egen subdomän). Efter deploy, i
+produktion:
+
+    uv run python manage.py seed_flamingo
+
+Det skriver över blocken och frågorna på Flamingos sidor, också ändringar
+som gjorts i /manage/ sedan förra seeden; publiceringen rörs inte.
+Migreringen 0007 stoppar (med kontonas nummer) om två Flamingo-konton har
+samma Google Ads-id: rätta det först.
 
 ## Lokalt
 
-    uv run python manage.py flamingo_demo     # demokund, bara med DEBUG
-    uv run python manage.py seed_flamingo     # Flamingos sidor
+    uv run python manage.py flamingo_demo           # demokunden, med DEBUG
+    uv run python manage.py flamingo_demo --prod    # demokunden i produktion
+    uv run python manage.py seed_flamingo           # Flamingos sidor
+    uv run python manage.py flamingo_google_sync    # utan Google-nycklar: en rad, inget mer
+
+Testerna når aldrig Google, AWS eller 46elks: Google byts mot `FakeGoogle`
+(`test_google_ads.py`), AI stängs av med attrapper.
+
+    TEST_DB_NAME=test_flamingo SENTRY_DSN= uv run python manage.py test apps.flamingo --noinput
 
 ## Hårda regler
 
-Inga automatiska mejl till kunder. Inga löften om tider. AI får bara
+Inga automatiska mejl till kunder (larm till byrån är fria; en knapp som
+får Google att mejla någon säger det). Inga löften om tider. AI får bara
 använda bekräftade fakta. Ingen extern ändring (Google, publicerad sida)
-utan att kunden godkänt och byrån granskat. 375 px utan sidoscroll.
+utan kundens godkännande: inskicket utan granskning eller godkännandet
+efter ADX granskning. Demokontot pratar aldrig med Google och skickar
+ingenting. Nycklar loggas, visas eller checkas aldrig in. 375 px utan
+sidoscroll.

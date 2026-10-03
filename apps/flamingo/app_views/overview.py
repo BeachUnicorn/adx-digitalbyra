@@ -2,33 +2,66 @@
 Översikten (kundresan steg 12) och kundväljaren.
 
 Siffrorna räknas av databasen, aldrig av AI, och bara ur rader som finns.
-Annonspengarna (och därmed kr per förfrågan och kr per affär) kommer med
-Google-rapporterna; tills dess står det så i rutan i stället för en siffra.
+Annonspengarna (och därmed kr per förfrågan och kr per affär), visningarna
+och klicken kommer ur Googles rapporter (CampaignDayStats, som
+google_reports.sync_stats fyller). Har kontot aldrig fått en rapport står
+det så i rutan i stället för en siffra; en okänd kostnad visas aldrig som 0.
 """
 
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
-from django.db.models import Q, Sum
+from django.db.models import Max, Q, Sum
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from ..access import SESSION_KEY
-from ..models import Lead
+from ..google_ads import STOCKHOLM
+from ..models import CampaignDayStats, Lead
 from ..rules import things_headline, three_things
 from ..views import flamingo_required
 from . import app_context, app_view
 from .campaigns import is_approved, state_label
 
+#: Perioden är de senaste 30 kalenderdagarna i svensk tid, i dag medräknad,
+#: samma dagar för förfrågningarna och för Googles kostnad (period_start).
 PERIOD_DAYS = 30
 
 
+def period_start(now):
+    """Början av perioden: midnatt i svensk tid för den första av de
+    PERIOD_DAYS senaste dagarna (i dag medräknad)."""
+    first_day = timezone.localdate(now, STOCKHOLM) - timedelta(days=PERIOD_DAYS - 1)
+    return datetime.combine(first_day, time.min, tzinfo=STOCKHOLM)
+
+
+def ad_stats(account, since):
+    """Googles siffror för kontots kampanjer från och med since (dagarna i
+    svensk tid): {"cost_kr", "clicks", "impressions", "read_at"}. None när
+    kontot aldrig fått en rapport: då är kostnaden okänd, inte noll."""
+    rows = CampaignDayStats.objects.filter(campaign__account=account)
+    if not rows.exists():
+        return None
+    first_day = timezone.localdate(since, STOCKHOLM)
+    totals = rows.filter(date__gte=first_day).aggregate(
+        cost=Sum("cost_micros"), clicks=Sum("clicks"), impressions=Sum("impressions")
+    )
+    return {
+        "cost_kr": round((totals["cost"] or 0) / 1_000_000),
+        "clicks": totals["clicks"] or 0,
+        "impressions": totals["impressions"] or 0,
+        "read_at": rows.aggregate(at=Max("updated_at"))["at"],
+    }
+
+
 def ad_spend_kr(account, since):
-    """Annonspengar sedan since, i hela kronor. None tills Google-rapporterna
-    hämtas (Google Ads API): en okänd kostnad visas aldrig som en siffra."""
-    return None
+    """Annonspengar sedan since, i hela kronor, ur Googles rapporter. None
+    när kontot aldrig fått en rapport: en okänd kostnad visas aldrig som en
+    siffra. Har rapporterna kommit men inget kostat i perioden är det 0."""
+    stats = ad_stats(account, since)
+    return None if stats is None else stats["cost_kr"]
 
 
 @dataclass(frozen=True)
@@ -40,6 +73,11 @@ class Numbers:
     spend_kr: int | None
     #: Av förfrågningarna i perioden: hur många som blivit affärer.
     cohort_deals: int
+    #: Klick och visningar på annonserna enligt Google, None utan rapport.
+    clicks: int | None = None
+    impressions: int | None = None
+    #: När Googles rapport senast lästes.
+    stats_read_at: object = None
 
     @property
     def kr_per_lead(self):
@@ -59,18 +97,22 @@ class Numbers:
 
 
 def numbers_for(account, now):
-    since = now - timedelta(days=PERIOD_DAYS)
+    since = period_start(now)
     leads = account.leads.filter(created_at__gte=since, status__in=Lead.COUNTED_STATUSES)
     won = account.leads.filter(status=Lead.STATUS_WON).filter(
         Q(won_at__gte=since) | Q(won_at__isnull=True, updated_at__gte=since)
     )
+    stats = ad_stats(account, since)
     return Numbers(
         leads=leads.count(),
         deals=won.count(),
         deals_without_value=won.filter(value_kr__isnull=True).count(),
         deal_value_kr=won.aggregate(total=Sum("value_kr"))["total"] or 0,
-        spend_kr=ad_spend_kr(account, since),
+        spend_kr=None if stats is None else stats["cost_kr"],
         cohort_deals=leads.filter(status=Lead.STATUS_WON).count(),
+        clicks=None if stats is None else stats["clicks"],
+        impressions=None if stats is None else stats["impressions"],
+        stats_read_at=None if stats is None else stats["read_at"],
     )
 
 

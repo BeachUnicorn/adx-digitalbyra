@@ -257,9 +257,32 @@ GOOGLE_MAPS_API_KEY = env.str("GOOGLE_MAPS_API_KEY", default="")
 # verktyget kör den manuella vägen: Editor-CSV och kopplingen som byrån bockar
 # av i stället för Google Ads API, fakta från hemsidan och kunden i stället för
 # Google Places, och inget sms (det loggas att inget skickades) utan 46elks.
+# Valfri och avvecklad hos Google sedan 2026-09-09 (headern ignoreras):
+# åtkomsten hör till Google Cloud-projektet som äger OAuth-klienten.
 GOOGLE_ADS_DEVELOPER_TOKEN = env.str("GOOGLE_ADS_DEVELOPER_TOKEN", default="")
 # Byråns förvaltarkonto (MCC), tio siffror.
 GOOGLE_ADS_LOGIN_CUSTOMER_ID = env.str("GOOGLE_ADS_LOGIN_CUSTOMER_ID", default="")
+# OAuth-klienten (typ "Webbprogram") i Google Cloud-projektet där Google Ads
+# API är påslaget. Inloggningen görs från /manage/ och nyckeln sparas
+# krypterad i databasen (apps/flamingo/google_ads.py).
+GOOGLE_ADS_CLIENT_ID = env.str("GOOGLE_ADS_CLIENT_ID", default="")
+GOOGLE_ADS_CLIENT_SECRET = env.str("GOOGLE_ADS_CLIENT_SECRET", default="")
+# Valfri: en långlivad nyckel (refresh token) som vinner över den sparade.
+GOOGLE_ADS_REFRESH_TOKEN = env.str("GOOGLE_ADS_REFRESH_TOKEN", default="")
+# Tomt = google_ads.DEFAULT_VERSION (v25). Varje version har ett slutdatum hos Google.
+GOOGLE_ADS_API_VERSION = env.str("GOOGLE_ADS_API_VERSION", default="")
+# Av från början: konverteringarna laddas upp med uploadClickConversions bara
+# när detta är på. Google tar inte emot nya användare av den vägen sedan
+# 2026-06-15 (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE); utan den exporterar
+# byrån CSV-filen. Slå på bara om ADX bevisat har tillgång.
+GOOGLE_ADS_UPLOAD_CONVERSIONS = env.bool("GOOGLE_ADS_UPLOAD_CONVERSIONS", default=False)
+# Av från början: ADX Cloud-projekt står inte på Googles tillåtelselista för
+# att bjuda in en administratör när ett konto skapas (createCustomerClient,
+# emailAddress). Slå på bara när Google bekräftat det.
+GOOGLE_ADS_INVITE_ON_CREATE = env.bool("GOOGLE_ADS_INVITE_ON_CREATE", default=False)
+# Valfri: nyckeln som krypterar Google-nyckeln i databasen. Tomt = härledd ur
+# SECRET_KEY (byts den kopplar byrån Google igen).
+FLAMINGO_TOKEN_KEY = env.str("FLAMINGO_TOKEN_KEY", default="")
 GOOGLE_PLACES_API_KEY = env.str("GOOGLE_PLACES_API_KEY", default="")
 ELKS_API_USERNAME = env.str("ELKS_API_USERNAME", default="")
 ELKS_API_PASSWORD = env.str("ELKS_API_PASSWORD", default="")

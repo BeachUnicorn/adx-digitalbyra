@@ -4,6 +4,7 @@ from apps.aidocs import manage_views as aidocs_views
 from apps.assistant import history_views, oauth_views
 from apps.assistant import views as assistant_views
 from apps.cloud import manage_views as cloud_views
+from apps.flamingo import manage_google as flamingo_google
 from apps.flamingo import manage_review as flamingo_review
 from apps.flamingo import manage_views as flamingo_views
 from apps.monitor import manage_views as monitor_views
@@ -99,6 +100,33 @@ urlpatterns = [
         "kunder/<int:pk>/flamingo/google/",
         flamingo_review.google_update,
         name="flamingo_google_update",
+    ),
+    path(
+        "kunder/<int:pk>/flamingo/google/api/",
+        flamingo_google.google_account,
+        name="flamingo_google_account",
+    ),
+    path("flamingo/google/", flamingo_google.google_page, name="flamingo_google"),
+    path(
+        "flamingo/google/koppla/",
+        flamingo_google.google_connect,
+        name="flamingo_google_connect",
+    ),
+    path(
+        "flamingo/google/tillbaka/",
+        flamingo_google.google_callback,
+        name="flamingo_google_callback",
+    ),
+    path("flamingo/google/testa/", flamingo_google.google_test, name="flamingo_google_test"),
+    path(
+        "flamingo/google/konverteringar/",
+        flamingo_google.google_uploads_retry,
+        name="flamingo_google_uploads_retry",
+    ),
+    path(
+        "flamingo/google/koppla-fran/",
+        flamingo_google.google_disconnect,
+        name="flamingo_google_disconnect",
     ),
     path("flamingo/granska/", flamingo_review.queue, name="flamingo_queue"),
     path("flamingo/granska/<int:pk>/", flamingo_review.review, name="flamingo_review"),

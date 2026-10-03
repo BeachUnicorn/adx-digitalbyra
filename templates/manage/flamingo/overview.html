@@ -1,5 +1,5 @@
 {% extends "manage/base.html" %}
-{% load static flamingo_staff %}
+{% load static flamingo_staff flamingo_google %}
 
 {% block title %}ADX Flamingo{% endblock %}
 
@@ -16,6 +16,7 @@
         <a href="{% url 'manage:flamingo_queue' %}#konverteringar" class="m-btn m-btn--ghost m-btn--small">Konverteringar{% if counts.conversions %} ({{ counts.conversions }}){% endif %}</a>
         <a href="{% url 'flamingo:home' %}" class="m-btn m-btn--ghost m-btn--small">Öppna Flamingo ↗</a>
         <a href="{% url 'flamingo:app' %}" class="m-btn m-btn--ghost m-btn--small">Verktyget</a>
+        <a href="{% url 'manage:flamingo_google' %}" class="m-btn m-btn--ghost m-btn--small">Google Ads</a>
         {% if home_page %}<a href="{% url 'manage:page_detail' home_page.pk %}" class="m-btn m-btn--ghost m-btn--small">Redigera startsidan</a>{% endif %}
     </p>
 </div>
@@ -24,16 +25,19 @@
     <a class="m-stat mf-tile{% if counts.to_review %} is-hot{% endif %}" href="{% url 'manage:flamingo_queue' %}#att-granska"><span class="m-stat__value">{{ counts.to_review }}</span><span class="m-stat__label">Att granska</span></a>
     <a class="m-stat mf-tile" href="{% url 'manage:flamingo_queue' %}#att-publicera"><span class="m-stat__value">{{ counts.to_publish }}</span><span class="m-stat__label">Att publicera</span></a>
     <a class="m-stat mf-tile" href="{% url 'manage:flamingo_queue' %}#konverteringar"><span class="m-stat__value">{{ counts.conversions }}</span><span class="m-stat__label">Konverteringar i kö</span></a>
-    <a class="m-stat mf-tile" href="#kunder"><span class="m-stat__value">{{ accounts|length }}</span><span class="m-stat__label">Kunder med Flamingo</span></a>
+    <a class="m-stat mf-tile" href="#kunder"><span class="m-stat__value">{{ customer_count }}</span><span class="m-stat__label">Kunder med Flamingo</span></a>
 </nav>
+
+{% flamingo_google_api as gapi %}
+<p class="mf-note" id="google-ads">Google Ads API: {% if gapi.configured %}inkopplat{% if gapi.env_token %} med nyckeln i miljön{% elif gapi.connection.google_email %}, kopplat som {{ gapi.connection.google_email }}{% endif %}.{% if gapi.connection.last_error %} Senaste fel: {{ gapi.connection.last_error }}{% endif %}{% else %}inte inkopplat, {{ gapi.missing|length }} inställning{{ gapi.missing|length|pluralize:"ar" }} saknas. Koppling och betalning bockas av för hand på kundkortet.{% endif %} <a class="mf-strong" href="{% url 'manage:flamingo_google' %}">Till Google-sidan</a></p>
 
 <p class="m-section-title" id="kunder">Kunder med Flamingo</p>
 <div class="m-panel">
     {% for a in accounts %}
     <div class="m-list__row">
         <a class="m-list__main m-list__row--link" href="{% url 'manage:customer_detail' a.customer.pk %}#flamingo">
-            <div class="m-list__title">{{ a.customer.name }}</div>
-            <div class="m-list__meta">Aktiverat {{ a.enabled_at|date:"j b Y" }}{% if a.enabled_by %} av {{ a.enabled_by.first_name|default:a.enabled_by.get_username }}{% endif %}. Google: {{ a.get_google_status_display|lower }}.</div>
+            <div class="m-list__title">{{ a.customer.name }}{% if a.is_demo %} <span class="m-badge">Demo</span>{% endif %}</div>
+            <div class="m-list__meta">Aktiverat {{ a.enabled_at|date:"j b Y" }}{% if a.enabled_by %} av {{ a.enabled_by.first_name|default:a.enabled_by.get_username }}{% endif %}. Google: {{ a.get_google_status_display }}.</div>
         </a>
         <div class="m-row-actions">
             <form method="post" action="{% url 'manage:flamingo_view_as' a.customer.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{% url 'flamingo:app' %}"><button type="submit" class="m-btn m-btn--ghost m-btn--small">Visa som kunden</button></form>

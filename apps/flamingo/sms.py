@@ -26,6 +26,10 @@ nummer besökaren själv skriver, med kundens namn som avsändare):
 
 Ett sms som stoppas loggas med status "disabled" och orsaken i error.
 
+Ett demokonto (FlamingoAccount.is_demo) skickar aldrig: varje sms loggas
+som "disabled" med NOTE_DEMO, före alla andra prövningar och oavsett om
+46elks är inkopplat.
+
 Gränserna prövas och platsen reserveras i samma transaktion, med kontots
 rad låst (select_for_update): raden sparas som "sending" innan 46elks
 anropas och räknas från den stunden. Två förfrågningar samtidigt kan alltså
@@ -81,6 +85,7 @@ NOTE_QUIET = "Tyst tid 21-07: autosvaret skickas inte på natten."
 NOTE_BAD_NUMBER = "Numret går inte att tolka som ett telefonnummer."
 NOTE_ALREADY_REPLIED = "Numret har redan fått ett autosvar det senaste dygnet."
 NOTE_DAILY_LIMIT = f"Dagens gräns på {SMS_DAILY_MAX} sms för kontot är nådd."
+NOTE_DEMO = "Demokonto: inga sms skickas."
 
 
 def is_configured():
@@ -333,6 +338,8 @@ def send(account, kind, to, body, lead=None, sender=None, now=None, once_per_num
     SmsLog-raden. Kastar aldrig. once_per_number: högst ett per mottagare
     och AUTOREPLY_WINDOW (autosvaret)."""
     try:
+        if getattr(account, "is_demo", False):
+            return _log(account, lead, kind, to, body, SmsLog.STATUS_DISABLED, NOTE_DEMO)
         if not is_configured():
             return _log(account, lead, kind, to, body, SmsLog.STATUS_NOT_CONFIGURED)
         number = normalize_phone(to)
@@ -374,6 +381,9 @@ def notify_new_lead(lead, now=None):
 def _notify_owner(account, lead, now=None):
     body = owner_text(lead)
     kind = SmsLog.KIND_OWNER
+    if getattr(account, "is_demo", False):
+        status = SmsLog.STATUS_DISABLED
+        return _log(account, lead, kind, account.notify_phone, body, status, NOTE_DEMO)
     if not account.notify_sms:
         status = SmsLog.STATUS_DISABLED
         return _log(account, lead, kind, account.notify_phone, body, status, NOTE_NOTIFY_OFF)
@@ -385,6 +395,8 @@ def _notify_owner(account, lead, now=None):
 def _autoreply(account, lead, now=None):
     body = autoreply_text(account, lead)
     kind = SmsLog.KIND_AUTOREPLY
+    if getattr(account, "is_demo", False):
+        return _log(account, lead, kind, lead.phone, body, SmsLog.STATUS_DISABLED, NOTE_DEMO)
     if not account.autoreply_enabled:
         status = SmsLog.STATUS_DISABLED
         return _log(account, lead, kind, lead.phone, body, status, NOTE_AUTOREPLY_OFF)

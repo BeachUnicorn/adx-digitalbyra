@@ -285,7 +285,8 @@ class LandingPageTests(InboxFixture, TestCase):
                 text = path.read_text(encoding="utf-8")
                 with self.subTest(path=path.name):
                     self.assertNotIn("style=", text)
-                    self.assertNotIn("<script", text)
+                    # Bara skript från en fil (static/js), aldrig inbäddade.
+                    self.assertNotRegex(text, r"<script(?![^>]*\ssrc=)")
 
 
 class LeadFormTests(InboxFixture, TestCase):
@@ -319,7 +320,8 @@ class LeadFormTests(InboxFixture, TestCase):
         self.assertEqual(Client().post(url, self.quote_post()).status_code, 302)
         lead = Lead.objects.get(campaign=self.quote_page)
         self.assertEqual(lead.gclid, "Cj0abc")
-        self.assertEqual(lead.utm, {"utm_campaign": "host", "wbraid": "W1"})
+        self.assertEqual((lead.wbraid, lead.gbraid), ("W1", ""))
+        self.assertEqual(lead.utm, {"utm_campaign": "host"})
 
     def test_input_is_sanitized_and_bad_click_ids_dropped(self):
         data = self.quote_post(
@@ -602,7 +604,7 @@ class InboxTests(InboxFixture, TestCase):
         self.assertContains(self.client.get(self.detail(bare)), "<dd>Nej</dd>", html=False)
 
     def test_status_changes_and_the_value_rule(self):
-        lead = self.lead_for(gclid="Cj0abc")
+        lead = self.lead_for(gclid="Cj0abc", ad_consent=Lead.CONSENT_GRANTED)
         url = self.detail(lead)
         response = self.client.post(url, {"status": Lead.STATUS_CONTACTED})
         self.assertRedirects(response, url)
@@ -641,7 +643,7 @@ class InboxTests(InboxFixture, TestCase):
         self.assertFalse(ConversionUpload.objects.filter(lead=lead).exists())
 
     def test_an_exported_upload_is_left_alone(self):
-        lead = self.lead_for(gclid="Cj0abc")
+        lead = self.lead_for(gclid="Cj0abc", ad_consent=Lead.CONSENT_GRANTED)
         leads.set_status(lead, Lead.STATUS_WON, "5000")
         ConversionUpload.objects.filter(lead=lead).update(status=ConversionUpload.STATUS_EXPORTED)
         self.client.post(self.detail(lead), {"status": Lead.STATUS_LOST})

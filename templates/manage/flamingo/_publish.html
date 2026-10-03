@@ -1,24 +1,75 @@
+{% load flamingo_app %}
 {% comment %}
-Publiceringen (manage_review.publish). Utan Google Ads API görs allt i
-Google för hand med Editor-filen; här ändras kampanjens status, och med den
-landningssidan (/lp/<slug>/ är öppen bara när kampanjen är live).
+Publiceringen (manage_review.publish). Med Google Ads API (publish_api,
+google_publish.panel) skapas kampanjen hos Google med ett klick och pausas
+och återupptas där. Utan API:t, för demokonton och för kampanjer som
+publicerades för hand görs allt i Google för hand med Editor-filen; här
+ändras kampanjens status, och med den landningssidan (/lp/<slug>/ är öppen
+bara när kampanjen är live). Betalningen hos Google stoppar inget, men
+annonserna visas inte förrän den finns (billing_missing). En kampanj som
+kunden godkänt (eller skickat utan granskning) har redan prövats mot API:t
+(google_publish.publish_approved); står den här är orsaken google_error.
+Med API:t finns ändå vägen för hand (manual=1), och en godkänd kampanj som
+inte är publicerad kan tas tillbaka till granskning (action=return) när
+Google sagt nej till innehållet. Demokontots påhittade id:n visas inte.
 {% endcomment %}
 <section class="m-panel m-form-panel" id="publicering" aria-labelledby="mf-publish-title">
     <h2 class="m-form-section" id="mf-publish-title">Publicering</h2>
 
     {% if campaign.status == "live" %}
-        <p class="mf-state"><span class="m-badge m-badge--published">Live</span> sedan {{ campaign.published_at|date:"j b Y H:i"|default:"okänt datum" }}{% if campaign.google_campaign_id %}, id hos Google {{ campaign.google_campaign_id }}{% endif %}.</p>
+        <p class="mf-state"><span class="m-badge m-badge--published">Live</span> sedan {{ campaign.published_at|date:"j b Y H:i"|default:"okänt datum" }}.</p>
+    {% elif campaign.status == "paused" %}
+        <p class="mf-state"><span class="m-badge">Pausad</span> Landningssidan är stängd.{% if campaign.published_at %} Publicerades första gången {{ campaign.published_at|date:"j b Y" }}.{% endif %}</p>
+    {% elif can_publish %}
+        <p class="mf-state"><span class="m-badge m-badge--in_progress">Godkänd</span> av kunden {{ campaign.approved_at|date:"j b Y H:i" }}{% if campaign.approved_by %} ({{ campaign.approved_by.first_name|default:campaign.approved_by.get_username }}){% endif %}{% if not campaign.review_requested %}, vid inskicket utan granskning{% endif %}.</p>
+    {% elif campaign.status == "needs_customer" %}
+        <p class="mf-state"><span class="m-badge m-badge--ai">Hos kunden</span> Väntar på kundens godkännande i verktyget. Inget kan publiceras förrän kunden godkänt.</p>
+        <p class="m-form-hint">Du kan förbereda med <a href="{% url 'manage:flamingo_editor_csv' campaign.pk %}">Editor-filen</a>, men importera den inte förrän kunden godkänt.</p>
+    {% else %}
+        <p class="mf-state"><span class="m-badge">Utkast</span> Kunden har inte skickat in kampanjen än.</p>
+    {% endif %}
+
+    {% if campaign.status == "live" or campaign.status == "paused" or can_publish %}
+    <dl class="mf-dl">
+        <dt>Väg</dt>
+        <dd>{% if publish_api %}Google Ads API.{% else %}För hand, med Editor-filen. {{ publish_manual_reason }}{% endif %}</dd>
+        {% if campaign.google_campaign_id and not account.is_demo %}
+        <dt>Hos Google</dt>
+        <dd>Kampanj {{ campaign.google_campaign_id }}{% if account.google_ads_customer_id %} i konto {{ account.google_ads_customer_id }}{% endif %}.{% if google_campaign_url %} <a class="mf-strong" href="{{ google_campaign_url }}" target="_blank" rel="noopener noreferrer">Öppna i Google Ads ↗</a>{% endif %}</dd>
+        {% endif %}
+        {% if campaign.google_synced_at and not account.is_demo %}
+        <dt>Senast hos Google</dt>
+        <dd>{{ campaign.google_synced_at|date:"j b Y H:i" }}</dd>
+        {% endif %}
+    </dl>
+    {% if campaign.google_error %}
+    <div class="m-form-error mf-blockers-box" role="status">
+        <p><b>Senaste felet vid publiceringen:</b> {{ campaign.google_error }}</p>
+    </div>
+    {% endif %}
+    {% if billing_missing %}
+    <p class="mf-note">{{ billing_note }}{% if can_publish %} Det stoppar inte publiceringen.{% endif %}</p>
+    {% endif %}
+    {% endif %}
+
+    {% if campaign.status == "live" %}
         <p class="m-form-hint">Landningssidan: <a href="{{ campaign.landing_url }}" target="_blank" rel="noopener">{{ landing_full_url }} ↗</a></p>
         <div class="mf-actions">
             <a class="m-btn m-btn--ghost m-btn--small" href="{% url 'manage:flamingo_editor_csv' campaign.pk %}">Ladda ner Editor-filen</a>
+            {% if publish_api %}
+            <form method="post" action="{% url 'manage:flamingo_publish' campaign.pk %}" data-confirm="Pausa kampanjen? Den pausas hos Google och landningssidan stängs direkt.">{% csrf_token %}
+                <input type="hidden" name="action" value="pause">
+                <button type="submit" class="m-btn m-btn--small">Pausa hos Google</button>
+            </form>
+            {% else %}
             <form method="post" action="{% url 'manage:flamingo_publish' campaign.pk %}" data-confirm="Pausa kampanjen? Landningssidan stängs direkt. Pausa den i Google Ads också.">{% csrf_token %}
                 <input type="hidden" name="action" value="pause">
                 <button type="submit" class="m-btn m-btn--small">Pausa</button>
             </form>
+            {% endif %}
         </div>
 
     {% elif campaign.status == "paused" %}
-        <p class="mf-state"><span class="m-badge">Pausad</span> Landningssidan är stängd.{% if campaign.published_at %} Publicerades första gången {{ campaign.published_at|date:"j b Y" }}.{% endif %}</p>
         {% if publish_blockers %}
         <ul class="mf-blockers">{% for b in publish_blockers %}<li>{{ b }}</li>{% endfor %}</ul>
         {% endif %}
@@ -27,15 +78,54 @@ landningssidan (/lp/<slug>/ är öppen bara när kampanjen är live).
             {% if not publish_blockers %}
             <form method="post" action="{% url 'manage:flamingo_publish' campaign.pk %}">{% csrf_token %}
                 <input type="hidden" name="action" value="resume">
-                <button type="submit" class="m-btn m-btn--small">Återuppta</button>
+                <button type="submit" class="m-btn m-btn--small">{% if publish_api %}Återuppta hos Google{% else %}Återuppta{% endif %}</button>
             </form>
             {% endif %}
         </div>
+        {% if publish_api %}
+        <p class="m-form-hint">Återuppta slår på kampanjen hos Google och öppnar landningssidan igen.</p>
+        {% else %}
         <p class="m-form-hint">Återuppta öppnar landningssidan igen. Slå på kampanjen i Google Ads också.</p>
+        {% endif %}
+
+    {% elif can_publish and publish_api %}
+        <p class="m-form-hint">Publicera skapar kampanjen i kundens Google Ads-konto {{ account.google_ads_customer_id }} i ett enda anrop, allt eller inget:</p>
+        <ul class="mf-steps">
+            <li>Budget {{ campaign.daily_budget_kr|kr }} per dag, Maximera klick, bara Google sök, svenska.</li>
+            <li>{% if google_places %}{{ google_places|join:", " }}{% else %}Ingen ort i området{% endif %}, radie {{ campaign.radius_km }} km.</li>
+            <li>{{ google_keyword_count }} sökord och {{ google_negative_count }} negativa sökord, en annonsgrupp och annonsen till {{ landing_full_url }}.</li>
+            <li>Automatisk taggning slås på i kontot, så att klickets id når landningssidan.</li>
+            <li>Kampanjen startar direkt. När Google bekräftat blir den live här och landningssidan öppnas.</li>
+        </ul>
+        <p class="m-form-hint">Underlaget finns också som <a href="{% url 'manage:flamingo_editor_csv' campaign.pk %}">Editor-fil</a>. Importera den inte: då blir kampanjen dubbel.</p>
+        {% if publish_blockers %}
+        <div class="m-form-error mf-blockers-box" role="status">
+            <p><b>Kan inte publiceras än.</b></p>
+            <ul class="mf-blockers">{% for b in publish_blockers %}<li>{{ b }}</li>{% endfor %}</ul>
+            <p><a href="{% url 'manage:customer_detail' customer.pk %}#flamingo">Till kundkortet</a></p>
+        </div>
+        {% else %}
+        <form method="post" action="{% url 'manage:flamingo_publish' campaign.pk %}" class="m-form mf-publish-form" data-confirm="Publicera {{ campaign.name }} hos Google? Kampanjen startar direkt och landningssidan öppnas.">{% csrf_token %}
+            <input type="hidden" name="action" value="publish">
+            <button type="submit" class="m-btn">Publicera hos Google</button>
+        </form>
+        <details class="mf-more mf-gap"{% if campaign.google_error %} open{% endif %}>
+            <summary>Publicera för hand i stället</summary>
+            <p class="m-form-hint">När Google säger nej och du lagt in kampanjen själv med <a href="{% url 'manage:flamingo_editor_csv' campaign.pk %}">Editor-filen</a> (eller i Google Ads): markera den som live här, så öppnas landningssidan på {{ landing_full_url }}. Den pausas och återupptas sedan för hand.</p>
+            <form method="post" action="{% url 'manage:flamingo_publish' campaign.pk %}" class="m-form mf-publish-form" data-confirm="Markera {{ campaign.name }} som live? Landningssidan öppnas direkt, och inget skickas till Google härifrån.">{% csrf_token %}
+                <input type="hidden" name="action" value="publish">
+                <input type="hidden" name="manual" value="1">
+                <div class="m-field">
+                    <label for="f-google-campaign-id-hand">Kampanjens id hos Google, om du har det</label>
+                    <input id="f-google-campaign-id-hand" name="google_campaign_id" value="{{ campaign.google_campaign_id }}" inputmode="numeric" autocomplete="off">
+                </div>
+                <button type="submit" class="m-btn m-btn--ghost">Markera som live</button>
+            </form>
+        </details>
+        {% endif %}
 
     {% elif can_publish %}
-        <p class="mf-state"><span class="m-badge m-badge--in_progress">Godkänd</span> av kunden {{ campaign.approved_at|date:"j b Y H:i" }}{% if campaign.approved_by %} ({{ campaign.approved_by.first_name|default:campaign.approved_by.get_username }}){% endif %}.</p>
-        <p class="m-form-hint">{% if api_configured %}Nyckeln till Google Ads API finns, men publicering via API är inte byggd än.{% else %}Google Ads API är inte inkopplat.{% endif %} Publicera för hand:</p>
+        <p class="m-form-hint">Publicera för hand:</p>
         <ol class="mf-steps">
             <li><a href="{% url 'manage:flamingo_editor_csv' campaign.pk %}">Ladda ner Editor-filen</a> (kampanjen, annonsgruppen, sökorden, de negativa sökorden och annonsen).</li>
             <li>Öppna Google Ads Editor och hämta kundens konto{% if account.google_ads_customer_id %} {{ account.google_ads_customer_id }}{% endif %} under ADX:s förvaltarkonto.</li>
@@ -60,12 +150,15 @@ landningssidan (/lp/<slug>/ är öppen bara när kampanjen är live).
             <button type="submit" class="m-btn">Markera som live</button>
         </form>
         {% endif %}
+    {% endif %}
 
-    {% elif campaign.status == "needs_customer" %}
-        <p class="mf-state"><span class="m-badge m-badge--ai">Hos kunden</span> Väntar på kundens godkännande i verktyget. Inget kan publiceras förrän kunden godkänt.</p>
-        <p class="m-form-hint">Du kan förbereda med <a href="{% url 'manage:flamingo_editor_csv' campaign.pk %}">Editor-filen</a>, men importera den inte förrän kunden godkänt.</p>
-
-    {% else %}
-        <p class="mf-state"><span class="m-badge">Utkast</span> Kunden har inte skickat in kampanjen till granskning än.</p>
+    {% if can_publish %}
+    <div class="mf-gap">
+        <p class="m-form-hint">Behöver något i innehållet rättas, till exempel för att Google sa nej till en rubrik, ett sökord eller annonsen? Ta tillbaka kampanjen till granskning, rätta det och skicka den till kunden, som godkänner igen. Kunden mejlas inte.</p>
+        <form method="post" action="{% url 'manage:flamingo_publish' campaign.pk %}" data-confirm="Ta tillbaka {{ campaign.name }} till granskning? Kundens godkännande gäller inte längre, och kunden godkänner den rättade versionen.">{% csrf_token %}
+            <input type="hidden" name="action" value="return">
+            <button type="submit" class="m-btn m-btn--small m-btn--ghost">Tillbaka till granskning</button>
+        </form>
+    </div>
     {% endif %}
 </section>

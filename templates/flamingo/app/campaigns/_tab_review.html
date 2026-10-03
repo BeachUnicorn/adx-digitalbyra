@@ -2,13 +2,30 @@
 {% comment %}
 Fliken Granskning (kundresan 08): senaste rundan som tidslinje, granskarens
 ändringar som diff (del/ins) grupperade per del med skälet en gång, och
-godkännandet. Godkännandet publicerar inget: ADX publicerar i panelen (att
-den är godkänd står överst på kampanjsidan). Kontext: review,
-review_note, reviewer_text, reviewer_name, changes, change_groups, timeline,
-earlier (_review_context). review_note är tom när den bara upprepar att
-inget ändrades.
+godkännandet. Godkännandet publicerar direkt när Google Ads API är
+inkopplat och kontot kopplat under ADX, annars publicerar ADX (läget står
+överst på kampanjsidan). Granskningen är kundens val: en kampanj som
+skickades utan granskning (direct) visar inskicket som tidslinje. Kontext:
+review, direct, review_note, reviewer_text, reviewer_name, changes,
+change_groups, timeline, earlier (_review_context). review_note är tom när
+den bara upprepar att inget ändrades.
 {% endcomment %}
-{% if review %}
+{% if direct %}
+<section class="fl-panel fl-panel--soft" aria-labelledby="camp-rv-title">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="camp-rv-title">Skickad utan granskning</h2>
+  </div>
+  <ol class="fl-timeline">
+    {% for item in timeline %}
+    <li class="fl-timeline__item is-{{ item.state }}">
+      <span class="fl-timeline__dot" aria-hidden="true"></span>
+      <div class="fl-timeline__body">{% if item.state == "now" %}<b>{{ item.title }}</b>{% else %}{{ item.title }}{% endif %}{% if item.meta %}<span class="fl-timeline__meta">{{ item.meta }}</span>{% endif %}</div>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="fl-panel__note">Du valde att skicka kampanjen utan att ADX granskar den. Google granskar varje annons innan den visas.</p>
+</section>
+{% elif review %}
 <section class="fl-panel fl-panel--soft" aria-labelledby="camp-rv-title">
   <div class="fl-panel__head">
     <h2 class="fl-panel__title" id="camp-rv-title">{% if review.state == "pending" %}Hos ADX{% else %}Granskat av ADX{% endif %}</h2>
@@ -52,7 +69,7 @@ inget ändrades.
   <div class="fl-camp-approve__text">
     <h2 class="fl-panel__title" id="camp-approve">Godkänn kampanjen</h2>
     <p class="fl-camp-approve__sum">{{ campaign.daily_budget_kr|kr }} per dag, ungefär {{ monthly_kr|kr }} i månaden. {{ campaign.area }}.</p>
-    <p class="fl-panel__note">När du godkänt publicerar ADX kampanjen. Ändrar du något i stället blir den ett utkast igen och går en ny granskning.</p>
+    <p class="fl-panel__note">När du godkänt går kampanjen vidare till publicering. Ändrar du något i stället blir den ett utkast igen, och du skickar den på nytt.</p>
   </div>
   {% if read_only %}
   <p class="fl-panel__note">Kundvyn är skrivskyddad.</p>
@@ -68,6 +85,13 @@ inget ändrades.
 </section>
 {% endif %}
 
+{% else %}
+<div class="fl-empty fl-panel">
+  <p class="fl-empty__title">Inte skickad än</p>
+  <p class="fl-empty__text">När du skickar kampanjen väljer du om en person på ADX ska granska den först. Med granskning går ADX igenom annonserna, sökorden och sidan, rättar det som behövs och skriver varför, och du godkänner innan den publiceras. Utan granskning går den vidare till publicering som den är. Inget publiceras innan du skickat.</p>
+</div>
+{% endif %}
+
 {% if earlier %}
 <section class="fl-panel" aria-labelledby="camp-rv-earlier">
   <h2 class="fl-panel__title" id="camp-rv-earlier">Tidigare rundor</h2>
@@ -81,9 +105,4 @@ inget ändrades.
   </ul>
 </section>
 {% endif %}
-{% else %}
-<div class="fl-empty fl-panel">
-  <p class="fl-empty__title">Inte skickad till granskning än</p>
-  <p class="fl-empty__text">När du skickar förslaget läser en person på ADX igenom annonserna, sökorden och sidan, rättar det som behövs och skriver varför. Sedan godkänner du, och först då publiceras något.</p>
-</div>
-{% endif %}
+

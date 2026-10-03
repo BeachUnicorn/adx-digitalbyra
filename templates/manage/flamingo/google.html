@@ -1,0 +1,123 @@
+{% extends "manage/base.html" %}
+{% load static flamingo_google %}
+
+{% block title %}Google Ads: ADX Flamingo{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/manage-flamingo.css' %}?v={{ static_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="mf-page">
+{% comment %}
+Byråns Google-sida (apps/flamingo/manage_google.py). Bara namnen på det som
+saknas visas, aldrig värdena, och den sparade nyckeln visas aldrig.
+{% endcomment %}
+<div class="m-page-head">
+    <p class="m-page-head__back"><a href="{% url 'manage:flamingo_overview' %}">ADX Flamingo</a></p>
+    <h1 class="m-page-head__title">Google Ads</h1>
+    <p class="m-page-head__subtitle">ADX:s inloggning hos Google, som alla anrop till kundernas konton görs med genom förvaltarkontot. Kunden loggar aldrig in hos Google här.</p>
+</div>
+
+<h2 class="m-section-title mf-section" id="laget">Läget</h2>
+<section class="m-panel m-form-panel" aria-labelledby="mf-g-state">
+    <h3 class="m-form-section" id="mf-g-state">Google Ads API</h3>
+    {% if configured %}
+    <p class="mf-state"><span class="m-badge m-badge--published">Inkopplat</span> Allt som behövs finns. API-version {{ api_version }}.</p>
+    {% else %}
+    <p class="mf-state"><span class="m-badge m-badge--draft">Inte inkopplat</span> Utan API:t bockas kopplingen av för hand på kundkortet och kampanjerna publiceras med Editor-filen.</p>
+    <p class="m-field-help">Det här saknas i miljön (.env på servern):</p>
+    <ul class="mf-steps">
+        {% for name, help in missing %}<li><code>{{ name }}</code>{% if help %}: {{ help }}{% endif %}</li>{% endfor %}
+    </ul>
+    {% endif %}
+    <dl class="mf-dl">
+        <dt>Förvaltarkonto</dt><dd>{{ mcc|default:"Saknas" }}</dd>
+        <dt>Inloggning</dt>
+        <dd>{% if env_token %}Nyckeln i miljön (GOOGLE_ADS_REFRESH_TOKEN){% elif connection.is_connected %}{% if connection.google_email %}{{ connection.google_email }}{% else %}Kopplad{% endif %}{% if connection.connected_at %}, {{ connection.connected_at|date:"j b Y H:i" }}{% endif %}{% if connection.connected_by %} av {{ connection.connected_by.first_name|default:connection.connected_by.get_username }}{% endif %}{% else %}Inte kopplad{% endif %}</dd>
+        <dt>Senast svar</dt><dd>{% if connection.last_ok_at %}{{ connection.last_ok_at|date:"j b Y H:i" }}{% else %}Inget än{% endif %}</dd>
+        {% if connection.last_error %}<dt>Senaste fel</dt><dd>{{ connection.last_error }}</dd>{% endif %}
+    </dl>
+    {% if connection.token_unreadable %}
+    <p class="mf-note">Den sparade nyckeln går inte att läsa: SECRET_KEY eller FLAMINGO_TOKEN_KEY har bytts. Koppla med Google igen.</p>
+    {% endif %}
+    {% if env_token %}
+    <p class="mf-note">Nyckeln i miljön (GOOGLE_ADS_REFRESH_TOKEN) används, så knappen Koppla med Google behövs inte. Ta bort den ur miljön om byrån hellre loggar in härifrån.</p>
+    {% endif %}
+    <div class="mf-actions">
+        {% if not env_token and oauth_configured %}
+        <form method="post" action="{% url 'manage:flamingo_google_connect' %}">{% csrf_token %}
+            <button type="submit" class="m-btn m-btn--small">{% if connection.is_connected %}Koppla igen med Google{% else %}Koppla med Google{% endif %}</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{% url 'manage:flamingo_google_test' %}">{% csrf_token %}
+            <button type="submit" class="m-btn m-btn--small m-btn--ghost">Testa kopplingen</button>
+        </form>
+        {% if connection.is_connected %}
+        <form method="post" action="{% url 'manage:flamingo_google_disconnect' %}" data-confirm="Koppla från ADX:s Google-konto? Nyckeln återkallas hos Google och anropen slutar fungera tills någon kopplar igen.">{% csrf_token %}
+            <button type="submit" class="m-btn m-btn--small m-btn--danger">Koppla från</button>
+        </form>
+        {% endif %}
+    </div>
+    {% if not oauth_configured and not env_token %}
+    <p class="m-field-help">Koppla med Google kräver OAuth-klienten (GOOGLE_ADS_CLIENT_ID och GOOGLE_ADS_CLIENT_SECRET).</p>
+    {% endif %}
+</section>
+
+<h2 class="m-section-title mf-section" id="konverteringar">Konverteringarna</h2>
+<section class="m-panel m-form-panel" aria-labelledby="mf-g-conv">
+    <h3 class="m-form-section" id="mf-g-conv">Uppladdningen till Google</h3>
+    {% if upload_blocked %}
+    <p class="mf-state"><span class="m-badge m-badge--draft">Stoppad</span> {{ upload_blocked }}</p>
+    <form method="post" action="{% url 'manage:flamingo_google_uploads_retry' %}">{% csrf_token %}
+        <button type="submit" class="m-btn m-btn--small m-btn--ghost">Försök ladda upp igen</button>
+    </form>
+    {% elif uploads_via_api %}
+    <p class="mf-state"><span class="m-badge m-badge--published">På</span> flamingo_google_sync laddar upp konverteringarna till konton som ligger under ADX förvaltarkonto.</p>
+    {% else %}
+    <p class="mf-state"><span class="m-badge m-badge--draft">Som CSV</span> Konverteringarna exporteras som CSV i kön och laddas upp i kundens konto för hand.{% if not uploads_setting %} Google tar inte emot nya användare av uploadClickConversions sedan 2026-06-15; GOOGLE_ADS_UPLOAD_CONVERSIONS slås på bara om ADX bevisat har tillgång.{% endif %}</p>
+    {% endif %}
+</section>
+
+<h2 class="m-section-title mf-section" id="installning">Inställningen i Google Cloud</h2>
+<section class="m-panel m-form-panel" aria-labelledby="mf-g-cloud">
+    <h3 class="m-form-section" id="mf-g-cloud">Projektet och OAuth-klienten</h3>
+    <ol class="mf-steps">
+        <li>Google Cloud Console, projektet som ska äga OAuth-klienten: slå på Google Ads API under API:er och tjänster. Projektet börjar med Test-åtkomst, som bara når testkonton.</li>
+        <li>Ansök om Explorer på sidan Google Ads API Overview för projektet (inte i förvaltarkontots API Center, där behandlas inget längre). Explorer når riktiga konton men får inte skapa konton åt kunder.</li>
+        <li>För "Skapa ett konto åt kunden": verifiera projektets varumärke och ansök om Basic på samma sida.</li>
+        <li>Skapa en OAuth-klient av typen webbapp och lägg till adressen nedan som godkänd omdirigering (Authorized redirect URI), exakt som den står.</li>
+        <li>Lägg klientens id och hemlighet i miljön som GOOGLE_ADS_CLIENT_ID och GOOGLE_ADS_CLIENT_SECRET. Utvecklartoken behövs inte: Google bortser från den sedan 2026-09-09.</li>
+        <li>Koppla med Google här, med ett Google-konto som har åtkomst till förvaltarkontot.</li>
+    </ol>
+    <p class="m-field-help">Omdirigeringen att registrera:</p>
+    <p class="mf-note"><code>{{ redirect_uri }}</code></p>
+</section>
+
+<h2 class="m-section-title mf-section" id="kunder">Kundernas konton</h2>
+{% if accounts %}
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Kund</th><th>Konto-id</th><th>Google</th><th>Betalning</th><th>Läst från Google</th></tr></thead>
+        <tbody>
+        {% for a in accounts %}
+            <tr>
+                <td><a class="mf-strong" href="{% url 'manage:customer_detail' a.customer.pk %}#flamingo-google">{{ a.customer.name }}</a>{% if a.is_demo %} <span class="m-badge">Demo</span>{% endif %}</td>
+                <td class="m-num">{{ a.google_ads_customer_id|default:"-" }}</td>
+                <td>{{ a.get_google_status_display }}{% if a.google_link_requested_at and not a.google_linked %}<br><span class="m-muted">Förfrågan skickad {{ a.google_link_requested_at|date:"j b" }}</span>{% endif %}</td>
+                <td>{{ a.google_billing_status|flamingo_billing|default:"-" }}</td>
+                <td>{% if a.google_synced_at %}{{ a.google_synced_at|date:"j b H:i" }}{% else %}-{% endif %}{% if a.google_sync_error %}<br><span class="m-muted">{{ a.google_sync_error }}</span>{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="m-panel"><p class="m-empty">Ingen kund har Flamingo än.</p></div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/manage-flamingo.js' %}?v={{ static_version }}" defer></script>
+{% endblock %}

@@ -6,7 +6,7 @@ Byråns siffror för ADX Flamingo i panelen (/manage/flamingo/).
     {{ counts.to_review }} {{ counts.to_publish }} {{ counts.conversions }}
     {{ campaign|flamingo_staff_state }}
 
-Bara för panelens mallar: siffrorna gäller alla kunder.
+Bara för panelens mallar: siffrorna gäller alla kunder utom demokunden.
 """
 
 from django import template
@@ -19,7 +19,7 @@ register = template.Library()
 @register.simple_tag
 def flamingo_queue_counts():
     """{to_review, to_publish, conversions}: att granska, godkända som inte
-    är publicerade, och konverteringar i kö."""
+    är publicerade, och konverteringar i kö (utan demokunden)."""
     return queue_counts()
 
 

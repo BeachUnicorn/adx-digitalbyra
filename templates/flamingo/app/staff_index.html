@@ -26,7 +26,7 @@ Arbetet (granskning, publicering, Google-kopplingen) görs i panelen.
   <li class="fl-list__item fl-panel">
     <div class="fl-list__main">
       <span class="fl-list__title">{{ account.customer.name }}</span>
-      <span class="fl-list__meta">Google: {{ account.get_google_status_display|lower }}{% if account.new_leads %}, {{ account.new_leads }} nya förfrågningar{% endif %}{% if account.in_review %}, {{ account.in_review }} hos ADX för granskning{% endif %}</span>
+      <span class="fl-list__meta">Google: {{ account.get_google_status_display }}{% if account.new_leads %}, {{ account.new_leads }} nya förfrågningar{% endif %}{% if account.in_review %}, {{ account.in_review }} hos ADX för granskning{% endif %}</span>
     </div>
     <form method="post" action="{% url 'manage:flamingo_view_as' account.customer.pk %}">
       {% csrf_token %}

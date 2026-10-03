@@ -10,4 +10,5 @@ app_name = "flamingo_public"
 urlpatterns = [
     path("<slug:slug>/", public_views.landing, name="landing"),
     path("<slug:slug>/tack/", public_views.thanks, name="thanks"),
+    path("<slug:slug>/ring/", public_views.call_click, name="call_click"),
 ]

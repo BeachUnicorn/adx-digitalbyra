@@ -2,16 +2,20 @@
 Byråns granskning av ADX Flamingo (/manage/flamingo/...), i panelens design
 (kundresan steg 8, byråns sida, och publiceringen i steg 8-11):
 
-    queue          granskningskön: att granska (äldst först), godkända som
-                   inte är publicerade, väntar på kunden, live/pausade, och
-                   konverteringarna som ska till Google
+    queue          granskningskön: att granska (äldst först, bara de där
+                   kunden bad om granskning), godkända som inte är
+                   publicerade (med orsaken), väntar på kunden, live/pausade,
+                   och konverteringarna som ska till Google. Demokontot är
+                   inte med förrän byrån ber om det (?demo=1).
     review         en kampanj: förslaget bredvid kundens bekräftade uppgifter
                    och hemsida. Medan kampanjen ligger hos ADX rättar
                    granskaren rubriker, beskrivningar, sökord, negativa
                    sökord och sidan, och skriver varför för varje ändrad del.
                    "Klar, skicka till kunden" sparar diffen i Review.changes
                    och lämnar över till kunden (status needs_customer).
-    publish        live (bara när kunden godkänt), pausa och återuppta
+    publish        live (bara när kunden godkänt), pausa och återuppta, och
+                   "Tillbaka till granskning" för en godkänd kampanj som
+                   inte är publicerad (Google sa nej till innehållet)
     editor_csv     kampanjen som Google Ads Editor-fil (exports.py)
     conversions_csv  offline-konverteringarna i kö som CSV (GET), och
                    "Markera som exporterade" (POST)
@@ -21,9 +25,15 @@ Alla vyer kräver byrån (staff_required). Ingen vy här mejlar kunden: kunden
 ser granskningen i verktyget, och vill byrån säga till gör den det själv
 (webapp/CLAUDE.md, inga automatiska kundmejl).
 
-Utan Google Ads API (settings.GOOGLE_ADS_DEVELOPER_TOKEN tom, och även när
-den finns: API-publiceringen är inte byggd än) publiceras allt för hand med
-Editor-filen; sidan visar stegen.
+Med Google Ads API inkopplat (google_ads.is_configured(), inte för
+demokonton) skapar publiceringen kampanjen hos Google (google_publish.py).
+Annars publiceras allt för hand med Editor-filen; sidan visar stegen.
+Betalningen hos Google stoppar ingen publicering, men panelen påminner om den.
+
+Granskningen är kundens val (beslut 2026-10-03, Campaign.review_requested).
+En kampanj som skickats utan granskning, eller godkänts efter den, går live
+direkt när det går (google_publish.publish_approved); hamnar den här i
+"Godkända, ej publicerade" står orsaken i Campaign.google_error.
 """
 
 import copy
@@ -32,9 +42,8 @@ import re
 from collections import Counter
 from dataclasses import dataclass, field
 
-from django.conf import settings
 from django.contrib import messages
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Max, Prefetch, Q
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -47,7 +56,7 @@ from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 from apps.projects.access import staff_required
 from apps.projects.models import Customer
 
-from . import checks, exports
+from . import checks, exports, google_ads, google_publish
 from .models import (
     DESCRIPTION_COUNT,
     DESCRIPTION_MAX,
@@ -150,15 +159,33 @@ class QueueItem:
         return self.review.submitted_at if self.review else self.campaign.updated_at
 
 
-def to_review_items():
-    """Kampanjer hos ADX som väntar på granskning, äldst inskickad först.
+def _real(campaigns, include_demo=False):
+    """Utan demokontot (FlamingoAccount.is_demo), om byrån inte bett om det
+    (?demo=1): demot ska inte blanda sig med byråns riktiga arbete."""
+    if include_demo:
+        return campaigns
+    return campaigns.filter(account__is_demo=False)
+
+
+def wants_demo(request):
+    """Bad byrån om att se demokunden i kön (?demo=1)?"""
+    return request.GET.get("demo") == "1"
+
+
+def to_review_items(include_demo=False):
+    """Kampanjer hos ADX där kunden bad om granskning (eller som byrån tagit
+    tillbaka till granskning), äldst inskickad först.
 
     En kampanj hos ADX som kunden redan godkänt (approved_at satt, ingen ny
     runda) väntar på publicering, inte på granskning."""
-    campaigns = (
+    campaigns = _real(
         Campaign.objects.filter(status=Campaign.STATUS_IN_REVIEW)
-        .select_related("account__customer", "service")
-        .prefetch_related(_pending_prefetch())
+        .filter(Q(review_requested=True) | Q(reviews__state=Review.STATE_PENDING))
+        .distinct(),
+        include_demo,
+    )
+    campaigns = campaigns.select_related("account__customer", "service").prefetch_related(
+        _pending_prefetch()
     )
     items = []
     for campaign in campaigns:
@@ -170,10 +197,13 @@ def to_review_items():
     return items
 
 
-def approved_not_live():
-    """Godkända av kunden men inte publicerade: byrån har nästa steg."""
+def approved_not_live(include_demo=False):
+    """Godkända av kunden men inte publicerade: byrån har nästa steg. Hit
+    kommer en kampanj som godkänts (eller skickats utan granskning) när
+    Google Ads API inte är inkopplat, kontot inte är kopplat under ADX, eller
+    Google sa nej (orsaken i google_error)."""
     return (
-        Campaign.objects.filter(approved_at__isnull=False)
+        _real(Campaign.objects.filter(approved_at__isnull=False), include_demo)
         .exclude(status__in=[Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED])
         .exclude(reviews__state=Review.STATE_PENDING)
         .select_related("account__customer", "service")
@@ -182,30 +212,45 @@ def approved_not_live():
     )
 
 
-def waiting_on_customer():
+def waiting_on_customer(include_demo=False):
     """Granskade kampanjer som väntar på kundens godkännande. sent_at är när
     den senaste färdiga granskningsrundan lämnades till kunden (inte
     kampanjens senaste ändring)."""
     return (
-        Campaign.objects.filter(status=Campaign.STATUS_NEEDS_CUSTOMER, approved_at__isnull=True)
+        _real(
+            Campaign.objects.filter(
+                status=Campaign.STATUS_NEEDS_CUSTOMER, approved_at__isnull=True
+            ),
+            include_demo,
+        )
         .select_related("account__customer", "service")
         .annotate(sent_at=Max("reviews__reviewed_at", filter=Q(reviews__state=Review.STATE_DONE)))
         .order_by("sent_at", "pk")
     )
 
 
-def published():
+def published(include_demo=False):
     return (
-        Campaign.objects.filter(status__in=[Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED])
+        _real(
+            Campaign.objects.filter(status__in=[Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED]),
+            include_demo,
+        )
         .select_related("account__customer", "service")
         .order_by("status", "account__customer__name", "name")
     )
 
 
 def queued_uploads(customer_pk=None):
-    """Konverteringarna i kö som kan exporteras (de har ett klick-id)."""
+    """Konverteringarna i kö som kan exporteras: förfrågningar, klick på
+    numret och affärer med gclid (Lead.can_send_to_google). Samtycket avgör
+    inte (beslut 2026-10-03). Filen skriver varje sort med sitt namn
+    (exports.conversion_names). Demokontons rader är aldrig med, inte heller
+    med ?demo=1 (påhittade klick-id, inget till Google)."""
     uploads = (
-        ConversionUpload.objects.filter(status=ConversionUpload.STATUS_QUEUED)
+        ConversionUpload.objects.filter(
+            status=ConversionUpload.STATUS_QUEUED,
+            lead__account__is_demo=False,
+        )
         .exclude(lead__gclid="")
         .select_related("lead__account__customer", "lead__campaign", "lead__service")
         .order_by("created_at", "pk")
@@ -216,7 +261,7 @@ def queued_uploads(customer_pk=None):
 
 
 def queue_counts():
-    """Siffrorna till översikten och kön."""
+    """Siffrorna till översikten och kön, utan demokontot."""
     return {
         "to_review": len(to_review_items()),
         "to_publish": approved_not_live().count(),
@@ -235,7 +280,7 @@ def _conversion_groups(uploads):
         )
         entry["uploads"].append(upload)
         entry["count"] += 1
-        entry["value"] += upload.value_kr
+        entry["value"] += upload.value_kr or 0
     return sorted(groups.values(), key=lambda g: g["customer"].name.lower())
 
 
@@ -273,27 +318,36 @@ def grouped_changes(changes):
 
 @staff_required
 def queue(request):
+    """Kön. Demokontot är inte med förrän byrån ber om det (?demo=1, länken
+    "Visa demokunden"); konverteringarna i kö har det aldrig med."""
+    from .google_conversions import queue_context
+
+    include_demo = wants_demo(request)
     uploads = list(queued_uploads())
-    exported = (
-        ConversionUpload.objects.filter(status=ConversionUpload.STATUS_EXPORTED)
-        .select_related("lead__account__customer")
-        .order_by("-exported_at", "-pk")[:10]
-    )
+    exported = ConversionUpload.objects.filter(status=ConversionUpload.STATUS_EXPORTED)
+    if not include_demo:
+        exported = exported.filter(lead__account__is_demo=False)
+    exported = exported.select_related("lead__account__customer").order_by("-exported_at", "-pk")[
+        :10
+    ]
     return render(
         request,
         "manage/flamingo/queue.html",
         {
             "active": "flamingo",
             "title": "Granska",
-            "to_review": to_review_items(),
-            "to_publish": approved_not_live(),
-            "waiting": waiting_on_customer(),
-            "published": published(),
+            "include_demo": include_demo,
+            "has_demo": FlamingoAccount.objects.filter(is_demo=True).exists(),
+            "to_review": to_review_items(include_demo),
+            "to_publish": approved_not_live(include_demo),
+            "waiting": waiting_on_customer(include_demo),
+            "published": published(include_demo),
             "uploads": uploads,
             "upload_groups": _conversion_groups(uploads),
-            "upload_total": sum(u.value_kr for u in uploads),
+            "upload_total": sum(u.value_kr or 0 for u in uploads),
             "exported": exported,
             "conversion_name": exports.conversion_name(),
+            **queue_context(include_demo),
         },
     )
 
@@ -838,7 +892,12 @@ def _can_publish(campaign, pending):
 
 
 def _publish_blockers(campaign, pending):
-    """Varför kampanjen inte kan gå live än, som texter (tom = den kan)."""
+    """Varför kampanjen inte kan gå live än, som texter (tom = den kan).
+
+    Betalningen hos Google stoppar inte: annonserna visas först när kunden
+    lagt in den, och ADX ligger inte ute med några pengar (beslut
+    2026-10-03). Panelen påminner om den i stället. Kontot måste däremot
+    vara kopplat under ADX med sitt id (demokontot har inget id)."""
     account = campaign.account
     blockers = []
     if campaign.approved_at is None:
@@ -847,11 +906,13 @@ def _publish_blockers(campaign, pending):
         blockers.append("En ny runda väntar på granskning.")
     if not account.is_enabled or not account.customer.is_active:
         blockers.append("ADX Flamingo är avstängt för kunden, eller kunden är inaktiv.")
-    if not account.google_ready:
+    if not account.google_linked:
         blockers.append(
-            "Google-kontot är inte markerat som kopplat med betalningen klar. "
+            "Google-kontot är inte markerat som kopplat under ADX. "
             "Ändra det på kundkortet när det är gjort."
         )
+    elif not account.is_demo and len(google_ads.digits(account.google_ads_customer_id)) != 10:
+        blockers.append("Google Ads-kontots id saknas. Skriv det på kundkortet.")
     return blockers
 
 
@@ -887,7 +948,7 @@ def _review_context(campaign, form, pending, problems, problems_need_ack=False):
         "description_max": DESCRIPTION_MAX,
         "can_publish": _can_publish(campaign, pending),
         "publish_blockers": _publish_blockers(campaign, pending),
-        "api_configured": bool(getattr(settings, "GOOGLE_ADS_DEVELOPER_TOKEN", "")),
+        **google_publish.panel(campaign),
         "landing_full_url": exports.landing_page_url(campaign),
         "keyword_list": [
             (text, MATCH_LABELS.get(match, match))
@@ -1011,12 +1072,36 @@ def _finish_review(request, campaign_pk, form):
 @staff_required
 @require_POST
 def publish(request, pk):
-    """action=publish (live), pause eller resume. Utan Google Ads API görs
-    samma sak i Google för hand (stegen står på sidan); här ändras
-    kampanjens status och därmed landningssidan."""
+    """action=publish (live), pause, resume eller return.
+
+    Med Google Ads API (google_publish.py) görs det hos Google först och här
+    när Google svarat. Utan API:t, för demokonton och för kampanjer som
+    publicerades för hand görs samma sak i Google för hand (stegen står på
+    sidan); här ändras kampanjens status och därmed landningssidan. Med
+    manual=1 publiceras för hand också när API:t är inkopplat (när Google
+    sagt nej och byrån lagt in kampanjen med Editor-filen).
+
+    return tar en godkänd kampanj som inte är publicerad tillbaka till
+    granskning: en ny runda hos ADX, och kundens godkännande gäller inte
+    längre. Byrån rättar det Google sa nej till och skickar den till kunden,
+    som godkänner igen. Kunden mejlas inte."""
     action = request.POST.get("action") or "publish"
-    if action not in ("publish", "pause", "resume"):
+    if action not in ("publish", "pause", "resume", "return"):
         raise Http404
+    campaign = get_object_or_404(
+        Campaign.objects.select_related("account__customer", "service"), pk=pk
+    )
+    if action == "return":
+        return _return_to_review(request, campaign.pk)
+    if action == "publish":
+        use_api = (
+            google_publish.api_available(campaign.account) and request.POST.get("manual") != "1"
+        )
+    else:
+        use_api = google_publish.uses_api(campaign)
+    if use_api:
+        return _publish_with_api(request, campaign, action)
+
     now = timezone.now()
     with transaction.atomic():
         campaign = get_object_or_404(
@@ -1074,7 +1159,9 @@ def publish(request, pk):
 
         campaign.status = Campaign.STATUS_LIVE
         campaign.published_at = now
-        fields = ["status", "published_at", "updated_at"]
+        # Ett tidigare fel (API:t efter kundens godkännande) gäller inte längre.
+        campaign.google_error = ""
+        fields = ["status", "published_at", "google_error", "updated_at"]
         if google_id:
             campaign.google_campaign_id = google_id
             fields.append("google_campaign_id")
@@ -1086,6 +1173,112 @@ def publish(request, pk):
         "Kunden har inte mejlats.",
     )
     return _back_to_review(campaign.pk, "publicering")
+
+
+def _return_to_review(request, pk):
+    """Tillbaka till granskning: bara en godkänd kampanj som inte är live
+    eller pausad och inte redan har en runda hos ADX."""
+    with transaction.atomic():
+        campaign = get_object_or_404(Campaign.objects.select_for_update(of=("self",)), pk=pk)
+        pending = campaign.pending_review()
+        if not _can_publish(campaign, pending):
+            messages.error(
+                request,
+                "Bara en godkänd kampanj som inte är publicerad kan tas tillbaka till "
+                "granskning. Inget ändrades.",
+            )
+            return _back_to_review(pk, "publicering")
+        Review.objects.create(
+            campaign=campaign,
+            round=campaign.next_round(),
+            submitted_by=request.user,
+            snapshot=campaign.content_snapshot(),
+        )
+        campaign.status = Campaign.STATUS_IN_REVIEW
+        campaign.approved_at = None
+        campaign.approved_by = None
+        campaign.save(update_fields=["status", "approved_at", "approved_by", "updated_at"])
+    messages.success(
+        request,
+        "Kampanjen ligger hos ADX för granskning igen och kundens godkännande gäller inte "
+        "längre. Rätta det Google sa nej till och skicka den till kunden. Kunden har inte "
+        "mejlats.",
+    )
+    return _back_to_review(pk)
+
+
+def _publish_with_api(request, campaign, action):
+    """publish med Google Ads API: Google först, sedan status här. Ett fel
+    från Google lämnar kampanjen som den var och visas för byrån. Varken vi
+    eller Google mejlar kunden."""
+    back = _back_to_review(campaign.pk, "publicering")
+    pending = campaign.pending_review()
+
+    if action == "pause":
+        try:
+            google_publish.pause(campaign)
+        except google_publish.PublishError as exc:
+            messages.error(
+                request,
+                f"Inget pausades. {exc.message} Pausa kampanjen i Google Ads för hand om "
+                "det brådskar.",
+            )
+            return back
+        messages.success(
+            request,
+            "Pausad hos Google och här, och landningssidan är stängd. Kunden har inte mejlats.",
+        )
+        return back
+
+    if action == "resume":
+        blockers = _publish_blockers(campaign, pending)
+        if campaign.status == Campaign.STATUS_PAUSED and blockers:
+            messages.error(request, "Kan inte återupptas: " + " ".join(blockers))
+            return back
+        try:
+            google_publish.resume(campaign)
+        except google_publish.PublishError as exc:
+            messages.error(request, f"Inget återupptogs. {exc.message}")
+            return back
+        messages.success(
+            request,
+            "Live igen hos Google och här, och landningssidan är öppen. Kunden har inte mejlats.",
+        )
+        return back
+
+    if campaign.status == Campaign.STATUS_LIVE:
+        messages.info(request, "Kampanjen är redan live.")
+        return back
+    blockers = _publish_blockers(campaign, pending)
+    if campaign.status == Campaign.STATUS_PAUSED:
+        blockers.append("Kampanjen är pausad: använd Återuppta.")
+    if blockers:
+        messages.error(request, "Inget publicerades. " + " ".join(blockers))
+        return back
+    try:
+        result = google_publish.go_live(campaign, request.user)
+    except google_publish.PublishError as exc:
+        messages.error(request, f"Inget publicerades. {exc.message}")
+        return back
+    if result.already_live:
+        messages.info(request, "Kampanjen är redan live.")
+        return back
+    parts = [
+        f"{campaign.name} är live hos Google (kampanj {result.campaign_id}), och "
+        f"landningssidan är öppen på {campaign.landing_url}."
+    ]
+    if result.adopted:
+        parts.append(
+            "Kampanjen fanns redan hos Google från ett tidigare försök och kopplades hit i "
+            "stället för att skapas en gång till."
+        )
+    if result.auto_tagging_enabled:
+        parts.append("Automatisk taggning slogs på i kundens Google Ads-konto.")
+    if google_publish.billing_missing(campaign.account):
+        parts.append(google_publish.MSG_BILLING)
+    parts.append("Kunden har inte mejlats.")
+    messages.success(request, " ".join(parts))
+    return back
 
 
 # ---------------------------------------------------------------------------
@@ -1163,9 +1356,17 @@ def conversions_csv(request):
 @staff_required
 @require_POST
 def google_update(request, pk):
-    """Byrån bockar av Google-kopplingen (README steg 3, utan API-nycklar):
-    status, kontots id (tio siffror, sparas 123-456-7890) och en notering.
-    Kunden mejlas inte; kunden ser statusen i verktyget."""
+    """Byrån bockar av Google-kopplingen för hand (README steg 3): status,
+    kontots id (tio siffror, sparas 123-456-7890) och en notering. Utan
+    Google Ads API är det här vägen; med API:t finns knapparna i
+    manage_google.google_account, och det här är reserven.
+
+    Byts id:t töms det som gällde det förra kontot hos Google (betalningen,
+    förfrågan, läsningen; google_accounts.forget_previous_account) och
+    kampanjernas gamla fel från Google. Ett id som ett annat Flamingo-konto
+    har sparas aldrig. Kunden mejlas inte; kunden ser statusen i verktyget."""
+    from .google_accounts import clear_campaign_errors, forget_previous_account
+
     customer = get_object_or_404(Customer, pk=pk)
     account = FlamingoAccount.objects.filter(customer=customer).first()
     if account is None:
@@ -1192,12 +1393,38 @@ def google_update(request, pk):
         messages.error(request, "Skriv kontots id för den statusen. Inget sparades.")
         return _back_to_card(customer.pk)
 
+    changed = google_id != account.google_ads_customer_id
+    if changed and google_id and not account.is_demo:
+        other = (
+            FlamingoAccount.objects.filter(google_ads_customer_id=google_id, is_demo=False)
+            .exclude(pk=account.pk)
+            .select_related("customer")
+            .first()
+        )
+        if other is not None:
+            messages.error(
+                request,
+                f"Id:t {google_id} används redan av {other.customer.name}. Ett Google Ads-konto "
+                "hör till en kund. Inget sparades.",
+            )
+            return _back_to_card(customer.pk)
+    fields = ["google_status", "google_ads_customer_id", "google_note"]
+    if changed:
+        fields += forget_previous_account(account)
     account.google_status = status
     account.google_ads_customer_id = google_id
     account.google_note = _plain(request.POST.get("google_note"), 300)
-    account.save(
-        update_fields=["google_status", "google_ads_customer_id", "google_note", "updated_at"]
-    )
+    try:
+        with transaction.atomic():
+            account.save(update_fields=[*fields, "updated_at"])
+    except IntegrityError:
+        messages.error(
+            request,
+            f"Id:t {google_id} sparades nyss på ett annat Flamingo-konto. Inget sparades.",
+        )
+        return _back_to_card(customer.pk)
+    if changed:
+        clear_campaign_errors(account)
     messages.success(
         request,
         f"Google för {customer.name}: {account.get_google_status_display()}. "

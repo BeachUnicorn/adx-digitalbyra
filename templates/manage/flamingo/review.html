@@ -12,13 +12,15 @@
 {% comment %}
 En kampanj från byråns sida (kundresan steg 8). Medan den ligger hos ADX
 rättar granskaren här och skriver varför; "Klar, skicka till kunden" sparar
-diffen i Review.changes. Efter kundens godkännande publiceras den härifrån.
+diffen i Review.changes. Granskningen är kundens val (review_requested): utan
+den är inskicket kundens godkännande. Efter godkännandet går kampanjen live
+direkt med Google Ads API när det går; annars publiceras den härifrån.
 Inget på sidan mejlar kunden.
 {% endcomment %}
 <div class="m-page-head">
-    <p class="m-page-head__back"><a href="{% url 'manage:flamingo_queue' %}">Granska</a> / <a href="{% url 'manage:customer_detail' customer.pk %}#flamingo">{{ customer.name }}</a></p>
-    <h1 class="m-page-head__title">{{ campaign.name }} <span class="m-badge m-badge--{{ state_badge }}">{{ state_label }}</span></h1>
-    <p class="m-page-head__subtitle">{{ campaign.service.name }}, {{ campaign.get_sales_mode_display|lower }}. {% if campaign.area %}{{ campaign.area }}. {% endif %}{{ campaign.daily_budget_kr|kr }} per dag.</p>
+    <p class="m-page-head__back"><a href="{% url 'manage:flamingo_queue' %}{% if account.is_demo %}?demo=1{% endif %}">Granska</a> / <a href="{% url 'manage:customer_detail' customer.pk %}#flamingo">{{ customer.name }}</a></p>
+    <h1 class="m-page-head__title">{{ campaign.name }} <span class="m-badge m-badge--{{ state_badge }}">{{ state_label }}</span>{% if campaign.review_requested %} <span class="m-badge">Kunden bad om granskning</span>{% endif %}</h1>
+    <p class="m-page-head__subtitle">{{ campaign.service.name }}, {{ campaign.get_sales_mode_display|lower }}. {% if campaign.area %}{{ campaign.area }}. {% endif %}{{ campaign.daily_budget_kr|kr }} per dag.{% if campaign.status != "draft" and not campaign.review_requested and campaign.approved_at %} Skickad utan granskning: inskicket var kundens godkännande.{% endif %}</p>
     <p class="mf-jump"><a href="#underlag">Till underlaget: hemsidan, uppgifterna och kontrollerna</a></p>
 </div>
 

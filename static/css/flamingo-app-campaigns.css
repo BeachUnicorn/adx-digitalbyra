@@ -187,10 +187,22 @@ a.fl-camp-row__main:hover .fl-camp-row__title{color:var(--fl-violet-ink)}
 .fl-camp-approve__actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .fl-camp-approve__actions form{margin:0}
 
-/* ---------- Skicka till granskning ---------- */
-.fl-camp-submit__row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
-.fl-camp-submit__text{display:flex;flex-direction:column;gap:4px;flex:1 1 320px;min-width:0}
+/* ---------- Skicka, med eller utan granskning ----------
+   Kunden väljer granskning med kryssrutan. Texten under och knappen följer
+   den med :has(); utan stöd står den allmänna texten och knappen "Skicka". */
+.fl-camp-submit__form{display:flex;flex-direction:column;gap:12px;min-width:0;margin:0}
+.fl-camp-submit__text{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fl-camp-submit__actions{display:flex;justify-content:flex-end}
 .fl-camp-submit form{margin:0}
+p.fl-camp-submit__direct,p.fl-camp-submit__review,
+span.fl-camp-submit__direct,span.fl-camp-submit__review{display:none}
+@supports selector(:has(*)){
+  .fl-camp-submit .fl-camp-submit__any{display:none}
+  .fl-camp-submit__form:not(:has(input[name="review"]:checked)) p.fl-camp-submit__direct,
+  .fl-camp-submit__form:has(input[name="review"]:checked) p.fl-camp-submit__review{display:block}
+  .fl-camp-submit__form:not(:has(input[name="review"]:checked)) span.fl-camp-submit__direct,
+  .fl-camp-submit__form:has(input[name="review"]:checked) span.fl-camp-submit__review{display:inline}
+}
 .fl-camp-problems{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
 .fl-camp-problems__item{position:relative;padding-left:18px;font-size:16px;line-height:1.5;color:var(--fl-body);overflow-wrap:anywhere}
 .fl-camp-problems__item::before{content:"";position:absolute;left:2px;top:9px;width:7px;height:7px;border-radius:50%;background:#D92D20}

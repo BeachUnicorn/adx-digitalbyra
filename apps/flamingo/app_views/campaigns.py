@@ -1,35 +1,42 @@
 """
-Kampanjerna (kundresan steg 6-8): ny kampanj, förslaget, inskick till
-granskning och kundens godkännande.
+Kampanjerna (kundresan steg 6-8): ny kampanj, förslaget, inskicket och
+kundens godkännande.
 
-Flödet, och vem som gör vad:
+Granskningen är kundens val (beslut 2026-10-03): vid inskicket kan kunden
+bocka i "Jag vill att ADX granskar kampanjen innan den publiceras" (av från
+början, Campaign.review_requested). Flödet, och vem som gör vad:
 
     utkast (draft)          kunden ändrar fritt och skickar när kontrollerna
                             (checks.validate) går igenom
-    hos ADX (in_review)     låst för kunden; byrån granskar i /manage/flamingo/
-                            och sätter status needs_customer när den är klar
+    utan granskning         inskicket är kundens godkännande: approved_at och
+                            approved_by sätts, ingen granskningsrunda, och
+                            kampanjen publiceras direkt när det går
+                            (google_publish.publish_approved)
+    hos ADX (in_review)     med granskning: låst för kunden; byrån granskar i
+                            /manage/flamingo/ och sätter status
+                            needs_customer när den är klar
     väntar på dig           kunden ser ändringarna och godkänner, eller ändrar
-      (needs_customer)      något (då blir kampanjen ett utkast igen och går
-                            en ny granskningsrunda)
-    godkänd                 status är kvar needs_customer men approved_at och
-                            approved_by är satta: "Godkänd av dig, ADX
-                            publicerar". Godkännandet publicerar ingenting.
-    live / pausad           byrån publicerar i /manage/ (sätter live)
+      (needs_customer)      något (då blir kampanjen ett utkast igen)
+    godkänd                 status needs_customer med approved_at och
+                            approved_by satta. Godkännandet publicerar direkt
+                            med Google Ads API när kontot är kopplat under
+                            ADX; annars står kampanjen kvar i byråns kö
+                            ("Godkänd av dig, ADX publicerar") med orsaken
+    live / pausad           publicerad, med API:t eller av byrån för hand
 
 Allt hämtas via kundens konto (account=account), aldrig på ett id ensamt.
 Byrån i kundvyn läser bara: grinden skickar tillbaka varje POST, och
 mallarna döljer formulären ({{ read_only }}). Inget här mejlar kunden.
-Inskick och godkännande larmar byrån (INQUIRY_NOTIFICATION_EMAIL), vilket
-är fritt (CLAUDE.md: larm till byrån är fria).
+Inskick och godkännande larmar byrån (INQUIRY_NOTIFICATION_EMAIL) med vad
+som hände, vilket är fritt (CLAUDE.md: larm till byrån är fria). Ett
+demokonto larmar inte och anropar aldrig Google.
 """
 
 import logging
 import re
 
 from django import forms
-from django.conf import settings
 from django.contrib import messages
-from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Max
 from django.http import Http404
@@ -40,9 +47,10 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
-from apps.inquiries.emails import _as_list
+from apps.projects.access import is_agency_user
 
-from .. import checks, generator
+from .. import checks, generator, google_publish
+from ..alerts import send_agency_alert
 from ..models import (
     DESCRIPTION_COUNT,
     DESCRIPTION_MAX,
@@ -173,12 +181,15 @@ def _locked(campaign):
 
 
 def is_approved(campaign):
-    """Kunden har godkänt det byrån granskat; byrån publicerar."""
+    """Kunden har godkänt (det byrån granskat, eller vid inskicket utan
+    granskning) men kampanjen är inte publicerad än: byrån publicerar."""
     return campaign.status == Campaign.STATUS_NEEDS_CUSTOMER and campaign.approved_at is not None
 
 
 def state_label(campaign):
     if is_approved(campaign):
+        if not campaign.review_requested:
+            return "Skickad av dig, ADX publicerar"
         return "Godkänd av dig, ADX publicerar"
     if campaign.status == Campaign.STATUS_NEEDS_CUSTOMER:
         return "Klart för dig"
@@ -197,21 +208,11 @@ def _landing(request, campaign):
 
 
 def _alert_agency(request, campaign, subject, lines):
-    """Larm till byrån (aldrig till kunden). Fäller aldrig förfrågan."""
-    recipients = _as_list(getattr(settings, "INQUIRY_NOTIFICATION_EMAIL", ""))
-    if not recipients:
-        return False
-    if "smtp" in settings.EMAIL_BACKEND and not getattr(settings, "EMAIL_HOST_USER", ""):
-        logger.warning("Flamingo-larmet till byrån hoppades över: e-post är inte inkopplad.")
-        return False
+    """Larm till byrån (aldrig till kunden) med länken till granskningen.
+    Fäller aldrig förfrågan. Ett demokonto skickar ingenting, och samma
+    larm om samma kampanj går högst en gång i timmen (alerts.py)."""
     link = request.build_absolute_uri(reverse("manage:flamingo_review", args=[campaign.pk]))
-    body = "\n".join([*lines, "", f"Granska i panelen: {link}"])
-    try:
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, recipients, fail_silently=False)
-        return True
-    except Exception:  # noqa: BLE001 - ett larm får aldrig fälla kundens inskick
-        logger.exception("Kunde inte skicka Flamingo-larmet till byrån")
-        return False
+    return send_agency_alert(campaign, subject, [*lines, "", f"Granska i panelen: {link}"])
 
 
 # ---------------------------------------------------------------------------
@@ -377,7 +378,9 @@ def campaign_new(request, account):
                 text = "Förslaget är klart. Texterna bygger på dina bekräftade uppgifter."
                 if proposal.note:
                     text += f" {proposal.note}"
-            messages.success(request, f"{text} Ändra det som känns fel och skicka till granskning.")
+            messages.success(
+                request, f"{text} Ändra det som känns fel och skicka det när du är klar."
+            )
             return redirect(_detail_url(campaign, "annonser"))
     else:
         form = NewCampaignForm(
@@ -632,9 +635,60 @@ def review_note(note, changes):
     return "" if plain in _NOTHING_CHANGED_NOTES else note
 
 
+def _earlier(reviews):
+    return [{"round": r.round, "submitted": _when(r.submitted_at), "review": r} for r in reviews]
+
+
+def _direct_timeline(campaign):
+    """Tidslinjen för en kampanj som skickades utan granskning: inskicket
+    var godkännandet, sedan live eller "ADX publicerar"."""
+    who = _first_name(campaign.approved_by)
+    timeline = [
+        {
+            "state": "done",
+            "title": f"Skickad av {who}" if who else "Skickad av dig",
+            "meta": f"{_when(campaign.approved_at)}, utan granskning".strip(", "),
+        },
+        {"state": "done", "title": "Kontrollerna gick igenom", "meta": ""},
+    ]
+    if campaign.published_at is not None:
+        timeline.append({"state": "done", "title": "Live", "meta": _when(campaign.published_at)})
+    else:
+        timeline.append(_publish_step(campaign))
+    return timeline
+
+
+def _publish_step(campaign):
+    """Steget efter godkännandet när kampanjen inte är live än. Inga tider:
+    ADX publicerar, eller kontot ska kopplas först."""
+    if not campaign.account.google_linked:
+        return {
+            "state": "now",
+            "title": "Väntar på att ditt Google Ads-konto kopplas under ADX",
+            "meta": "",
+        }
+    return {"state": "now", "title": "ADX publicerar", "meta": ""}
+
+
 def _review_context(campaign):
     reviews = list(campaign.reviews.select_related("reviewer", "submitted_by").order_by("-round"))
     latest = reviews[0] if reviews else None
+    direct = (
+        not campaign.review_requested
+        and campaign.approved_at is not None
+        and campaign.status != Campaign.STATUS_DRAFT
+    )
+    if direct:
+        # Skickad utan granskning: inskicket var godkännandet. Tidigare
+        # rundor (från ett inskick med granskning) står kvar under.
+        return {
+            "review": None,
+            "direct": True,
+            "changes": [],
+            "change_groups": [],
+            "timeline": _direct_timeline(campaign),
+            "earlier": _earlier(reviews),
+        }
     if latest is None:
         return {"review": None, "changes": [], "change_groups": [], "timeline": [], "earlier": []}
     changes = []
@@ -668,8 +722,17 @@ def _review_context(campaign):
             )
     reviewer = _first_name(latest.reviewer)
     reviewer_text = f"{reviewer} på ADX" if reviewer else "ADX"
+    # Byrån kan ta tillbaka en godkänd kampanj till granskning (Google sa nej
+    # till något): då skickade inte kunden den.
+    taken_back = latest.submitted_by is not None and is_agency_user(latest.submitted_by)
     timeline = [
-        {"state": "done", "title": "Skickat till granskning", "meta": _when(latest.submitted_at)}
+        {
+            "state": "done",
+            "title": "ADX tog tillbaka kampanjen för granskning"
+            if taken_back
+            else "Skickat till granskning",
+            "meta": _when(latest.submitted_at),
+        }
     ]
     if latest.state == Review.STATE_PENDING:
         timeline.append(
@@ -705,7 +768,7 @@ def _review_context(campaign):
                     "meta": _when(campaign.approved_at),
                 }
             )
-            timeline.append({"state": "now", "title": "ADX publicerar", "meta": ""})
+            timeline.append(_publish_step(campaign))
         elif campaign.status == Campaign.STATUS_NEEDS_CUSTOMER:
             timeline.append({"state": "now", "title": "Väntar på ditt godkännande", "meta": ""})
     return {
@@ -716,9 +779,7 @@ def _review_context(campaign):
         "changes": changes,
         "change_groups": change_groups,
         "timeline": timeline,
-        "earlier": [
-            {"round": r.round, "submitted": _when(r.submitted_at), "review": r} for r in reviews[1:]
-        ],
+        "earlier": _earlier(reviews[1:]),
     }
 
 
@@ -832,7 +893,11 @@ def campaign_detail(request, account, pk):
         "company": generator.company_name(account.customer),
         "page_host": request.get_host(),
         "landing_html": landing_preview(request, campaign) if tab == "sidan" else None,
-        "google_ready": account.google_ready,
+        # Kampanjen kan gå live när kontot är kopplat under ADX; betalningen
+        # stoppar inte (beslut 2026-10-03).
+        "google_linked": account.google_linked,
+        # Vad inskicket utan granskning leder till (knappen och texten).
+        "approval_path": google_publish.approval_path(account),
     }
     context.update(_review_context(campaign))
     return render_app(request, "flamingo/app/campaigns/detail.html", "campaigns", context)
@@ -971,7 +1036,7 @@ def _locked_message(campaign):
     return "Kampanjen är publicerad. Vill du ändra den: skriv till ADX, så går ändringen samma väg."
 
 
-REOPENED_NOTE = " Kampanjen är ett utkast igen: skicka den till granskning när du är klar."
+REOPENED_NOTE = " Kampanjen är ett utkast igen: skicka den på nytt när du är klar."
 
 
 def _edit(request, campaign):
@@ -1042,20 +1107,88 @@ def _regenerate(request, campaign, target):
 # ---------------------------------------------------------------------------
 
 
+#: Kundens kryssruta vid inskicket (av från början).
+REVIEW_FIELD = "review"
+
+
+def _billing_note(account):
+    """Påminnelsen om betalningen när kampanjen just blev live."""
+    if google_publish.billing_missing(account):
+        return " Annonserna visas när betalningen är inlagd hos Google."
+    return ""
+
+
+def _published_text(outcome, account, prefix):
+    """Kundens besked efter godkännandet. Lugnt och utan tider: live, eller
+    att ADX publicerar (kön, med orsaken för byrån i google_error)."""
+    if outcome.is_live:
+        return (
+            f"{prefix} Kampanjen är live. Google granskar varje annons innan den visas."
+            + _billing_note(account)
+        )
+    if outcome.kind == google_publish.OUTCOME_NOT_LINKED:
+        return f"{prefix} ADX publicerar kampanjen när ditt Google Ads-konto är kopplat under ADX."
+    return f"{prefix} ADX publicerar kampanjen, och du ser här när den är live."
+
+
+def _outcome_lines(outcome):
+    """Vad som hände efter godkännandet, för byråns larm."""
+    queue = "Den ligger under Godkända, ej publicerade i kön."
+    if outcome.is_live:
+        return [
+            f"Den är live hos Google (kampanj {outcome.campaign_id}), och landningssidan är "
+            "öppen. Inget mer att göra."
+        ]
+    if outcome.kind == google_publish.OUTCOME_FAILED:
+        return [
+            f"Den publicerades inte hos Google: {outcome.reason}",
+            f"{queue} Publicera från granskningssidan när det är rättat.",
+        ]
+    if outcome.kind == google_publish.OUTCOME_NOT_LINKED:
+        return [
+            "Den är inte publicerad: kundens Google Ads-konto är inte kopplat under ADX med "
+            "ett id.",
+            f"{queue} Koppla kontot och publicera sedan från granskningssidan.",
+        ]
+    return [
+        "Google Ads API är inte inkopplat, så den publiceras för hand med Editor-filen på "
+        "granskningssidan.",
+        queue,
+    ]
+
+
+def _outcome_subject(outcome, campaign, customer):
+    if outcome.is_live:
+        return f"Flamingo: {campaign.name} är live ({customer.name})"
+    return f"Flamingo: publicera {campaign.name} ({customer.name})"
+
+
 @app_view
 def campaign_submit(request, account, pk):
-    """Skicka till granskning (POST): bara från utkast och bara när
-    kontrollerna går igenom. Skapar en Review-runda (pending) med en
-    ögonblicksbild av innehållet och sätter status in_review. Byrån larmas;
-    kunden mejlas inte. GET (till exempel efter grindens skrivskydd) visar
-    bara kampanjen."""
+    """Skicka in (POST): bara från utkast och bara när kontrollerna går
+    igenom. GET (till exempel efter grindens skrivskydd) visar bara
+    kampanjen.
+
+    Med kryssrutan "Jag vill att ADX granskar kampanjen innan den
+    publiceras" (review=1): en Review-runda (pending) med en ögonblicksbild
+    av innehållet och status in_review, som förut.
+
+    Utan kryssrutan (beslut 2026-10-03, granskningen är kundens val):
+    inskicket är kundens godkännande. approved_at och approved_by sätts,
+    ingen runda skapas, och google_publish.publish_approved publicerar direkt
+    när API:t är inkopplat och kontot kopplat under ADX. Annars, eller om
+    Google säger nej, står kampanjen som godkänd men inte publicerad i
+    byråns kö.
+
+    Byrån larmas i båda fallen, med vad som hände; kunden mejlas inte."""
     campaign = get_object_or_404(Campaign, pk=pk, account=account)
     if request.method != "POST":
         return redirect(_detail_url(campaign))
+    wants_review = request.POST.get(REVIEW_FIELD) == "1"
     with transaction.atomic():
         campaign = _locked(campaign)
         if campaign.status != Campaign.STATUS_DRAFT:
-            messages.info(request, "Kampanjen är redan skickad till granskning.")
+            messages.info(request, "Kampanjen är redan skickad.")
             return redirect(_detail_url(campaign, "granskning"))
         problems = checks.validate(campaign)
         if problems:
@@ -1069,46 +1202,79 @@ def campaign_submit(request, account, pk):
                 (FIELD_TABS.get(p.field) for p in problems if FIELD_TABS.get(p.field)), ""
             )
             return redirect(_detail_url(campaign, first_tab or "annonser"))
-        review = Review.objects.create(
-            campaign=campaign,
-            round=campaign.next_round(),
-            submitted_by=request.user,
-            snapshot=campaign.content_snapshot(),
+        review = None
+        campaign.review_requested = wants_review
+        if wants_review:
+            review = Review.objects.create(
+                campaign=campaign,
+                round=campaign.next_round(),
+                submitted_by=request.user,
+                snapshot=campaign.content_snapshot(),
+            )
+            campaign.status = Campaign.STATUS_IN_REVIEW
+            campaign.approved_at = None
+            campaign.approved_by = None
+        else:
+            # Inskicket är godkännandet: samma läge som efter ett godkännande
+            # av en granskad kampanj (godkänd, inte publicerad).
+            campaign.status = Campaign.STATUS_NEEDS_CUSTOMER
+            campaign.approved_at = timezone.now()
+            campaign.approved_by = request.user
+        campaign.save(
+            update_fields=["status", "review_requested", "approved_at", "approved_by", "updated_at"]
         )
-        campaign.status = Campaign.STATUS_IN_REVIEW
-        campaign.approved_at = None
-        campaign.approved_by = None
-        campaign.save(update_fields=["status", "approved_at", "approved_by", "updated_at"])
+
     customer = account.customer
+    about = [
+        f"Tjänst: {campaign.service.name}, {campaign.get_sales_mode_display().lower()}.",
+        f"Område: {campaign.area}. Budget: {campaign.daily_budget_kr} kr per dag.",
+    ]
+    if review is not None:
+        _alert_agency(
+            request,
+            campaign,
+            f"Flamingo: granska {campaign.name} ({customer.name})",
+            [
+                f"{customer.name} har skickat kampanjen {campaign.name} och bett ADX granska "
+                f"den innan den publiceras (runda {review.round}).",
+                *about,
+            ],
+        )
+        messages.success(
+            request,
+            "Skickat till granskning. En person på ADX går igenom kampanjen, och du godkänner "
+            "ändringarna innan den publiceras.",
+        )
+        return redirect(_detail_url(campaign, "granskning"))
+
+    outcome = google_publish.publish_approved(campaign, request.user)
     _alert_agency(
         request,
         campaign,
-        f"Flamingo: granska {campaign.name} ({customer.name})",
+        _outcome_subject(outcome, campaign, customer),
         [
-            f"{customer.name} har skickat kampanjen {campaign.name} till granskning "
-            f"(runda {review.round}).",
-            f"Tjänst: {campaign.service.name}, {campaign.get_sales_mode_display().lower()}.",
-            f"Område: {campaign.area}. Budget: {campaign.daily_budget_kr} kr per dag.",
+            f"{customer.name} har skickat kampanjen {campaign.name} utan att be om granskning. "
+            "Kontrollerna gick igenom, och inskicket är kundens godkännande.",
+            *_outcome_lines(outcome),
+            *about,
         ],
     )
-    messages.success(
-        request,
-        "Skickat till granskning. En person på ADX läser förslaget innan något publiceras.",
-    )
+    messages.success(request, _published_text(outcome, account, "Skickad."))
     return redirect(_detail_url(campaign, "granskning"))
 
 
 @app_view
 def campaign_approve(request, account, pk):
-    """Kundens godkännande (POST), bara när ADX granskat klart (status
-    needs_customer och senaste rundan done).
+    """Kundens godkännande (POST) av det ADX granskat, bara när granskningen
+    är klar (status needs_customer och senaste rundan done).
 
-    Godkännandet publicerar inget. Det sätter approved_at och approved_by
-    och lämnar status needs_customer tills byrån publicerar i /manage/
-    (som sätter live). Sidan visar under tiden "Godkänd av dig, ADX
+    Godkännandet sätter approved_at och approved_by, och publicerar sedan
+    direkt med google_publish.publish_approved när API:t är inkopplat och
+    kontot kopplat under ADX. Annars (eller om Google säger nej) står status
+    kvar needs_customer i byråns kö, och sidan visar "Godkänd av dig, ADX
     publicerar". Ändrar kunden något efter godkännandet blir kampanjen ett
-    utkast igen och godkännandet nollställs (_reopen). Byrån larmas; kunden
-    mejlas inte."""
+    utkast igen och godkännandet nollställs (_reopen). Byrån larmas med vad
+    som hände; kunden mejlas inte."""
     campaign = get_object_or_404(Campaign, pk=pk, account=account)
     if request.method != "POST":
         return redirect(_detail_url(campaign))
@@ -1129,15 +1295,16 @@ def campaign_approve(request, account, pk):
         campaign.approved_at = timezone.now()
         campaign.approved_by = request.user
         campaign.save(update_fields=["approved_at", "approved_by", "updated_at"])
+    outcome = google_publish.publish_approved(campaign, request.user)
     customer = account.customer
     _alert_agency(
         request,
         campaign,
-        f"Flamingo: {customer.name} godkände {campaign.name}",
+        _outcome_subject(outcome, campaign, customer),
         [
             f"{customer.name} har godkänt kampanjen {campaign.name} efter runda {latest.round}.",
-            "Den väntar på att publiceras.",
+            *_outcome_lines(outcome),
         ],
     )
-    messages.success(request, "Godkänd. ADX publicerar kampanjen, och du ser här när den är live.")
+    messages.success(request, _published_text(outcome, account, "Godkänd."))
     return redirect(_detail_url(campaign, "granskning"))

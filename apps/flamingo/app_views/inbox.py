@@ -7,7 +7,10 @@ och belopp.
   mejl): källa "manuell", inga sms.
 - Förfrågan: meddelandet och svaren, "Var kom hen ifrån?", ringknappen och
   status. Vunnen kräver ett belopp; leads.set_status() köar konverteringen
-  till Google när förfrågan har ett klick-id.
+  till Google när förfrågan har ett gclid (Lead.can_send_to_google).
+- Ett klick på telefonnumret på sidan är en förfrågan utan namn och nummer
+  ("Klick på telefonnumret"): ägaren fick samtalet och sätter status som
+  för vilken förfrågan som helst, och Vunnen med belopp blir en affär.
 
 Allt hämtas via kontot (app_view): en förfrågan som inte är kontots egen är
 404. Byrån i kundvyn läser bara (grinden nekar POST); mallarna döljer
@@ -61,13 +64,25 @@ def channel(lead):
     utm = lead.utm if isinstance(lead.utm, dict) else {}
     source = str(utm.get("utm_source", "")).strip()
     medium = str(utm.get("utm_medium", "")).strip().lower()
-    if lead.gclid or utm.get("gbraid") or utm.get("wbraid"):
+    if lead.has_click_id:
         return "Google sök"
     if source.lower() == "google" and medium in _PAID:
         return "Google sök"
     if source:
         return f"Länk från {source}"[:60]
+    if lead.source == Lead.SOURCE_CALL_CLICK:
+        return "Numret på sidan"
     return "Formulär på sidan"
+
+
+def google_note(lead):
+    """Vad som händer med beloppet hos Google, i en mening för fältet: ""
+    (det går dit), "braid" (bara ett klick-id från iPhone) eller "no_click"."""
+    if lead.can_send_to_google:
+        return ""
+    if lead.has_click_id:
+        return "braid"
+    return "no_click"
 
 
 def ago(moment, now):
@@ -218,7 +233,7 @@ def lead_detail(request, account, pk):
             return redirect("flamingo:app_lead", pk=lead.pk)
 
     now = timezone.now()
-    conversion = ConversionUpload.objects.filter(lead=lead).first()
+    conversions = list(ConversionUpload.objects.filter(lead=lead).order_by("created_at", "pk"))
     side = _cards(
         list(
             _base_queryset(account)
@@ -241,13 +256,16 @@ def lead_detail(request, account, pk):
             "answers": list((lead.answers or {}).items()) if isinstance(lead.answers, dict) else [],
             "tel": sms.tel_href(lead.phone) if lead.phone else "",
             "first_name": sms.first_name(lead.name) or "hen",
-            "has_click_id": bool(lead.gclid),
+            "has_click_id": lead.has_click_id,
+            "to_google": lead.can_send_to_google,
+            "google_note": google_note(lead),
+            "is_call_click": lead.source == Lead.SOURCE_CALL_CLICK,
             "utm_campaign": str(utm.get("utm_campaign", "")),
             "statuses": [(key, dict(Lead.STATUS_CHOICES)[key]) for key in leads.INBOX_STATUSES],
             "checked_status": posted_status,
             "value_input": value_input,
             "error": error,
-            "conversion": conversion,
+            "conversions": conversions,
             "sms_rows": lead.sms_log.order_by("created_at", "id"),
         },
     )

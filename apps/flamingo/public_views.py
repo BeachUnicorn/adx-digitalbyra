@@ -14,21 +14,31 @@ kundens kunder.
 - Formuläret skapar en Lead (limits.create_form_lead, leads.create_lead)
   med klick-id och utm ur adressen, och sms.notify_new_lead skickar det
   kunden slagit på. Inga mejl.
+- Ett klick på telefonnumret (varje tel:-länk med data-fl-call) skickas av
+  static/js/flamingo-lp.js med sendBeacon till call_click
+  (/lp/<slug>/ring/) och blir en förfrågan "Klick på telefonnumret". Inget
+  sms: ägaren får själva samtalet. Utan skript räknas inget, och länken
+  fungerar ändå.
+- Mätningen hos Google: sidan frågar inte om samtycke (beslut 2026-10-03).
+  En förfrågan eller ett klick på numret med gclid köas som konvertering
+  (Lead.can_send_to_google), och Lead.ad_consent lämnas tomt: sidan tar
+  inte emot något svar om samtycke, så inget kan hittas på. Inga kakor.
 
 Skydd: CSRF, ett osynligt honungsfält (en bot som fyller det får samma
 tack-sida, men ingen förfrågan skapas), spärrarna i limits.py (högst
 RATE_LIMIT förfrågningar i timmen per besökare och kampanj och högst
-CAMPAIGN_RATE_LIMIT per kampanj, räknade i databasen), maxlängder och
+CAMPAIGN_RATE_LIMIT per kampanj, räknade i databasen; klicken på numret
+har egna gränser och räknas en gång per besökare och timme), maxlängder och
 sanering i leads.py.
 """
 
 import logging
 
 from django import forms
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.projects.access import is_agency_user
 
@@ -76,7 +86,9 @@ def _campaign_for(request, slug):
     """(kampanjen, förhandsvisning?) eller 404.
 
     Publik: live på ett aktiverat konto hos en aktiv kund. Byrån ser allt
-    annat som förhandsvisning; alla andra får 404."""
+    annat som förhandsvisning; alla andra får 404. Ett demokonto har aldrig
+    en publik sida: ett påhittat företag ska inte gå att hitta, inte ens
+    för demokundens kontakt."""
     campaign = (
         Campaign.objects.select_related("account__customer", "service")
         .filter(page_slug=slug)
@@ -85,7 +97,12 @@ def _campaign_for(request, slug):
     if campaign is None:
         raise Http404
     account = campaign.account
-    public = campaign.is_public and account.is_enabled and account.customer.is_active
+    public = (
+        campaign.is_public
+        and account.is_enabled
+        and account.customer.is_active
+        and not account.is_demo
+    )
     if public:
         return campaign, False
     if is_agency_user(request.user):
@@ -232,6 +249,7 @@ class LeadForm(forms.Form):
                 text = value.isoformat() if hasattr(value, "isoformat") else str(value)
                 data["answers"][question["label"]] = text
         data.update({key: self.data.get(key, "") for key in leads.TRACKING_KEYS})
+        data[leads.KEYWORD_KEY] = self.data.get(leads.KEYWORD_KEY, "")
         return data
 
 
@@ -262,6 +280,20 @@ def _base_context(request, campaign, preview):
         # Remsan är byråns: byråns ord för läget ("Att granska", "Hos
         # kunden"), inte kundens ("Väntar på dig").
         "status_label": staff_state(campaign, campaign.pending_review())[0],
+    }
+
+
+def _measure_context(request, campaign, preview):
+    """Mätningen på sidan (flamingo-lp.js):
+
+    call_beacon   adressen klicken på numret skickas till, eller "" när
+                  inget ska räknas: förhandsvisningen, demokonton och byrån
+                  (ett klick för att kontrollera numret är ingen förfrågan)"""
+    counted = not preview and not campaign.account.is_demo and not is_agency_user(request.user)
+    return {
+        "call_beacon": reverse("flamingo_public:call_click", args=[campaign.page_slug])
+        if counted
+        else "",
     }
 
 
@@ -298,6 +330,7 @@ def landing(request, slug):
         form = LeadForm(content=content)
 
     questions = [{**q, "bound": form[q["field"]]} for q in content["questions"]]
+    context.update(_measure_context(request, campaign, preview))
     context.update(
         {
             "form": form,
@@ -311,6 +344,52 @@ def landing(request, slug):
         }
     )
     return _render(request, "flamingo/lp/page.html", context, status=status)
+
+
+def _live_campaign(slug):
+    """Kampanjen bakom en publik sida, annars 404. Samma villkor som
+    _campaign_for utan byråns förhandsvisning: live, aktiverat konto, aktiv
+    kund och inget demokonto."""
+    campaign = (
+        Campaign.objects.select_related("account__customer", "service")
+        .filter(page_slug=slug)
+        .first()
+    )
+    if campaign is None:
+        raise Http404
+    account = campaign.account
+    if not (
+        campaign.is_public
+        and account.is_enabled
+        and account.customer.is_active
+        and not account.is_demo
+    ):
+        raise Http404
+    return campaign
+
+
+@require_POST
+def call_click(request, slug):
+    """Ett klick på telefonnumret, skickat av flamingo-lp.js med sendBeacon.
+
+    Svarar alltid 204 utan innehåll för en publik sida (ingen läser svaret,
+    och en bot ska inte se om klicket räknades). Bara live-sidor; CSRF som
+    formuläret. Ett klick blir en förfrågan "Klick på telefonnumret" med
+    klick-id och utm, högst en per besökare och kampanj och timme
+    (limits.create_call_click_lead). Inget sms: ägaren får samtalet. Byrån
+    räknas inte."""
+    campaign = _live_campaign(slug)
+    response = HttpResponse(status=204)
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    if is_agency_user(request.user):
+        return response
+    lead, refused = limits.create_call_click_lead(campaign, request.POST, request)
+    if lead is None and refused != limits.LIMIT_DUPLICATE:
+        logger.warning(
+            "flamingo lp: för många klick på numret (%s, kampanj %s)", refused, campaign.pk
+        )
+    return response
 
 
 @require_http_methods(["GET", "HEAD"])

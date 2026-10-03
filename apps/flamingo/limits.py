@@ -6,7 +6,18 @@ gunicorn-arbetare och töms vid omstart), så en spärr gäller hela sajten.
 
     Förfrågningar på /lp/   högst LEADS_PER_IP i timmen från samma besökare
                             till samma kampanj, och högst LEADS_PER_CAMPAIGN i
-                            timmen till en kampanj. Räknas ur Lead-raderna.
+                            timmen till en kampanj. Räknas ur Lead-raderna
+                            (formuläret; klicken på numret räknas för sig).
+    Klick på numret         ett per besökare, annonsklick och kampanj på
+                            CALL_CLICK_DEDUPE (och inget alls om besökaren
+                            redan skickat formuläret från samma annonsklick
+                            då), högst CALL_CLICKS_PER_IP i timmen från samma
+                            besökare och högst CALL_CLICKS_PER_CAMPAIGN i
+                            timmen till en kampanj. Nås kampanjens gräns får
+                            byrån ett larm (högst ett i timmen per kampanj).
+    Publicering hos Google  efter kundens inskick eller godkännande högst
+                            PUBLISH_DAILY_MAX försök per svenskt dygn och
+                            konto (google_publish.publish_approved).
     Läsningen av hemsidan   en åt gången, högst en per SCAN_INTERVAL och
                             högst SCAN_DAILY_MAX per svenskt dygn och konto.
     AI-förslag              högst AI_DAILY_MAX per svenskt dygn och konto;
@@ -16,20 +27,26 @@ gunicorn-arbetare och töms vid omstart), så en spärr gäller hela sajten.
 
 Besökarens IP sparas aldrig. Lead.ip_hash är en HMAC av adressen med
 SECRET_KEY som nyckel: samma adress ger samma värde, men värdet går inte att
-vända tillbaka till en adress.
+vända tillbaka till en adress. En IPv6-adress räknas som sitt /64-nät (en
+anslutning har ett helt /64 att välja adresser ur), en IPv4-adress som den är.
+
+Förfrågningarna till en kampanj räknas en i taget med ett lås i Postgres
+(pg_advisory_xact_lock) per kampanj, inte med kampanjens rad: publiceringen
+låser raden medan Google anropas, och en förfrågan ska aldrig vänta på Google.
 """
 
+import ipaddress
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.utils import timezone
 from django.utils.crypto import salted_hmac
 
 from apps.common.net import client_ip
 
 from . import leads
-from .models import Campaign, FlamingoAccount, Lead
+from .models import FlamingoAccount, Lead
 
 STOCKHOLM = ZoneInfo("Europe/Stockholm")
 
@@ -40,6 +57,21 @@ LEADS_PER_CAMPAIGN = 30
 LEAD_WINDOW = timedelta(hours=1)
 LIMIT_IP = "ip"
 LIMIT_CAMPAIGN = "campaign"
+#: Klicket räknades inte: besökaren är redan en förfrågan på kampanjen.
+LIMIT_DUPLICATE = "duplicate"
+
+#: Ett klick på numret per besökare och kampanj på så här lång tid.
+CALL_CLICK_DEDUPE = timedelta(minutes=60)
+#: Klick på numret i timmen från samma besökare, alla kampanjer.
+CALL_CLICKS_PER_IP = 5
+#: Klick på numret i timmen till en kampanj, från alla besökare tillsammans.
+CALL_CLICKS_PER_CAMPAIGN = 30
+#: Låsen per kampanj i Postgres: egen nyckelrymd ("FL") plus kampanjens id.
+_LOCK_SPACE = 0x464C << 32
+
+#: Publiceringar hos Google efter kundens inskick eller godkännande per
+#: konto och dygn. Byrån publicerar från kön utan gräns.
+PUBLISH_DAILY_MAX = 10
 
 #: En läsning som stått som "hämtas" längre än så har avbrutits.
 SCAN_STALE_AFTER = timedelta(minutes=2)
@@ -63,11 +95,34 @@ def stockholm_today(now=None):
     return timezone.localdate(now or timezone.now(), STOCKHOLM)
 
 
+def ip_bucket(ip):
+    """Det som räknas som en besökare: en IPv4-adress som den är, en
+    IPv6-adress som sitt /64-nät ("2001:db8::/64"). En adress som inte går
+    att läsa används som den är."""
+    try:
+        address = ipaddress.ip_address(str(ip).strip())
+    except ValueError:
+        return str(ip)
+    if address.version == 6:
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return str(address)
+
+
 def ip_hash(ip):
-    """HMAC-SHA256 av adressen med SECRET_KEY, 64 hextecken. Tomt utan adress."""
+    """HMAC-SHA256 av besökaren (ip_bucket) med SECRET_KEY, 64 hextecken.
+    Tomt utan adress."""
     if not ip:
         return ""
-    return salted_hmac("flamingo.lead.ip", ip, algorithm="sha256").hexdigest()
+    return salted_hmac("flamingo.lead.ip", ip_bucket(ip), algorithm="sha256").hexdigest()
+
+
+def _lock_campaign_leads(campaign_pk):
+    """Förfrågningarna till kampanjen räknas en i taget (resten av
+    transaktionen). Låser inte kampanjens rad."""
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_LOCK_SPACE + int(campaign_pk)])
 
 
 # ---------------------------------------------------------------------------
@@ -84,13 +139,72 @@ def create_form_lead(campaign, data, request, now=None):
     now = now or timezone.now()
     hashed = ip_hash(client_ip(request))
     with transaction.atomic():
-        Campaign.objects.select_for_update().only("id").get(pk=campaign.pk)
-        recent = Lead.objects.filter(campaign_id=campaign.pk, created_at__gte=now - LEAD_WINDOW)
+        _lock_campaign_leads(campaign.pk)
+        # Klicken på numret räknas för sig: en ström av klick får inte
+        # stänga formuläret.
+        recent = Lead.objects.filter(
+            campaign_id=campaign.pk, created_at__gte=now - LEAD_WINDOW
+        ).exclude(source=Lead.SOURCE_CALL_CLICK)
         if recent.count() >= LEADS_PER_CAMPAIGN:
             return None, LIMIT_CAMPAIGN
         if hashed and recent.filter(ip_hash=hashed).count() >= LEADS_PER_IP:
             return None, LIMIT_IP
         return leads.create_lead(campaign, data, request, ip_hash=hashed), ""
+
+
+def create_call_click_lead(campaign, data, request, now=None):
+    """(förfrågan, "") eller (None, LIMIT_DUPLICATE / LIMIT_CAMPAIGN / LIMIT_IP).
+
+    Samma låsning som create_form_lead. Samma besökare från samma
+    annonsklick (samma klick-id, eller inget) som redan är en förfrågan på
+    kampanjen den senaste CALL_CLICK_DEDUPE räknas inte igen. Två personer
+    bakom samma adress (operatörens CGNAT) med var sitt annonsklick räknas
+    båda. Utan IP-adress (ingen hash) gäller bara kampanjens gräns. Nås
+    kampanjens gräns larmas byrån (cap_alert)."""
+    now = now or timezone.now()
+    hashed = ip_hash(client_ip(request))
+    tracking = leads.tracking_from(data)
+    same_click = {key: tracking.get(key, "") for key in ("gclid", "gbraid", "wbraid")}
+    with transaction.atomic():
+        _lock_campaign_leads(campaign.pk)
+        if (
+            hashed
+            and Lead.objects.filter(
+                campaign_id=campaign.pk,
+                ip_hash=hashed,
+                created_at__gte=now - CALL_CLICK_DEDUPE,
+                **same_click,
+            ).exists()
+        ):
+            return None, LIMIT_DUPLICATE
+        clicks = Lead.objects.filter(
+            source=Lead.SOURCE_CALL_CLICK, created_at__gte=now - LEAD_WINDOW
+        )
+        if clicks.filter(campaign_id=campaign.pk).count() >= CALL_CLICKS_PER_CAMPAIGN:
+            refused = LIMIT_CAMPAIGN
+        elif hashed and clicks.filter(ip_hash=hashed).count() >= CALL_CLICKS_PER_IP:
+            return None, LIMIT_IP
+        else:
+            return leads.create_call_click_lead(campaign, data, ip_hash=hashed), ""
+    cap_alert(campaign, now)
+    return None, refused
+
+
+def cap_alert(campaign, now=None):
+    """Larm till byrån (aldrig till kunden) när kampanjen nått gränsen för
+    klick på numret: riktiga klick räknas inte resten av timmen. Högst ett
+    larm per kampanj och timme (alerts.py). True om ett larm skickades."""
+    from .alerts import send_agency_alert
+
+    lines = [
+        f"Kampanjen {campaign.name} ({campaign.account.customer.name}) fick "
+        f"{CALL_CLICKS_PER_CAMPAIGN} klick på telefonnumret den senaste timmen.",
+        "Fler klick räknas inte förrän timmen gått. Det kan vara påhittade klick: se "
+        "förfrågningarna i inkorgen och klick-id:n innan de går till Google.",
+    ]
+    return send_agency_alert(
+        campaign, f"Flamingo: gränsen för klick på numret nådd ({campaign.name})", lines, now
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -128,6 +242,24 @@ def reserve_scan(account, now=None):
 # ---------------------------------------------------------------------------
 # AI-förslagen
 # ---------------------------------------------------------------------------
+
+
+def reserve_publish(account, now=None):
+    """Får kontot ett publiceringsförsök hos Google till i dag (efter kundens
+    inskick eller godkännande)? True betyder ja, och då är det bokfört.
+    Skyddar ADX kvot hos Google mot ett inskick i en slinga."""
+    today = stockholm_today(now)
+    with transaction.atomic():
+        row = (
+            FlamingoAccount.objects.select_for_update()
+            .only("id", "publish_day", "publish_count")
+            .get(pk=account.pk)
+        )
+        count = row.publish_count if row.publish_day == today else 0
+        if count >= PUBLISH_DAILY_MAX:
+            return False
+        FlamingoAccount.objects.filter(pk=row.pk).update(publish_day=today, publish_count=count + 1)
+    return True
 
 
 def reserve_ai(account, now=None):

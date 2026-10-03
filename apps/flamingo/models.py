@@ -8,21 +8,27 @@ redan stängt av saker en gång (apps/projects/forms.py, 2026-09-20).
 
 Datamodellen följer flödet i README.md (kundresan, steg 2-12):
 
+    GoogleAdsConnection  ADX:s inloggning hos Google Ads (en rad, nyckeln krypterad)
     FlamingoAccount   kundens Flamingo: hemsida, Google-kopplingen, sms-val
     Fact              det vi får säga om företaget, med källa och bekräftelse
     Service           tjänsterna och hur de säljs (ringer / offert / boka tid)
     Campaign          en kampanj per tjänst: annonser, sökord, landningssidan
+    CampaignDayStats  en dag ur Googles rapport: kostnad, visningar, klick
     Review            en granskningsrunda per inskick, med byråns ändringar
     Lead              en förfrågan från landningssidan, ett samtal eller manuellt
-    ConversionUpload  en vunnen affär med belopp, på väg tillbaka till Google
+    ConversionUpload  en förfrågan, ett klick på numret eller en affär till Google
     SmsLog            varje sms som skickades, eller varför det inte skickades
 
 Pengar är alltid hela kronor (int). Tider sparas i UTC och visas i
 Europe/Stockholm (Django gör det med USE_TZ och TIME_ZONE).
 """
 
+import base64
+import hashlib
+import logging
 import re
 
+from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
@@ -31,6 +37,8 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from apps.projects.models import Customer
+
+logger = logging.getLogger(__name__)
 
 #: Betyg och omdömen används bara när de kommer från Google (places.py) eller
 #: ADX. En hemsida, eller text någon lagt in på den, eller kunden själv ska
@@ -141,6 +149,147 @@ def format_google_ads_id(value):
 
 
 # ---------------------------------------------------------------------------
+# ADX:s koppling till Google Ads
+# ---------------------------------------------------------------------------
+
+#: Skiljer nyckeln för hemligheter i databasen från andra saker som härleds
+#: ur SECRET_KEY.
+_TOKEN_KEY_CONTEXT = b"adx-flamingo-google-ads-token:"
+
+
+def _token_fernet():
+    """Krypteringen för Googles långlivade nyckel i databasen.
+
+    FLAMINGO_TOKEN_KEY om den är satt (en Fernet-nyckel, eller en lång
+    hemlig sträng som hashas), annars en nyckel härledd ur SECRET_KEY
+    (sha256, urlsafe base64, 32 byte). Byts SECRET_KEY eller
+    FLAMINGO_TOKEN_KEY går den sparade nyckeln inte längre att läsa: då
+    kopplar byrån Google igen. Inget annat går förlorat."""
+    configured = str(getattr(settings, "FLAMINGO_TOKEN_KEY", "") or "").strip()
+    if configured:
+        try:
+            return Fernet(configured.encode())
+        except ValueError:
+            material = configured
+    else:
+        material = settings.SECRET_KEY
+    digest = hashlib.sha256(_TOKEN_KEY_CONTEXT + str(material).encode()).digest()
+    return Fernet(base64.urlsafe_b64encode(digest))
+
+
+def encrypt_secret(value):
+    """En hemlighet krypterad för databasen (text)."""
+    return _token_fernet().encrypt(str(value).encode()).decode()
+
+
+def decrypt_secret(value):
+    """Hemligheten i klartext, eller "" om den inte går att läsa (nyckeln
+    har bytts eller raden är trasig)."""
+    if not value:
+        return ""
+    try:
+        return _token_fernet().decrypt(str(value).encode()).decode()
+    except (InvalidToken, ValueError):
+        return ""
+
+
+class GoogleAdsConnection(models.Model):
+    """ADX:s egen inloggning hos Google Ads (OAuth), som alla anrop via
+    förvaltarkontot görs med. En enda rad: get_solo().
+
+    Den långlivade nyckeln (refresh token) sparas krypterad och visas
+    aldrig: inte i panelen, inte i admin och inte i loggarna.
+    GOOGLE_ADS_REFRESH_TOKEN i miljön vinner över den sparade (google_ads.py).
+    """
+
+    SOLO_PK = 1
+
+    refresh_token_encrypted = models.TextField("Nyckel (krypterad)", blank=True, editable=False)
+    google_email = models.EmailField("Google-konto", blank=True)
+    connected_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Kopplad av",
+    )
+    connected_at = models.DateTimeField("Kopplad", null=True, blank=True)
+    last_ok_at = models.DateTimeField("Senaste lyckade anropet", null=True, blank=True)
+    last_error = models.CharField("Senaste felet", max_length=300, blank=True)
+    #: Google tog inte emot konverteringar med uploadClickConversions
+    #: (CUSTOMER_NOT_ALLOWLISTED_FOR_THIS_FEATURE): inga fler försök förrän
+    #: byrån ber om det på Google-sidan. Raderna står kvar för CSV-filen.
+    conversion_upload_blocked_at = models.DateTimeField(
+        "Uppladdningen av konverteringar stoppad", null=True, blank=True
+    )
+    conversion_upload_error = models.CharField(
+        "Varför uppladdningen stoppades", max_length=300, blank=True
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Google Ads-koppling"
+        verbose_name_plural = "Google Ads-koppling"
+
+    def __str__(self):
+        if not self.is_connected:
+            return "Google Ads: inte kopplat"
+        return f"Google Ads: kopplat som {self.google_email or 'okänt konto'}"
+
+    @classmethod
+    def get_solo(cls):
+        """Den enda raden, skapad vid första behovet."""
+        connection, _ = cls.objects.get_or_create(pk=cls.SOLO_PK)
+        return connection
+
+    @property
+    def is_connected(self):
+        """Det finns en sparad nyckel (den kan ändå vara oläslig, se
+        token_unreadable)."""
+        return bool(self.refresh_token_encrypted)
+
+    @property
+    def token_unreadable(self):
+        """Nyckeln finns men går inte att läsa: SECRET_KEY eller
+        FLAMINGO_TOKEN_KEY har bytts. Byrån kopplar Google igen."""
+        return self.is_connected and not self.refresh_token()
+
+    def set_refresh_token(self, token, email="", user=None):
+        """Spara en ny koppling (efter Googles inloggning)."""
+        token = str(token or "").strip()
+        if not token:
+            raise ValueError("Google skickade ingen nyckel.")
+        self.refresh_token_encrypted = encrypt_secret(token)
+        self.google_email = str(email or "")[:254]
+        self.connected_by = user if getattr(user, "pk", None) else None
+        self.connected_at = timezone.now()
+        self.last_error = ""
+        self.save()
+        return self
+
+    def refresh_token(self):
+        """Nyckeln i klartext, eller "" om ingen finns eller den inte går
+        att läsa. Får aldrig loggas eller visas."""
+        token = decrypt_secret(self.refresh_token_encrypted)
+        if self.refresh_token_encrypted and not token:
+            logger.warning("Flamingo: Google-nyckeln går inte att läsa (bytt SECRET_KEY?)")
+        return token
+
+    def clear(self):
+        """Glöm kopplingen. Nyckeln återkallas hos Google av den som anropar
+        (google_ads.revoke) innan raden töms."""
+        self.refresh_token_encrypted = ""
+        self.google_email = ""
+        self.connected_by = None
+        self.connected_at = None
+        self.last_ok_at = None
+        self.last_error = ""
+        self.save()
+        return self
+
+
+# ---------------------------------------------------------------------------
 # Kontot
 # ---------------------------------------------------------------------------
 
@@ -196,6 +345,10 @@ class FlamingoAccount(models.Model):
     scan_count = models.PositiveSmallIntegerField("Läsningar den dagen", default=0)
     ai_day = models.DateField("Dag för AI-förslagen", null=True, blank=True)
     ai_count = models.PositiveSmallIntegerField("AI-förslag den dagen", default=0)
+    # Publiceringar hos Google efter kundens inskick eller godkännande per
+    # svenskt dygn (limits.reserve_publish).
+    publish_day = models.DateField("Dag för publiceringarna", null=True, blank=True)
+    publish_count = models.PositiveSmallIntegerField("Publiceringsförsök den dagen", default=0)
 
     # Steg 3, Google: kunden äger kontot, ADX förvaltar det under sitt MCC.
     google_ads_customer_id = models.CharField(
@@ -209,6 +362,33 @@ class FlamingoAccount(models.Model):
         "Google Ads", max_length=20, choices=GOOGLE_CHOICES, default=GOOGLE_NOT_STARTED
     )
     google_note = models.CharField("Notering om Google", max_length=300, blank=True)
+    # Läget hos Google som det senast lästes med API:t (google_ads.py).
+    #: billing_setup.status hos Google, till exempel "APPROVED" (klar).
+    google_billing_status = models.CharField("Betalningen hos Google", max_length=20, blank=True)
+    google_auto_tagging = models.BooleanField("Automatisk taggning", null=True, blank=True)
+    google_synced_at = models.DateTimeField("Läst från Google", null=True, blank=True)
+    google_sync_error = models.CharField(
+        "Fel vid läsningen från Google", max_length=300, blank=True
+    )
+    google_link_requested_at = models.DateTimeField(
+        "Kopplingsinbjudan skickad", null=True, blank=True
+    )
+    #: Id:t som ADX skickade kopplingsförfrågan till från det här kontot
+    #: (google_accounts.request_link). Bara då blir kontot kopplat av sig
+    #: självt när Google säger ACTIVE: att kontot ligger under ADX
+    #: förvaltarkonto visar inte att det är kundens.
+    google_link_requested_for = models.CharField("Förfrågan gällde id", max_length=20, blank=True)
+    #: Konverteringsåtgärderna i kundens konto, som resursnamn:
+    #:   {"lead": "customers/1/conversionActions/2", "call": ..., "deal": ...}
+    google_conversion_actions = models.JSONField(
+        "Konverteringar hos Google", default=dict, blank=True
+    )
+
+    is_demo = models.BooleanField(
+        "Demokonto",
+        default=False,
+        help_text="Demokonto: inga anrop till Google, inga sms, sidorna bara för byrån.",
+    )
 
     # Inställningar kunden själv slår på (av från början). Sms skickas bara
     # när 46elks är konfigurerat; annars loggas det i SmsLog.
@@ -223,6 +403,15 @@ class FlamingoAccount(models.Model):
     class Meta:
         verbose_name = "Flamingo-konto"
         verbose_name_plural = "Flamingo-konton"
+        constraints = [
+            # Ett Google Ads-konto hör till en kund. Demokontots påhittade id
+            # räknas inte.
+            models.UniqueConstraint(
+                fields=["google_ads_customer_id"],
+                condition=~models.Q(google_ads_customer_id="") & models.Q(is_demo=False),
+                name="flamingo_google_id_unique",
+            )
+        ]
 
     def __str__(self):
         state = "på" if self.is_enabled else "av"
@@ -235,13 +424,37 @@ class FlamingoAccount(models.Model):
 
     @property
     def google_ready(self):
-        """Kopplat och betalningen klar: en kampanj kan gå live."""
+        """Kopplat och betalningen klar (avbockad eller läst från Google).
+        Stoppar ingenting: en kampanj kan gå live så snart kontot är kopplat
+        (google_linked), men annonserna visas först när betalningen finns
+        (beslut 2026-10-03)."""
         return self.google_status == self.GOOGLE_BILLING_OK
 
     @property
+    def google_id_shared(self):
+        """Ett annat (riktigt) Flamingo-konto har samma Google Ads-id. Då
+        pratar Flamingo inte med kontot hos Google (google_publish,
+        google_conversions)."""
+        if self.is_demo or not self.google_ads_customer_id:
+            return False
+        return google_id_taken(self.google_ads_customer_id, exclude_pk=self.pk)
+
+    @property
+    def google_waiting_on_customer(self):
+        """ADX har skickat en kopplingsförfrågan som kunden ska godkänna i
+        Google Ads (google_accounts.request_link)."""
+        return (
+            self.google_status == self.GOOGLE_ID_GIVEN and self.google_link_requested_at is not None
+        )
+
+    @property
     def google_waiting_on_adx(self):
-        """Kunden har gjort sin del; byrån kopplar."""
-        return self.google_status in (self.GOOGLE_REQUESTED_NEW, self.GOOGLE_ID_GIVEN)
+        """Kunden har gjort sin del; byrån kopplar. Inte när förfrågan redan
+        är skickad: då är det kunden som ska godkänna den."""
+        return (
+            self.google_status in (self.GOOGLE_REQUESTED_NEW, self.GOOGLE_ID_GIVEN)
+            and not self.google_waiting_on_customer
+        )
 
     def usable_fact_rows(self):
         """Bekräftade uppgifter med ett värde, som Fact-rader, utan betyg som
@@ -254,6 +467,18 @@ class FlamingoAccount(models.Model):
         AI och mallarna får använda (README: AI får bara använda bekräftade
         fakta). Ett betyg från hemsidan eller kunden är aldrig med."""
         return {f.key: f.value for f in self.usable_fact_rows()}
+
+
+def google_id_taken(google_id, exclude_pk=None):
+    """Har ett annat Flamingo-konto (inte demot) redan id:t? google_id
+    jämförs som 123-456-7890 (format_google_ads_id)."""
+    formatted = format_google_ads_id(google_id)
+    if not formatted:
+        return False
+    others = FlamingoAccount.objects.filter(google_ads_customer_id=formatted, is_demo=False)
+    if exclude_pk is not None:
+        others = others.exclude(pk=exclude_pk)
+    return others.exists()
 
 
 def account_for(customer):
@@ -443,7 +668,39 @@ class Campaign(models.Model):
     #: kind är "text", "textarea" eller "date" (boka tid).
     page = models.JSONField("Landningssidan", default=dict, blank=True)
     page_slug = models.SlugField("Sidans adress", max_length=80, unique=True)
+    #: Kundens val vid inskicket: "Jag vill att ADX granskar kampanjen innan
+    #: den publiceras" (av från början, beslut 2026-10-03). Utan granskning
+    #: är inskicket kundens godkännande och kampanjen publiceras direkt när
+    #: det går (google_publish.publish_approved).
+    review_requested = models.BooleanField("Kunden bad om granskning", default=False)
     google_campaign_id = models.CharField("Kampanjens id hos Google", max_length=40, blank=True)
+    #: Resursnamnen hos Google efter publiceringen med API:t, till exempel
+    #:   {"budget": "customers/1/campaignBudgets/2", "campaign": "...",
+    #:    "ad_group": "...", "ad": "...", "criteria": ["..."]}
+    google_resources = models.JSONField("Resurser hos Google", default=dict, blank=True)
+    google_synced_at = models.DateTimeField("Synkad med Google", null=True, blank=True)
+    google_error = models.CharField("Fel från Google", max_length=500, blank=True)
+    #: Spärren mot dubbla kampanjer hos Google: sätts med en villkorlig
+    #: UPDATE innan publiceringen anropar Google (claim_google_publish), så
+    #: att två klick aldrig skapar två kampanjer.
+    google_publish_started_at = models.DateTimeField(
+        "Publiceringen hos Google påbörjad", null=True, blank=True
+    )
+    #: Det spärrens försök skickar till Google: {"name": kampanjens namn
+    #: hos Google, "fingerprint": en hash av hela anropet}. Ett senare
+    #: försök som hittar kampanjen hos Google tar bara över den om
+    #: innehållet är detsamma (google_publish.go_live).
+    google_publish_sent = models.JSONField("Skickat till Google", default=dict, blank=True)
+    #: Senaste publiceringen hos Google som kundens inskick eller godkännande
+    #: startade och som inte lyckades (google_publish.publish_approved): ett
+    #: nytt inskick strax efter anropar inte Google igen.
+    google_attempted_at = models.DateTimeField(
+        "Senaste misslyckade publiceringen efter kunden", null=True, blank=True
+    )
+    #: Senaste larmet till byrån om kampanjen och dess ämnesrad: samma larm
+    #: skickas inte igen inom en timme (app_views/campaigns._alert_agency).
+    agency_alerted_at = models.DateTimeField("Byrån larmad", null=True, blank=True)
+    agency_alert_subject = models.CharField("Larmets ämne", max_length=200, blank=True)
     approved_at = models.DateTimeField("Godkänd av kunden", null=True, blank=True)
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -521,6 +778,60 @@ class Campaign(models.Model):
         last = self.reviews.aggregate(m=models.Max("round"))["m"]
         return (last or 0) + 1
 
+    def claim_google_publish(self, now=None, sent=None):
+        """Ta spärren för publiceringen hos Google. True bara för den som
+        fick den: en villkorlig UPDATE i databasen, så att ett dubbelklick
+        eller två flikar aldrig skapar två kampanjer hos Google. sent (vad
+        försöket skickar, google_publish_sent) sparas i samma UPDATE, så att
+        det finns kvar även om processen dör mitt i anropet."""
+        now = now or timezone.now()
+        values = {"google_publish_started_at": now}
+        if sent is not None:
+            values["google_publish_sent"] = sent
+        claimed = Campaign.objects.filter(
+            pk=self.pk, google_publish_started_at__isnull=True
+        ).update(**values)
+        if claimed:
+            self.google_publish_started_at = now
+            if sent is not None:
+                self.google_publish_sent = sent
+        return bool(claimed)
+
+    def release_google_publish(self):
+        """Släpp spärren när Google sagt nej och inget skapades (allt i
+        samma anrop, så inget halvt finns kvar hos Google)."""
+        Campaign.objects.filter(pk=self.pk).update(google_publish_started_at=None)
+        self.google_publish_started_at = None
+
+
+class CampaignDayStats(models.Model):
+    """En dag ur Googles rapport för en kampanj. Kostnaden i mikros som
+    Google skickar den (kronor gånger en miljon)."""
+
+    campaign = models.ForeignKey(Campaign, on_delete=models.CASCADE, related_name="day_stats")
+    date = models.DateField("Dag")
+    cost_micros = models.BigIntegerField("Kostnad (mikros)", default=0)
+    impressions = models.PositiveIntegerField("Visningar", default=0)
+    clicks = models.PositiveIntegerField("Klick", default=0)
+    conversions = models.FloatField("Konverteringar", default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-date"]
+        verbose_name = "Dag i Googles rapport"
+        verbose_name_plural = "Dagar i Googles rapport"
+        constraints = [
+            models.UniqueConstraint(fields=["campaign", "date"], name="flamingo_daystats_day")
+        ]
+
+    def __str__(self):
+        return f"{self.campaign}: {self.date}"
+
+    @property
+    def cost_kr(self):
+        """Kostnaden i hela kronor."""
+        return round((self.cost_micros or 0) / 1_000_000)
+
 
 class Review(models.Model):
     """En granskningsrunda: kunden skickar in, byrån rättar och skriver varför.
@@ -584,10 +895,27 @@ class Lead(models.Model):
     SOURCE_FORM = "form"
     SOURCE_CALL = "call"
     SOURCE_MANUAL = "manual"
+    SOURCE_CALL_CLICK = "call_click"
     SOURCE_CHOICES = [
         (SOURCE_FORM, "Formulär"),
         (SOURCE_CALL, "Samtal"),
         (SOURCE_MANUAL, "Manuell"),
+        (SOURCE_CALL_CLICK, "Klick på telefonnumret"),
+    ]
+
+    #: Besökarens samtycke till att Google får använda uppgifterna för
+    #: annonsmätning. Tomt: inte tillfrågad, och så är det i dag:
+    #: landningssidan frågar inte (beslut 2026-10-03, konverteringarna går
+    #: till Google ändå). Fältet finns kvar för en fråga senare, och
+    #: konverteringen får samtycket med sig bara när det är "granted" eller
+    #: "denied" (google_conversions.click_conversion). Fylls aldrig i av oss.
+    CONSENT_UNKNOWN = ""
+    CONSENT_GRANTED = "granted"
+    CONSENT_DENIED = "denied"
+    CONSENT_CHOICES = [
+        (CONSENT_UNKNOWN, "Inte tillfrågad"),
+        (CONSENT_GRANTED, "Ja"),
+        (CONSENT_DENIED, "Nej"),
     ]
 
     STATUS_NEW = "new"
@@ -628,6 +956,16 @@ class Lead(models.Model):
     #: Svaren på formulärets frågor: {"Ungefär hur stort?": "6 m2", ...}.
     answers = models.JSONField("Svar", default=dict, blank=True)
     gclid = models.CharField("Googles klick-id", max_length=200, blank=True)
+    #: Klick-id:n från iOS (appar respektive webben), när gclid saknas.
+    gbraid = models.CharField("Googles klick-id (gbraid)", max_length=200, blank=True)
+    wbraid = models.CharField("Googles klick-id (wbraid)", max_length=200, blank=True)
+    ad_consent = models.CharField(
+        "Samtycke till annonsmätning",
+        max_length=10,
+        choices=CONSENT_CHOICES,
+        blank=True,
+        default=CONSENT_UNKNOWN,
+    )
     #: {"utm_source": "google", "utm_campaign": "...", ...}
     utm = models.JSONField("UTM", default=dict, blank=True)
     keyword = models.CharField("Sökord", max_length=200, blank=True)
@@ -653,7 +991,18 @@ class Lead(models.Model):
 
     @property
     def display_name(self):
-        return self.name or self.phone or self.email or "Okänd"
+        fallback = "Klick på telefonnumret" if self.source == self.SOURCE_CALL_CLICK else "Okänd"
+        return self.name or self.phone or self.email or fallback
+
+    @property
+    def click_ids(self):
+        """Googles klick-id:n som finns, som {"gclid": ..., "gbraid": ...}."""
+        found = {"gclid": self.gclid, "gbraid": self.gbraid, "wbraid": self.wbraid}
+        return {key: value for key, value in found.items() if value}
+
+    @property
+    def has_click_id(self):
+        return bool(self.gclid or self.gbraid or self.wbraid)
 
     @property
     def service_name(self):
@@ -663,19 +1012,65 @@ class Lead(models.Model):
             return self.campaign.service.name
         return ""
 
+    @property
+    def can_send_to_google(self):
+        """Kan förfrågan bli en konvertering hos Google? Det kräver ett
+        gclid: Flamingos konverteringar räknas en gång per klick, och sådana
+        tar Google inte emot med gbraid eller wbraid (iOS). De sparas på
+        förfrågan men laddas inte upp. Samtycket (ad_consent) avgör inte:
+        konverteringarna skickas utan fråga på sidan (beslut 2026-10-03)."""
+        return bool(self.gclid)
+
+    @property
+    def arrival_kind(self):
+        """Konverteringen som förfrågan själv ger (ConversionUpload.kind):
+        formuläret en förfrågan, ett klick på numret ett samtal. Förfrågningar
+        som lagts in för hand har ingen (inget klick att koppla till)."""
+        if self.source == self.SOURCE_FORM:
+            return ConversionUpload.KIND_LEAD
+        if self.source == self.SOURCE_CALL_CLICK:
+            return ConversionUpload.KIND_CALL
+        return ""
+
+    def queue_conversion(self, kind, value_kr=None):
+        """Köa en konvertering av sorten, om förfrågan får gå till Google
+        (can_send_to_google). Högst en per förfrågan och sort: finns den
+        redan lämnas den. Returnerar raden, eller None."""
+        if not kind or not self.can_send_to_google:
+            return None
+        upload, _ = ConversionUpload.objects.get_or_create(
+            lead=self, kind=kind, defaults={"value_kr": value_kr}
+        )
+        return upload
+
+    def queue_arrival_conversion(self):
+        """Köa förfrågans egen konvertering (arrival_kind) när den kommer in.
+        Anropas av leads.create_lead och leads.create_call_click_lead."""
+        return self.queue_conversion(self.arrival_kind)
+
+    def _unqueue(self, kind):
+        """Ta bort en konvertering som fortfarande står i kö. Villkoret ligger
+        i själva DELETE:n, så en rad som just skickats eller exporterats
+        (flamingo_google_sync, CSV-exporten) aldrig tas bort."""
+        ConversionUpload.objects.filter(
+            lead=self, kind=kind, status=ConversionUpload.STATUS_QUEUED
+        ).delete()
+
     @transaction.atomic
     def set_status(self, status, value_kr=None, now=None):
         """Byt status (inkorgen, och senare sms-svaret "VANN 186000").
 
-        Vunnen med ett belopp köar en ConversionUpload när förfrågan har ett
-        klick-id från Google; utan klick-id kan Google inte koppla affären
-        till annonsen. Ändras beloppet medan uppladdningen står i kö följer
-        den med, och lämnar förfrågan "vunnen" tas en uppladdning som ännu
-        inte gått iväg bort. Det som redan skickats eller exporterats rörs
-        inte."""
+        Vunnen med ett belopp köar en affär (ConversionUpload, kind=deal) när
+        förfrågan kan gå till Google (can_send_to_google: ett gclid).
+        Ändras beloppet medan affären står i kö följer det
+        med, och lämnar förfrågan "vunnen" tas en affär som ännu inte gått
+        iväg bort. Skräp tar bort förfrågans egen konvertering (förfrågan
+        eller samtal) om den står i kö, och ångras skräpet köas den igen.
+        Det som redan skickats eller exporterats rörs aldrig."""
         if status not in dict(self.STATUS_CHOICES):
             raise ValueError(f"Okänd status: {status}")
         now = now or timezone.now()
+        was_junk = self.status == self.STATUS_JUNK
         self.status = status
         if status == self.STATUS_WON:
             if value_kr is not None:
@@ -686,23 +1081,38 @@ class Lead(models.Model):
             self.won_at = None
         self.save()
 
-        upload = ConversionUpload.objects.filter(lead=self).first()
-        if status == self.STATUS_WON and self.value_kr is not None and self.gclid:
-            if upload is None:
-                ConversionUpload.objects.create(lead=self, value_kr=self.value_kr)
-            elif (
-                upload.status == ConversionUpload.STATUS_QUEUED and upload.value_kr != self.value_kr
-            ):
-                upload.value_kr = self.value_kr
-                upload.save(update_fields=["value_kr"])
-        elif upload is not None and upload.status == ConversionUpload.STATUS_QUEUED:
-            upload.delete()
+        deal = ConversionUpload.KIND_DEAL
+        if status == self.STATUS_WON and self.value_kr is not None and self.can_send_to_google:
+            upload = self.queue_conversion(deal, value_kr=self.value_kr)
+            if upload is not None and upload.value_kr != self.value_kr:
+                ConversionUpload.objects.filter(
+                    pk=upload.pk, status=ConversionUpload.STATUS_QUEUED
+                ).update(value_kr=self.value_kr)
+        else:
+            self._unqueue(deal)
+
+        if self.arrival_kind:
+            if status == self.STATUS_JUNK:
+                self._unqueue(self.arrival_kind)
+            elif was_junk:
+                self.queue_arrival_conversion()
         return self
 
 
 class ConversionUpload(models.Model):
-    """En vunnen affär på väg till Google som offline-konvertering. Med API
-    laddas den upp; utan exporterar byrån en CSV (/manage/flamingo/)."""
+    """En konvertering på väg till Google som offline-konvertering: en
+    förfrågan, ett klick på telefonnumret eller en vunnen affär (med värde).
+    Högst en av varje sort per förfrågan. Med API laddas den upp; utan
+    exporterar byrån affärerna som CSV (/manage/flamingo/)."""
+
+    KIND_LEAD = "lead"
+    KIND_CALL = "call"
+    KIND_DEAL = "deal"
+    KIND_CHOICES = [
+        (KIND_LEAD, "Förfrågan"),
+        (KIND_CALL, "Klick på telefonnumret"),
+        (KIND_DEAL, "Affär"),
+    ]
 
     STATUS_QUEUED = "queued"
     STATUS_EXPORTED = "exported"
@@ -715,12 +1125,16 @@ class ConversionUpload(models.Model):
         (STATUS_FAILED, "Misslyckades"),
     ]
 
-    lead = models.OneToOneField(Lead, on_delete=models.CASCADE, related_name="conversion")
-    value_kr = models.PositiveIntegerField("Värde (kr)")
+    lead = models.ForeignKey(Lead, on_delete=models.CASCADE, related_name="conversions")
+    kind = models.CharField("Sort", max_length=10, choices=KIND_CHOICES, default=KIND_DEAL)
+    #: Bara affärer har ett värde.
+    value_kr = models.PositiveIntegerField("Värde (kr)", null=True, blank=True)
     status = models.CharField(
         "Status", max_length=10, choices=STATUS_CHOICES, default=STATUS_QUEUED
     )
     exported_at = models.DateTimeField("Exporterad", null=True, blank=True)
+    sent_at = models.DateTimeField("Skickad", null=True, blank=True)
+    error = models.CharField("Fel", max_length=300, blank=True)
     #: Svaret från Google (eller exportens filnamn) för felsökning.
     response = models.JSONField("Svar", default=dict, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
@@ -729,9 +1143,16 @@ class ConversionUpload(models.Model):
         ordering = ["-created_at", "-id"]
         verbose_name = "Konvertering till Google"
         verbose_name_plural = "Konverteringar till Google"
+        constraints = [
+            models.UniqueConstraint(fields=["lead", "kind"], name="flamingo_conversion_kind")
+        ]
 
     def __str__(self):
-        return f"{self.lead.display_name}: {self.value_kr} kr ({self.get_status_display()})"
+        value = f", {self.value_kr} kr" if self.value_kr is not None else ""
+        return (
+            f"{self.lead.display_name}: {self.get_kind_display()}{value}"
+            f" ({self.get_status_display()})"
+        )
 
 
 class SmsLog(models.Model):

@@ -1,11 +1,16 @@
-{% load flamingo_staff %}
+{% load flamingo_staff flamingo_google %}
 {% comment %}
 Kundkortets ADX Flamingo-panel (apps/flamingo). Aktiveringen gäller direkt:
 kundens kontakter ser Flamingo på /flamingo/ och via portalen. Ingen mejlas.
-Google-kopplingen bockas av här så länge Google Ads API inte är inkopplat
-(manage_review.google_update); kunden ser statusen i verktyget.
+Google: med Google Ads API inkopplat finns knapparna för kopplingsförfrågan,
+nytt konto och läget från Google (manage_google.google_account); avbockningen
+för hand (manage_review.google_update) är reserven, och det enda utan API:t.
+ADX mejlar aldrig kunden härifrån. Google mejlar kunden bara när rutan för
+inbjudan är ibockad, och den säger det; rutan finns bara när Google satt ADX
+på tillåtelselistan (GOOGLE_ADS_INVITE_ON_CREATE). Kunden ser läget i
+verktyget. Panelens löptext är 16 px (tv-panel--read).
 {% endcomment %}
-<div class="m-panel tv-panel" id="flamingo">
+<div class="m-panel tv-panel tv-panel--read" id="flamingo">
   <div class="tv-sec-title">ADX Flamingo{% if flamingo_enabled %} <span class="m-badge m-badge--flamingo">Aktiverat</span>{% endif %}</div>
   <p class="tv-prop__note">Annonser, sidor och förfrågningar, mätt till affär. Bara kunder med Flamingo aktiverat ser det; alla andra får en vanlig 404.</p>
   <form method="post" action="{% url 'manage:flamingo_customer_update' customer.pk %}" class="tv-row">{% csrf_token %}
@@ -25,22 +30,70 @@ Google-kopplingen bockas av här så länge Google Ads API inte är inkopplat
   {% endif %}
 
   {% if flamingo_account %}
-  <form method="post" action="{% url 'manage:flamingo_google_update' customer.pk %}" class="tv-toggles" id="flamingo-google">{% csrf_token %}
+  {% flamingo_google_api as gapi %}
+  <div class="tv-toggles" id="flamingo-google">
     <div class="tv-sec-title">Google Ads <span>{{ flamingo_account.get_google_status_display }}</span></div>
-    <p class="tv-prop__note">Kunden äger kontot och ADX förvaltar det under sitt förvaltarkonto. Utan Google Ads API bockar du av här när kopplingen och betalningen är klara. En kampanj kan markeras som live först när betalningen är klar. Kunden mejlas inte.</p>
-    <div class="tv-form__pair">
-      <div class="m-field"><label for="fl-google-status">Status</label>
-        <select id="fl-google-status" name="google_status" class="tv-input">
-          {% for value, label in flamingo_account.GOOGLE_CHOICES %}<option value="{{ value }}"{% if flamingo_account.google_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    <p class="tv-prop__note">Kunden äger kontot och ADX förvaltar det under sitt förvaltarkonto. Betalningen lägger kunden in hos Google själv; annonserna visas först när den finns. ADX mejlar inte kunden.</p>
+    {% if flamingo_account.is_demo %}
+    <p class="tv-prop__note">Demokontot pratar aldrig med Google. Bocka av för hand nedan.</p>
+    {% elif gapi.configured %}
+    <p class="tv-prop__note">{% if flamingo_account.google_link_requested_at and not flamingo_account.google_linked %}Kopplingsförfrågan skickad {{ flamingo_account.google_link_requested_at|date:"j b H:i" }} &middot; {% endif %}{% if flamingo_account.google_billing_status %}Betalning: {{ flamingo_account.google_billing_status|flamingo_billing }} &middot; {% endif %}{% if flamingo_account.google_auto_tagging is not None %}Automatisk taggning: {{ flamingo_account.google_auto_tagging|yesno:"på,av" }} &middot; {% endif %}{% if flamingo_account.google_synced_at %}Läst från Google {{ flamingo_account.google_synced_at|date:"j b H:i" }}{% else %}Inte läst från Google än{% endif %}</p>
+    {% if flamingo_account.google_sync_error %}<p class="tv-prop__note"><b>Från Google:</b> {{ flamingo_account.google_sync_error }}</p>{% endif %}
+    {% if flamingo_account.google_ads_customer_id %}
+    {% if not flamingo_account.google_linked %}
+    <form method="post" action="{% url 'manage:flamingo_google_account' customer.pk %}" class="tv-row">{% csrf_token %}
+      <input type="hidden" name="action" value="link">
+      <p class="tv-prop__note">Skickar en förfrågan från förvaltarkontot till {{ flamingo_account.google_ads_customer_id }}. Kunden godkänner den i Google Ads under Administratör &gt; Åtkomst och säkerhet &gt; Förvaltare. Google kan mejla kontots administratörer om förfrågan.</p>
+      <button type="submit" class="m-btn m-btn--small">Skicka kopplingsförfrågan</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'manage:flamingo_google_account' customer.pk %}" class="tv-row">{% csrf_token %}
+      <input type="hidden" name="action" value="sync">
+      <button type="submit" class="m-btn m-btn--small m-btn--ghost">Hämta läget från Google</button>
+    </form>
+    {% elif flamingo_account.google_linked %}
+    <p class="tv-prop__note">Bockat som kopplat men utan konto-id. Skriv id:t för hand nedan, så går läget att hämta från Google.</p>
+    {% else %}
+    {% flamingo_invite_emails customer as invite_emails %}
+    <form method="post" action="{% url 'manage:flamingo_google_account' customer.pk %}" class="tv-row" data-confirm="Skapa ett nytt Google Ads-konto åt {{ customer.name }} under förvaltarkontot?">{% csrf_token %}
+      <input type="hidden" name="action" value="create">
+      <p class="tv-prop__note">Kunden har inget konto-id. Skapa ett nytt konto under förvaltarkontot: {{ customer.name }} (ADX Flamingo), i kronor och svensk tid.</p>
+      {% if invite_emails and gapi.invite_allowed %}
+      <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="invite" value="1"> Bjud in kunden som administratör. Google mejlar en inbjudan till adressen nedan.</label>
+      <div class="m-field tv-row__grow"><label for="fl-google-invite">Adress för inbjudan</label>
+        <select id="fl-google-invite" name="invite_email" class="tv-input">
+          {% for email, label in invite_emails %}<option value="{{ email }}">{{ label }}</option>{% endfor %}
         </select>
       </div>
-      <div class="m-field"><label for="fl-google-id">Kontots id, tio siffror</label><input id="fl-google-id" name="google_ads_customer_id" value="{{ flamingo_account.google_ads_customer_id }}" class="tv-input" placeholder="123-456-7890" inputmode="numeric" autocomplete="off" maxlength="20"></div>
-    </div>
-    <div class="m-field"><label for="fl-google-note">Notering om Google</label><input id="fl-google-note" name="google_note" value="{{ flamingo_account.google_note }}" class="tv-input" maxlength="300" autocomplete="off"></div>
-    <div class="tv-logfoot">
-      <button type="submit" class="m-btn m-btn--small">Spara Google</button>
-    </div>
-  </form>
+      {% elif invite_emails %}
+      <p class="tv-prop__note">Kontot skapas utan inbjudan. Bjud sedan in kunden som administratör i Google Ads (Administratör, Åtkomst och säkerhet); Google mejlar kunden när du gör det.</p>
+      {% else %}
+      <p class="tv-prop__note">Kunden har ingen kontakt med e-post, så kontot skapas utan inbjudan. Bjud in kunden i Google Ads senare.</p>
+      {% endif %}
+      <button type="submit" class="m-btn m-btn--small">Skapa ett konto åt kunden</button>
+    </form>
+    {% endif %}
+    {% else %}
+    <p class="tv-prop__note">Google Ads API är inte inkopplat, så du bockar av här när kopplingen och betalningen är klara. <a class="tv-link" href="{% url 'manage:flamingo_google' %}"><b>Google-sidan</b></a></p>
+    {% endif %}
+
+    {% if gapi.configured and not flamingo_account.is_demo %}<details class="aw-details"><summary>Ändra för hand</summary>{% endif %}
+    <form method="post" action="{% url 'manage:flamingo_google_update' customer.pk %}" class="tv-toggles">{% csrf_token %}
+      <div class="tv-form__pair">
+        <div class="m-field"><label for="fl-google-status">Status</label>
+          <select id="fl-google-status" name="google_status" class="tv-input">
+            {% for value, label in flamingo_account.GOOGLE_CHOICES %}<option value="{{ value }}"{% if flamingo_account.google_status == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="m-field"><label for="fl-google-id">Kontots id, tio siffror</label><input id="fl-google-id" name="google_ads_customer_id" value="{{ flamingo_account.google_ads_customer_id }}" class="tv-input" placeholder="123-456-7890" inputmode="numeric" autocomplete="off" maxlength="20"></div>
+      </div>
+      <div class="m-field"><label for="fl-google-note">Notering om Google, kunden ser den</label><input id="fl-google-note" name="google_note" value="{{ flamingo_account.google_note }}" class="tv-input" maxlength="300" autocomplete="off"></div>
+      <div class="tv-logfoot">
+        <button type="submit" class="m-btn m-btn--small">Spara Google</button>
+      </div>
+    </form>
+    {% if gapi.configured and not flamingo_account.is_demo %}</details>{% endif %}
+  </div>
 
   {% with campaigns=flamingo_account.campaigns.all %}{% if campaigns %}
   <div class="tv-toggles">
@@ -51,7 +104,7 @@ Google-kopplingen bockas av här så länge Google Ads API inte är inkopplat
       <span class="m-badge">{{ c|flamingo_staff_state }}</span>
     </div>
     {% endfor %}
-    <div class="tv-logfoot"><a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:flamingo_queue' %}">Granskningskön</a></div>
+    <div class="tv-logfoot"><a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:flamingo_queue' %}{% if flamingo_account.is_demo %}?demo=1{% endif %}">Granskningskön</a></div>
   </div>
   {% endif %}{% endwith %}
   {% endif %}

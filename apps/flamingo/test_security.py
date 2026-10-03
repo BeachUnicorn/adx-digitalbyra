@@ -15,6 +15,7 @@ Varje klass motsvarar ett fynd och visar att angreppet inte längre går:
 """
 
 import hashlib
+import threading
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 from unittest import mock
@@ -23,9 +24,9 @@ from zoneinfo import ZoneInfo
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
-from django.db import connection
+from django.db import connection, transaction
 from django.forms.models import model_to_dict
-from django.test import Client, TestCase, override_settings
+from django.test import Client, TestCase, TransactionTestCase, override_settings
 from django.urls import reverse
 
 from apps.analytics.models import PageView
@@ -223,14 +224,69 @@ class LeadSpamTests(Fixture, TestCase):
         self.assertFalse(Lead.objects.exists())
 
     def test_the_count_and_the_insert_happen_under_the_campaign_lock(self):
+        # Ett lås per kampanj i Postgres, inte kampanjens rad: publiceringen
+        # låser raden medan Google anropas (LeadLockTests nedan).
         request = SimpleNamespace(META={"REMOTE_ADDR": "198.51.100.9"}, GET={})
-        with mock.patch.object(
-            limits.Campaign.objects, "select_for_update", wraps=Campaign.objects.select_for_update
-        ) as lock:
+        with (
+            mock.patch.object(
+                limits, "_lock_campaign_leads", wraps=limits._lock_campaign_leads
+            ) as lock,
+            mock.patch.object(Campaign.objects, "select_for_update") as row_lock,
+        ):
             lead, refused = limits.create_form_lead(self.live, {"phone": "070"}, request)
+            limits.create_call_click_lead(self.live, {}, request)
         self.assertEqual(refused, "")
         self.assertIsNotNone(lead)
-        lock.assert_called_once()
+        self.assertEqual([c.args for c in lock.call_args_list], [(self.live.pk,), (self.live.pk,)])
+        row_lock.assert_not_called()
+
+
+class LeadLockTests(TransactionTestCase):
+    """En förfrågan eller ett klick på numret väntar aldrig på Google: pausen
+    och återupptagningen låser kampanjens rad medan Google anropas."""
+
+    def setUp(self):
+        customer = Customer.objects.create(name="Lindqvist Rör AB")
+        account = FlamingoAccount.objects.create(customer=customer, is_enabled=True)
+        service = Service.objects.create(account=account, name="Rörjour")
+        self.campaign = Campaign.objects.create(
+            account=account, service=service, name="Rörjour Nacka", status=Campaign.STATUS_LIVE
+        )
+
+    def test_a_click_is_saved_while_the_campaign_row_is_locked(self):
+        locked, release = threading.Event(), threading.Event()
+
+        def hold_the_row():
+            try:
+                with transaction.atomic():
+                    Campaign.objects.select_for_update(no_key=True).get(pk=self.campaign.pk)
+                    locked.set()
+                    release.wait(10)
+            finally:
+                connection.close()
+
+        def click():
+            try:
+                request = SimpleNamespace(META={"REMOTE_ADDR": "198.51.100.7"}, GET={})
+                result.append(limits.create_call_click_lead(self.campaign, {}, request))
+            finally:
+                connection.close()
+
+        result = []
+        holder = threading.Thread(target=hold_the_row)
+        holder.start()
+        self.assertTrue(locked.wait(5))
+        clicker = threading.Thread(target=click)
+        clicker.start()
+        clicker.join(5)
+        finished = not clicker.is_alive()
+        release.set()
+        clicker.join(10)
+        holder.join(10)
+        self.assertTrue(finished, "klicket väntade på låset kring Google-anropet")
+        lead, refused = result[0]
+        self.assertEqual(refused, "")
+        self.assertIsNotNone(lead)
 
 
 # ---------------------------------------------------------------------------
@@ -409,6 +465,19 @@ class ScanThrottleTests(Fixture, TestCase):
 
 
 class AiThrottleTests(Fixture, TestCase):
+    def setUp(self):
+        """AI är av om inte testet slår på den med ai_on(). Utan det läste
+        generatorn den lokala .env (Bedrock) och nådde AWS inloggning
+        (botocore TokenRetrievalError i testloggen): testerna rör aldrig AWS."""
+        super().setUp()
+        for name, kwargs in (
+            ("is_configured", {"return_value": False}),
+            ("call", {"side_effect": AssertionError("AI ska inte anropas")}),
+        ):
+            patcher = mock.patch.object(generator.llm, name, **kwargs)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     def ai_on(self):
         response = SimpleNamespace(
             content=[

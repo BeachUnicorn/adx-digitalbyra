@@ -289,6 +289,32 @@ class SeedFlamingoTests(TestCase):
         client.force_login(self.staff)
         return client
 
+    def test_the_seed_makes_no_claims_the_tool_does_not_keep(self):
+        """Beslut 2026-10-03: granskningen är kundens val, klick på numret
+        räknas (inga spårade nummer), och sidorna ligger på adx.se/lp/
+        (ingen egen subdomän än). Sidan i databasen byggs om med
+        seed_flamingo efter en sådan ändring (README, Driftsättning)."""
+        import json
+        from pathlib import Path
+
+        from django.conf import settings
+
+        raw = (Path(settings.BASE_DIR) / "seed_data" / "flamingo_pages.json").read_text("utf-8")
+        text = json.dumps(json.loads(raw), ensure_ascii=False)
+        for claim in (
+            "granskar allt",
+            "granskar varje",
+            "Spårat telefonnummer",
+            "subdomän",
+            '"En person granskar före publicering"',
+        ):
+            with self.subTest(claim=claim):
+                self.assertNotIn(claim, text)
+        page = self.seed()
+        seeded = " ".join(str(block.data) for block in page.blocks.all())
+        self.assertIn("Klick på numret räknas som förfrågan", seeded)
+        self.assertNotIn("subdomän", seeded)
+
     def test_the_page_is_built_from_flamingo_blocks_only(self):
         from apps.manage.block_schema import types_for_design
 

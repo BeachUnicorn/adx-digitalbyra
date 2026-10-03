@@ -8,8 +8,8 @@ Ordningen är prioriteten (README, steg 12):
     1. förfrågningar som väntat mer än två timmar ("Ring Anna L.")
     2. kampanjer som byrån granskat och som väntar på kundens godkännande
     3. förfrågningar som stått utan status i mer än sju dagar
-    4. kom-igång-steg som inte är gjorda (hemsidan, uppgifterna, Google och
-       betalningen hos Google)
+    4. kom-igång-steg som inte är gjorda (hemsidan, uppgifterna, Google,
+       ADX:s kopplingsförfrågan att godkänna och betalningen hos Google)
 
 Högst tre saker visas. Varje regel ger högst en sak (med antal när det är
 fler), så tre väntande förfrågningar tränger inte undan ett godkännande.
@@ -21,6 +21,7 @@ from datetime import timedelta
 from django.urls import reverse
 from django.utils import timezone
 
+from .google_accounts import MANAGERS_PATH
 from .models import Campaign, FlamingoAccount, Lead
 
 MAX_THINGS = 3
@@ -59,6 +60,9 @@ def count_word(n, one, many):
 STEP_DONE = "done"
 STEP_NOW = "now"
 STEP_WAIT = "wait"  # kunden har gjort sitt, ADX jobbar
+#: Google-stegets text när ADX skickat kopplingsförfrågan: då är det kunden
+#: som ska godkänna den, inte ADX som jobbar (google_waiting_on_customer).
+GOOGLE_ACCEPT_NOTE = f"Godkänn ADX:s förfrågan i Google Ads under {MANAGERS_PATH}."
 STEP_TODO = "todo"
 
 
@@ -127,12 +131,15 @@ def onboarding_for(account):
             "google",
             "Google",
             "app_google",
-            # Klart först när betalningen är klar: före det kan ingen
-            # kampanj gå live (kundresan 05, "Lägg in betalning hos Google").
-            account.google_ready,
+            # Klart när kontot är kopplat under ADX. Betalningen stoppar inte
+            # att en kampanj går live (beslut 2026-10-03), men annonserna
+            # visas först när den finns: den står kvar bland "tre saker"
+            # (onboarding_things) tills ADX bockat av den.
+            account.google_linked,
+            # Hos ADX tills förfrågan är skickad; sedan är det kundens tur.
             account.google_waiting_on_adx,
-            "Lägg in betalning hos Google. ADX bockar av när den syns."
-            if account.google_linked
+            GOOGLE_ACCEPT_NOTE
+            if account.google_waiting_on_customer
             else "Ditt Google Ads-konto, kopplat under ADX.",
         ),
         (
@@ -188,13 +195,18 @@ def waiting_leads(account, now):
         return None
     count = leads.count()
     verb = "Ring" if oldest.phone else "Svara"
+    title = f"{verb} {oldest.display_name}"
     about = f" om {oldest.service_name.lower()}" if oldest.service_name else ""
     text = f"Förfrågan{about} kom {when_text(oldest.created_at, now)}."
+    if oldest.source == Lead.SOURCE_CALL_CLICK:
+        # Ett klick på numret: ägaren fick samtalet, det finns ingen att svara.
+        title = "Sätt status på ett klick på numret"
+        text = f"Någon tryckte på numret{about} {when_text(oldest.created_at, now)}."
     if count > 1:
         text += f" {count_word(count - 1, 'förfrågan till väntar', 'förfrågningar till väntar')}."
     return Thing(
         key="waiting_leads",
-        title=f"{verb} {oldest.display_name}",
+        title=title,
         text=text,
         url=reverse("flamingo:app_lead", args=[oldest.pk]),
         action="Öppna",
@@ -244,7 +256,8 @@ def stale_leads(account, now):
 
 def onboarding_things(account, now):
     """Kom-igång-steg kunden själv kan göra något åt (inte de som ligger hos
-    ADX, som en Google-koppling på gång)."""
+    ADX, som en Google-koppling på gång). En kopplingsförfrågan från ADX är
+    kundens att godkänna i Google Ads."""
     things = []
     if account.scan_status != FlamingoAccount.SCAN_DONE and not account.services.exists():
         failed = account.scan_status == FlamingoAccount.SCAN_FAILED
@@ -273,7 +286,17 @@ def onboarding_things(account, now):
                 action="Bekräfta",
             )
         )
-    if account.google_status == FlamingoAccount.GOOGLE_NOT_STARTED:
+    if account.google_waiting_on_customer:
+        things.append(
+            Thing(
+                key="google_accept",
+                title="Godkänn ADX:s förfrågan i Google Ads",
+                text=f"Den finns under {MANAGERS_PATH}. Sedan kan kampanjerna gå live.",
+                url=reverse("flamingo:app_google"),
+                action="Visa",
+            )
+        )
+    elif account.google_status == FlamingoAccount.GOOGLE_NOT_STARTED:
         things.append(
             Thing(
                 key="google",
@@ -283,12 +306,17 @@ def onboarding_things(account, now):
                 action="Koppla",
             )
         )
-    elif account.google_status == FlamingoAccount.GOOGLE_LINKED:
+    elif (
+        account.google_status == FlamingoAccount.GOOGLE_LINKED
+        and account.google_billing_status != "APPROVED"
+    ):
         things.append(
             Thing(
                 key="google_billing",
                 title="Lägg in betalning hos Google",
-                text="Kontot är kopplat. En kampanj kan gå live först när betalningen är klar.",
+                text=(
+                    "Kontot är kopplat. Annonserna visas först när du lagt in betalning hos Google."
+                ),
                 url=reverse("flamingo:app_google"),
                 action="Visa",
             )

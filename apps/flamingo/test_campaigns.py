@@ -574,13 +574,20 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
                 page = client.get(self.url(campaign, tab))
                 self.assertEqual(page.status_code, 200)
                 self.assertNotContains(page, "[ ")
-        self.assertContains(client.get(self.url(campaign)), "Skicka till granskning")
+        page = client.get(self.url(campaign))
+        self.assertContains(page, "Skicka till granskning")
+        # Granskningen är kundens val, och rutan är tom från början.
+        self.assertContains(page, "Jag vill att ADX granskar kampanjen innan den publiceras")
+        self.assertContains(page, '<input type="checkbox" name="review" value="1">', html=False)
 
-        # Skicka: en runda hos ADX, ett larm till byrån och inget till kunden.
+        # Skicka med rutan ibockad: en runda hos ADX, ett larm till byrån och
+        # inget till kunden.
         submit = reverse("flamingo:app_campaign_submit", args=[campaign.pk])
-        self.assertRedirects(client.post(submit), self.url(campaign, "granskning"))
+        response = client.post(submit, {"review": "1"})
+        self.assertRedirects(response, self.url(campaign, "granskning"))
         campaign.refresh_from_db()
         self.assertEqual(campaign.status, Campaign.STATUS_IN_REVIEW)
+        self.assertTrue(campaign.review_requested)
         review = campaign.reviews.get()
         self.assertEqual((review.round, review.state), (1, Review.STATE_PENDING))
         self.assertEqual(review.submitted_by, self.anna)
@@ -674,8 +681,8 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
         self.assertIsNone(campaign.approved_at)
         self.assertIsNone(campaign.approved_by)
         self.assertEqual(campaign.headlines, headlines)
-        # Nästa inskick blir runda 2.
-        client.post(reverse("flamingo:app_campaign_submit", args=[campaign.pk]))
+        # Nästa inskick med granskning blir runda 2.
+        client.post(reverse("flamingo:app_campaign_submit", args=[campaign.pk]), {"review": "1"})
         self.assertEqual(campaign.reviews.order_by("-round").first().round, 2)
 
     def test_problems_block_the_submission(self):
@@ -869,11 +876,16 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
             name="Fönsterputs Nacka",
             status=Campaign.STATUS_NEEDS_CUSTOMER,
             approved_at=timezone.now(),
+            review_requested=True,
         )
         client = self.client_for(self.anna)
         page = client.get(reverse("flamingo:app_campaigns"))
         self.assertContains(page, "Utkast, inget publicerat")
         self.assertContains(page, "Godkänd av dig, ADX publicerar")
+        # Skickad utan granskning: inskicket var godkännandet.
+        Campaign.objects.filter(pk=approved.pk).update(review_requested=False)
+        page = client.get(reverse("flamingo:app_campaigns"))
+        self.assertContains(page, "Skickad av dig, ADX publicerar")
         self.assertContains(page, f'href="{live.landing_url}"')
         self.assertNotContains(page, approved.landing_url)
         self.assertContains(page, reverse("flamingo:app_campaign_new"))

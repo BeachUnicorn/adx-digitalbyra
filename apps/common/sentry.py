@@ -30,11 +30,22 @@ from pathlib import Path
 FILTERED = "[Filtered]"
 
 #: Headers som bär hemligheter, utöver Sentrys egen lista.
-SECRET_HEADERS = ["X-ADX-Key", "X-ADX-Code"]
+SECRET_HEADERS = ["X-ADX-Key", "X-ADX-Code", "developer-token"]
 
 #: Formulärfält och variabelnamn som bär hemligheter, utöver Sentrys lista
 #: (som redan har password, token, secret, session, csrf ...).
-SECRET_NAMES = ["kod", "login_code", "adx_status_key", "status_key"]
+SECRET_NAMES = [
+    "kod",
+    "login_code",
+    "adx_status_key",
+    "status_key",
+    # Google Ads (apps/flamingo/google_ads.py).
+    "refresh_token",
+    "access_token",
+    "id_token",
+    "client_secret",
+    "refresh_token_encrypted",
+]
 
 _PATTERNS = [
     # Offertlänken: token i sökvägen.
@@ -44,6 +55,13 @@ _PATTERNS = [
     # Hemligheter i query-strängar: ?kod=..., &key=..., token=...
     (
         re.compile(r"(?i)((?:^|[?&\s\"'])(?:kod|key|token|secret|signature)=)[^&\s\"']+"),
+        r"\1" + FILTERED,
+    ),
+    # Googles nycklar var de än står (apps/flamingo/google_ads.py): access
+    # token, refresh token, OAuth-klientens hemlighet och urlkodade fält.
+    (re.compile(r"ya29\.[\w.\-]+|1//[\w.\-]{10,}|GOCSPX-[\w\-]+"), FILTERED),
+    (
+        re.compile(r"(?i)\b((?:refresh_token|access_token|client_secret|id_token)=)[^&\s\"']+"),
         r"\1" + FILTERED,
     ),
 ]

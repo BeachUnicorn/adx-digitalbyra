@@ -401,6 +401,8 @@ body.is-dragging-any{cursor:grabbing}
 .tv-toggles{margin-top:14px;padding-top:14px;border-top:1px solid var(--m-border);display:flex;flex-direction:column;gap:12px}
 .tv-toggles__grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 14px}
 .tv-checklabel--box{text-transform:none;letter-spacing:0;font-family:inherit;font-size:14px;color:var(--m-text);padding:6px 0}
+/* ADX Flamingo på kundkortet: förklaringarna (bland dem vad Google mejlar) är löptext, 16 px. */
+.tv-panel--read .tv-prop__note,.tv-panel--read .tv-checklabel--box{font-size:16px;line-height:1.5}
 .tv-input--area{border-radius:12px;resize:vertical;min-height:60px}
 .tv-toggles .m-field label{display:block;font-family:var(--s-mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-text-muted);margin-bottom:5px}
 .tv-toggles .m-field .tv-input{width:100%;box-sizing:border-box}

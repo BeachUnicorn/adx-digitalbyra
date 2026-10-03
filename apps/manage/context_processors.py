@@ -74,7 +74,9 @@ def _css_mtime():
     # Stämpeln täcker alla panelens filer: manage.css (struktur),
     # manage-skin.css (utseende) och tavla.css (tavlan), plus verktygslagret
     # (site-tools.css, laddas av både sajten och Flamingo) och ADX Flamingos
-    # två stilmallar. Senaste ändringen av någon av dem ger ny URL.
+    # stilmallar och skript (sidorna, verktyget, landningssidorna och byråns
+    # sida; alla länkas med ?v={{ static_version }}). Senaste ändringen av
+    # någon av dem ger ny URL.
     static = Path(settings.BASE_DIR) / "static"
     stamps = []
     for name in (
@@ -86,11 +88,20 @@ def _css_mtime():
         "css/site-tools.css",
         "css/flamingo.css",
         "css/flamingo-blocks.css",
+        "css/flamingo-app.css",
+        "css/flamingo-app-onboarding.css",
+        "css/flamingo-app-campaigns.css",
+        "css/flamingo-app-inbox.css",
+        "css/flamingo-lp.css",
+        "css/manage-flamingo.css",
         "js/dist/tiptap-editor.js",
         "js/manage-tables.js",
         "js/menu.js",
         "js/portal.js",
         "js/manage.js",
+        "js/flamingo-app-onboarding.js",
+        "js/flamingo-lp.js",
+        "js/manage-flamingo.js",
     ):
         try:
             stamps.append(int((static / name).stat().st_mtime))

@@ -11,12 +11,16 @@
 <div class="mf-page">
 {% comment %}
 Byråns kö för ADX Flamingo (apps/flamingo/manage_review.py). Inget här
-mejlar kunden: kunden ser granskningen i verktyget.
+mejlar kunden: kunden ser granskningen i verktyget. Att granska har bara
+kampanjer där kunden bad om granskning; utan granskning går kampanjen live
+direkt när det går, och annars hamnar den i Godkända, ej publicerade med
+orsaken. Demokunden är inte med förrän ?demo=1 (include_demo).
 {% endcomment %}
 <div class="m-page-head">
     <p class="m-page-head__back"><a href="{% url 'manage:flamingo_overview' %}">ADX Flamingo</a></p>
     <h1 class="m-page-head__title">Granska</h1>
-    <p class="m-page-head__subtitle">Kampanjer som väntar på ADX, det som ska publiceras och affärerna som ska tillbaka till Google. Inget här mejlar kunden.</p>
+    <p class="m-page-head__subtitle">Kampanjer som väntar på ADX, det som ska publiceras och konverteringarna som ska tillbaka till Google. Inget här mejlar kunden.</p>
+    {% if include_demo %}<p class="m-field-help">Demokunden visas i listorna. <a class="mf-strong" href="{% url 'manage:flamingo_queue' %}">Dölj demokunden</a></p>{% elif has_demo %}<p class="m-field-help"><a class="mf-strong" href="{% url 'manage:flamingo_queue' %}?demo=1">Visa demokunden</a></p>{% endif %}
 </div>
 
 <nav class="mf-tiles" aria-label="Delar av kön">
@@ -26,7 +30,7 @@ mejlar kunden: kunden ser granskningen i verktyget.
     <a class="m-stat mf-tile" href="#konverteringar"><span class="m-stat__value">{{ uploads|length }}</span><span class="m-stat__label">Konverteringar i kö</span></a>
 </nav>
 
-<h2 class="m-section-title mf-section" id="att-granska">Att granska <span class="mf-section__note">äldst först</span></h2>
+<h2 class="m-section-title mf-section" id="att-granska">Att granska <span class="mf-section__note">kunden bad om granskning, äldst först</span></h2>
 {% if to_review %}
 <div class="m-panel m-table-wrap">
     <table class="m-table">
@@ -46,21 +50,22 @@ mejlar kunden: kunden ser granskningen i verktyget.
     </table>
 </div>
 {% else %}
-<div class="m-panel"><p class="m-empty">Inget väntar på granskning.</p></div>
+<div class="m-panel"><p class="m-empty">Inget väntar på granskning. Kampanjer utan granskning går direkt till publicering.</p></div>
 {% endif %}
 
 <h2 class="m-section-title mf-section" id="att-publicera">Godkända, ej publicerade</h2>
 {% if to_publish %}
 <div class="m-panel m-table-wrap">
     <table class="m-table">
-        <thead><tr><th>Kampanj</th><th>Kund</th><th>Godkänd</th><th>Google</th><th></th></tr></thead>
+        <thead><tr><th>Kampanj</th><th>Kund</th><th>Godkänd</th><th>Google</th><th>Varför inte live</th><th></th></tr></thead>
         <tbody>
         {% for c in to_publish %}
             <tr>
-                <td><a class="mf-strong" href="{% url 'manage:flamingo_review' c.pk %}">{{ c.name }}</a><br><span class="m-muted">{{ c.service.name }}</span></td>
+                <td><a class="mf-strong" href="{% url 'manage:flamingo_review' c.pk %}">{{ c.name }}</a><br><span class="m-muted">{{ c.service.name }}, {% if c.review_requested %}kunden bad om granskning{% else %}utan granskning{% endif %}</span></td>
                 <td>{{ c.account.customer.name }}</td>
                 <td class="m-num">{{ c.approved_at|date:"j b H:i" }}</td>
-                <td>{% if c.account.google_ready %}<span class="m-badge m-badge--published">Klart</span>{% else %}<span class="m-badge m-badge--in_progress">{{ c.account.get_google_status_display }}</span>{% endif %}</td>
+                <td>{% if c.account.google_linked %}<span class="m-badge m-badge--published">Kopplat</span>{% if not c.account.google_ready %}<br><span class="m-muted">betalning saknas, stoppar inte</span>{% endif %}{% else %}<span class="m-badge m-badge--in_progress">{{ c.account.get_google_status_display }}</span>{% endif %}</td>
+                <td>{% if c.account.is_demo %}Demokontot publiceras aldrig hos Google.{% elif not c.account.google_linked %}Kontot är inte kopplat under ADX.{% elif c.google_error %}{{ c.google_error }}{% elif not google_api_on %}Google Ads API är inte inkopplat: publicera för hand.{% else %}-{% endif %}</td>
                 <td><a class="m-btn m-btn--small" href="{% url 'manage:flamingo_review' c.pk %}#publicering">Publicera</a></td>
             </tr>
         {% endfor %}
@@ -117,11 +122,27 @@ mejlar kunden: kunden ser granskningen i verktyget.
 {% endif %}
 
 <h2 class="m-section-title mf-section" id="konverteringar">Konverteringar till Google</h2>
-<p class="m-field-help mf-before">Vunna affärer med Googles klick-id och ett belopp. Varje kund har sitt eget Google Ads-konto: ladda ner kundens fil, ladda upp den i kontot (Mål, Konverteringar, Uppladdningar) och markera raderna som exporterade. Konverteringen heter <code>{{ conversion_name }}</code> i filen och måste finnas med exakt det namnet i kundens konto.</p>
+{% comment %}
+Konverteringarna (apps/flamingo/google_conversions.py, exports.py): allt med
+Googles klick-id (gclid). Sidan frågar inte om samtycke (beslut 2026-10-03).
+Filen är vägen tills uppladdningen med API:t bevisat fungerar
+(uploads_via_api, GOOGLE_ADS_UPLOAD_CONVERSIONS av från början: Google tar
+inte emot nya användare av uploadClickConversions). Demokundens rader är
+aldrig med.
+{% endcomment %}
+{% if upload_blocked %}
+<p class="m-form-error mf-before" role="status"><b>Uppladdningen med API:t är stoppad.</b> {{ upload_blocked }} <a class="mf-strong" href="{% url 'manage:flamingo_google' %}#konverteringar">Google-sidan</a></p>
+{% endif %}
+{% if uploads_via_api %}
+<p class="m-field-help mf-before">Uppladdningen med API:t är på: kommandot <code>flamingo_google_sync</code> laddar upp konverteringarna till konton som ligger under ADX förvaltarkonto. Filen nedan behövs bara för konton som inte är kopplade så.</p>
+{% else %}
+<p class="m-field-help mf-before">Förfrågningar, klick på telefonnumret och vunna affärer från annonsklick (med Googles gclid). Varje kund har sitt eget Google Ads-konto: ladda ner kundens fil, ladda upp den i kontot (Mål, Konverteringar, Uppladdningar) och markera raderna som exporterade.</p>
+{% endif %}
+<p class="m-field-help mf-before">Namnen i filen, som måste finnas exakt så i kundens konto (som import av klick): {% for label, name in conversion_names %}{{ label|lower }} <code>{{ name }}</code>{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
 {% if upload_groups %}
 <div class="m-panel m-table-wrap">
     <table class="m-table">
-        <thead><tr><th>Kund</th><th>Affärer</th><th>Värde</th><th></th></tr></thead>
+        <thead><tr><th>Kund</th><th>Konverteringar</th><th>Värde</th><th></th></tr></thead>
         <tbody>
         {% for g in upload_groups %}
             <tr>
@@ -143,26 +164,45 @@ mejlar kunden: kunden ser granskningen i verktyget.
         </tbody>
     </table>
 </div>
-<p class="m-field-help mf-after">Totalt {{ uploads|length }} affär{{ uploads|length|pluralize:"er" }} värda {{ upload_total|kr }}. <a href="{% url 'manage:flamingo_conversions_csv' %}">Alla kunder i en fil</a> (bara för kontroll: Google tar emot en fil per konto).</p>
+<p class="m-field-help mf-after">Totalt {{ uploads|length }} konvertering{{ uploads|length|pluralize:"ar" }}, affärerna värda {{ upload_total|kr }}. <a href="{% url 'manage:flamingo_conversions_csv' %}">Alla kunder i en fil</a> (bara för kontroll: Google tar emot en fil per konto).</p>
 
 <div class="m-panel m-table-wrap mf-gap">
     <table class="m-table">
-        <thead><tr><th>Förfrågan</th><th>Kund</th><th>Tjänst</th><th>Vunnen</th><th>Värde</th></tr></thead>
+        <thead><tr><th>Förfrågan</th><th>Kund</th><th>Sort</th><th>När</th><th>Värde</th></tr></thead>
         <tbody>
         {% for u in uploads %}
             <tr>
                 <td>{{ u.lead.display_name }}</td>
                 <td>{{ u.lead.account.customer.name }}</td>
-                <td>{{ u.lead.service_name|default:"-" }}</td>
-                <td class="m-num">{{ u.lead.won_at|default:u.created_at|date:"j b Y" }}</td>
-                <td class="m-num">{{ u.value_kr|kr }}</td>
+                <td>{{ u.get_kind_display }}{% if u.lead.service_name %}<br><span class="m-muted">{{ u.lead.service_name }}</span>{% endif %}</td>
+                <td class="m-num">{% if u.kind == "deal" %}{{ u.lead.won_at|default:u.created_at|date:"j b Y" }}{% else %}{{ u.lead.created_at|date:"j b Y" }}{% endif %}</td>
+                <td class="m-num">{% if u.value_kr is not None %}{{ u.value_kr|kr }}{% else %}-{% endif %}</td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
 </div>
 {% else %}
-<div class="m-panel"><p class="m-empty">Inga affärer väntar på att skickas till Google.</p></div>
+<div class="m-panel"><p class="m-empty">Inga konverteringar väntar på att skickas till Google.</p></div>
+{% endif %}
+
+{% if failed_uploads %}
+<h2 class="m-section-title mf-section" id="konverteringar-fel">Konverteringar som Google inte tog emot</h2>
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Förfrågan</th><th>Kund</th><th>Sort</th><th>Varför</th></tr></thead>
+        <tbody>
+        {% for u in failed_uploads %}
+            <tr>
+                <td>{{ u.lead.display_name }}</td>
+                <td>{{ u.lead.account.customer.name }}</td>
+                <td>{{ u.get_kind_display }}</td>
+                <td>{{ u.error|default:"-" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
 {% endif %}
 
 {% if exported %}
@@ -175,7 +215,7 @@ mejlar kunden: kunden ser granskningen i verktyget.
             <tr>
                 <td>{{ u.lead.display_name }}</td>
                 <td>{{ u.lead.account.customer.name }}</td>
-                <td class="m-num">{{ u.value_kr|kr }}</td>
+                <td class="m-num">{% if u.value_kr is not None %}{{ u.value_kr|kr }}{% else %}{{ u.get_kind_display }}{% endif %}</td>
                 <td class="m-num">{{ u.exported_at|date:"j b H:i" }}</td>
             </tr>
         {% endfor %}

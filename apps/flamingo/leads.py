@@ -6,6 +6,15 @@ Allt som kommer utifrån saneras här, en gång, innan det sparas: namn och
 nummer som ren text med maxlängd, meddelandet med radbrytningar,
 klick-id:n bara om de ser ut som klick-id:n. Vyerna lämnar över rådata.
 
+Ett klick på telefonnumret på landningssidan (create_call_click_lead) är
+också en förfrågan: utan namn och nummer, med klick-id och utm. Ägaren
+får själva samtalet, så inget sms skickas för det.
+
+En ny förfrågan köar sin konvertering till Google (Lead.queue_arrival_conversion)
+när den har ett gclid (Lead.can_send_to_google). Landningssidan frågar inte
+om samtycke (beslut 2026-10-03), och ett "ad_consent" i det som postas
+läses aldrig: Lead.ad_consent står tomt tills sidan frågar på riktigt.
+
 Inga mejl och inga sms skickas härifrån; landningssidan anropar
 sms.notify_new_lead() efter create_lead().
 """
@@ -32,11 +41,13 @@ TRACKING_MAX = 200
 #: Ett affärsvärde över en miljard kronor är ett skrivfel.
 VALUE_MAX_KR = 1_000_000_000
 
-#: Googles klick-id:n. gbraid och wbraid (iOS) sparas i Lead.utm tills
-#: modellen har egna fält för dem.
+#: Googles klick-id:n, var och en i sitt eget fält på Lead (gbraid och
+#: wbraid kommer från iOS).
 CLICK_ID_KEYS = ("gclid", "gbraid", "wbraid")
 UTM_KEYS = ("utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content")
 TRACKING_KEYS = CLICK_ID_KEYS + UTM_KEYS
+#: Sökordet kan också komma som ?keyword= (Googles {keyword} i spårningsmallen).
+KEYWORD_KEY = "keyword"
 
 _CLICK_ID_RE = re.compile(r"^[A-Za-z0-9_\-]{1,200}$")
 
@@ -100,6 +111,19 @@ def tracking_from(*sources):
     return found
 
 
+def _keyword(tracking, *sources):
+    """Sökordet: utm_term, annars ?keyword= ur formuläret eller adressen."""
+    keyword = tracking.get("utm_term", "")
+    for source in sources:
+        if keyword or not source:
+            break
+        raw = source.get(KEYWORD_KEY, "")
+        if isinstance(raw, list | tuple):
+            raw = raw[0] if raw else ""
+        keyword = _plain(raw, TRACKING_MAX)
+    return keyword[:TRACKING_MAX]
+
+
 def _clean_answers(answers):
     cleaned = {}
     for label, value in list((answers or {}).items())[:ANSWERS_MAX]:
@@ -114,15 +138,13 @@ def create_lead(campaign, data, request=None, ip_hash=""):
     """En förfrågan från kampanjens landningssida (källa: formulär).
 
     data: name, phone, email, message, answers ({fråga: svar}) och de dolda
-    spårningsfälten (gclid, gbraid, wbraid, utm_*). Saknas spårningen i data
-    läses den ur adressen (request.GET), så att den följer med även om de
-    dolda fälten skulle tappas. ip_hash kommer från limits.ip_hash (spärren
-    på /lp/); landningssidan skapar förfrågan via limits.create_form_lead."""
-    tracking = tracking_from(data, request.GET if request is not None else None)
+    spårningsfälten (gclid, gbraid, wbraid, utm_*). Saknas spårningen i data läses
+    den ur adressen (request.GET), så att den följer med även om de dolda
+    fälten skulle tappas. ip_hash kommer från limits.ip_hash (spärren på
+    /lp/); landningssidan skapar förfrågan via limits.create_form_lead."""
+    query = request.GET if request is not None else None
+    tracking = tracking_from(data, query)
     utm = {key: tracking[key] for key in UTM_KEYS if key in tracking}
-    for key in ("gbraid", "wbraid"):
-        if key in tracking:
-            utm[key] = tracking[key]
     lead = Lead.objects.create(
         account=campaign.account,
         campaign=campaign,
@@ -134,11 +156,41 @@ def create_lead(campaign, data, request=None, ip_hash=""):
         message=sanitize_multiline_text(str(data.get("message") or ""), max_length=MESSAGE_MAX),
         answers=_clean_answers(data.get("answers")),
         gclid=tracking.get("gclid", ""),
+        gbraid=tracking.get("gbraid", ""),
+        wbraid=tracking.get("wbraid", ""),
         utm=utm,
-        keyword=tracking.get("utm_term", "")[:TRACKING_MAX],
+        keyword=_keyword(tracking, data, query),
         ip_hash=(ip_hash or "")[:64],
     )
+    lead.queue_arrival_conversion()
     logger.info("Flamingo: ny förfrågan %s på kampanj %s", lead.pk, campaign.pk)
+    return lead
+
+
+def create_call_click_lead(campaign, data, ip_hash=""):
+    """Ett klick på telefonnumret på kampanjens landningssida (källa: klick
+    på telefonnumret). Inget namn och inget nummer: ägaren får samtalet och
+    sätter status när hen vet hur det gick.
+
+    data är det flamingo-lp.js skickar: klick-id:n och utm ur adressen och
+    keyword. Spärrarna och dubbletterna sköts av
+    limits.create_call_click_lead, som anropar den här."""
+    tracking = tracking_from(data)
+    utm = {key: tracking[key] for key in UTM_KEYS if key in tracking}
+    lead = Lead.objects.create(
+        account=campaign.account,
+        campaign=campaign,
+        service=campaign.service,
+        source=Lead.SOURCE_CALL_CLICK,
+        gclid=tracking.get("gclid", ""),
+        gbraid=tracking.get("gbraid", ""),
+        wbraid=tracking.get("wbraid", ""),
+        utm=utm,
+        keyword=_keyword(tracking, data),
+        ip_hash=(ip_hash or "")[:64],
+    )
+    lead.queue_arrival_conversion()
+    logger.info("Flamingo: klick på numret %s på kampanj %s", lead.pk, campaign.pk)
     return lead
 
 
