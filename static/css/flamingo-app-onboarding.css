@@ -1,0 +1,135 @@
+/* ==========================================================================
+   ADX Flamingo - kom igång (flamingo-app-onboarding.css)
+
+   Förslaget, Företaget, Google och Inställningarna
+   (templates/flamingo/app/onboarding/). Bygger på komponenterna i
+   flamingo-app.css (.fl-panel, .fl-timeline, .fl-chips, .fl-seg, .fl-src,
+   .fl-form ...). Här bara det egna, med prefixet .fl-onb-.
+   Brödtext minst 16 px; bara märkena (.fl-onb-state) är mindre.
+   ========================================================================== */
+
+/* ---------- Gemensamt ---------- */
+
+/* Fält och knapp på samma rad; knappen hamnar under fältet när det är trångt. */
+.fl-onb-inline{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;margin:0}
+.fl-onb-inline .fl-input{flex:1 1 220px;width:auto}
+.fl-onb-inline .fl-btn{flex:none}
+
+/* fieldset utan webbläsarens ram; legenden får luft under sig. */
+.fl-onb-fieldset{min-inline-size:0}
+.fl-onb-fieldset > legend{margin-bottom:8px;padding:0}
+
+/* Märke: "Bekräftad", "Ej bekräftad", "Beställt". */
+.fl-onb-state{
+  display:inline-flex;align-items:center;font-family:var(--fl-mono);font-size:11px;font-weight:500;
+  letter-spacing:.04em;line-height:1.5;text-transform:uppercase;color:#A34700;white-space:nowrap;
+}
+.fl-onb-state--ok{color:#17703D}
+
+/* Nästa steg längst ner (som översiktens "Nästa steg"). */
+.fl-onb-next{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;border-color:var(--fl-ink)}
+.fl-onb-next__text{display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:0}
+.fl-onb-next form{margin:0}
+
+/* <details> som öppnas med en knapp: ingen pil, knappen är summary. */
+.fl-onb-edit,.fl-onb-add{min-width:0}
+.fl-onb-edit > summary,.fl-onb-add > summary{list-style:none;cursor:pointer;user-select:none}
+.fl-onb-edit > summary::-webkit-details-marker,.fl-onb-add > summary::-webkit-details-marker{display:none}
+/* Blocklayout med flit: Chrome lägger innehållet i en egen ruta
+   (::details-content), som krymper om details är en flexbehållare. */
+.fl-onb-edit[open] > summary,.fl-onb-add[open] > summary{margin-bottom:10px;border-color:var(--fl-ink)}
+.fl-onb-edit[open]{flex:1 1 100%}
+
+/* ---------- Förslaget (kundresan 02) ---------- */
+.fl-onb-rating{
+  display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 14px;
+  border:1px solid var(--fl-line);border-radius:999px;background:var(--fl-white);
+  font-size:16px;line-height:1.3;color:var(--fl-ink);overflow-wrap:anywhere;
+}
+.fl-onb-rating__star{color:#C98A0C}
+
+/* Namnet och sättet att sälja som en text som radbryts ihop:
+   "Rörjour · ringer". b, inte span: .fl-chips__item span ritar en chip. */
+.fl-onb-chip__text{min-width:0;font-weight:inherit}
+.fl-onb-chip__mode{font-size:inherit;white-space:nowrap;color:var(--fl-muted)}
+.fl-chips__item input:checked + span .fl-onb-chip__mode{color:#D6D3E0}
+
+/* Exempelannonsen och den föreslagna starten (kundresan 02). */
+.fl-onb-example{display:flex;flex-direction:column;gap:10px;min-width:0}
+.fl-onb-example__ad{gap:6px;padding:18px 20px}
+.fl-onb-example__kicker{margin-bottom:4px}
+.fl-onb-start{gap:8px}
+
+/* Skrivskyddat (byrån i kundvyn): samma chips utan kryssrutor. */
+.fl-onb-chiplist{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.fl-onb-chip{
+  display:inline-flex;align-items:center;gap:8px;max-width:100%;padding:8px 14px;
+  border:1px dashed var(--fl-line);border-radius:999px;background:var(--fl-white);
+  font-size:16px;line-height:1.3;color:var(--fl-muted);overflow-wrap:anywhere;
+}
+.fl-onb-chip.is-on{border-style:solid;border-color:var(--fl-ink);color:var(--fl-ink)}
+
+/* ---------- Företaget (kundresan 04) ----------
+   En rad per uppgift: rubrik | värde | källa och läge, handlingarna under. */
+.fl-onb-facts{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.fl-onb-fact{
+  display:grid;grid-template-columns:minmax(0,170px) minmax(0,1fr) auto;
+  grid-template-areas:"label value meta" ". actions actions";
+  align-items:baseline;gap:8px 16px;padding:14px 0;border-top:1px solid var(--fl-soft);
+  scroll-margin-top:16px;
+}
+.fl-onb-fact:first-child{padding-top:4px;border-top:0}
+.fl-onb-fact:last-child{padding-bottom:4px}
+.fl-onb-fact__label{grid-area:label;font-size:16px;line-height:1.5;color:var(--fl-muted);overflow-wrap:anywhere}
+.fl-onb-fact__value{grid-area:value;min-width:0;font-size:16px;line-height:1.5;color:var(--fl-ink);overflow-wrap:anywhere}
+.fl-onb-fact__meta{grid-area:meta;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px 8px}
+.fl-onb-fact__actions{grid-area:actions;display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px;min-width:0}
+.fl-onb-fact__actions > form{margin:0}
+/* Ett tomt pris fylls i där värdet skulle stå. */
+.fl-onb-ph-input{border-style:dashed;border-color:#F5B26B;background:#FFFBF5}
+.fl-onb-ph-input::placeholder{color:#9A5A12}
+.fl-onb-fact__empty{color:var(--fl-muted)}
+.fl-onb-fact__note{margin:6px 0 0;color:var(--fl-muted)}
+.fl-onb-fact.is-open .fl-onb-fact__label{font-weight:600;color:var(--fl-ink)}
+
+/* "Fyll i, eller lämna tomt" (kundresan .ph). */
+.fl-onb-ph{
+  display:inline-block;max-width:100%;padding:0 8px;border:1px dashed #F5B26B;border-radius:6px;
+  background:#FFF3E6;color:#7A430D;font-size:16px;line-height:1.6;
+}
+
+.fl-onb-add{padding-top:16px;border-top:1px solid var(--fl-soft)}
+.fl-onb-add[open] > summary{margin-bottom:14px}
+.fl-onb-add__form,.fl-onb-service__form{
+  padding:16px;border:1px solid var(--fl-soft);border-radius:var(--fl-r-sm);background:var(--fl-panel);
+}
+
+.fl-onb-rule{margin:0;padding:14px 18px;border-radius:var(--fl-r-md);background:var(--fl-panel2);font-size:16px;line-height:1.55;color:var(--fl-body)}
+
+/* Tjänsterna: namn och sätt att sälja, "Ändra" till höger. */
+.fl-onb-services{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.fl-onb-service{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;
+  padding:12px 0;border-top:1px solid var(--fl-soft);scroll-margin-top:16px;
+}
+.fl-onb-service:first-child{padding-top:0;border-top:0}
+.fl-onb-service__main{display:flex;flex-direction:column;gap:2px;flex:1 1 240px;min-width:0}
+.fl-onb-service__name{display:inline-flex;align-items:center;gap:10px;font-size:16px;font-weight:600;line-height:1.35;color:var(--fl-ink);overflow-wrap:anywhere}
+.fl-onb-service__meta{font-size:16px;line-height:1.4;color:var(--fl-muted)}
+.fl-onb-service.is-off .fl-onb-service__name{font-weight:500;color:var(--fl-muted)}
+
+/* ---------- Google (kundresan 05) ---------- */
+.fl-onb-tl-btn{align-self:flex-start;margin-top:8px}
+
+/* ---------- Inställningarna ---------- */
+.fl-onb-labelrow{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
+.fl-onb-phone{max-width:320px}
+
+/* ---------- Telefon ---------- */
+@media (max-width:560px){
+  .fl-onb-fact{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"label meta" "value value" "actions actions";gap:4px 12px}
+  .fl-onb-fact__actions{margin-top:6px}
+  .fl-onb-inline .fl-btn{flex:1 1 auto}
+  .fl-onb-next .fl-btn,.fl-onb-next form{width:100%}
+  .fl-onb-add__form,.fl-onb-service__form{padding:14px}
+}

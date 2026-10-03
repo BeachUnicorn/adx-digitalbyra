@@ -1,0 +1,6 @@
+{% comment %}Skälet för en del i granskningen. key = delens nyckel (GROUPS i manage_review.py).{% endcomment %}
+<div class="m-field mf-reason" data-reason>
+    <label for="f-reason-{{ key }}">Varför ändrat? <span class="mf-reason__hint">Kunden ser skälet</span></label>
+    <input id="f-reason-{{ key }}" name="reason_{{ key }}" value="{{ group.reason }}" maxlength="500" autocomplete="off" placeholder="Till exempel: jouren gäller rörjour, inte renoveringar.">
+    {% if group.reason_error %}<div class="m-field-error">{{ group.reason_error }}</div>{% endif %}
+</div>

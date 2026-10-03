@@ -1,0 +1,228 @@
+/* ==========================================================================
+   ADX Flamingo - verktyget, kampanjerna (flamingo-app-campaigns.css)
+
+   Mallarna i templates/flamingo/app/campaigns/ (kundresan 06-09). Bygger på
+   komponenterna i flamingo-app.css (.fl-panel, .fl-form, .fl-chips,
+   .fl-seg, .fl-tabs, .fl-ad, .fl-diff, .fl-timeline ...); här finns bara
+   kampanjernas eget, och allt börjar med .fl-camp-.
+
+   Inga skript: månadsbeloppet för vald budget, det valda sättet att sälja
+   och radien på kartan visas med :has(). Utan stöd står den allmänna texten
+   kvar och kartan visar standardradien.
+   Brytpunkter som i flamingo-app.css: 1100 (sidan och förhandsvisningen
+   staplas), 760, 560 (telefon).
+   ========================================================================== */
+
+/* ---------- Gemensamt ---------- */
+.fl-camp-crumb{color:inherit;text-decoration:none}
+.fl-camp-crumb:hover{color:var(--fl-violet-ink);text-decoration:underline;text-underline-offset:3px}
+.fl-camp-label{display:block;margin:0 0 8px;padding:0;font-family:var(--fl-mono);font-size:12px;font-weight:500;letter-spacing:.04em;line-height:1.4;text-transform:uppercase;color:var(--fl-muted)}
+.fl-camp-hint{font-size:16px;line-height:1.45;color:var(--fl-muted)}
+.fl-camp-block{display:flex;flex-direction:column;gap:10px;min-width:0}
+.fl-camp-new legend,.fl-camp-pagegrid legend{padding:0}
+.fl-camp-tab{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+/* ---------- Listan ---------- */
+.fl-camp-list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.fl-camp-row{display:flex;flex-direction:column;gap:12px;min-width:0;padding:18px 20px;border:1px solid var(--fl-line);border-radius:var(--fl-r-md);background:var(--fl-white)}
+.fl-camp-row:hover{border-color:#CFCBDB}
+.fl-camp-row__head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px 14px}
+.fl-camp-row__main{display:flex;flex-direction:column;gap:3px;flex:1 1 240px;min-width:0;color:inherit;text-decoration:none}
+.fl-camp-row__title{font-size:19px;font-weight:600;letter-spacing:-.02em;line-height:1.3;color:var(--fl-ink);overflow-wrap:anywhere}
+a.fl-camp-row__main:hover .fl-camp-row__title{color:var(--fl-violet-ink)}
+.fl-camp-row__service{display:inline-flex;align-items:center;gap:8px;font-size:16px;line-height:1.4;color:var(--fl-muted);overflow-wrap:anywhere}
+.fl-camp-row__facts{display:flex;flex-wrap:wrap;gap:8px 28px;margin:0;padding-top:12px;border-top:1px solid var(--fl-soft)}
+.fl-camp-row__facts > div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fl-camp-row__facts dt{font-family:var(--fl-mono);font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--fl-muted)}
+.fl-camp-row__facts dd{margin:0;font-size:16px;line-height:1.4;color:var(--fl-ink);overflow-wrap:anywhere}
+.fl-camp-row__facts a{color:var(--fl-violet-ink);text-underline-offset:3px}
+.fl-camp-row__wide{flex:1 1 100%}
+
+/* ---------- Ny kampanj (kundresan 06) ---------- */
+.fl-camp-new{gap:22px}
+/* Tjänsten väljs med länkar: den valda ritas som en vald chip. */
+.fl-camp-pick[aria-current="true"] span{border-color:var(--fl-ink);background:var(--fl-ink);color:var(--fl-white)}
+.fl-camp-pick.fl-chips__item--add[aria-current="true"] span{border-style:solid}
+.fl-camp-newservice{margin-top:12px;max-width:480px}
+
+.fl-camp-mode .fl-seg{margin-bottom:4px}
+.fl-camp-modes{display:flex;flex-direction:column;gap:2px;margin:6px 0 0;padding:0;list-style:none}
+.fl-camp-modes__item{display:flex;align-items:baseline;gap:10px;padding:6px 10px;border-radius:10px;font-size:16px;line-height:1.45;color:var(--fl-muted)}
+.fl-camp-modes__item .fl-dot{transform:translateY(-1px)}
+.fl-camp-modes__item b{font-weight:600;color:inherit}
+.fl-camp-mode:has(input[value="call"]:checked) .fl-camp-modes__item--call,
+.fl-camp-mode:has(input[value="quote"]:checked) .fl-camp-modes__item--quote,
+.fl-camp-mode:has(input[value="book"]:checked) .fl-camp-modes__item--book{background:var(--fl-panel2);color:var(--fl-ink)}
+
+.fl-camp-new__grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr));gap:16px;align-items:start}
+.fl-camp-card{display:flex;flex-direction:column;gap:12px;min-width:0;padding:18px;border:1px solid var(--fl-line);border-radius:var(--fl-r-md);background:var(--fl-white)}
+/* legend i en flexlåda: lägg den som en vanlig rad överst. */
+.fl-camp-card > legend{float:left;width:100%;margin-bottom:0}
+.fl-camp-card > legend + *{clear:both}
+
+/* Kartan är en illustration av radien, inte en karta över området. */
+.fl-camp-map{display:block;width:100%;height:130px;border-radius:12px;background:#F2F7FF}
+.fl-camp-map__water{fill:none;stroke:#CFE0FF;stroke-width:10}
+.fl-camp-map__road{fill:none;stroke:#E3ECFF;stroke-width:3}
+.fl-camp-map__zone{fill:rgba(131,101,243,.12);stroke:#8365F3;stroke-width:2;stroke-dasharray:5 4;transform-box:fill-box;transform-origin:center;transform:scale(.8);transition:transform .2s ease}
+.fl-camp-map__pin{fill:var(--fl-ink)}
+.fl-camp-area:has(option[value="5"]:checked) .fl-camp-map__zone{transform:scale(.4)}
+.fl-camp-area:has(option[value="10"]:checked) .fl-camp-map__zone{transform:scale(.6)}
+.fl-camp-area:has(option[value="15"]:checked) .fl-camp-map__zone{transform:scale(.8)}
+.fl-camp-area:has(option[value="25"]:checked) .fl-camp-map__zone{transform:scale(1)}
+.fl-camp-area:has(option[value="50"]:checked) .fl-camp-map__zone{transform:scale(1.2)}
+.fl-camp-area__row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,150px);gap:12px;align-items:end}
+
+.fl-camp-budget__own{max-width:320px}
+.fl-camp-suffix{display:flex;align-items:center;gap:10px;min-width:0}
+.fl-camp-suffix .fl-input{flex:1 1 auto}
+.fl-camp-suffix > span{flex:none;font-size:16px;color:var(--fl-muted)}
+/* Månadsbeloppet för valt förslag (en regel per belopp i BUDGET_PRESETS). */
+.fl-camp-month{display:none;padding:12px 14px;border-radius:var(--fl-r-sm);background:var(--fl-panel2);font-size:16px;line-height:1.5;color:var(--fl-body)}
+.fl-camp-month b{font-weight:600;color:var(--fl-ink)}
+.fl-camp-budget:has(input[name="budget"][value="100"]:checked) .fl-camp-month--100,
+.fl-camp-budget:has(input[name="budget"][value="150"]:checked) .fl-camp-month--150,
+.fl-camp-budget:has(input[name="budget"][value="200"]:checked) .fl-camp-month--200,
+.fl-camp-budget:has(input[name="budget"][value="300"]:checked) .fl-camp-month--300,
+.fl-camp-budget:has(input[name="budget"][value="500"]:checked) .fl-camp-month--500{display:block}
+/* Ett eget belopp vinner över förslaget: då gäller den allmänna meningen. */
+.fl-camp-budget:has(.fl-camp-budget__own input:not(:placeholder-shown)) .fl-camp-month{display:none}
+.fl-camp-month-all{font-size:16px;line-height:1.5;color:var(--fl-muted)}
+.fl-camp-honest{padding-top:10px;border-top:1px solid var(--fl-soft);font-size:16px;line-height:1.5;color:var(--fl-body)}
+
+/* ---------- Kampanjsidan: huvudet och läget ---------- */
+.fl-camp-title{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;min-width:0}
+.fl-camp-title .fl-badge{white-space:normal}
+.fl-camp-next{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
+.fl-camp-next__text{display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:0}
+
+.fl-camp-settings{gap:12px;padding:16px}
+.fl-camp-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(170px,100%),1fr));gap:10px;margin:0}
+.fl-camp-fact{display:flex;flex-direction:column;gap:4px;min-width:0;padding:12px 14px;border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-white)}
+.fl-camp-fact dt{font-family:var(--fl-mono);font-size:12px;font-weight:500;letter-spacing:.04em;line-height:1.4;text-transform:uppercase;color:var(--fl-muted)}
+.fl-camp-fact dd{display:flex;align-items:center;gap:8px;margin:0;font-size:18px;font-weight:600;letter-spacing:-.01em;line-height:1.3;color:var(--fl-ink);overflow-wrap:anywhere}
+
+/* Utfällbart: område och budget, nytt förslag. */
+.fl-camp-more{min-width:0}
+.fl-camp-more__summary{display:inline-flex;align-items:center;gap:8px;padding:4px 0;font-size:16px;font-weight:600;color:var(--fl-violet-ink);cursor:pointer;list-style:none}
+.fl-camp-more__summary::-webkit-details-marker{display:none}
+.fl-camp-more__summary::before{content:"";flex:none;width:8px;height:8px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);transition:transform .15s ease}
+.fl-camp-more[open] > .fl-camp-more__summary::before{transform:rotate(45deg)}
+.fl-camp-more__body{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:12px}
+.fl-camp-more__body.fl-form{align-items:stretch}
+.fl-panel.fl-camp-more{gap:0}
+
+/* ---------- Flikarna ---------- */
+.fl-camp-tabs{row-gap:2px}
+.fl-camp-tabs .fl-tabs__tab{display:inline-flex;align-items:center;gap:8px}
+.fl-camp-tabcount{display:inline-flex;align-items:center;justify-content:center;min-width:20px;padding:0 6px;border-radius:999px;background:#FCEDED;color:#8F1F1F;font-size:12px;font-weight:700;line-height:1.6}
+
+/* ---------- Annonser (kundresan 07) ---------- */
+.fl-camp-previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:12px}
+.fl-camp-texts{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.fl-camp-text{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:6px 10px}
+.fl-camp-text--long{align-items:start}
+.fl-camp-text--long .fl-camp-text__num,.fl-camp-text--long .fl-count{padding-top:12px}
+.fl-camp-text__num{font-family:var(--fl-mono);font-size:12px;font-weight:500;color:var(--fl-muted);text-align:right}
+.fl-camp-text .fl-count{min-width:42px;text-align:right}
+.fl-camp-text__error{grid-column:2 / -1}
+.fl-form .fl-camp-text textarea{min-height:96px}
+.fl-camp-subhead{padding-top:8px;border-top:1px solid var(--fl-soft)}
+.fl-camp-readlist{display:flex;flex-direction:column;gap:8px;margin:0;padding:0 0 0 24px;font-size:16px;line-height:1.5;color:var(--fl-ink)}
+.fl-camp-readlist li{padding-left:4px;overflow-wrap:anywhere}
+.fl-camp-readlist li::marker{font-family:var(--fl-mono);font-size:12px;color:var(--fl-muted)}
+
+/* ---------- Sökord ---------- */
+.fl-camp-kws{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.fl-camp-kw{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,130px);gap:6px 10px;align-items:center}
+.fl-camp-kw__error{grid-column:1 / -1}
+.fl-camp-kw.is-error .fl-input:first-of-type{border-color:#D92D20}
+.fl-camp-negatives{font-family:var(--fl-sans)}
+.fl-camp-kwread{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.fl-camp-kwread__row{display:flex;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--fl-soft);font-size:16px;line-height:1.4;color:var(--fl-ink)}
+.fl-camp-kwread__row:first-child{border-top:0;padding-top:0}
+.fl-camp-kwread__row > span:first-child{min-width:0;overflow-wrap:anywhere}
+.fl-camp-kwread__type{flex:none;font-family:var(--fl-mono);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--fl-muted)}
+.fl-camp-negs{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.fl-camp-negs .fl-chip{max-width:100%;overflow-wrap:anywhere}
+
+/* ---------- Sidan ---------- */
+.fl-camp-pagegrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,360px);gap:20px;align-items:start}
+.fl-camp-pagegrid > .fl-camp-preview:only-child{grid-column:1 / -1}
+.fl-form .fl-camp-short,textarea.fl-camp-short{min-height:72px}
+.fl-camp-questions{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.fl-camp-question{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,150px);gap:10px;align-items:center}
+.fl-camp-preview{position:sticky;top:16px;display:flex;flex-direction:column;align-items:center;min-width:0}
+.fl-camp-preview .fl-camp-label{align-self:stretch;text-align:center}
+
+/* Telefonen (kundresan 09), skala 1:1. */
+.fl-camp-phone{width:100%;max-width:360px;border:10px solid var(--fl-ink);border-radius:42px;background:var(--fl-white);overflow:hidden;box-shadow:var(--fl-shadow-soft)}
+.fl-camp-phone::before{content:"";display:block;width:96px;height:20px;margin:0 auto;border-radius:0 0 14px 14px;background:var(--fl-ink)}
+/* Landningssidans egen mall i en iframe: den rullar inuti telefonen. */
+.fl-camp-phone--frame{padding-top:0}
+.fl-camp-lpframe{display:block;width:100%;height:640px;border:0;background:var(--fl-white)}
+.fl-camp-preview__note{max-width:360px;text-align:center}
+.fl-camp-phone__screen{display:flex;flex-direction:column;gap:14px;min-height:480px;padding:12px 18px 24px}
+.fl-camp-lp__host{font-family:var(--fl-mono);font-size:12px;line-height:1.4;color:var(--fl-muted);text-align:center;overflow-wrap:anywhere}
+.fl-camp-lp__brand{font-size:16px;font-weight:700;line-height:1.3;color:var(--fl-ink)}
+.fl-camp-lp__title{font-size:28px;font-weight:600;letter-spacing:-.03em;line-height:1.08;color:var(--fl-ink);overflow-wrap:break-word;hyphens:auto}
+.fl-camp-lp__call{display:block;padding:15px;border-radius:14px;background:var(--fl-ink);color:var(--fl-white);font-size:17px;font-weight:600;line-height:1.3;text-align:center}
+.fl-camp-lp__lead{font-size:16px;line-height:1.5;color:var(--fl-body)}
+.fl-camp-lp__points{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.fl-camp-lp__points li{position:relative;padding-left:22px;font-size:16px;line-height:1.45;color:var(--fl-body);overflow-wrap:anywhere}
+.fl-camp-lp__points li::before{content:"";position:absolute;left:2px;top:7px;width:10px;height:10px;border-radius:50%;background:#C9B9FF}
+.fl-camp-lp__form{display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--fl-line);border-radius:16px;background:var(--fl-white)}
+.fl-camp-lp__formtitle{font-size:17px;font-weight:600;line-height:1.3;color:var(--fl-ink)}
+.fl-camp-lp__field{display:block;padding:10px 12px;border:1px solid var(--fl-line);border-radius:10px;font-size:16px;line-height:1.35;color:#76738A;overflow-wrap:anywhere}
+.fl-camp-lp__field--tall{min-height:72px}
+.fl-camp-lp__send{display:block;padding:12px;border-radius:12px;background:var(--fl-ink);color:var(--fl-white);font-size:16px;font-weight:600;text-align:center}
+.fl-camp-lp__note{font-size:16px;line-height:1.45;color:var(--fl-muted)}
+.fl-camp-lp__or{font-size:16px;text-align:center;color:var(--fl-body)}
+
+/* ---------- Granskningen (kundresan 08) ---------- */
+.fl-camp-rvnote{padding:12px 14px;border-left:3px solid #C9B9FF;border-radius:0 var(--fl-r-sm) var(--fl-r-sm) 0;background:var(--fl-panel);font-size:16px;line-height:1.55;color:var(--fl-body);overflow-wrap:anywhere}
+.fl-camp-approve{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 20px}
+.fl-camp-approve__text{display:flex;flex-direction:column;gap:6px;flex:1 1 320px;min-width:0}
+.fl-camp-approve__sum{font-size:16px;font-weight:600;line-height:1.45;color:var(--fl-ink);overflow-wrap:anywhere}
+.fl-camp-approve__actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.fl-camp-approve__actions form{margin:0}
+
+/* ---------- Skicka till granskning ---------- */
+.fl-camp-submit__row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px}
+.fl-camp-submit__text{display:flex;flex-direction:column;gap:4px;flex:1 1 320px;min-width:0}
+.fl-camp-submit form{margin:0}
+.fl-camp-problems{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.fl-camp-problems__item{position:relative;padding-left:18px;font-size:16px;line-height:1.5;color:var(--fl-body);overflow-wrap:anywhere}
+.fl-camp-problems__item::before{content:"";position:absolute;left:2px;top:9px;width:7px;height:7px;border-radius:50%;background:#D92D20}
+.fl-camp-problems__item a{font-weight:600;color:var(--fl-ink);text-underline-offset:3px}
+
+/* ---------- Mellanstora skärmar ---------- */
+@media (max-width:1100px){
+  .fl-camp-pagegrid{grid-template-columns:minmax(0,1fr)}
+  .fl-camp-preview{position:static}
+}
+
+/* ---------- Telefon ---------- */
+@media (max-width:560px){
+  .fl-camp-row{padding:16px}
+  .fl-camp-facts{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .fl-camp-fact{padding:10px 12px}
+  .fl-camp-fact dd{font-size:16px}
+  .fl-camp-area__row{grid-template-columns:minmax(0,1fr)}
+  .fl-camp-card{padding:14px}
+  .fl-camp-text{grid-template-columns:22px minmax(0,1fr) auto;gap:6px 8px}
+  .fl-camp-kw{grid-template-columns:minmax(0,1fr) minmax(0,108px);gap:6px 8px}
+  .fl-camp-question{grid-template-columns:minmax(0,1fr) minmax(0,136px);gap:6px 8px}
+  .fl-camp-next .fl-btn,.fl-camp-submit .fl-btn,.fl-camp-approve__actions,.fl-camp-approve__actions > *,.fl-camp-approve__actions .fl-btn{width:100%}
+  .fl-camp-submit form{width:100%}
+  .fl-camp-phone{border-width:8px;border-radius:34px}
+  .fl-camp-phone__screen{padding:10px 14px 20px}
+  /* Flikarna på en rad (se .fl-tabs i flamingo-app.css): räknaren tar
+     mindre plats så att ett utkast med fel också ryms. */
+  .fl-camp-tabs .fl-tabs__tab{justify-content:center;gap:4px}
+  .fl-camp-tabcount{min-width:18px;padding:0 5px;font-size:11px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .fl-camp-map__zone,.fl-camp-more__summary::before{transition:none}
+}

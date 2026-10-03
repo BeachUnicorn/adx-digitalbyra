@@ -1,0 +1,21 @@
+{% comment %}
+En rundas ändringar (Review.changes), grupperade per del med skälet en
+gång (manage_review.grouped_changes). Samma sak som kunden ser.
+{% endcomment %}
+{% if change_groups %}
+<div class="mf-changes m-history-diff">
+    {% for g in change_groups %}
+    <div class="mf-change">
+        <div class="mf-change__label">{{ g.label }}</div>
+        <ul class="mf-change__items">
+            {% for c in g.items %}
+            <li class="m-history-diff__value">{% if c.before %}<del>{{ c.before }}</del>{% endif %}{% if c.before and c.after %} {% endif %}{% if c.after %}<ins>{{ c.after }}</ins>{% endif %}{% if not c.before and not c.after %}<span class="m-muted">Tomt</span>{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% if g.reason %}<p class="mf-change__reason">{{ g.reason }}</p>{% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<p class="m-muted">Inga ändringar: förslaget gick till kunden som det var.</p>
+{% endif %}

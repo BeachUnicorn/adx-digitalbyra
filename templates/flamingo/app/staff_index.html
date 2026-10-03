@@ -1,0 +1,46 @@
+{% extends "flamingo/app/base.html" %}
+{% comment %}
+Byrån utan kundvy: verktyget visar alltid en kunds data, så här väljs
+kunden. "Visa som kunden" öppnar samma skrivskyddade kundvy som portalen.
+Arbetet (granskning, publicering, Google-kopplingen) görs i panelen.
+{% endcomment %}
+{% block app_title %}Flamingo-kunderna{% endblock %}
+{% block app_modifier %} fl-app--single{% endblock %}
+{% block app_side %}{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">Byråns vy</p>
+    <h1 class="fl-app-title">Flamingo-kunderna</h1>
+    <p class="fl-app-lead">Verktyget visar alltid en kund. Välj vem du vill se som; kundvyn är skrivskyddad.</p>
+  </div>
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'manage:flamingo_queue' %}">Granskningskön</a>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'manage:flamingo_overview' %}">Panelen</a>
+  </div>
+</header>
+
+{% if accounts %}
+<ul class="fl-list fl-list--cards">
+  {% for account in accounts %}
+  <li class="fl-list__item fl-panel">
+    <div class="fl-list__main">
+      <span class="fl-list__title">{{ account.customer.name }}</span>
+      <span class="fl-list__meta">Google: {{ account.get_google_status_display|lower }}{% if account.new_leads %}, {{ account.new_leads }} nya förfrågningar{% endif %}{% if account.in_review %}, {{ account.in_review }} hos ADX för granskning{% endif %}</span>
+    </div>
+    <form method="post" action="{% url 'manage:flamingo_view_as' account.customer.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'flamingo:app' %}">
+      <button type="submit" class="fl-btn fl-btn--sm">Visa som kunden</button>
+    </form>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="fl-empty fl-panel">
+  <p class="fl-empty__title">Ingen kund har ADX Flamingo än</p>
+  <p class="fl-empty__text">Aktivera Flamingo på kundkortet i panelen.</p>
+  <a class="fl-btn fl-btn--sm" href="{% url 'manage:flamingo_overview' %}">Till panelen</a>
+</div>
+{% endif %}
+{% endblock %}

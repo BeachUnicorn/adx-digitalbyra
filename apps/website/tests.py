@@ -535,21 +535,31 @@ class VvsLegacyGuardTests(TestCase):
     nämner systersajterna vid namn - det är dess jobb) och den här filen
     (vaktens egna mönster plus ForeignDatabaseGuardTests). Migrationer
     skannas inte - de är frusen historik.
+
+    ADX Flamingo (apps/flamingo/) är vitlistad för branschorden: tjänstens
+    kunder är hantverkare, och rörmokare och ROT-avdrag är där kundernas
+    ord, inte arv. Systersajtens namn och markörer fäller bygget även där.
     """
 
     #: Markörer för skandivvs-arvet. `reco` matchas bara som eget ord eller
     #: följt av skiljetecken (reco.se, reco_widget, Reco-widget) - annars
     #: träffar den oskyldiga ord som "record" och "recognizes".
-    PATTERNS = [
+    IDENTITY_PATTERNS = [
         re.compile(r"skandivvs", re.IGNORECASE),
         re.compile(r"skanditiptap", re.IGNORECASE),
         re.compile(r"skvvs", re.IGNORECASE),
-        re.compile(r"r[öo]rmokare", re.IGNORECASE),
-        re.compile(r"plumber", re.IGNORECASE),
         re.compile(r"jungfru", re.IGNORECASE),
-        re.compile(r"rot-?avdrag", re.IGNORECASE),
         re.compile(r"\breco\b|reco[._-]", re.IGNORECASE),
     ]
+    #: Branschord: arv i ADX:s egen kod, men vardag i Flamingo
+    #: (TRADE_WORDS_ALLOWED_IN).
+    TRADE_PATTERNS = [
+        re.compile(r"r[öo]rmokare", re.IGNORECASE),
+        re.compile(r"plumber", re.IGNORECASE),
+        re.compile(r"rot-?avdrag", re.IGNORECASE),
+    ]
+    PATTERNS = IDENTITY_PATTERNS + TRADE_PATTERNS
+    TRADE_WORDS_ALLOWED_IN = ("apps/flamingo/",)
 
     SCAN_ROOTS = ["apps", "config", "templates", "src", "static/js"]
     EXTRA_FILES = ["package.json", "esbuild.config.mjs"]
@@ -577,14 +587,20 @@ class VvsLegacyGuardTests(TestCase):
         for name in self.EXTRA_FILES:
             yield Path(name), base / name
 
+    def _patterns_for(self, rel):
+        if rel.as_posix().startswith(self.TRADE_WORDS_ALLOWED_IN):
+            return self.IDENTITY_PATTERNS
+        return self.PATTERNS
+
     def test_no_vvs_legacy_markers_in_code_templates_or_build(self):
         hits = []
         for rel, path in self._files():
             if str(rel) in self.WHITELIST:
                 continue
+            patterns = self._patterns_for(rel)
             text = path.read_text(encoding="utf-8", errors="ignore")
             for lineno, line in enumerate(text.splitlines(), start=1):
-                for pattern in self.PATTERNS:
+                for pattern in patterns:
                     if pattern.search(line):
                         hits.append(f"{rel}:{lineno}: {line.strip()[:120]}")
                         break
@@ -593,6 +609,16 @@ class VvsLegacyGuardTests(TestCase):
             [],
             "Skandivvs-arv i ADX-koden (se genomlysningen 2026-08-27):\n" + "\n".join(hits),
         )
+
+    def test_flamingo_may_use_trade_words_but_not_the_sister_site(self):
+        from pathlib import PurePosixPath
+
+        flamingo = PurePosixPath("apps/flamingo/scan.py")
+        patterns = self._patterns_for(flamingo)
+        self.assertTrue(any(p.search("ROT-avdrag och rörmokare") for p in self.PATTERNS))
+        self.assertFalse(any(p.search("ROT-avdrag och rörmokare") for p in patterns))
+        self.assertTrue(any(p.search("skandivvs.se") for p in patterns))
+        self.assertEqual(self._patterns_for(PurePosixPath("apps/website/views.py")), self.PATTERNS)
 
 
 class SitemapTests(TestCase):

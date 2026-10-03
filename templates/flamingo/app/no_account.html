@@ -1,0 +1,19 @@
+{% extends "flamingo/app/base.html" %}
+{% comment %}
+Byrån i kundvyn på en kund som aldrig haft ADX Flamingo (inget
+FlamingoAccount). Kontakter når aldrig hit: grinden kräver ett aktiverat
+konto. Aktiveringen görs på kundkortet i panelen.
+{% endcomment %}
+{% block app_title %}Kunden har inte ADX Flamingo{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Kunden har inte ADX Flamingo</h1>
+  </div>
+</header>
+<div class="fl-empty fl-panel">
+  <p class="fl-empty__text">Verktyget har inget att visa för {{ customer.name }}. Aktivera Flamingo på kundkortet i panelen, så finns allt här.</p>
+  <a class="fl-btn fl-btn--sm" href="{% url 'manage:customer_detail' customer.pk %}#flamingo">Till kundkortet</a>
+</div>
+{% endblock %}

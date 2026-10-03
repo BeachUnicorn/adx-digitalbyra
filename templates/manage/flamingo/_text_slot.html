@@ -1,0 +1,9 @@
+{% comment %}
+En rubrik- eller beskrivningsruta i granskningsformuläret (_review_form.html).
+Kontext: slot {name, number, value, limit, error}, label, multiline.
+{% endcomment %}
+<div class="m-field mf-slot">
+    <label for="f-{{ slot.name }}">{{ label }} {{ slot.number }}</label>
+    {% if multiline %}<textarea id="f-{{ slot.name }}" name="{{ slot.name }}" rows="3" data-count="{{ slot.limit }}" spellcheck="true">{{ slot.value }}</textarea>{% else %}<input id="f-{{ slot.name }}" name="{{ slot.name }}" value="{{ slot.value }}" data-count="{{ slot.limit }}" autocomplete="off" spellcheck="true">{% endif %}
+    {% if slot.error %}<div class="m-field-error">{{ slot.error }}</div>{% endif %}
+</div>

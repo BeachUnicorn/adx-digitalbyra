@@ -1,0 +1,107 @@
+{% extends "flamingo/app/base.html" %}
+{% load flamingo_app %}
+{% comment %}
+En förfrågan (kundresan steg 11, som mockupens högra halva): vem, vad,
+"Var kom hen ifrån?", ringknappen och status. Vunnen kräver ett belopp;
+fältet visas när Vunnen är vald (CSS :has, annars alltid). Till vänster i
+bred skärm: de senaste förfrågningarna. Kontext från app_views/inbox.py.
+{% endcomment %}
+{% block app_title %}{{ lead.display_name }}{% endblock %}
+{% block app_content %}
+<p class="fl-inbox-back"><a href="{% url 'flamingo:app_inbox' %}">Inkorgen</a></p>
+<div class="fl-inbox-split">
+  <nav class="fl-inbox-side" aria-label="Senaste förfrågningarna">
+    <ul class="fl-inbox-list fl-inbox-list--compact">
+      {% for item in side_leads %}{% include "flamingo/app/inbox/_card.html" with item=item current=lead.pk %}{% endfor %}
+    </ul>
+    <a class="fl-inbox-side__all" href="{% url 'flamingo:app_inbox' %}">Alla förfrågningar</a>
+  </nav>
+
+  <article class="fl-panel fl-leadcard" aria-labelledby="fl-lead-name">
+    <header class="fl-leadcard__head">
+      <div class="fl-leadcard__who">
+        <p class="fl-kicker">Förfrågan</p>
+        <h1 class="fl-leadcard__name" id="fl-lead-name">{{ lead.display_name }}</h1>
+        <p class="fl-leadcard__meta">{% if lead.phone %}<span>{{ lead.phone }}</span>{% endif %}{% if lead.email %}<a href="mailto:{{ lead.email }}">{{ lead.email }}</a>{% endif %}<span>Kom in {{ received }}</span></p>
+      </div>
+      <div class="fl-leadcard__actions">
+        <span class="fl-badge fl-badge--{{ lead.status }}">{{ lead.get_status_display }}</span>
+        {% if tel %}<a class="fl-btn fl-btn--sm" href="{{ tel }}">Ring{% if first_name %} {{ first_name }}{% endif %}</a>{% endif %}
+      </div>
+    </header>
+
+    {% if lead.message or answers or lead.service_name %}
+    <section class="fl-leadcard__block" aria-labelledby="fl-lead-what">
+      <h2 class="fl-leadcard__label" id="fl-lead-what">{% if lead.service_name %}{{ lead.service_name }}{% else %}Meddelandet{% endif %}</h2>
+      {% if lead.message %}<p class="fl-leadcard__message">{{ lead.message|linebreaksbr }}</p>{% endif %}
+      {% if answers %}
+      <dl class="fl-kv">
+        {% for question, answer in answers %}<div><dt>{{ question }}</dt><dd>{{ answer|linebreaksbr }}</dd></div>{% endfor %}
+      </dl>
+      {% endif %}
+      {% if not lead.message and not answers %}<p class="fl-panel__note">Inget meddelande.</p>{% endif %}
+    </section>
+    {% endif %}
+
+    <section class="fl-leadcard__source" aria-labelledby="fl-lead-from">
+      <h2 class="fl-leadcard__label" id="fl-lead-from">Var kom hen ifrån?</h2>
+      <dl class="fl-kv">
+        <div><dt>Kanal</dt><dd>{{ channel }}</dd></div>
+        {% if lead.campaign %}<div><dt>Kampanj</dt><dd><a href="{% url 'flamingo:app_campaign' lead.campaign.pk %}">{{ lead.campaign.name }}</a></dd></div>{% endif %}
+        <div><dt>Tjänst</dt><dd>{{ lead.service_name|default:"Ingen angiven" }}</dd></div>
+        {% if lead.source != "manual" %}<div><dt>Sökord</dt><dd>{% if lead.keyword %}"{{ lead.keyword }}"{% else %}Okänt{% endif %}</dd></div>{% endif %}
+        {% if utm_campaign %}<div><dt>Kampanj i länken</dt><dd>{{ utm_campaign }}</dd></div>{% endif %}
+        <div><dt>Klick-id från Google</dt><dd>{% if has_click_id %}Ja{% else %}Nej{% endif %}</dd></div>
+        {% if lead.campaign %}<div><dt>Sidan</dt><dd>{% if lead.campaign.is_public %}<a href="{{ lead.campaign.landing_url }}">{{ lead.campaign.landing_url }}</a>{% else %}{{ lead.campaign.landing_url }}, stängd medan kampanjen inte är live{% endif %}</dd></div>{% endif %}
+      </dl>
+    </section>
+
+    <section class="fl-leadcard__block" aria-labelledby="fl-lead-status-title">
+      <h2 class="fl-leadcard__label" id="fl-lead-status-title">Blev det något?</h2>
+      <form class="fl-form fl-lead-status" method="post" action="{% url 'flamingo:app_lead' lead.pk %}">
+        {% csrf_token %}
+        <fieldset class="fl-field">
+          <legend class="fl-sr">Status</legend>
+          <div class="fl-chips">
+            {% for key, label in statuses %}
+            <label class="fl-chips__item"><input type="radio" name="status" value="{{ key }}"{% if key == checked_status %} checked{% endif %}{% if read_only %} disabled{% endif %}><span><i class="fl-inbox-dot fl-inbox-dot--{{ key }}" aria-hidden="true"></i>{{ label }}</span></label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <div class="fl-field fl-lead-value{% if error %} is-error{% endif %}">
+          <label class="fl-field__label" for="fl-lead-value">Affärens värde i kronor</label>
+          <input class="fl-input fl-lead-value__input" id="fl-lead-value" name="value_kr" type="text" inputmode="numeric" autocomplete="off" maxlength="16" value="{{ value_input }}" placeholder="Till exempel 25 000"{% if read_only %} disabled{% endif %}>
+          <p class="fl-field__help">{% if has_click_id %}Krävs för Vunnen. Beloppet går till Google som en konvertering, så att annonserna letar fler kunder som {% if first_name %}{{ first_name }}{% else %}den här{% endif %}.{% else %}Krävs för Vunnen. Förfrågan har inget klick-id från Google, så beloppet räknas i översikten men kopplas inte till en annons.{% endif %}</p>
+        </div>
+        {% if error %}<p class="fl-notice fl-notice--error" role="alert">{{ error }}</p>{% endif %}
+        {% if conversion %}<p class="fl-lead-conv">Till Google: <span class="fl-badge fl-badge--{{ conversion.status }}">{{ conversion.get_status_display }}</span> {{ conversion.value_kr|kr }}</p>{% endif %}
+        {% if read_only %}
+        <p class="fl-panel__note">Kundvyn är skrivskyddad. Kunden sätter status själv.</p>
+        {% else %}
+        <div class="fl-form__actions">
+          <p class="fl-form__note">Statusen syns i översikten. Skräp räknas inte som förfrågan.</p>
+          <button type="submit" class="fl-btn fl-btn--sm">Spara</button>
+        </div>
+        {% endif %}
+      </form>
+    </section>
+
+    {% if sms_rows %}
+    <section class="fl-leadcard__block" aria-labelledby="fl-lead-sms">
+      <h2 class="fl-leadcard__label" id="fl-lead-sms">Sms</h2>
+      <ul class="fl-list fl-lead-sms">
+        {% for row in sms_rows %}
+        <li class="fl-list__item">
+          <div class="fl-list__main">
+            <span class="fl-list__title">{{ row.get_kind_display }}</span>
+            <span class="fl-list__meta">{% if row.status == "sent" %}Till {{ row.to }}{% elif row.status == "not_configured" %}Sms är inte inkopplat än, så inget skickades.{% elif row.error %}{{ row.error }}{% else %}{{ row.get_status_display }}{% endif %}</span>
+          </div>
+          <span class="fl-badge fl-badge--{{ row.status }}">{% if row.status == "sent" %}Skickat{% elif row.status == "failed" %}Misslyckades{% else %}Inte skickat{% endif %}</span>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+  </article>
+</div>
+{% endblock %}

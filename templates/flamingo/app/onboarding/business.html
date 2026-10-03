@@ -1,0 +1,223 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+Företaget (kundresan steg 4): det vi får säga om kunden. Kontext från
+app_views/onboarding.business: facts, unconfirmed_count, services,
+sales_choices, fact_form (NewFactForm), service_form (ServiceForm), value_max.
+Ett formulär per handling (action=confirm/edit/delete/add_fact/confirm_all/
+add_service/edit_service); id:t prövas mot kundens konto i vyn.
+{% endcomment %}
+{% block app_title %}Företaget{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">Företaget</p>
+    <h1 class="fl-app-title">Stämmer det här?</h1>
+    <p class="fl-app-lead">Det här får vi säga om dig i annonserna och på sidorna. Varje uppgift visar var den kommer ifrån.</p>
+  </div>
+  {% if facts %}
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_proposal' %}">{% if account.scan_status == "done" %}Läs av hemsidan igen{% else %}Läs av hemsidan{% endif %}</a>
+  </div>
+  {% endif %}
+</header>
+
+<p class="fl-notice fl-notice--info"><span><b>AI:n får bara använda det du bekräftat här.</b> Saknas ett pris skriver vi inget pris.</span></p>
+
+<section class="fl-panel" id="uppgifter" aria-labelledby="fl-onb-facts">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-onb-facts">Uppgifterna</h2>
+    {% if unconfirmed_count %}<span class="fl-panel__note">{{ unconfirmed_count }} att ta ställning till</span>{% endif %}
+  </div>
+
+  {% if facts %}
+  <ul class="fl-onb-facts">
+    {% for fact in facts %}
+    <li class="fl-onb-fact{% if not fact.confirmed %} is-open{% endif %}" id="uppgift-{{ fact.pk }}">
+      <span class="fl-onb-fact__label">{{ fact.label }}</span>
+      <div class="fl-onb-fact__value">
+        {% if fact.value %}{{ fact.value }}
+        {% if not fact.is_usable %}<p class="fl-onb-fact__note">Används inte i annonserna eller på sidan. Betyg hämtas bara från Google.</p>{% endif %}
+        {% elif fact.confirmed %}<span class="fl-onb-fact__empty">Lämnas tomt</span>
+        {% elif read_only %}<span class="fl-onb-ph">Fyll i, eller lämna tomt</span>
+        {% else %}
+        <form method="post" class="fl-onb-inline">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit">
+          <input type="hidden" name="fact" value="{{ fact.pk }}">
+          <label class="fl-sr" for="fl-onb-v{{ fact.pk }}">{{ fact.label }}</label>
+          <input class="fl-input fl-onb-ph-input" id="fl-onb-v{{ fact.pk }}" type="text" name="value" maxlength="{{ value_max }}" placeholder="Fyll i, eller lämna tomt">
+          <button type="submit" class="fl-btn fl-btn--sm">Spara</button>
+        </form>
+        {% endif %}
+      </div>
+      <div class="fl-onb-fact__meta">
+        <span class="fl-src fl-src--{{ fact.source }}">{{ fact.get_source_display }}</span>
+        {% if fact.confirmed %}<span class="fl-onb-state fl-onb-state--ok">Bekräftad</span>{% else %}<span class="fl-onb-state">Ej bekräftad</span>{% endif %}
+      </div>
+      {% if not read_only %}
+      <div class="fl-onb-fact__actions">
+        {% if fact.value or fact.confirmed %}
+        {% if not fact.confirmed %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="confirm">
+          <input type="hidden" name="fact" value="{{ fact.pk }}">
+          <button type="submit" class="fl-btn fl-btn--sm">Stämmer<span class="fl-sr">: {{ fact.label }}</span></button>
+        </form>
+        {% endif %}
+        <details class="fl-onb-edit">
+          <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ändra<span class="fl-sr"> {{ fact.label }}</span></summary>
+          <form method="post" class="fl-onb-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="fact" value="{{ fact.pk }}">
+            <label class="fl-sr" for="fl-onb-v{{ fact.pk }}">{{ fact.label }}</label>
+            <input class="fl-input" id="fl-onb-v{{ fact.pk }}" type="text" name="value" value="{{ fact.value }}" maxlength="{{ value_max }}" placeholder="Fyll i, eller lämna tomt">
+            <button type="submit" class="fl-btn fl-btn--sm">Spara</button>
+          </form>
+        </details>
+        {% endif %}
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="fact" value="{{ fact.pk }}">
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Stryk<span class="fl-sr"> {{ fact.label }}</span></button>
+        </form>
+      </div>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="fl-empty">
+    <p class="fl-empty__title">Inga uppgifter än</p>
+    <p class="fl-empty__text">Läs av hemsidan under Förslaget, eller lägg till uppgifterna själv.</p>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_proposal' %}">Till Förslaget</a>
+  </div>
+  {% endif %}
+
+  {% if not read_only %}
+  <details class="fl-onb-add" id="ny-uppgift"{% if fact_form.errors %} open{% endif %}>
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Lägg till en uppgift</summary>
+    <form method="post" class="fl-form fl-onb-add__form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_fact">
+      <div class="fl-form__row">
+        <div class="fl-field{% if fact_form.label.errors %} is-error{% endif %}">
+          <label class="fl-field__label" for="fl-onb-new-label">Uppgift</label>
+          <input class="fl-input" id="fl-onb-new-label" type="text" name="label" maxlength="60" value="{{ fact_form.label.value|default_if_none:'' }}" placeholder="Till exempel Område">
+          {% for error in fact_form.label.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+        </div>
+        <div class="fl-field{% if fact_form.value.errors %} is-error{% endif %}">
+          <label class="fl-field__label" for="fl-onb-new-value">Värde</label>
+          <input class="fl-input" id="fl-onb-new-value" type="text" name="value" maxlength="{{ value_max }}" value="{{ fact_form.value.value|default_if_none:'' }}" placeholder="Till exempel Nacka och Värmdö">
+          {% for error in fact_form.value.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+        </div>
+      </div>
+      <div class="fl-form__actions">
+        <p class="fl-form__note">Det du lägger till själv räknas som bekräftat.</p>
+        <button type="submit" class="fl-btn fl-btn--sm">Lägg till</button>
+      </div>
+    </form>
+  </details>
+  {% endif %}
+</section>
+
+<p class="fl-onb-rule">Inga påhittade priser, garantier eller "billigast". Lämnar du ett pris tomt står inget pris i annonsen.</p>
+
+<section class="fl-panel" id="tjanster" aria-labelledby="fl-onb-services">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-onb-services">Tjänsterna</h2>
+  </div>
+  <p class="fl-panel__text">Det här kan kampanjerna marknadsföra. Hur kunderna köper styr annonsen och sidan: de ringer direkt, vill ha offert eller bokar tid.</p>
+
+  {% if services %}
+  <ul class="fl-onb-services">
+    {% for service in services %}
+    <li class="fl-onb-service{% if not service.is_active %} is-off{% endif %}" id="tjanst-{{ service.pk }}">
+      <div class="fl-onb-service__main">
+        <span class="fl-onb-service__name"><i class="fl-dot fl-dot--{{ service.sales_mode }}" aria-hidden="true"></i>{{ service.name }}</span>
+        <span class="fl-onb-service__meta">{{ service.get_sales_mode_display }}{% if not service.is_active %}, inte med i förslaget{% endif %}</span>
+      </div>
+      {% if not read_only %}
+      <details class="fl-onb-edit">
+        <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ändra<span class="fl-sr"> {{ service.name }}</span></summary>
+        <form method="post" class="fl-form fl-onb-service__form">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit_service">
+          <input type="hidden" name="service" value="{{ service.pk }}">
+          <div class="fl-field">
+            <label class="fl-field__label" for="fl-onb-sn{{ service.pk }}">Tjänst</label>
+            <input class="fl-input" id="fl-onb-sn{{ service.pk }}" type="text" name="name" value="{{ service.name }}" maxlength="60" required>
+          </div>
+          <fieldset class="fl-field fl-onb-fieldset">
+            <legend class="fl-field__label">Hur köper kunderna den?</legend>
+            <div class="fl-seg">
+              {% for value, label in sales_choices %}
+              <label class="fl-seg__opt"><input type="radio" name="sales_mode" value="{{ value }}"{% if service.sales_mode == value %} checked{% endif %}><span>{{ label }}</span></label>
+              {% endfor %}
+            </div>
+          </fieldset>
+          <label class="fl-check"><input type="checkbox" name="is_active" value="1"{% if service.is_active %} checked{% endif %}><span>Med i förslaget</span></label>
+          <div class="fl-form__buttons"><button type="submit" class="fl-btn fl-btn--sm">Spara</button></div>
+        </form>
+      </details>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="fl-empty">
+    <p class="fl-empty__title">Inga tjänster än</p>
+    <p class="fl-empty__text">Lägg till det du vill annonsera, en tjänst i taget.</p>
+  </div>
+  {% endif %}
+
+  {% if not read_only %}
+  <details class="fl-onb-add" id="ny-tjanst"{% if service_form.errors or not services %} open{% endif %}>
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Lägg till en tjänst</summary>
+    <form method="post" class="fl-form fl-onb-add__form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="add_service">
+      <div class="fl-field{% if service_form.name.errors %} is-error{% endif %}">
+        <label class="fl-field__label" for="fl-onb-new-service">Tjänst</label>
+        <input class="fl-input" id="fl-onb-new-service" type="text" name="name" maxlength="60" value="{{ service_form.name.value|default_if_none:'' }}" placeholder="Till exempel Badrumsrenovering">
+        {% for error in service_form.name.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+      </div>
+      <fieldset class="fl-field fl-onb-fieldset">
+        <legend class="fl-field__label">Hur köper kunderna den?</legend>
+        <div class="fl-seg">
+          {% for value, label in sales_choices %}
+          <label class="fl-seg__opt"><input type="radio" name="sales_mode" value="{{ value }}"{% if service_form.sales_mode.value == value %} checked{% endif %}><span>{{ label }}</span></label>
+          {% endfor %}
+        </div>
+        {% for error in service_form.sales_mode.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+      </fieldset>
+      <div class="fl-form__actions">
+        <p class="fl-form__note">En tjänst du lägger till är med i förslaget direkt.</p>
+        <button type="submit" class="fl-btn fl-btn--sm">Lägg till</button>
+      </div>
+    </form>
+  </details>
+  {% endif %}
+</section>
+
+<section class="fl-panel fl-onb-next" aria-labelledby="fl-onb-next">
+  <div class="fl-onb-next__text">
+    <p class="fl-kicker">Nästa steg</p>
+    <h2 class="fl-panel__title" id="fl-onb-next">Google</h2>
+    <p class="fl-panel__text">{% if unconfirmed_count and not read_only %}"Stämmer, fortsätt" bekräftar {% if unconfirmed_count == 1 %}uppgiften{% else %}alla {{ unconfirmed_count }} uppgifter{% endif %} som inte är bekräftade, precis som de står. Tomma priser lämnas tomma.{% else %}Ditt Google Ads-konto, kopplat under ADX.{% endif %}</p>
+  </div>
+  {% if unconfirmed_count and not read_only %}
+  <form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="confirm_all">
+    <button type="submit" class="fl-btn">Stämmer, fortsätt</button>
+  </form>
+  {% else %}
+  <a class="fl-btn" href="{% url 'flamingo:app_google' %}">Vidare till Google</a>
+  {% endif %}
+</section>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-onboarding.js' %}?v={{ static_version }}" defer></script>{% endblock %}

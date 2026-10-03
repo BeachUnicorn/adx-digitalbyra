@@ -1,0 +1,137 @@
+/* ==========================================================================
+   ADX Flamingo - inkorgen (flamingo-app-inbox.css)
+
+   templates/flamingo/app/inbox/: listan, kortet och förfrågan. Bygger på
+   flamingo-app.css (.fl-panel, .fl-kv, .fl-chips, .fl-badge, .fl-form) och
+   lägger bara till det som är inkorgens eget. Förlagor: kundresan steg 11
+   och admin-inkorg.html (kort med status, tid och kanal; listan till
+   vänster om förfrågan i bred skärm).
+   ========================================================================== */
+
+/* ---------- Statusprickar ---------- */
+.fl-inbox-dot{display:inline-block;flex:none;width:8px;height:8px;border-radius:50%;background:var(--fl-faint)}
+.fl-inbox-dot--new{background:var(--fl-hot)}
+.fl-inbox-dot--contacted{background:#2F6BE0}
+.fl-inbox-dot--quote{background:#8365F3}
+.fl-inbox-dot--won{background:var(--fl-ok)}
+.fl-inbox-dot--lost,.fl-inbox-dot--junk{background:var(--fl-faint)}
+
+/* ---------- Listan med filter till vänster, lägg till till höger ---------- */
+.fl-inbox-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.85fr);gap:20px;align-items:start}
+.fl-inbox-main{display:flex;flex-direction:column;gap:14px;min-width:0}
+.fl-inbox-aside{display:flex;flex-direction:column;gap:16px;min-width:0}
+.fl-inbox-opt{font-weight:400;color:var(--fl-muted)}
+
+.fl-inbox-filters{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.fl-inbox-filter{
+  display:inline-flex;align-items:center;gap:6px;min-height:38px;padding:7px 13px;
+  border:1px solid var(--fl-line);border-radius:999px;background:var(--fl-white);
+  color:var(--fl-ink);font-size:15px;line-height:1.3;text-decoration:none;white-space:nowrap;
+  transition:border-color .15s ease,background-color .15s ease,color .15s ease;
+}
+.fl-inbox-filter:hover{border-color:var(--fl-ink);color:var(--fl-ink)}
+.fl-inbox-filter.is-on{border-color:var(--fl-ink);background:var(--fl-ink);color:var(--fl-white)}
+.fl-inbox-filter.is-on:hover{color:var(--fl-white)}
+.fl-inbox-filter__count{font-family:var(--fl-mono);font-size:12px;color:var(--fl-muted)}
+.fl-inbox-filter.is-on .fl-inbox-filter__count{color:#D6D3E0}
+
+/* ---------- Kortet ---------- */
+.fl-inbox-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.fl-inbox-card{min-width:0}
+.fl-inbox-card__link{
+  display:flex;flex-direction:column;gap:5px;min-width:0;padding:14px 16px;
+  border:1px solid var(--fl-soft);border-radius:16px;background:var(--fl-white);
+  color:var(--fl-ink);text-decoration:none;transition:border-color .15s ease,background-color .15s ease;
+}
+.fl-inbox-card__link:hover{border-color:var(--fl-line);background:var(--fl-panel);color:var(--fl-ink)}
+.fl-inbox-card.is-new .fl-inbox-card__link{border-color:var(--fl-line)}
+.fl-inbox-card.is-current .fl-inbox-card__link{border:1.5px solid #8365F3;background:var(--fl-panel)}
+.fl-inbox-card.is-closed .fl-inbox-card__name{color:var(--fl-body)}
+.fl-inbox-card__top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 10px;font-size:16px;line-height:1.4;color:var(--fl-muted)}
+.fl-inbox-card__state{display:inline-flex;align-items:center;gap:7px;min-width:0}
+.fl-inbox-card__channel{min-width:0;overflow-wrap:anywhere}
+.fl-inbox-card__name{font-size:17px;font-weight:600;line-height:1.3;overflow-wrap:anywhere}
+.fl-inbox-card.is-new .fl-inbox-card__name::after{content:"";display:inline-block;width:7px;height:7px;margin-left:8px;border-radius:50%;background:var(--fl-hot);vertical-align:middle}
+.fl-inbox-card__meta{
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;
+  font-size:16px;line-height:1.45;color:var(--fl-body);overflow-wrap:anywhere;
+}
+
+.fl-inbox-pages{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;padding-top:6px}
+.fl-inbox-pages__at{font-size:16px;color:var(--fl-muted)}
+
+.fl-inbox-how{display:flex;flex-direction:column;gap:10px;margin:0;padding:0 0 0 18px;font-size:16px;line-height:1.5;color:var(--fl-body)}
+.fl-inbox-how b{color:var(--fl-ink)}
+
+/* ---------- Förfrågan: listan till vänster, förfrågan till höger ---------- */
+.fl-inbox-back{display:none;font-size:16px}
+.fl-inbox-back a{color:var(--fl-violet-ink);text-underline-offset:3px}
+.fl-inbox-back a::before{content:"\2190";margin-right:6px}
+.fl-inbox-split{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.6fr);gap:18px;align-items:start}
+.fl-inbox-side{display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:16px}
+.fl-inbox-list--compact .fl-inbox-card__link{padding:12px 14px}
+.fl-inbox-list--compact .fl-inbox-card__name{font-size:16px}
+.fl-inbox-list--compact .fl-inbox-card__meta{-webkit-line-clamp:1}
+.fl-inbox-side__all{padding:4px 2px;font-size:16px;color:var(--fl-violet-ink);text-underline-offset:3px}
+
+.fl-leadcard{gap:22px}
+.fl-leadcard__head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:12px 16px}
+.fl-leadcard__who{display:flex;flex-direction:column;gap:6px;min-width:0;flex:1 1 260px}
+.fl-leadcard__name{font-size:clamp(26px,3vw,32px);font-weight:600;letter-spacing:-.03em;line-height:1.1;overflow-wrap:anywhere}
+.fl-leadcard__meta{display:flex;flex-wrap:wrap;gap:2px 0;font-size:16px;line-height:1.45;color:var(--fl-muted)}
+.fl-leadcard__meta > * + *::before{content:"\00B7";margin:0 8px;color:var(--fl-muted)}
+.fl-leadcard__meta a{color:var(--fl-ink);overflow-wrap:anywhere;text-underline-offset:3px}
+.fl-leadcard__actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+
+.fl-leadcard__block{display:flex;flex-direction:column;gap:12px;min-width:0;padding-top:18px;border-top:1px solid var(--fl-soft)}
+.fl-leadcard__label{font-size:18px;font-weight:600;letter-spacing:-.02em;line-height:1.3}
+.fl-leadcard__message{font-size:17px;line-height:1.6;color:var(--fl-ink);overflow-wrap:anywhere}
+
+/* "Var kom hen ifrån?" (mockupens mjuka ruta). */
+.fl-leadcard__source{display:flex;flex-direction:column;gap:12px;min-width:0;padding:16px 18px;border:1px solid var(--fl-soft);border-radius:var(--fl-r-sm);background:var(--fl-panel)}
+.fl-leadcard__source .fl-kv > div{grid-template-columns:minmax(0,180px) minmax(0,1fr)}
+.fl-leadcard__source .fl-kv a{color:var(--fl-ink);text-underline-offset:3px}
+
+/* Status och belopp. Beloppet visas när Vunnen är vald; utan :has() alltid. */
+.fl-lead-status{gap:14px}
+.fl-lead-status .fl-chips__item .fl-inbox-dot{margin-right:0}
+.fl-lead-status .fl-chips__item input:checked + span .fl-inbox-dot{box-shadow:0 0 0 2px var(--fl-white)}
+.fl-lead-value__input{max-width:260px}
+@supports selector(:has(*)){
+  .fl-lead-status .fl-lead-value{display:none}
+  .fl-lead-status:has(input[value="won"]:checked) .fl-lead-value,
+  .fl-lead-status .fl-lead-value.is-error{display:flex}
+}
+.fl-lead-conv{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:16px;color:var(--fl-body)}
+
+.fl-lead-sms .fl-list__item{flex-wrap:wrap}
+.fl-lead-sms .fl-list__main{flex:1 1 220px}
+
+/* I bred skärm står formuläret redan bredvid listan. */
+@media (min-width:1101px){
+  .fl-inbox-addlink{display:none}
+}
+
+/* ---------- Mellanstora skärmar ---------- */
+@media (max-width:1100px){
+  .fl-inbox-layout{grid-template-columns:minmax(0,1fr)}
+  .fl-inbox-split{grid-template-columns:minmax(0,1fr)}
+  .fl-inbox-side{display:none}
+  .fl-inbox-back{display:block}
+}
+
+/* ---------- Telefon ---------- */
+@media (max-width:560px){
+  .fl-inbox-filter{min-height:36px;padding:6px 11px;font-size:14px}
+  .fl-inbox-card__link{padding:12px 14px}
+  .fl-leadcard{gap:18px}
+  .fl-leadcard__actions{width:100%}
+  .fl-leadcard__actions .fl-btn{flex:1 1 auto}
+  .fl-leadcard__source{padding:14px}
+  .fl-leadcard__source .fl-kv > div{grid-template-columns:minmax(0,1fr)}
+  .fl-lead-value__input{max-width:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .fl-inbox-filter,.fl-inbox-card__link{transition:none}
+}

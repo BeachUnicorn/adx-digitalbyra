@@ -10,6 +10,8 @@ import ipaddress
 import re
 from urllib.parse import urlparse
 
+from apps.common.net import client_ip
+
 from .models import DeviceType, TrafficSource
 
 # ---------------------------------------------------------------------------
@@ -252,11 +254,10 @@ def classify_source(referrer, utm_source, utm_medium, current_host=""):
 
 
 def get_client_ip(request) -> str:
-    """Extract the client IP, honouring X-Forwarded-For (first hop)."""
-    xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR", "")
+    """The client IP behind nginx (apps.common.net.client_ip): X-Real-IP,
+    then the LAST X-Forwarded-For entry, then REMOTE_ADDR. The first
+    X-Forwarded-For entry is whatever the client sent and is never used."""
+    return client_ip(request) or ""
 
 
 def anonymize_ip(ip: str) -> str | None:

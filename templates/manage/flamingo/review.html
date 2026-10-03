@@ -1,0 +1,54 @@
+{% extends "manage/base.html" %}
+{% load static flamingo_app %}
+
+{% block title %}{{ campaign.name }}: granska{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/manage-flamingo.css' %}?v={{ static_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="mf-page">
+{% comment %}
+En kampanj från byråns sida (kundresan steg 8). Medan den ligger hos ADX
+rättar granskaren här och skriver varför; "Klar, skicka till kunden" sparar
+diffen i Review.changes. Efter kundens godkännande publiceras den härifrån.
+Inget på sidan mejlar kunden.
+{% endcomment %}
+<div class="m-page-head">
+    <p class="m-page-head__back"><a href="{% url 'manage:flamingo_queue' %}">Granska</a> / <a href="{% url 'manage:customer_detail' customer.pk %}#flamingo">{{ customer.name }}</a></p>
+    <h1 class="m-page-head__title">{{ campaign.name }} <span class="m-badge m-badge--{{ state_badge }}">{{ state_label }}</span></h1>
+    <p class="m-page-head__subtitle">{{ campaign.service.name }}, {{ campaign.get_sales_mode_display|lower }}. {% if campaign.area %}{{ campaign.area }}. {% endif %}{{ campaign.daily_budget_kr|kr }} per dag.</p>
+    <p class="mf-jump"><a href="#underlag">Till underlaget: hemsidan, uppgifterna och kontrollerna</a></p>
+</div>
+
+<div class="mf-layout">
+    <div class="mf-main">
+        {% if editable %}
+            {% include "manage/flamingo/_review_form.html" %}
+        {% else %}
+            {% if latest_done %}
+            <section class="m-panel m-form-panel" aria-labelledby="mf-changes-title">
+                <h2 class="m-form-section" id="mf-changes-title">Senaste granskningen</h2>
+                <p class="m-form-hint">Runda {{ latest_done.round }}, granskad {{ latest_done.reviewed_at|date:"j b Y H:i" }}{% if latest_done.reviewer %} av {{ latest_done.reviewer.first_name|default:latest_done.reviewer.get_username }}{% endif %}. Det här ser kunden.</p>
+                {% if latest_done.note %}<p class="mf-note">{{ latest_done.note|linebreaksbr }}</p>{% endif %}
+                {% include "manage/flamingo/_changes.html" with change_groups=latest_changes %}
+            </section>
+            {% endif %}
+
+            {% include "manage/flamingo/_publish.html" %}
+
+            {% include "manage/flamingo/_content.html" %}
+        {% endif %}
+    </div>
+
+    <aside class="mf-aside" id="underlag" aria-label="Underlag">
+        {% include "manage/flamingo/_side.html" %}
+    </aside>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/manage-flamingo.js' %}?v={{ static_version }}" defer></script>
+{% endblock %}

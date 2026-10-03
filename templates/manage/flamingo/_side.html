@@ -1,0 +1,74 @@
+{% load flamingo_app %}
+{% comment %}
+Underlaget bredvid förslaget: kunden och hemsidan, kontrollerna och
+checklistan, de bekräftade uppgifterna och rundorna.
+{% endcomment %}
+<section class="m-panel mf-side" aria-labelledby="mf-side-customer">
+    <h2 class="mf-side__title" id="mf-side-customer">Kunden</h2>
+    <p class="mf-side__lead"><a href="{% url 'manage:customer_detail' customer.pk %}#flamingo">{{ customer.name }}</a></p>
+    {% if account.website_url %}
+    <p><a class="mf-ext" href="{{ account.website_url }}" target="_blank" rel="noopener noreferrer">Kundens hemsida ↗</a> <span class="mf-side__url">{{ account.website_url }}</span></p>
+    {% else %}
+    <p class="m-muted">Ingen hemsida angiven.</p>
+    {% endif %}
+    <dl class="mf-dl">
+        <dt>Sätt att sälja</dt><dd>{{ campaign.get_sales_mode_display }}</dd>
+        <dt>Område</dt><dd>{{ campaign.area|default:"Inte angivet" }}</dd>
+        <dt>Radie</dt><dd>{{ campaign.radius_km }} km</dd>
+        <dt>Budget</dt><dd>{{ campaign.daily_budget_kr|kr }} per dag, ungefär {{ campaign.monthly_budget_kr|kr }} per månad</dd>
+        <dt>Google</dt><dd>{{ account.get_google_status_display }}{% if account.google_ads_customer_id %}, {{ account.google_ads_customer_id }}{% endif %}</dd>
+    </dl>
+    {% if customer.is_active and account.is_enabled %}
+    <form method="post" action="{% url 'manage:flamingo_view_as' customer.pk %}">{% csrf_token %}
+        <input type="hidden" name="next" value="{% url 'flamingo:app_campaign' campaign.pk %}">
+        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Se kampanjen som kunden</button>
+    </form>
+    {% endif %}
+</section>
+
+<section class="m-panel mf-side" id="kontroller" aria-labelledby="mf-side-checks">
+    <h2 class="mf-side__title" id="mf-side-checks">Kontrollerna</h2>
+    {% if problems is None %}
+    <p class="mf-side__note">Inga automatiska kontroller kördes. Läs texterna mot uppgifterna själv.</p>
+    {% elif problems %}
+    <ul class="mf-problem-list">{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul>
+    {% else %}
+    <p class="mf-ok">Kontrollerna hittade inget.</p>
+    {% endif %}
+    <h3 class="mf-side__sub">Läs själv</h3>
+    <ul class="mf-checklist">{% for line in checklist %}<li>{{ line }}</li>{% endfor %}</ul>
+</section>
+
+<section class="m-panel mf-side" aria-labelledby="mf-side-facts">
+    <h2 class="mf-side__title" id="mf-side-facts">Uppgifter <span>{{ confirmed_count }} bekräftade</span></h2>
+    <p class="mf-side__note">Bara bekräftade uppgifter får stå i annonserna och på sidan. Ett tomt värde är okänt, inte noll.</p>
+    {% if facts %}
+    <ul class="mf-facts">
+        {% for f in facts %}
+        <li class="mf-fact{% if not f.confirmed %} is-unconfirmed{% endif %}">
+            <span class="mf-fact__label">{{ f.label }}</span>
+            <span class="mf-fact__value">{{ f.value|default:"Vet inte" }}</span>
+            <span class="mf-fact__meta">{% if f.source == "customer" %}Kunden{% else %}{{ f.get_source_display }}{% endif %}, {% if f.confirmed %}bekräftad{% else %}inte bekräftad{% endif %}</span>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p class="m-muted">Inga uppgifter än.</p>
+    {% endif %}
+</section>
+
+<section class="m-panel mf-side" aria-labelledby="mf-side-rounds">
+    <h2 class="mf-side__title" id="mf-side-rounds">Rundor</h2>
+    {% if reviews %}
+    <ol class="mf-rounds">
+        {% for r in reviews %}
+        <li>
+            <b>Runda {{ r.round }}</b>, inskickad {{ r.submitted_at|date:"j b H:i" }}{% if r.submitted_by %} av {{ r.submitted_by.first_name|default:r.submitted_by.get_username }}{% endif %}.
+            {% if r.state == "done" %}Granskad {{ r.reviewed_at|date:"j b H:i" }}{% if r.reviewer %} av {{ r.reviewer.first_name|default:r.reviewer.get_username }}{% endif %}, {{ r.changes|length }} ändring{{ r.changes|length|pluralize:"ar" }}.{% else %}<span class="m-badge m-badge--alert">Väntar på ADX</span>{% endif %}
+        </li>
+        {% endfor %}
+    </ol>
+    {% else %}
+    <p class="m-muted">Ingen runda än.</p>
+    {% endif %}
+</section>

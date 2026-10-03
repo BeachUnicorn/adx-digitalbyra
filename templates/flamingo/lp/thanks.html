@@ -1,0 +1,19 @@
+{% extends "flamingo/lp/_base.html" %}
+{% comment %}
+Tacksidan efter formuläret. Inga löften om när eller hur: bara att
+förfrågan är skickad, och numret om det brådskar.
+{% endcomment %}
+{% block title %}Tack | {{ content.business }}{% endblock %}
+{% block content %}
+<div class="lp-wrap lp-thanks">
+  <svg class="lp-thanks__icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22"/><path d="M14 24.5l6.5 6.5L34 17.5"/></svg>
+  <h1 class="lp-title">Tack!</h1>
+  <p class="lp-lead">Din förfrågan är skickad till {{ content.business }}.</p>
+  {% if preview %}<p class="lp-card__preview">Förhandsvisning: ingen förfrågan skapades.</p>{% endif %}
+  {% if content.phone %}
+  <p class="lp-thanks__text">Vill du lägga till något, eller brådskar det?</p>
+  <a class="lp-call" href="{{ content.tel }}"><span>Ring {{ content.phone }}</span></a>
+  {% endif %}
+  <p class="lp-thanks__back"><a href="{{ campaign.landing_url }}">Tillbaka till sidan</a></p>
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+{% extends "flamingo/app/base.html" %}
+{% comment %}
+Google (kundresan steg 5). Kontext från app_views/onboarding.google:
+id_form (GoogleIdForm), timeline [{state, title, meta, billing_link,
+campaign_link, campaigns_link}].
+Kunden äger kontot och betalar Google direkt. Byrån bockar av "kopplat" och
+"betalning klar" i /manage/flamingo/; inloggning med Google (OAuth) kommer
+med Google Ads API och finns inte här än.
+{% endcomment %}
+{% block app_title %}Google{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">Google</p>
+    <h1 class="fl-app-title">Ditt konto. Ditt kort. Vi sköter resten.</h1>
+    <p class="fl-app-lead">Annonserna går i ett Google Ads-konto som är ditt. Du betalar annonserna direkt till Google med ditt eget kort, och ADX ser aldrig kortet. Vi kopplar kontot under ADX:s förvaltarkonto och sköter kampanjerna därifrån.</p>
+  </div>
+</header>
+
+{% if account.google_note %}
+<p class="fl-notice fl-notice--info"><span><b>Från ADX:</b> {{ account.google_note }}</span></p>
+{% endif %}
+
+{% if not account.google_linked %}
+<div class="fl-cols">
+  <section class="fl-panel" aria-labelledby="fl-onb-g-have">
+    <h2 class="fl-panel__title" id="fl-onb-g-have">Jag har redan Google Ads</h2>
+    <p class="fl-panel__text">Skriv kontots id, tio siffror. Det står högst upp i Google Ads när du är inloggad. Historiken följer med, och vi ser vad som fungerat förut.</p>
+    {% if read_only %}
+    {% if account.google_ads_customer_id %}<p class="fl-panel__note">Angivet: {{ account.google_ads_customer_id }}</p>{% endif %}
+    {% else %}
+    <form method="post" class="fl-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="id">
+      <div class="fl-field{% if id_form.google_ads_customer_id.errors %} is-error{% endif %}">
+        <label class="fl-field__label" for="fl-onb-gid">Kontots id</label>
+        <input class="fl-input" id="fl-onb-gid" type="text" name="google_ads_customer_id" value="{{ id_form.google_ads_customer_id.value|default_if_none:'' }}" maxlength="20" inputmode="numeric" autocomplete="off" placeholder="123-456-7890"{% if id_form.google_ads_customer_id.errors %} aria-invalid="true" aria-describedby="fl-onb-gid-error"{% endif %}>
+        {% for error in id_form.google_ads_customer_id.errors %}<p class="fl-field__error" id="fl-onb-gid-error">{{ error }}</p>{% endfor %}
+      </div>
+      <div class="fl-form__buttons">
+        <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">{% if account.google_ads_customer_id %}Spara det nya id:t{% else %}Spara kontots id{% endif %}</button>
+      </div>
+    </form>
+    {% endif %}
+  </section>
+
+  <section class="fl-panel fl-panel--accent" aria-labelledby="fl-onb-g-new">
+    <h2 class="fl-panel__title" id="fl-onb-g-new">Skapa ett åt mig</h2>
+    <p class="fl-panel__text">Vi skapar kontot i ditt namn. Du får en inbjudan från Google och äger kontot från första dagen.</p>
+    {% if account.google_status == "requested_new" %}
+    <p class="fl-onb-state fl-onb-state--ok">Beställt</p>
+    {% elif not read_only %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="new">
+      <button type="submit" class="fl-btn fl-btn--sm">Skapa ett konto åt mig</button>
+    </form>
+    {% endif %}
+  </section>
+</div>
+{% endif %}
+
+<section class="fl-panel fl-panel--soft" aria-labelledby="fl-onb-g-status">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-onb-g-status">Läget</h2>
+    <span class="fl-panel__note">{{ account.get_google_status_display }}</span>
+  </div>
+  <ol class="fl-timeline">
+    {% for item in timeline %}
+    <li class="fl-timeline__item is-{{ item.state }}">
+      <span class="fl-timeline__dot" aria-hidden="true"></span>
+      <div class="fl-timeline__body">
+        {% if item.state == "now" %}<b>{{ item.title }}</b>{% else %}<span>{{ item.title }}</span>{% endif %}
+        {% if item.meta %}<span class="fl-timeline__meta">{{ item.meta }}</span>{% endif %}
+        {% if item.billing_link %}<a class="fl-btn fl-btn--sm fl-onb-tl-btn" href="https://ads.google.com/aw/billing/summary" target="_blank" rel="noopener noreferrer">Öppna Googles betalning<span class="fl-sr"> (ny flik)</span></a>{% endif %}
+        {% if item.campaign_link %}<a class="fl-btn fl-btn--sm fl-onb-tl-btn" href="{% url 'flamingo:app_campaign_new' %}">Skapa första kampanjen</a>{% endif %}
+        {% if item.campaigns_link %}<a class="fl-btn fl-btn--ghost fl-btn--sm fl-onb-tl-btn" href="{% url 'flamingo:app_campaigns' %}">Till kampanjerna</a>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+{% endblock %}

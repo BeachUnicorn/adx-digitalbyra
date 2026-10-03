@@ -7,18 +7,26 @@ kontrollerna dömer rätt på känd HTML. Nätverk mockas - tester som ringer
 internet är inte tester.
 """
 
+import contextlib
+import ipaddress
+import socket
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.urls import reverse
 
+from . import analyzer
 from .analyzer import (
     AnalysError,
     Sida,
     _Extractor,
     check_teknik,
     check_tillganglighet,
+    fetch,
     normalize_url,
 )
 from .models import SiteReport
@@ -169,3 +177,289 @@ class ViewTests(TestCase):
         response = self.client.post(reverse("manage:hemsidekollen"), {"url": "example.se"})
         self.assertContains(response, "Kunde inte hämta")
         self.assertEqual(SiteReport.objects.count(), 0)
+
+
+# ---------------------------------------------------------------------------
+# Hämtningen mot en riktig server (granskningen 2026-10-03: redirects följdes
+# utan kontroll, och DNS kunde bytas mellan kontroll och anrop)
+# ---------------------------------------------------------------------------
+
+#: Värdnamnet testerna låtsas är publikt. Det löses upp till testservern på
+#: 127.0.0.1; allt annat går genom det riktiga SSRF-skyddet.
+PUBLIC_HOST = "sajt.example.se"
+
+
+class LocalSite:
+    """En riktig HTTP-server på 127.0.0.1 (slumpad port) som noterar varje
+    anrop: (sökväg, Host-huvud). routes: {sökväg: route(handler, site)}."""
+
+    def __init__(self, routes):
+        self.seen = []
+        self.dripping_stopped = threading.Event()
+        site = self
+
+        class Handler(BaseHTTPRequestHandler):
+            def do_GET(self):
+                site.seen.append((self.path, self.headers.get("Host")))
+                route = routes.get(self.path.split("?")[0])
+                if route is None:
+                    route = status_route(404)
+                route(self, site)
+
+            def log_message(self, *args):
+                pass
+
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        self.server.daemon_threads = True
+        self.port = self.server.server_address[1]
+        self.base = f"http://{PUBLIC_HOST}:{self.port}"
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+
+    @property
+    def paths(self):
+        return [path for path, _ in self.seen]
+
+    def close(self):
+        self.server.shutdown()
+        self.server.server_close()
+
+
+def html_route(body="<html><head><title>Sajten</title></head><body>Hej</body></html>"):
+    def route(handler, site):
+        data = body.encode() if isinstance(body, str) else body
+        handler.send_response(200)
+        handler.send_header("Content-Type", "text/html; charset=utf-8")
+        handler.send_header("Content-Length", str(len(data)))
+        handler.end_headers()
+        handler.wfile.write(data)
+
+    return route
+
+
+def status_route(status):
+    def route(handler, site):
+        handler.send_response(status)
+        handler.send_header("Content-Length", "0")
+        handler.end_headers()
+
+    return route
+
+
+def redirect_route(location, status=302):
+    """location får innehålla {port} (testserverns port)."""
+
+    def route(handler, site):
+        handler.send_response(status)
+        handler.send_header("Location", location.format(port=site.port))
+        handler.send_header("Content-Length", "0")
+        handler.end_headers()
+
+    return route
+
+
+def drip_route(head_only=False):
+    """En server som skickar en byte i taget, så länge någon läser."""
+
+    def route(handler, site):
+        try:
+            if head_only:
+                handler.wfile.write(b"HTTP/1.1 200 OK\r\n")
+            else:
+                handler.send_response(200)
+                handler.send_header("Content-Type", "text/html")
+                handler.send_header("Content-Length", "100000")
+                handler.end_headers()
+            for _ in range(100):
+                handler.wfile.write(b"X-Drip: 1\r\n" if head_only else b"x")
+                handler.wfile.flush()
+                time.sleep(0.1)
+        except OSError:
+            pass
+        finally:
+            site.dripping_stopped.set()
+
+    return route
+
+
+@contextlib.contextmanager
+def as_public(site):
+    """PUBLIC_HOST pekar på testservern och dess port räknas som tillåten.
+    Varje annan adress går genom det riktiga _assert_public. Ger listan med
+    värdnamnen som kontrollerades, i ordning."""
+    real = analyzer._assert_public
+    checked = []
+
+    def fake(host):
+        checked.append(host)
+        if host == PUBLIC_HOST:
+            return "127.0.0.1"
+        return real(host)
+
+    with (
+        patch.object(analyzer, "ALLOWED_PORTS", (80, 443, site.port)),
+        patch.object(analyzer, "_assert_public", side_effect=fake),
+    ):
+        yield checked
+
+
+class FetchRedirectTests(SimpleTestCase):
+    """Varje hopp prövas innan det anropas, och anslutningen går till den IP
+    som prövades."""
+
+    def serve(self, routes):
+        site = LocalSite(routes)
+        self.addCleanup(site.close)
+        return site
+
+    def test_a_redirect_to_an_internal_address_is_never_requested(self):
+        site = self.serve(
+            {
+                "/": redirect_route("http://127.0.0.1:{port}/internal"),
+                "/internal": html_route("hemligt"),
+            }
+        )
+        with as_public(site) as checked, self.assertRaises(AnalysError) as caught:
+            fetch(site.base + "/")
+        self.assertEqual(site.paths, ["/"], "det interna hoppet får aldrig anropas")
+        self.assertEqual(checked, [PUBLIC_HOST, "127.0.0.1"])
+        self.assertIn("internt nät", str(caught.exception))
+
+    def test_redirects_to_metadata_odd_ports_and_other_schemes_are_refused(self):
+        for location in (
+            "http://169.254.169.254/latest/meta-data/",
+            f"http://{PUBLIC_HOST}:8080/",
+            "ftp://ftp.example.se/",
+            "file:///etc/passwd",
+        ):
+            with self.subTest(location=location):
+                site = self.serve({"/": redirect_route(location)})
+                with as_public(site), self.assertRaises(AnalysError):
+                    fetch(site.base + "/")
+                self.assertEqual(site.paths, ["/"])
+
+    def test_a_public_redirect_is_followed_and_every_hop_is_checked(self):
+        site = self.serve({"/": redirect_route("/ny-sida/", status=301), "/ny-sida/": html_route()})
+        with as_public(site) as checked:
+            sida = fetch(site.base + "/")
+        self.assertEqual(sida.status, 200)
+        self.assertEqual(sida.url, site.base + "/ny-sida/")
+        self.assertEqual(sida.redirects, [site.base + "/"])
+        self.assertIn("<title>Sajten</title>", sida.html)
+        self.assertEqual(checked, [PUBLIC_HOST, PUBLIC_HOST])
+        # Anslutningen går till den kontrollerade IP:n men Host-huvudet är
+        # fortfarande värdnamnet.
+        self.assertEqual(
+            site.seen,
+            [("/", f"{PUBLIC_HOST}:{site.port}"), ("/ny-sida/", f"{PUBLIC_HOST}:{site.port}")],
+        )
+
+    def test_too_many_redirects(self):
+        site = self.serve({"/": redirect_route("/")})
+        with as_public(site), self.assertRaises(AnalysError) as caught:
+            fetch(site.base + "/")
+        self.assertIn("För många", str(caught.exception))
+        self.assertEqual(len(site.paths), analyzer.MAX_REDIRECTS + 1)
+
+    def test_an_http_error_is_an_error(self):
+        site = self.serve({"/": status_route(500)})
+        with as_public(site), self.assertRaises(AnalysError) as caught:
+            fetch(site.base + "/")
+        self.assertIn("HTTP 500", str(caught.exception))
+
+    def test_the_connection_goes_to_the_checked_ip_not_a_new_lookup(self):
+        """DNS rebinding: första uppslagningen ger en publik adress, nästa en
+        intern. fetch slår bara upp en gång och ansluter till den publika."""
+        answers = iter(["93.184.216.34", "127.0.0.1", "127.0.0.1"])
+
+        def getaddrinfo(host, port, *args, **kwargs):
+            ip = next(answers)
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", (ip, port or 0))]
+
+        with (
+            patch.object(analyzer.socket, "getaddrinfo", side_effect=getaddrinfo) as lookups,
+            patch.object(
+                analyzer.socket, "create_connection", side_effect=ConnectionRefusedError
+            ) as connect,
+            self.assertRaises(AnalysError),
+        ):
+            fetch(f"http://{PUBLIC_HOST}/")
+        self.assertEqual(lookups.call_count, 1)
+        self.assertEqual(connect.call_args.args[0], ("93.184.216.34", 80))
+
+    def test_https_keeps_the_hostname_for_sni_and_the_certificate(self):
+        """Uppkopplingen går till den kontrollerade IP:n, men TLS frågar efter
+        och verifierar certifikatet för värdnamnet."""
+        public = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+        context = analyzer.ssl.create_default_context()
+        with (
+            patch.object(analyzer.socket, "getaddrinfo", return_value=public),
+            patch.object(analyzer.socket, "create_connection") as connect,
+            patch.object(analyzer.ssl, "create_default_context", return_value=context),
+            patch.object(
+                context, "wrap_socket", side_effect=analyzer.ssl.SSLError("stopp")
+            ) as wrap,
+            self.assertRaises(AnalysError),
+        ):
+            fetch(f"https://{PUBLIC_HOST}/")
+        self.assertEqual(connect.call_args.args[0], ("93.184.216.34", 443))
+        self.assertEqual(wrap.call_args.kwargs["server_hostname"], PUBLIC_HOST)
+        self.assertTrue(context.check_hostname)
+
+    def test_a_slow_body_is_cut_off_at_the_time_limit(self):
+        site = self.serve({"/": drip_route()})
+        start = time.monotonic()
+        with as_public(site), self.assertRaises(AnalysError) as caught:
+            fetch(site.base + "/", time_limit=1.0)
+        self.assertLess(time.monotonic() - start, 3.0)
+        self.assertIn("inte i tid", str(caught.exception))
+        # Anslutningen är stängd: servern märker det och slutar skicka.
+        self.assertTrue(site.dripping_stopped.wait(3.0))
+
+    def test_slow_headers_are_cut_off_too(self):
+        site = self.serve({"/": drip_route(head_only=True)})
+        start = time.monotonic()
+        with as_public(site), self.assertRaises(AnalysError):
+            fetch(site.base + "/", time_limit=1.0)
+        self.assertLess(time.monotonic() - start, 3.0)
+
+    def test_the_body_is_capped_at_max_bytes(self):
+        site = self.serve({"/": html_route(b"a" * 300_000)})
+        with as_public(site):
+            sida = fetch(site.base + "/", max_bytes=100_000)
+            full = fetch(site.base + "/")
+        self.assertEqual(sida.bytes, 100_000)
+        self.assertEqual(len(sida.html), 100_000)
+        self.assertEqual(full.bytes, 300_000)
+        self.assertEqual(analyzer.MAX_BYTES, 2 * 1024 * 1024, "Hemsidekollens tak är kvar")
+
+    def test_hemsidekollen_still_works_end_to_end(self):
+        site = self.serve({"/": redirect_route("/start/"), "/start/": html_route(GOOD_HTML)})
+        with as_public(site), patch.object(analyzer, "check_epost_doman", return_value=[]):
+            report = analyzer.analyze(site.base + "/")
+        self.assertEqual(report["status"], 200)
+        self.assertTrue(report["url"].endswith("/start/"))
+        self.assertGreater(report["summering"]["ok"], 0)
+
+
+class BlockedAddressTests(SimpleTestCase):
+    def test_disguised_and_shared_addresses_are_blocked(self):
+        for raw in (
+            "::ffff:127.0.0.1",
+            "::ffff:169.254.169.254",
+            "64:ff9b::a9fe:a9fe",
+            "2002:7f00:1::1",
+            "100.64.0.1",
+            "169.254.169.254",
+            "10.1.2.3",
+            "fd00::1",
+            "0.0.0.0",
+        ):
+            with self.subTest(ip=raw):
+                self.assertTrue(analyzer._blocked(ipaddress.ip_address(raw)))
+        for raw in ("93.184.216.34", "2a00:1450:4001:80b::2004"):
+            with self.subTest(ip=raw):
+                self.assertFalse(analyzer._blocked(ipaddress.ip_address(raw)))
+
+    def test_a_bad_port_is_an_error_not_a_crash(self):
+        with self.assertRaises(AnalysError):
+            normalize_url("https://example.se:99999/")

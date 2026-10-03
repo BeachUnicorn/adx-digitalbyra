@@ -197,7 +197,7 @@ body.fl.mob-menu-open{overflow:hidden}
 .fl-main{display:block;flex:1 0 auto;padding-bottom:var(--fl-sec-y)}
 /* Byråns docka ligger fast nere till vänster på telefonen: låt sidfotens
    sista rad gå att scrolla fram förbi den. Bara när dockan finns. */
-@media (max-width:560px){body.fl:has(.c-admin-dock) .fl-footer__in{padding-bottom:112px}}
+@media (max-width:560px){body.fl:has(.c-admin-dock) .fl-footer__in{padding-bottom:72px}}
 .fl-draftnote{
   display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:8px;
   padding:6px 14px 6px 6px;border:1px dashed #F5B26B;border-radius:999px;background:#FFF3E6;
@@ -209,16 +209,24 @@ body.fl.mob-menu-open{overflow:hidden}
 .fl-footer__in{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 24px;padding-block:32px 40px;font-size:16px;color:var(--fl-muted)}
 .fl-footer a{color:var(--fl-body);text-underline-offset:3px}
 .fl-footer a:hover{color:var(--fl-violet)}
+@media (max-width:560px){
+  /* Tumvänlig länk: kanten ökar tryckytan utan att raden växer. */
+  .fl-footer__in a{padding-block:10px}
+  /* Byråns docka (site-tools.css) är 72 px och skymmer brödtext i
+     telefonbredd. Bara på Flamingos sidor: mindre, närmare hörnet och lite
+     genomskinlig tills den öppnas. ADX-sajten behåller sin docka. */
+  body.fl .c-admin-dock{left:8px;bottom:8px}
+  body.fl .c-admin-dock__toggle{width:48px;height:48px}
+  body.fl .c-admin-dock:not(.is-open) .c-admin-dock__toggle{opacity:.85}
+}
 
-/* ---------- 404 och verktygets platshållare ---------- */
+/* ---------- 404 ---------- */
 .fl-404{overflow:hidden;overflow:clip;padding-block:clamp(56px,10vw,120px)}
 .fl-404__ribbon{right:-160px;top:-80px;width:780px;opacity:.85}
 .fl-404__in{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:22px}
 .fl-404__in .fl-lead{max-width:560px}
 .fl-404__path{font-family:var(--fl-mono);font-size:.85em;color:var(--fl-ink);background:var(--fl-panel2);border-radius:8px;padding:2px 8px;overflow-wrap:anywhere;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 .fl-404__actions{margin-top:6px}
-
-.fl-app-ph__card{display:flex;flex-direction:column;justify-content:flex-end;gap:14px;min-height:320px;padding:clamp(28px,6vw,72px);border-radius:var(--fl-r-xl)}
 
 /* ==========================================================================
    Delade blocktyper i Flamingo-design (templates/website/blocks/flamingo/)

@@ -1,0 +1,37 @@
+{% comment %}Kampanjens innehåll som det är sparat nu, bara för läsning.{% endcomment %}
+<section class="m-panel m-form-panel" aria-labelledby="mf-content-title">
+    <h2 class="m-form-section" id="mf-content-title">Innehållet</h2>
+
+    {% if campaign.headlines %}
+    <div class="m-serp mf-serp" aria-label="Ungefär så här i Google">
+        <div class="m-serp__label">Sponsrad</div>
+        <div class="m-serp__url">{{ landing_full_url }}</div>
+        <div class="m-serp__title">{{ campaign.headlines.0 }}{% if campaign.headlines.1 %} | {{ campaign.headlines.1 }}{% endif %}</div>
+        {% if campaign.descriptions %}<div class="m-serp__desc">{{ campaign.descriptions.0 }}</div>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="mf-read">
+        <h3 class="mf-read__title">Rubriker <span>{{ campaign.headlines|length }}</span></h3>
+        {% if campaign.headlines %}<ol class="mf-read__list">{% for h in campaign.headlines %}<li>{{ h }}</li>{% endfor %}</ol>{% else %}<p class="m-muted">Inga.</p>{% endif %}
+
+        <h3 class="mf-read__title">Beskrivningar <span>{{ campaign.descriptions|length }}</span></h3>
+        {% if campaign.descriptions %}<ol class="mf-read__list">{% for d in campaign.descriptions %}<li>{{ d }}</li>{% endfor %}</ol>{% else %}<p class="m-muted">Inga.</p>{% endif %}
+
+        <h3 class="mf-read__title">Sökord <span>{{ keyword_list|length }}</span></h3>
+        {% if keyword_list %}<ul class="mf-read__list mf-read__list--plain">{% for text, match in keyword_list %}<li>{{ text }} <span class="m-muted">{{ match }}</span></li>{% endfor %}</ul>{% else %}<p class="m-muted">Inga.</p>{% endif %}
+
+        <h3 class="mf-read__title">Negativa sökord <span>{{ negative_list|length }}</span></h3>
+        {% if negative_list %}<p class="mf-read__inline">{{ negative_list|join:", " }}</p>{% else %}<p class="m-muted">Inga.</p>{% endif %}
+
+        <h3 class="mf-read__title">Sidan</h3>
+        <dl class="mf-dl">
+            <dt>Rubrik</dt><dd>{{ campaign.page.title|default:"-" }}</dd>
+            <dt>Ingress</dt><dd>{{ campaign.page.lead|default:"-"|linebreaksbr }}</dd>
+            {% if campaign.page.points %}<dt>Punkter</dt><dd><ul class="mf-read__list mf-read__list--plain">{% for p in campaign.page.points %}<li>{{ p }}</li>{% endfor %}</ul></dd>{% endif %}
+            <dt>Telefon</dt><dd>{{ campaign.page.phone|default:"Inget nummer på sidan" }}</dd>
+            <dt>Formulär</dt><dd>{{ campaign.page.form_title|default:"-" }}{% if question_list %}<ul class="mf-read__list mf-read__list--plain">{% for label, kind in question_list %}<li>{{ label }} <span class="m-muted">{{ kind }}</span></li>{% endfor %}</ul>{% endif %}</dd>
+            {% if campaign.page.note %}<dt>Under formuläret</dt><dd>{{ campaign.page.note|linebreaksbr }}</dd>{% endif %}
+        </dl>
+    </div>
+</section>

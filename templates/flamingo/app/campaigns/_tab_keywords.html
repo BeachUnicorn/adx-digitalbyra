@@ -1,0 +1,67 @@
+{% comment %}
+Fliken Sökord: sökorden med matchningstyp och de negativa sökorden.
+Redigerbar när can_edit: en rad per sökord (text + typ) och de negativa ett
+per rad. Tomma rader tas bort när kunden sparar.
+{% endcomment %}
+{% if can_edit %}
+<form method="post" class="fl-form fl-panel" id="camp-kw-form">
+  {% csrf_token %}
+  <input type="hidden" name="section" value="keywords">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title">Sökord</h2>
+    <span class="fl-camp-hint">{{ keywords|length }} sökord och {{ negatives|length }} negativa</span>
+  </div>
+  <p class="fl-panel__text">Det folk skriver i Google när annonsen ska visas. <b>Fras:</b> sökningen innehåller orden i den ordningen. <b>Exakt:</b> bara just den sökningen. <b>Bred:</b> Google tolkar fritt.</p>
+  {% for e in keyword_errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+  <ul class="fl-camp-kws">
+    {% for kw in keywords %}
+    <li class="fl-camp-kw{% if kw.errors %} is-error{% endif %}">
+      <label class="fl-sr" for="camp-kw{{ forloop.counter }}">Sökord {{ forloop.counter }}</label>
+      <input class="fl-input" type="text" id="camp-kw{{ forloop.counter }}" name="kw_text" value="{{ kw.text }}" maxlength="80" autocomplete="off">
+      <label class="fl-sr" for="camp-km{{ forloop.counter }}">Matchning för sökord {{ forloop.counter }}</label>
+      <select class="fl-input fl-camp-kw__match" id="camp-km{{ forloop.counter }}" name="kw_match">
+        {% for value, label in match_choices %}<option value="{{ value }}"{% if value == kw.match %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      {% for e in kw.errors %}<p class="fl-field__error fl-camp-kw__error">{{ e }}</p>{% endfor %}
+    </li>
+    {% endfor %}
+    {% for blank in blank_keyword_rows %}
+    <li class="fl-camp-kw">
+      <label class="fl-sr" for="camp-kwn{{ forloop.counter }}">Nytt sökord {{ forloop.counter }}</label>
+      <input class="fl-input" type="text" id="camp-kwn{{ forloop.counter }}" name="kw_text" value="" maxlength="80" autocomplete="off" placeholder="Nytt sökord">
+      <label class="fl-sr" for="camp-kmn{{ forloop.counter }}">Matchning för nytt sökord {{ forloop.counter }}</label>
+      <select class="fl-input fl-camp-kw__match" id="camp-kmn{{ forloop.counter }}" name="kw_match">
+        {% for value, label in match_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+    </li>
+    {% endfor %}
+  </ul>
+  <div class="fl-field">
+    <label class="fl-field__label" for="camp-negatives">Negativa sökord</label>
+    <p class="fl-field__help">Sökningar som aldrig blir en affär, ett per rad. Innehåller sökningen ordet visas inte annonsen.</p>
+    <textarea class="fl-input fl-camp-negatives" id="camp-negatives" name="negatives" rows="8">{{ negatives_text }}</textarea>
+  </div>
+  <div class="fl-form__actions">
+    <p class="fl-form__note">Tomma rader tas bort när du sparar.</p>
+    <button type="submit" class="fl-btn">Spara sökorden</button>
+  </div>
+</form>
+{% else %}
+<section class="fl-panel fl-panel--soft" aria-labelledby="camp-kw-read">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="camp-kw-read">Sökord</h2>
+    <span class="fl-camp-hint">och {{ negatives|length }} negativa</span>
+  </div>
+  {% if keywords %}
+  <ul class="fl-camp-kwread">
+    {% for kw in keywords %}<li class="fl-camp-kwread__row"><span>{{ kw.text }}</span><span class="fl-camp-kwread__type">{{ kw.match_label }}</span></li>{% endfor %}
+  </ul>
+  {% else %}<p class="fl-panel__note">Inga sökord.</p>{% endif %}
+</section>
+{% endif %}
+{% if negatives and not can_edit %}
+<section class="fl-panel" aria-labelledby="camp-neg">
+  <h2 class="fl-panel__title" id="camp-neg">Negativa sökord</h2>
+  <ul class="fl-camp-negs">{% for n in negatives %}<li class="fl-chip">{{ n }}</li>{% endfor %}</ul>
+</section>
+{% endif %}

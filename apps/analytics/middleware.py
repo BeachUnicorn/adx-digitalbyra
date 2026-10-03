@@ -49,6 +49,9 @@ _SKIP_PREFIXES = (
     # ADX Flamingo ligger bakom behörighet; dess sidor räknas inte som
     # besök på den publika sajten.
     "/flamingo/",
+    # Flamingo-kundernas egna landningssidor: deras besökare är inte adx.se:s
+    # besökare. Inga sidvisningar och inga ADX-kakor där.
+    "/lp/",
 )
 
 _TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)

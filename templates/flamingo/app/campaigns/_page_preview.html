@@ -1,0 +1,29 @@
+{% comment %}
+Reserv när landningssidans egen mall inte går att rita (se
+campaigns.landing_preview): en enkel bild av sidan (kundresan 09) i skala
+1:1 i en telefonram.
+Fälten är bara bilder av fälten: ingenting här går att skicka. Ringer:
+telefonen först. Offert och boka tid: formuläret först, telefonen sist.
+Kontext: campaign, page (_page_for_form), company, page_host.
+{% endcomment %}
+<div class="fl-camp-phone">
+  <div class="fl-camp-phone__screen">
+    <p class="fl-camp-lp__host">{{ page_host }}{{ campaign.landing_url }}</p>
+    <p class="fl-camp-lp__brand">{{ company }}</p>
+    <p class="fl-camp-lp__title">{{ page.title|default:"Rubrik saknas" }}</p>
+    {% if campaign.sales_mode == "call" and page.phone %}<span class="fl-camp-lp__call">Ring {{ page.phone }}</span>{% endif %}
+    {% if page.lead %}<p class="fl-camp-lp__lead">{{ page.lead }}</p>{% endif %}
+    {% if page.points %}
+    <ul class="fl-camp-lp__points">{% for point in page.points %}<li>{{ point }}</li>{% endfor %}</ul>
+    {% endif %}
+    <div class="fl-camp-lp__form">
+      <p class="fl-camp-lp__formtitle">{{ page.form_title|default:"Kontakta oss" }}</p>
+      {% for q in page.questions %}<span class="fl-camp-lp__field{% if q.kind == 'textarea' %} fl-camp-lp__field--tall{% endif %}">{{ q.label }}</span>{% endfor %}
+      <span class="fl-camp-lp__field">Namn</span>
+      <span class="fl-camp-lp__field">Telefon</span>
+      <span class="fl-camp-lp__send">Skicka</span>
+      {% if page.note %}<p class="fl-camp-lp__note">{{ page.note }}</p>{% endif %}
+    </div>
+    {% if campaign.sales_mode != "call" and page.phone %}<p class="fl-camp-lp__or">eller ring <u>{{ page.phone }}</u></p>{% endif %}
+  </div>
+</div>

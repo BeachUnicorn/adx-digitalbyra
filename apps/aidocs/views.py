@@ -5,7 +5,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 
-from apps.offers.public_views import client_ip
+from apps.common.net import client_ip
 
 from . import guides
 from .models import AccessCode, AccessLog

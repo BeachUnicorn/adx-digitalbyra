@@ -2,6 +2,9 @@
 Flamingos sidor. Innehållet är vanliga blocksidor (BlockPage med
 design="flamingo") som redigeras i /manage/ som alla andra sidor; vyerna här
 lägger bara på behörighet och Flamingos egen grundmall.
+
+Verktyget (/flamingo/app/...) bor i app_views/, kundens landningssidor
+(/lp/...) i public_views.py och byråns granskning i manage_review.py.
 """
 
 from functools import wraps
@@ -55,20 +58,6 @@ def flamingo_page(request, slug=None):
             "blocks": blocks,
             "flamingo": access,
             "flamingo_nav": flamingo_pages(access),
-            "site_settings": SiteSettings.load(),
-        },
-    )
-
-
-@flamingo_required
-def app_home(request):
-    """Verktyget. Byggs ut enligt kundresan (adx-marketing/kundresa-mvp.html)."""
-    return render(
-        request,
-        "flamingo/app/home.html",
-        {
-            "flamingo": request.flamingo,
-            "flamingo_nav": flamingo_pages(request.flamingo),
             "site_settings": SiteSettings.load(),
         },
     )

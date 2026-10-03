@@ -1,0 +1,89 @@
+{% load flamingo_app %}
+{% comment %}
+Fliken Granskning (kundresan 08): senaste rundan som tidslinje, granskarens
+ändringar som diff (del/ins) grupperade per del med skälet en gång, och
+godkännandet. Godkännandet publicerar inget: ADX publicerar i panelen (att
+den är godkänd står överst på kampanjsidan). Kontext: review,
+review_note, reviewer_text, reviewer_name, changes, change_groups, timeline,
+earlier (_review_context). review_note är tom när den bara upprepar att
+inget ändrades.
+{% endcomment %}
+{% if review %}
+<section class="fl-panel fl-panel--soft" aria-labelledby="camp-rv-title">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="camp-rv-title">{% if review.state == "pending" %}Hos ADX{% else %}Granskat av ADX{% endif %}</h2>
+    <span class="fl-camp-hint">Runda {{ review.round }}</span>
+  </div>
+  <ol class="fl-timeline">
+    {% for item in timeline %}
+    <li class="fl-timeline__item is-{{ item.state }}">
+      <span class="fl-timeline__dot" aria-hidden="true"></span>
+      <div class="fl-timeline__body">{% if item.state == "now" %}<b>{{ item.title }}</b>{% else %}{{ item.title }}{% endif %}{% if item.meta %}<span class="fl-timeline__meta">{{ item.meta }}</span>{% endif %}</div>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+
+{% if review.state == "done" %}
+<section class="fl-panel" aria-labelledby="camp-rv-changes">
+  <h2 class="fl-panel__title" id="camp-rv-changes">{% if changes %}Det här ändrade {{ reviewer_name|default:"ADX" }}{% else %}Inga ändringar{% endif %}</h2>
+  {% if changes %}
+  {% if review_note %}<p class="fl-camp-rvnote">{{ review_note|linebreaksbr }}</p>{% endif %}
+  <ul class="fl-diff">
+    {% for group in change_groups %}
+    <li class="fl-diff__item">
+      <span class="fl-diff__label">{{ group.label|default:"Ändring" }}</span>
+      {% for change in group.items %}
+      <p class="fl-diff__change">{% if change.before %}<del>{{ change.before }}</del>{% endif %}{% if change.before and change.after %} {% endif %}{% if change.after %}<ins>{% if not change.before %}+ {% endif %}{{ change.after }}</ins>{% endif %}</p>
+      {% endfor %}
+      {% if group.reason %}<p class="fl-diff__reason">{{ group.reason }}</p>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="fl-panel__text">{{ reviewer_text }} gick igenom förslaget och ändrade inget.</p>
+  {% if review_note %}<p class="fl-camp-rvnote">{{ review_note|linebreaksbr }}</p>{% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+{% if campaign.status == "needs_customer" and not is_approved %}
+<section class="fl-panel fl-panel--accent fl-camp-approve" aria-labelledby="camp-approve">
+  <div class="fl-camp-approve__text">
+    <h2 class="fl-panel__title" id="camp-approve">Godkänn kampanjen</h2>
+    <p class="fl-camp-approve__sum">{{ campaign.daily_budget_kr|kr }} per dag, ungefär {{ monthly_kr|kr }} i månaden. {{ campaign.area }}.</p>
+    <p class="fl-panel__note">När du godkänt publicerar ADX kampanjen. Ändrar du något i stället blir den ett utkast igen och går en ny granskning.</p>
+  </div>
+  {% if read_only %}
+  <p class="fl-panel__note">Kundvyn är skrivskyddad.</p>
+  {% else %}
+  <div class="fl-camp-approve__actions">
+    <a class="fl-btn fl-btn--ghost" href="?flik=annonser">Ändra något</a>
+    <form method="post" action="{% url 'flamingo:app_campaign_approve' campaign.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="fl-btn">Godkänn</button>
+    </form>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if earlier %}
+<section class="fl-panel" aria-labelledby="camp-rv-earlier">
+  <h2 class="fl-panel__title" id="camp-rv-earlier">Tidigare rundor</h2>
+  <ul class="fl-list">
+    {% for r in earlier %}
+    <li class="fl-list__item">
+      <span class="fl-list__main"><span class="fl-list__title">Runda {{ r.round }}</span><span class="fl-list__meta">Skickad {{ r.submitted }}{% if r.review.changes %}, {{ r.review.changes|length }} ändringar{% endif %}</span></span>
+      <span class="fl-badge fl-badge--{{ r.review.state }}">{{ r.review.get_state_display }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% else %}
+<div class="fl-empty fl-panel">
+  <p class="fl-empty__title">Inte skickad till granskning än</p>
+  <p class="fl-empty__text">När du skickar förslaget läser en person på ADX igenom annonserna, sökorden och sidan, rättar det som behövs och skriver varför. Sedan godkänner du, och först då publiceras något.</p>
+</div>
+{% endif %}

@@ -1,0 +1,86 @@
+{% extends "flamingo/base.html" %}
+{% load static %}
+{% comment %}
+Verktygets skal: sidomenyn till vänster (en rad med flikar under 900 px),
+innehållet till höger. Kontexten kommer från app_views.app_context():
+customer, account, app_active, app_nav, new_lead_count, onboarding,
+show_steps, read_only, is_contact, flamingo, flamingo_nav, site_settings.
+
+Sidorna fyller {% block app_content %} och sätter rubriken i app_title.
+Gemensamma komponenter finns i flamingo-app.css; varje del lägger bara sitt
+eget i sin fil (flamingo-app-onboarding/-campaigns/-inbox.css).
+{% endcomment %}
+{% block title %}{% block app_title %}Verktyget{% endblock %} - ADX Flamingo{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/flamingo-app.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo-app-onboarding.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo-app-campaigns.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo-app-inbox.css' %}?v={{ static_version }}">
+{% block app_head %}{% endblock %}
+{% endblock %}
+{% block content %}
+<div class="fl-wrap fl-app{% block app_modifier %}{% endblock %}">
+  {% block app_side %}
+  <aside class="fl-app-side" aria-label="Verktyget">
+    {% if flamingo.customers|length > 1 and is_contact %}
+    <form class="fl-app-who fl-app-who--pick" method="post" action="{% url 'flamingo:app_customer' %}">
+      {% csrf_token %}
+      <label class="fl-app-who__label" for="fl-app-customer">Företag</label>
+      <span class="fl-app-who__row">
+        <select id="fl-app-customer" name="customer" class="fl-app-who__select">
+          {% for c in flamingo.customers %}<option value="{{ c.pk }}"{% if c.pk == customer.pk %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Byt</button>
+      </span>
+    </form>
+    {% elif customer %}
+    <div class="fl-app-who">
+      <span class="fl-app-who__label">Företag</span>
+      <span class="fl-app-who__name">{{ customer.name }}</span>
+    </div>
+    {% endif %}
+    {% if customer %}
+    <nav class="fl-app-nav" aria-label="Verktygets delar">
+      {% for key, url_name, label in app_nav %}
+      {% url url_name as nav_url %}
+      <a class="fl-app-nav__link" href="{{ nav_url }}"{% if app_active == key %} aria-current="page"{% endif %}>
+        <span>{{ label }}</span>
+        {% if key == "inbox" and new_lead_count %}<span class="fl-app-nav__badge" aria-label="{{ new_lead_count }} nya">{{ new_lead_count }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+    <div class="fl-app-side__foot">
+      <a href="{% url 'flamingo:home' %}">Till Flamingo-sidan</a>
+      {% if is_contact %}<a href="{% url 'portal:home' %}">Kundportalen</a>{% elif flamingo.is_agency %}<a href="{% url 'manage:flamingo_overview' %}">Panelen</a>{% endif %}
+    </div>
+  </aside>
+  {% endblock %}
+
+  <div class="fl-app-main">
+    {% if messages %}
+    <div class="fl-app-messages" role="status">
+      {% for message in messages %}<p class="fl-notice fl-notice--{{ message.tags|default:'info' }}">{{ message }}</p>{% endfor %}
+    </div>
+    {% endif %}
+
+    {% if show_steps and onboarding %}
+    <nav class="fl-steps-wrap" aria-label="Kom igång">
+      <ol class="fl-steps">
+        {% for step in onboarding.steps %}
+        <li class="fl-steps__item is-{{ step.state }}">
+          <a class="fl-steps__link" href="{{ step.url }}"{% if step.state == "now" %} aria-current="step"{% endif %}>
+            <span class="fl-steps__num" aria-hidden="true">{{ step.number }}</span>
+            <span class="fl-steps__label">{{ step.label }}</span>
+            {% if step.state == "done" %}<span class="fl-sr">, klart</span>{% elif step.state == "wait" %}<span class="fl-steps__state">hos ADX</span>{% endif %}
+          </a>
+        </li>
+        {% endfor %}
+      </ol>
+    </nav>
+    {% endif %}
+
+    {% block app_content %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

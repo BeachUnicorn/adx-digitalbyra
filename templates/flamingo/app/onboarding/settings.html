@@ -1,0 +1,85 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+Inställningarna: sms till kunden vid ny förfrågan och autosvaret till den som
+frågar. Båda är av från början, och inget sms går iväg förrän ADX kopplat in
+46elks (sms_configured). Kontext från app_views/onboarding.settings_view:
+form (SettingsForm), sms_configured, sms_length, sms_count, autoreply_max,
+contacts. Teckenräknaren uppdateras av static/js/flamingo-app-onboarding.js.
+{% endcomment %}
+{% block app_title %}Inställningar{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">Inställningar</p>
+    <h1 class="fl-app-title">Sms och autosvar</h1>
+    <p class="fl-app-lead">Det här styr vad som händer när en förfrågan kommer in. Allt är avstängt tills du slår på det.</p>
+  </div>
+</header>
+
+{% if sms_configured %}
+<p class="fl-notice fl-notice--ok"><span>Sms-tjänsten är inkopplad. Sms skickas bara för det du slagit på här.</span></p>
+{% else %}
+<p class="fl-notice fl-notice--warn"><span><b>Sms är inte inkopplat än.</b> ADX behöver slå på sms-tjänsten (46elks) först. Fram till dess skickas inga sms, även om du slår på dem här. Dina val sparas och gäller när tjänsten är på.</span></p>
+{% endif %}
+
+<form method="post" class="fl-form">
+  {% csrf_token %}
+  <section class="fl-panel" aria-labelledby="fl-onb-sms-me">
+    <h2 class="fl-panel__title" id="fl-onb-sms-me">Sms till dig</h2>
+    <p class="fl-panel__text">Ett sms till din mobil när en ny förfrågan kommer in, med namn, telefon och vad det gäller.</p>
+    <div class="fl-field{% if form.notify_phone.errors %} is-error{% endif %}">
+      <label class="fl-field__label" for="fl-onb-phone">Din mobil</label>
+      <input class="fl-input fl-onb-phone" id="fl-onb-phone" type="tel" name="notify_phone" value="{{ form.notify_phone.value|default_if_none:'' }}" maxlength="30" autocomplete="tel" placeholder="070-123 45 67"{% if read_only %} disabled{% endif %}{% if form.notify_phone.errors %} aria-invalid="true" aria-describedby="fl-onb-phone-error"{% endif %}>
+      {% for error in form.notify_phone.errors %}<p class="fl-field__error" id="fl-onb-phone-error">{{ error }}</p>{% endfor %}
+    </div>
+    <label class="fl-check"><input type="checkbox" name="notify_sms" value="1"{% if form.notify_sms.value %} checked{% endif %}{% if read_only %} disabled{% endif %}><span>Sms till mig vid ny förfrågan</span></label>
+  </section>
+
+  <section class="fl-panel" aria-labelledby="fl-onb-autoreply">
+    <h2 class="fl-panel__title" id="fl-onb-autoreply">Autosvar till den som frågar</h2>
+    <p class="fl-panel__text">Den som skickar en förfrågan via din sida får ett kvitto med sms. Texten är din egen; ingen AI skriver till dina kunder.</p>
+    <label class="fl-check"><input type="checkbox" name="autoreply_enabled" value="1"{% if form.autoreply_enabled.value %} checked{% endif %}{% if read_only %} disabled{% endif %}><span>Skicka autosvar med sms</span></label>
+    <div class="fl-field{% if form.autoreply_text.errors %} is-error{% endif %}">
+      <div class="fl-onb-labelrow">
+        <label class="fl-field__label" for="fl-onb-reply">Autosvarets text</label>
+        <span class="fl-count{% if sms_length > autoreply_max %} is-over{% endif %}" id="fl-onb-reply-count" aria-live="polite" data-max="{{ autoreply_max }}">{{ sms_length }} tecken, {{ sms_count }} sms</span>
+      </div>
+      <textarea class="fl-input" id="fl-onb-reply" name="autoreply_text" rows="4" maxlength="{{ autoreply_max }}" data-fl-sms-count="fl-onb-reply-count" aria-describedby="fl-onb-reply-help{% if form.autoreply_text.errors %} fl-onb-reply-error{% endif %}"{% if read_only %} disabled{% endif %}>{{ form.autoreply_text.value|default_if_none:'' }}</textarea>
+      {% for error in form.autoreply_text.errors %}<p class="fl-field__error" id="fl-onb-reply-error">{{ error }}</p>{% endfor %}
+      <p class="fl-field__help" id="fl-onb-reply-help">Skriv kort. Ett sms rymmer 160 tecken, och å, ä och ö går bra. Högst {{ autoreply_max }} tecken. Skriv {namn} där förnamnet på den som frågade ska stå. Autosvaret skickas inte mellan {{ quiet_from }} och {{ quiet_until }}.</p>
+    </div>
+  </section>
+
+  <div class="fl-form__actions">
+    {% if read_only %}
+    <p class="fl-form__note">Kundvyn är skrivskyddad. Kunden ändrar själv här.</p>
+    {% else %}
+    <p class="fl-form__note">Inget sms går iväg förrän sms är inkopplat och du slagit på det.</p>
+    <button type="submit" class="fl-btn">Spara inställningarna</button>
+    {% endif %}
+  </div>
+</form>
+
+<section class="fl-panel" aria-labelledby="fl-onb-contacts">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-onb-contacts">Kontakter hos {{ customer.name }}</h2>
+  </div>
+  <p class="fl-panel__note">De som kan logga in. Hör av dig till ADX om någon ska läggas till eller tas bort.</p>
+  {% if contacts %}
+  <ul class="fl-list">
+    {% for contact in contacts %}
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">{{ contact.get_full_name|default:contact.email|default:contact.username }}</span>
+        {% if contact.email and contact.get_full_name %}<span class="fl-list__meta">{{ contact.email }}</span>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="fl-panel__text">Inga kontakter är registrerade.</p>
+  {% endif %}
+</section>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-onboarding.js' %}?v={{ static_version }}" defer></script>{% endblock %}

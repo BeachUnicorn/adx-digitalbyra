@@ -1,0 +1,132 @@
+{% extends "flamingo/app/base.html" %}
+{% load flamingo_app %}
+{% comment %}
+Kampanjen (kundresan 07 och 08): flikarna Annonser, Sökord, Sidan och
+Granskning. Kunden ändrar bara i utkast och efter granskningen (can_edit);
+en ändring efter granskningen gör kampanjen till ett utkast igen. Problemen
+från checks.validate står vid fälten, och inskicket syns först när de är
+rättade. Kontext: se app_views/campaigns.campaign_detail.
+{% endcomment %}
+{% block app_title %}{{ campaign.name }}{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-camp-crumb" href="{% url 'flamingo:app_campaigns' %}">Kampanjer</a> / {{ campaign.service.name }}</p>
+    <div class="fl-camp-title">
+      <h1 class="fl-app-title">{{ campaign.name }}</h1>
+      <span class="fl-badge fl-badge--{% if is_approved %}done{% else %}{{ campaign.status }}{% endif %}">{{ state_label }}</span>
+    </div>
+  </div>
+  {% if landing or flamingo.is_agency %}
+  <div class="fl-app-head__actions">
+    {% if landing %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ landing.href }}">Öppna sidan</a>{% endif %}
+    {% if flamingo.is_agency and not landing %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ campaign.landing_url }}">Förhandsvisa sidan</a>{% endif %}
+    {% if flamingo.is_agency %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'manage:flamingo_review' campaign.pk %}">Granska i panelen</a>{% endif %}
+  </div>
+  {% endif %}
+</header>
+
+{% if campaign.status == "in_review" %}
+<p class="fl-notice"><span>ADX granskar förslaget. Du kan ändra det igen när granskningen är klar, och inget publiceras utan ditt godkännande.</span></p>
+{% elif campaign.status == "needs_customer" and not is_approved %}
+<section class="fl-panel fl-panel--accent fl-camp-next" aria-labelledby="camp-next">
+  <div class="fl-camp-next__text">
+    <p class="fl-kicker">Klart för dig</p>
+    <h2 class="fl-panel__title" id="camp-next">ADX har granskat förslaget</h2>
+    <p class="fl-panel__text">Se vad som ändrades och godkänn. Inget publiceras förrän du godkänt.</p>
+  </div>
+  {% if tab != "granskning" %}<a class="fl-btn" href="?flik=granskning">Se granskningen</a>{% endif %}
+</section>
+{% elif is_approved %}
+<p class="fl-notice fl-notice--ok"><span>Godkänd av dig {{ campaign.approved_at|date:"j F H:i" }}. ADX publicerar kampanjen, och du ser här när den är live.</span></p>
+{% elif campaign.status == "live" %}
+<p class="fl-notice fl-notice--ok"><span>Kampanjen är live{% if campaign.published_at %} sedan {{ campaign.published_at|date:"j F" }}{% endif %}.{% if landing %} Sidan: <a href="{{ landing.href }}">{{ landing.text }}</a>.{% endif %} Förfrågningarna från sidan hamnar i <a href="{% url 'flamingo:app_inbox' %}">inkorgen</a>.</span></p>
+{% elif campaign.status == "paused" %}
+<p class="fl-notice fl-notice--warn"><span>Kampanjen är pausad. Annonserna visas inte.</span></p>
+{% endif %}
+{% if not google_ready and campaign.status != "live" and campaign.status != "paused" %}
+<p class="fl-notice fl-notice--warn"><span>Kampanjen kan gå live först när ditt Google Ads-konto är kopplat och betalningen är klar.</span><a href="{% url 'flamingo:app_google' %}">Google</a></p>
+{% endif %}
+
+<section class="fl-panel fl-panel--soft fl-camp-settings" id="camp-settings" aria-labelledby="camp-settings-title">
+  <h2 class="fl-sr" id="camp-settings-title">Område och budget</h2>
+  <dl class="fl-camp-facts">
+    <div class="fl-camp-fact"><dt>Budget per dag</dt><dd>{{ campaign.daily_budget_kr|kr }}</dd></div>
+    <div class="fl-camp-fact"><dt>Ungefär i månaden</dt><dd>{{ monthly_kr|kr }}</dd></div>
+    <div class="fl-camp-fact"><dt>Område</dt><dd>{{ campaign.area|default:"Inte valt" }}</dd></div>
+    <div class="fl-camp-fact"><dt>Sätt att sälja</dt><dd><i class="fl-dot fl-dot--{{ campaign.sales_mode }}" aria-hidden="true"></i>{{ campaign.get_sales_mode_display }}</dd></div>
+  </dl>
+  {% for e in settings_errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+  {% if can_edit %}
+  <details class="fl-camp-more"{% if settings_errors %} open{% endif %}>
+    <summary class="fl-camp-more__summary">Ändra område och budget</summary>
+    <form method="post" class="fl-form fl-camp-more__body">
+      {% csrf_token %}
+      <input type="hidden" name="section" value="settings">
+      <div class="fl-form__row">
+        <div class="fl-field">
+          <label class="fl-field__label" for="camp-s-place">Ort eller orter</label>
+          <input class="fl-input" type="text" id="camp-s-place" name="place" value="{{ place }}" maxlength="160" autocomplete="off">
+        </div>
+        <div class="fl-field">
+          <label class="fl-field__label" for="camp-s-radius">Och runt omkring</label>
+          <select class="fl-input" id="camp-s-radius" name="radius_km">
+            {% for r in radius_choices %}<option value="{{ r }}"{% if r == campaign.radius_km %} selected{% endif %}>{{ r }} km</option>{% endfor %}
+          </select>
+        </div>
+        <div class="fl-field">
+          <label class="fl-field__label" for="camp-s-budget">Budget per dag (kr)</label>
+          <input class="fl-input" type="number" id="camp-s-budget" name="daily_budget_kr" value="{{ campaign.daily_budget_kr }}" min="{{ budget_min }}" max="{{ budget_max }}" step="10" inputmode="numeric">
+        </div>
+      </div>
+      <div class="fl-form__actions">
+        <p class="fl-form__note">Från {{ budget_min }} till {{ budget_max|tal }} kr per dag. Hur många förfrågningar det ger vet vi efter två veckor med riktiga siffror.</p>
+        <button type="submit" class="fl-btn fl-btn--sm">Spara</button>
+      </div>
+    </form>
+  </details>
+  {% endif %}
+</section>
+
+<nav class="fl-tabs fl-camp-tabs" aria-label="Kampanjens delar">
+  {% for t in tabs %}
+  <a class="fl-tabs__tab" href="{{ t.url }}"{% if t.key == tab %} aria-current="page"{% endif %}>{{ t.label }}{% if t.problems and can_edit and campaign.status == "draft" %}<span class="fl-camp-tabcount" aria-label="{{ t.problems }} att rätta">{{ t.problems }}</span>{% endif %}</a>
+  {% endfor %}
+</nav>
+
+{% if can_edit and campaign.status == "needs_customer" and tab != "granskning" %}
+<p class="fl-notice fl-notice--warn"><span>ADX har granskat det här. Sparar du en ändring blir kampanjen ett utkast igen och går en ny granskning.</span></p>
+{% endif %}
+<div class="fl-camp-tab">
+  {% if tab == "annonser" %}{% include "flamingo/app/campaigns/_tab_ads.html" %}
+  {% elif tab == "sokord" %}{% include "flamingo/app/campaigns/_tab_keywords.html" %}
+  {% elif tab == "sidan" %}{% include "flamingo/app/campaigns/_tab_page.html" %}
+  {% else %}{% include "flamingo/app/campaigns/_tab_review.html" %}{% endif %}
+</div>
+
+{% if campaign.status == "draft" and tab != "granskning" %}
+<section class="fl-panel fl-camp-submit" aria-labelledby="camp-submit">
+  {% if problems %}
+  <h2 class="fl-panel__title" id="camp-submit">Rätta det här innan du skickar</h2>
+  <ul class="fl-camp-problems">
+    {% for p in problem_summary %}
+    <li class="fl-camp-problems__item"><a href="{% if p.tab %}?flik={{ p.tab }}{% else %}#camp-settings{% endif %}">{{ p.label }}</a>: {{ p.message }}</li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="fl-camp-submit__row">
+    <div class="fl-camp-submit__text">
+      <h2 class="fl-panel__title" id="camp-submit">Klart att skicka</h2>
+      <p class="fl-panel__note">{{ campaign.headlines|length }} rubriker och {{ campaign.descriptions|length }} beskrivningar. Google testar kombinationerna. En person på ADX läser allt innan något publiceras.</p>
+    </div>
+    {% if can_edit %}
+    <form method="post" action="{% url 'flamingo:app_campaign_submit' campaign.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="fl-btn">Skicka till granskning</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

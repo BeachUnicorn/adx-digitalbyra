@@ -51,7 +51,8 @@ innan en Flamingo-404 kan visas - därav reserven.
       <a class="fl-header__link" href="{% url 'portal:home' %}">Kundportalen</a>
       <form method="post" action="{% url 'portal:logout' %}" class="fl-header__out">{% csrf_token %}<button type="submit" class="fl-header__link">Logga ut</button></form>
       {% endif %}
-      <a class="fl-btn fl-btn--sm" href="{{ app_url }}"{% if request.path == app_url %} aria-current="page"{% endif %}>Verktyget</a>
+      {% comment %}app_active finns på varje sida i verktyget (också "" på Förslaget, byråns lista och no_account), aldrig på Flamingos sidor.{% endcomment %}
+      <a class="fl-btn fl-btn--sm" href="{{ app_url }}"{% if app_active is not None or request.path == app_url %} aria-current="page"{% endif %}>Verktyget</a>
     </div>
     <button type="button" class="fl-burger" aria-label="Öppna meny" aria-expanded="false" aria-controls="fl-mob-menu" data-menu-open>
       <span></span><span></span><span></span>

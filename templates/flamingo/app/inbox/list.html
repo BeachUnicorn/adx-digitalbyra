@@ -1,0 +1,107 @@
+{% extends "flamingo/app/base.html" %}
+{% load flamingo_app %}
+{% comment %}
+Inkorgen (kundresan steg 11): förfrågningarna nyast först, filtrerade på
+status. "Alla" visar allt utom skräp. Till höger (under listan i telefon)
+lägger kunden till en förfrågan själv. Kontext från app_views/inbox.py:
+page, leads, filters, status, status_label, this_month, total, add_form,
+add_open.
+{% endcomment %}
+{% block app_title %}Inkorg{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Inkorg</h1>
+    <p class="fl-app-lead">{% if total %}{{ this_month|tal }} {% if this_month == 1 %}förfrågan{% else %}förfrågningar{% endif %} den här månaden. {% endif %}Statusen är det enda du behöver hålla i, och Vunnen med belopp är det som gör mätningen hel.</p>
+  </div>
+  {% if not read_only %}
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--ghost fl-btn--sm fl-inbox-addlink" href="#lagg-till">Lägg till en förfrågan</a>
+  </div>
+  {% endif %}
+</header>
+
+<div class="fl-inbox-layout">
+  <section class="fl-inbox-main" aria-labelledby="fl-inbox-list-title">
+    <h2 class="fl-sr" id="fl-inbox-list-title">Förfrågningar, {{ status_label|lower }}</h2>
+    <nav class="fl-inbox-filters" aria-label="Visa förfrågningar med status">
+      {% for f in filters %}
+      <a class="fl-inbox-filter{% if f.active %} is-on{% endif %}" href="{% url 'flamingo:app_inbox' %}{% if f.value %}?status={{ f.value }}{% endif %}"{% if f.active %} aria-current="true"{% endif %}>{{ f.label }} <span class="fl-inbox-filter__count">{{ f.count }}</span></a>
+      {% endfor %}
+    </nav>
+
+    {% if leads %}
+    <ul class="fl-inbox-list">
+      {% for item in leads %}{% include "flamingo/app/inbox/_card.html" with item=item current=None %}{% endfor %}
+    </ul>
+    {% if page.has_other_pages %}
+    <nav class="fl-inbox-pages" aria-label="Fler förfrågningar">
+      {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if status %}status={{ status }}&amp;{% endif %}sida={{ page.previous_page_number }}">Nyare</a>{% endif %}
+      <span class="fl-inbox-pages__at">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
+      {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if status %}status={{ status }}&amp;{% endif %}sida={{ page.next_page_number }}">Äldre</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% elif total %}
+    <div class="fl-empty">
+      <p class="fl-empty__title">Inga förfrågningar här</p>
+      <p class="fl-empty__text">Ingen förfrågan har status {{ status_label|lower }} just nu.</p>
+      <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_inbox' %}">Visa alla</a>
+    </div>
+    {% else %}
+    <div class="fl-empty">
+      <p class="fl-empty__title">Inga förfrågningar än</p>
+      <p class="fl-empty__text">De hamnar här när en kampanj är live och någon fyller i formuläret på sidan. Ringde någon i stället? Lägg till förfrågan själv, så räknas affären med.</p>
+    </div>
+    {% endif %}
+  </section>
+
+  <aside class="fl-inbox-aside">
+    {% if not read_only %}
+    <section class="fl-panel" id="lagg-till" aria-labelledby="fl-inbox-add-title">
+      <div class="fl-panel__head">
+        <h2 class="fl-panel__title" id="fl-inbox-add-title">Lägg till en förfrågan</h2>
+      </div>
+      <p class="fl-panel__note">Ett samtal, ett mejl eller någon som kom förbi. Då räknas affären med i översikten.</p>
+      <form class="fl-form" method="post" action="{% url 'flamingo:app_inbox' %}">
+        {% csrf_token %}
+        {% if add_form.non_field_errors %}<p class="fl-notice fl-notice--error" role="alert">{% for e in add_form.non_field_errors %}{{ e }} {% endfor %}</p>{% endif %}
+        <div class="fl-field{% if add_form.name.errors %} is-error{% endif %}">
+          <label class="fl-field__label" for="fl-add-name">Namn</label>
+          {{ add_form.name }}
+          {% for e in add_form.name.errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="fl-field{% if add_form.phone.errors %} is-error{% endif %}">
+          <label class="fl-field__label" for="fl-add-phone">Telefon</label>
+          {{ add_form.phone }}
+          {% for e in add_form.phone.errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+        </div>
+        {% if add_form.fields.service.choices|length > 1 %}
+        <div class="fl-field">
+          <label class="fl-field__label" for="fl-add-service">Tjänst</label>
+          {{ add_form.service }}
+          {% for e in add_form.service.errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="fl-field{% if add_form.message.errors %} is-error{% endif %}">
+          <label class="fl-field__label" for="fl-add-message">Vad gäller det? <span class="fl-inbox-opt">(valfritt)</span></label>
+          {{ add_form.message }}
+          {% for e in add_form.message.errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+        </div>
+        <div class="fl-form__actions">
+          <p class="fl-form__note">Namn eller telefon räcker. Inga sms skickas.</p>
+          <button type="submit" class="fl-btn fl-btn--sm">Lägg till</button>
+        </div>
+      </form>
+    </section>
+    {% endif %}
+    <section class="fl-panel fl-panel--soft" aria-labelledby="fl-inbox-how">
+      <h2 class="fl-panel__title" id="fl-inbox-how">Så blir siffrorna rätt</h2>
+      <ul class="fl-inbox-how">
+        <li><b>Vunnen</b> med belopp blir en affär i översikten. Kom förfrågan från en annons går beloppet till Google, så att annonserna letar fler kunder som den.</li>
+        <li><b>Skräp</b> räknas inte som förfrågan i översikten.</li>
+      </ul>
+    </section>
+  </aside>
+</div>
+{% endblock %}

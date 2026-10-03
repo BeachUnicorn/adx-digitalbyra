@@ -1,0 +1,92 @@
+{% comment %}
+Fliken Annonser: förhandsvisningar som Googles sökannons (.fl-ad), sedan
+rubrikerna och beskrivningarna, redigerbara när can_edit. Teckenräknaren
+visar det sparade; problemen från kontrollerna står vid raden.
+{% endcomment %}
+<section class="fl-camp-block" aria-labelledby="camp-previews">
+  <h2 class="fl-sr" id="camp-previews">Så kan annonsen se ut</h2>
+  {% if previews %}
+  <div class="fl-camp-previews">
+    {% for ad in previews %}
+    <div class="fl-ad">
+      <p class="fl-ad__top"><b>Sponsrad</b> <span>{{ ad.url }}</span></p>
+      <p class="fl-ad__headline">{{ ad.headline }}</p>
+      <p class="fl-ad__desc">{% for seg, is_fact in ad.description %}{% if is_fact %}<span class="fl-fact{% if is_fact == "phone" %} fl-fact--phone{% endif %}">{{ seg }}</span>{% else %}{{ seg }}{% endif %}{% endfor %}</p>
+    </div>
+    {% endfor %}
+  </div>
+  <p class="fl-camp-hint">Exempel på hur Google kan sätta ihop texterna.{% if previews_mark_facts %} Understruket kommer från dina bekräftade uppgifter.{% endif %}</p>
+  {% else %}
+  <div class="fl-empty">
+    <p class="fl-empty__title">Inga rubriker än</p>
+    <p class="fl-empty__text">Skriv minst tre rubriker och två beskrivningar, så visas annonsen här.</p>
+  </div>
+  {% endif %}
+</section>
+
+{% if can_edit %}
+<form method="post" class="fl-form fl-panel" id="camp-ads-form">
+  {% csrf_token %}
+  <input type="hidden" name="section" value="ads">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title">Rubriker</h2>
+    <span class="fl-camp-hint">Högst {{ headline_max }} tecken. Minst 3, gärna {{ headline_count }}.{% if headline_rows|length < headline_count %} Spara så kommer fler tomma rader.{% endif %}</span>
+  </div>
+  {% for e in headline_errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+  <ol class="fl-camp-texts">
+    {% for row in headline_rows %}
+    <li class="fl-field fl-camp-text{% if row.errors %} is-error{% endif %}">
+      <label class="fl-camp-text__num" for="camp-h{{ row.number }}"><span class="fl-sr">Rubrik </span>{{ row.number }}</label>
+      <input class="fl-input" type="text" id="camp-h{{ row.number }}" name="headline" value="{{ row.value }}" maxlength="{{ row.limit }}" autocomplete="off">
+      <span class="fl-count{% if row.over %} is-over{% endif %}">{{ row.length }}/{{ row.limit }}</span>
+      {% for e in row.errors %}<p class="fl-field__error fl-camp-text__error">{{ e }}</p>{% endfor %}
+    </li>
+    {% endfor %}
+  </ol>
+
+  <div class="fl-panel__head fl-camp-subhead">
+    <h2 class="fl-panel__title">Beskrivningar</h2>
+    <span class="fl-camp-hint">Högst {{ description_max }} tecken. Minst 2, gärna {{ description_count }}.</span>
+  </div>
+  {% for e in description_errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+  <ol class="fl-camp-texts">
+    {% for row in description_rows %}
+    <li class="fl-field fl-camp-text fl-camp-text--long{% if row.errors %} is-error{% endif %}">
+      <label class="fl-camp-text__num" for="camp-d{{ row.number }}"><span class="fl-sr">Beskrivning </span>{{ row.number }}</label>
+      <textarea class="fl-input" id="camp-d{{ row.number }}" name="description" rows="2" maxlength="{{ row.limit }}">{{ row.value }}</textarea>
+      <span class="fl-count{% if row.over %} is-over{% endif %}">{{ row.length }}/{{ row.limit }}</span>
+      {% for e in row.errors %}<p class="fl-field__error fl-camp-text__error">{{ e }}</p>{% endfor %}
+    </li>
+    {% endfor %}
+  </ol>
+  <div class="fl-form__actions">
+    <p class="fl-form__note">Inga siffror, priser eller löften som inte finns bland dina bekräftade uppgifter. Tomma rader tas bort.</p>
+    <button type="submit" class="fl-btn">Spara annonserna</button>
+  </div>
+</form>
+
+<details class="fl-camp-more fl-panel fl-panel--soft">
+  <summary class="fl-camp-more__summary">Skriv ett nytt förslag</summary>
+  <form method="post" class="fl-camp-more__body">
+    {% csrf_token %}
+    <input type="hidden" name="section" value="regenerate">
+    <p class="fl-panel__text">Rubriker, beskrivningar, sökord och sidan skrivs om från dina bekräftade uppgifter. Det du har ändrat ersätts.</p>
+    <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Skriv ett nytt förslag</button>
+  </form>
+</details>
+{% else %}
+<div class="fl-cols">
+  <section class="fl-panel" aria-labelledby="camp-hl">
+    <h2 class="fl-panel__title" id="camp-hl">Rubriker</h2>
+    {% if campaign.headlines %}
+    <ol class="fl-camp-readlist">{% for h in campaign.headlines %}<li>{{ h }}</li>{% endfor %}</ol>
+    {% else %}<p class="fl-panel__note">Inga rubriker.</p>{% endif %}
+  </section>
+  <section class="fl-panel" aria-labelledby="camp-ds">
+    <h2 class="fl-panel__title" id="camp-ds">Beskrivningar</h2>
+    {% if campaign.descriptions %}
+    <ol class="fl-camp-readlist">{% for d in campaign.descriptions %}<li>{{ d }}</li>{% endfor %}</ol>
+    {% else %}<p class="fl-panel__note">Inga beskrivningar.</p>{% endif %}
+  </section>
+</div>
+{% endif %}

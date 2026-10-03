@@ -1,0 +1,59 @@
+{% extends "flamingo/app/base.html" %}
+{% load flamingo_app %}
+{% comment %}
+Kampanjerna (app_views/campaigns.campaign_list). Det som väntar på kunden
+står först. Kontext: rows [{campaign, state, landing}], has_services.
+{% endcomment %}
+{% block app_title %}Kampanjer{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Kampanjer</h1>
+    <p class="fl-app-lead">En kampanj per tjänst: annonser i Google sök, sökord och en egen sida. En person på ADX granskar allt innan något publiceras.</p>
+  </div>
+  {% if not read_only and rows %}
+  <div class="fl-app-head__actions">
+    <a class="fl-btn" href="{% url 'flamingo:app_campaign_new' %}">Ny kampanj</a>
+  </div>
+  {% endif %}
+</header>
+
+{% if rows %}
+<ul class="fl-camp-list">
+  {% for row in rows %}{% with c=row.campaign %}
+  <li class="fl-camp-row">
+    <div class="fl-camp-row__head">
+      <a class="fl-camp-row__main" href="{% url 'flamingo:app_campaign' c.pk %}">
+        <span class="fl-camp-row__title">{{ c.name }}</span>
+        <span class="fl-camp-row__service"><i class="fl-dot fl-dot--{{ c.service.sales_mode }}" aria-hidden="true"></i>{{ c.service.name }}, {{ c.service.get_sales_mode_display|lower }}</span>
+      </a>
+      <span class="fl-badge fl-badge--{% if c.status == 'needs_customer' and c.approved_at %}done{% else %}{{ c.status }}{% endif %}">{{ row.state }}</span>
+    </div>
+    <dl class="fl-camp-row__facts">
+      <div><dt>Område</dt><dd>{{ c.area|default:"Inte valt" }}</dd></div>
+      <div><dt>Budget</dt><dd>{{ c.daily_budget_kr|kr }} per dag</dd></div>
+      {% if row.landing %}<div class="fl-camp-row__wide"><dt>Sidan</dt><dd><a href="{{ row.landing.href }}">{{ row.landing.text }}</a></dd></div>{% endif %}
+    </dl>
+  </li>
+  {% endwith %}{% endfor %}
+</ul>
+{% elif has_services %}
+<div class="fl-empty fl-panel">
+  <p class="fl-empty__title">Inga kampanjer än</p>
+  <p class="fl-empty__text">Välj en tjänst, hur kunderna köper den, var annonserna ska visas och en budget. Sedan skriver vi ett förslag du kan ändra.</p>
+  {% if not read_only %}<a class="fl-btn" href="{% url 'flamingo:app_campaign_new' %}">Ny kampanj</a>{% endif %}
+</div>
+{% else %}
+<div class="fl-empty fl-panel">
+  <p class="fl-empty__title">Inga tjänster än</p>
+  <p class="fl-empty__text">En kampanj gäller en tjänst. Låt oss läsa din hemsida och föreslå tjänsterna, eller skriv in tjänsten själv när du skapar kampanjen.</p>
+  {% if not read_only %}
+  <div class="fl-panel__actions">
+    <a class="fl-btn" href="{% url 'flamingo:app_campaign_new' %}">Ny kampanj</a>
+    <a class="fl-btn fl-btn--ghost" href="{% url 'flamingo:app_proposal' %}">Till förslaget</a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

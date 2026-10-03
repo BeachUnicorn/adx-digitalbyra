@@ -1,0 +1,196 @@
+/* ===========================================================================
+   ADX Flamingo i panelen: granskningskön, granskningen och publiceringen
+   (templates/manage/flamingo/queue.html, review.html och delarna).
+   Panelens design: bara panelens tokens (--m-*, --s-*) och klasser från
+   manage-skin.css; det här är tillägg med prefixet mf-.
+   Löptext är minst 16 px; mono-etiketter och märken får vara mindre.
+   =========================================================================== */
+
+.mf-page .m-form-hint,
+.mf-page .m-field-help { font-size: 16px; line-height: 1.55; }
+.mf-page .m-page-head__back { font-size: 16px; }
+.mf-page .m-page-head__back a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.mf-page code { overflow-wrap: anywhere; }
+.mf-strong { font-weight: 600; color: var(--m-text); }
+a.mf-strong { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+
+/* ----- Kön ---------------------------------------------------------------- */
+
+.mf-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-bottom: 36px; }
+.mf-tile { display: block; text-decoration: none; color: inherit; transition: border-color .15s ease; }
+.mf-tile:hover { border-color: var(--m-text-muted); }
+.mf-tile .m-stat__value,
+.mf-tile .m-stat__label { display: block; }
+.mf-tile.is-hot { border-color: var(--m-text); }
+
+.mf-section { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin: 36px 0 14px; scroll-margin-top: calc(var(--m-nav-height) + 16px); }
+.mf-section:first-of-type { margin-top: 0; }
+.mf-section__note { font-size: 11.5px; letter-spacing: .08em; }
+.mf-before { margin: -4px 0 14px; max-width: 72ch; }
+.mf-after { margin: -6px 0 18px; }
+.mf-gap { margin-top: 18px; }
+
+.mf-head-actions .m-btn { white-space: nowrap; }
+.mf-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.mf-actions form { margin: 0; }
+
+/* ----- Granskningen: två spalter, underlaget till höger ------------------- */
+
+.mf-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 340px); gap: 24px; align-items: start; }
+.mf-main,
+.mf-aside { display: grid; gap: 18px; min-width: 0; }
+.mf-main > .m-panel,
+.mf-aside > .m-panel { margin-bottom: 0; }
+.mf-review { max-width: none; gap: 18px; }
+
+.mf-note { font-size: 16px; line-height: 1.55; padding: 14px 16px; border-radius: 14px; background: var(--s-hover); margin: 0 0 18px; }
+.mf-problems { padding: 16px 18px; font-size: 16px; line-height: 1.55; }
+.mf-problems ul { margin: 8px 0 0; padding-left: 20px; }
+.mf-problems p { margin: 0; }
+
+.mf-serp { margin: 0 0 26px; }
+.mf-serp .m-serp__url { overflow-wrap: anywhere; }
+
+/* En del av förslaget (rubrikerna, sökorden ...) med sitt skäl. */
+.mf-group { border: 0; margin: 0 0 26px; padding: 0 0 22px; border-bottom: 1px solid var(--m-border); min-width: 0; }
+.mf-group:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.mf-legend { font-family: var(--s-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 500; color: var(--m-text); margin-bottom: 14px; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.mf-legend span { color: var(--m-text-muted); letter-spacing: .06em; }
+.mf-group__error { margin: 0 0 14px; }
+
+.mf-slots { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 16px; }
+.mf-review .mf-slot { margin-bottom: 14px; }
+.mf-review .mf-slot label { margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+.mf-review .m-field input,
+.mf-review .m-field textarea,
+.mf-review .m-field select { width: 100%; max-width: 100%; box-sizing: border-box; font-size: 16px; }
+.mf-review .mf-slot textarea { min-height: 0; }
+
+/* De tomma rutorna efter de två första: utfällbara, postas ändå. */
+.mf-more { margin: 0 0 14px; min-width: 0; }
+.mf-more > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 44px; font-size: 16px; font-weight: 600; color: var(--m-text); cursor: pointer; list-style: none; }
+.mf-more > summary::-webkit-details-marker { display: none; }
+.mf-more > summary::before { content: ""; flex: none; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s ease; }
+.mf-more[open] > summary::before { transform: rotate(45deg); }
+.mf-more > summary span { font-weight: 400; color: var(--m-text-muted); }
+.mf-more[open] > summary { margin-bottom: 10px; }
+
+/* Teckenräknaren (manage-flamingo.js). */
+.mf-count { font-family: var(--s-mono); font-size: 11.5px; letter-spacing: .04em; color: var(--m-text-muted); font-weight: 500; text-transform: none; }
+.mf-count.is-over { color: var(--s-danger); }
+
+/* Rader: sökord eller fråga + val. */
+.mf-rows { display: grid; gap: 10px; margin-bottom: 10px; }
+.mf-review .mf-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 150px); gap: 10px; margin: 0; align-items: start; }
+.mf-row__error { grid-column: 1 / -1; margin-top: 0; }
+
+/* Skälet: syns alltid utan skript; med skript bara när delen ändrats. */
+.mf-review .mf-reason { margin: 14px 0 0; padding: 14px 16px 16px; border-radius: 16px; background: var(--s-warn-soft); border: 1px solid var(--s-warn-line); }
+.mf-review .mf-reason label { display: flex; flex-wrap: wrap; gap: 4px 10px; color: var(--m-text); margin-bottom: 8px; }
+.mf-reason__hint { color: var(--m-text-muted); letter-spacing: .04em; }
+.mf-review.is-enhanced .mf-group:not(.is-changed) .mf-reason { display: none; }
+
+.mf-ack { display: flex; gap: 10px; align-items: flex-start; font-size: 16px; line-height: 1.5; margin: 0 0 18px; cursor: pointer; }
+.mf-ack input { margin-top: 4px; accent-color: var(--m-accent); width: 18px; height: 18px; flex: 0 0 auto; }
+.mf-submit { display: grid; gap: 12px; justify-items: start; }
+.mf-submit .m-btn { width: auto; padding: 14px 24px; }
+.mf-submit .m-form-hint { margin: 0; }
+
+/* Ändringarna i en runda (samma som kunden ser). */
+.mf-changes { display: grid; gap: 16px; }
+.mf-change { padding-bottom: 16px; border-bottom: 1px solid var(--m-border); min-width: 0; }
+.mf-change:last-child { padding-bottom: 0; border-bottom: 0; }
+.mf-change__label { font-family: var(--s-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--m-text-muted); margin-bottom: 6px; }
+.mf-change__items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.mf-change__items li { font-size: 16px; overflow-wrap: anywhere; }
+.mf-change__reason { font-size: 16px; line-height: 1.55; color: var(--m-text-muted); margin: 8px 0 0; }
+
+/* Publiceringen. */
+.mf-state { font-size: 16px; line-height: 1.6; margin: 0 0 12px; }
+.mf-state .m-badge { margin-right: 6px; vertical-align: 2px; }
+.mf-steps { margin: 4px 0 20px; padding-left: 22px; display: grid; gap: 8px; font-size: 16px; line-height: 1.55; }
+.mf-steps a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.mf-steps li { overflow-wrap: anywhere; }
+.mf-blockers { margin: 8px 0; padding-left: 20px; font-size: 16px; line-height: 1.55; }
+.mf-blockers-box { padding: 16px 18px; font-size: 16px; }
+.mf-blockers-box p { margin: 0; }
+.mf-blockers-box a { color: inherit; text-decoration: underline; }
+.mf-publish-form { max-width: 420px; gap: 14px; }
+.mf-publish-form .m-btn { width: auto; padding: 14px 24px; justify-self: start; }
+#publicering { scroll-margin-top: calc(var(--m-nav-height) + 16px); }
+
+/* Innehållet som läsning. */
+.mf-read__title { font-family: var(--s-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 500; color: var(--m-text); margin: 22px 0 8px; display: flex; gap: 10px; }
+.mf-read__title span { color: var(--m-text-muted); }
+.mf-read__title:first-child { margin-top: 0; }
+.mf-read__list { margin: 0; padding-left: 22px; display: grid; gap: 4px; font-size: 16px; line-height: 1.5; }
+.mf-read__list--plain { list-style: none; padding-left: 0; }
+.mf-read__list li { overflow-wrap: anywhere; }
+.mf-read__inline { font-size: 16px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+
+.mf-dl { display: grid; grid-template-columns: minmax(0, 130px) minmax(0, 1fr); gap: 8px 14px; margin: 12px 0 16px; font-size: 16px; line-height: 1.5; }
+.mf-dl dt { font-family: var(--s-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--m-text-muted); padding-top: 3px; }
+.mf-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+/* Underlaget i högerspalten. */
+.mf-side { padding: 22px 22px 20px; }
+.mf-side p { margin: 0 0 10px; font-size: 16px; line-height: 1.55; }
+.mf-side__title { font-family: var(--s-mono); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 500; color: var(--m-text-muted); margin: 0 0 12px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.mf-side__title span { color: var(--m-text); letter-spacing: .06em; }
+.mf-side__sub { font-family: var(--s-mono); font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; font-weight: 500; color: var(--m-text-muted); margin: 18px 0 8px; }
+.mf-side__lead { font-weight: 600; }
+.mf-side__lead a,
+.mf-ext { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.mf-side__url { display: block; color: var(--m-text-muted); overflow-wrap: anywhere; }
+.mf-side__note { color: var(--m-text-muted); }
+.mf-side form { margin-top: 4px; }
+.mf-side .mf-dl { grid-template-columns: minmax(0, 110px) minmax(0, 1fr); }
+
+.mf-ok { color: var(--s-ok); }
+.mf-problem-list,
+.mf-checklist { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 16px; line-height: 1.5; }
+.mf-problem-list { color: var(--s-danger); }
+
+.mf-facts { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.mf-fact { display: grid; gap: 1px; padding-bottom: 10px; border-bottom: 1px solid var(--m-border); min-width: 0; }
+.mf-fact:last-child { padding-bottom: 0; border-bottom: 0; }
+.mf-fact__label { font-family: var(--s-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--m-text-muted); }
+.mf-fact__value { font-size: 16px; line-height: 1.45; overflow-wrap: anywhere; }
+.mf-fact__meta { font-family: var(--s-mono); font-size: 11.5px; letter-spacing: .03em; color: var(--m-text-muted); }
+.mf-fact.is-unconfirmed .mf-fact__value { color: var(--m-text-muted); text-decoration: line-through; text-decoration-thickness: 1px; }
+
+.mf-rounds { margin: 0; padding-left: 20px; display: grid; gap: 10px; font-size: 16px; line-height: 1.5; }
+.mf-rounds .m-badge { margin-left: 4px; }
+
+/* ----- Smala skärmar -------------------------------------------------------- */
+
+.mf-jump { display: none; }
+#underlag { scroll-margin-top: calc(var(--m-nav-height) + 16px); }
+
+@media (max-width: 980px) {
+  .mf-layout { grid-template-columns: minmax(0, 1fr); }
+  .mf-jump { display: block; font-size: 16px; margin-top: 10px; }
+  .mf-jump a { text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+}
+
+@media (max-width: 760px) {
+  .mf-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
+  .mf-tile.m-stat { padding: 16px 18px; }
+  .mf-tile .m-stat__value { font-size: 28px; }
+  /* Korten i kortläget får samma luft som panelens övriga listor. */
+  .mf-page .m-table-wrap .m-table[data-cards] tbody tr { padding-left: 18px; padding-right: 18px; }
+  .mf-page .m-table-wrap .m-table[data-cards] tbody td { padding-left: 0; padding-right: 0; }
+}
+
+@media (max-width: 560px) {
+  .mf-slots { grid-template-columns: minmax(0, 1fr); }
+  .mf-review .mf-row { grid-template-columns: minmax(0, 1fr) minmax(0, 116px); gap: 8px; }
+  .mf-review .mf-row--q { grid-template-columns: minmax(0, 1fr) minmax(0, 158px); }
+  .mf-dl,
+  .mf-side .mf-dl { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
+  .mf-dl dd { margin-bottom: 8px; }
+  .mf-side { padding: 18px 16px; }
+  .mf-review .mf-reason { padding: 12px 14px 14px; }
+  .mf-submit .m-btn,
+  .mf-publish-form .m-btn { width: 100%; justify-self: stretch; }
+}

@@ -5,28 +5,41 @@ Tre kontrollgrupper i EN rapport - teknik, e-post/domän, tillgänglighet -
 och bara sådant som går att verifiera server-side. Inga gissade betyg,
 inga påhittade mätvärden: varje rad är en observation med källa.
 
-SÄKERHET: verktyget hämtar adresser en användare skriver in. Utan skydd är
-det en SSRF-kanon riktad mot vårt eget nät (169.254.169.254 är metadata-
-tjänsten på EC2 med instansrollens nycklar). Därför:
+SÄKERHET: verktyget hämtar adresser en användare skriver in (och ADX
+Flamingo läser kundens hemsida med samma fetch). Utan skydd är det en
+SSRF-kanon riktad mot vårt eget nät (169.254.169.254 är metadata-tjänsten
+på EC2 med instansrollens nycklar). Därför, för VARJE hopp:
   * bara http/https, port 80/443
   * värdnamnet löses upp FÖRE anropet och varje IP måste vara publik
-  * svar begränsas till MAX_BYTES, timeout på allt
-  * redirects följs manuellt med samma IP-kontroll per hopp
+  * anslutningen görs till just den kontrollerade IP:n (Host-huvudet och
+    TLS-namnet är fortfarande värdnamnet), så en ny DNS-uppslagning mellan
+    kontrollen och anropet (DNS rebinding) kan inte byta mål
+  * redirects följs manuellt, högst MAX_REDIRECTS, och varje ny adress går
+    igenom samma kontroller innan något anrop görs
+  * svaret läses i bitar, högst max_bytes, och hela hämtningen har en
+    tidsgräns (time_limit), inte bara varje enskild läsning
 """
 
+import http.client
 import ipaddress
 import re
 import socket
 import ssl
+import threading
 import time
 from dataclasses import dataclass, field
 from html.parser import HTMLParser
-from urllib.parse import urlsplit
-from urllib.request import Request, urlopen
+from urllib.parse import quote, urljoin, urlsplit
 
 MAX_BYTES = 2 * 1024 * 1024
+#: Sekunder för varje enskild nätverksoperation (anslutning, en läsning).
 TIMEOUT = 10
+#: Sekunder för hela hämtningen: alla hopp och hela svaret.
+TIME_LIMIT = 20
 MAX_REDIRECTS = 5
+ALLOWED_PORTS = (80, 443)
+REDIRECT_STATUSES = (301, 302, 303, 307, 308)
+CHUNK = 64 * 1024
 USER_AGENT = "ADX Hemsidekollen (+https://adx.se/)"
 
 #: DKIM-selektorer som täcker de vanligaste leverantörerna. En träff räcker;
@@ -50,24 +63,54 @@ class Sida:
     redirects: list = field(default_factory=list)
 
 
+#: IPv6-adresser som bär en IPv4-adress inuti (NAT64): prövas som IPv4.
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
+def _blocked(ip):
+    """Ska vi vägra ansluta till den här adressen? Allt som inte är en
+    vanlig publik adress: privata nät, loopback, länklokalt (EC2-metadata),
+    reserverat, multicast, delade nät (100.64/10) och dokumentationsnät.
+    En IPv4-adress förklädd som IPv6 (::ffff:..., 64:ff9b::..., 2002:...)
+    prövas som den IPv4-adress den är."""
+    if ip.version == 6:
+        if ip.ipv4_mapped is not None:
+            ip = ip.ipv4_mapped
+        elif ip in _NAT64:
+            ip = ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+        elif ip.sixtofour is not None:
+            ip = ip.sixtofour
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_reserved
+        or ip.is_multicast
+        or ip.is_unspecified
+        or not ip.is_global
+    )
+
+
 def _assert_public(host):
-    """Alla IP:n värden pekar på måste vara publika - annars vägrar vi."""
+    """Alla IP:n värden pekar på måste vara publika - annars vägrar vi.
+    Returnerar den första (kontrollerade) IP:n, den som fetch ansluter till."""
     try:
-        infos = socket.getaddrinfo(host, None)
-    except OSError as exc:
+        infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    except (OSError, UnicodeError) as exc:
         raise AnalysError(f"Kunde inte slå upp {host}.") from exc
+    if not infos:
+        raise AnalysError(f"Kunde inte slå upp {host}.")
     for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_link_local
-            or ip.is_reserved
-            or ip.is_multicast
-            or ip.is_unspecified
-        ):
+        if _blocked(ipaddress.ip_address(info[4][0])):
             raise AnalysError("Adressen pekar på ett internt nät och granskas inte.")
     return infos[0][4][0]
+
+
+def _port_of(parts):
+    try:
+        return parts.port
+    except ValueError:
+        raise AnalysError("Bara standardportarna 80 och 443 granskas.") from None
 
 
 def normalize_url(raw):
@@ -81,31 +124,161 @@ def normalize_url(raw):
         raise AnalysError("Bara http och https granskas.")
     if not parts.hostname or "." not in parts.hostname:
         raise AnalysError("Det där ser inte ut som ett domännamn.")
-    if parts.port not in (None, 80, 443):
+    if _port_of(parts) not in (None, *ALLOWED_PORTS):
         raise AnalysError("Bara standardportarna 80 och 443 granskas.")
     return f"{parts.scheme}://{parts.netloc}{parts.path or '/'}"
 
 
-def fetch(url):
-    """Hämta en sida med SSRF-skydd och manuell redirect-följning."""
+@dataclass(frozen=True)
+class _Target:
+    """En kontrollerad adress: vart anropet går och vilken IP det går till."""
+
+    url: str
+    scheme: str
+    host: str
+    port: int
+    path: str
+    ip: str
+
+
+def _target(url):
+    """Kontrollera en adress (den första eller ett redirect-hopp) och lös
+    upp den. Inget anrop görs här; fetch ansluter sedan till .ip."""
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https"):
+        raise AnalysError("Bara http och https granskas.")
+    host = (parts.hostname or "").rstrip(".")
+    if not host:
+        raise AnalysError("Det där ser inte ut som ett domännamn.")
+    port = _port_of(parts)
+    if port not in (None, *ALLOWED_PORTS):
+        raise AnalysError("Bara standardportarna 80 och 443 granskas.")
+    try:
+        host = host.encode("idna").decode("ascii")
+    except UnicodeError:
+        raise AnalysError("Det där ser inte ut som ett domännamn.") from None
+    port = port or (443 if parts.scheme == "https" else 80)
+    path = quote(parts.path or "/", safe="/%:@!$&'()*+,;=-._~")
+    if parts.query:
+        path += "?" + quote(parts.query, safe="/%:@!$&'()*+,;=-._~?")
+    return _Target(url, parts.scheme, host, port, path, _assert_public(host))
+
+
+def _pinned_connection(target, timeout):
+    """En HTTP(S)-anslutning som går till target.ip. Host-huvudet,
+    TLS-namnet (SNI) och certifikatkontrollen gäller fortfarande värdnamnet:
+    http.client tar dem från conn.host, bara själva uppkopplingen byts ut."""
+    if target.scheme == "https":
+        conn = http.client.HTTPSConnection(
+            target.host, target.port, timeout=timeout, context=ssl.create_default_context()
+        )
+    else:
+        conn = http.client.HTTPConnection(target.host, target.port, timeout=timeout)
+
+    def connect_to_checked_ip(address, timeout=None, source_address=None):
+        return socket.create_connection((target.ip, address[1]), timeout, source_address)
+
+    conn._create_connection = connect_to_checked_ip
+    return conn
+
+
+class _Watchdog:
+    """Stänger anslutningen när tiden för hela hämtningen är slut, även mitt
+    i en läsning (en server som skickar en byte i taget håller annars
+    tråden kvar så länge den vill)."""
+
+    def __init__(self, conn, seconds):
+        self.fired = threading.Event()
+        self._conn = conn
+        self._timer = threading.Timer(max(0.0, seconds), self._fire)
+        self._timer.daemon = True
+        self._timer.start()
+
+    def _fire(self):
+        self.fired.set()
+        sock = self._conn.sock
+        if sock is not None:
+            try:
+                socket.socket.shutdown(sock, socket.SHUT_RDWR)
+            except OSError:
+                pass
+
+    def cancel(self):
+        self._timer.cancel()
+
+
+def _too_slow():
+    return AnalysError("Sidan svarade inte i tid.")
+
+
+def _request(target, deadline, max_bytes):
+    """Ett anrop till en kontrollerad adress: (status, headers, body).
+    body är högst max_bytes + 1 byte (så avkortning syns)."""
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise _too_slow()
+    conn = _pinned_connection(target, timeout=min(TIMEOUT, remaining))
+    watchdog = _Watchdog(conn, remaining)
+    try:
+        conn.request(
+            "GET",
+            target.path,
+            headers={"User-Agent": USER_AGENT, "Accept": "*/*", "Connection": "close"},
+        )
+        response = conn.getresponse()
+        headers = {k.lower(): v for k, v in response.getheaders()}
+        status = response.status
+        chunks, size = [], 0
+        if status not in REDIRECT_STATUSES:
+            while size <= max_bytes:
+                if time.monotonic() >= deadline:
+                    raise _too_slow()
+                chunk = response.read1(min(CHUNK, max_bytes + 1 - size))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                size += len(chunk)
+        if watchdog.fired.is_set():
+            raise _too_slow()
+        return status, headers, b"".join(chunks)
+    except AnalysError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - nätverksfel ÄR resultatet
+        if watchdog.fired.is_set() or time.monotonic() >= deadline:
+            raise _too_slow() from exc
+        raise AnalysError(f"Kunde inte hämta {target.url}: {exc}") from exc
+    finally:
+        watchdog.cancel()
+        conn.close()
+
+
+def fetch(url, *, max_bytes=MAX_BYTES, time_limit=TIME_LIMIT):
+    """Hämta en sida med SSRF-skydd och manuell redirect-följning.
+
+    Varje hopp kontrolleras (schema, port, publik IP) innan något anrop görs
+    och ansluts till den IP som kontrollerades. Hela hämtningen, alla hopp
+    och hela svaret, får ta högst time_limit sekunder; svaret avkortas vid
+    max_bytes."""
+    deadline = time.monotonic() + time_limit
     sida = Sida()
     current = url
     for _ in range(MAX_REDIRECTS + 1):
-        parts = urlsplit(current)
-        _assert_public(parts.hostname)
-        request = Request(current, headers={"User-Agent": USER_AGENT})  # noqa: S310
+        target = _target(current)
         start = time.monotonic()
-        try:
-            with urlopen(request, timeout=TIMEOUT) as response:  # noqa: S310
-                body = response.read(MAX_BYTES + 1)
-                sida.status = response.status
-                sida.headers = {k.lower(): v for k, v in response.headers.items()}
-                sida.url = response.url
-        except Exception as exc:  # noqa: BLE001 - nätverksfel ÄR resultatet
-            raise AnalysError(f"Kunde inte hämta {current}: {exc}") from exc
+        status, headers, body = _request(target, deadline, max_bytes)
+        location = headers.get("location", "")
+        if status in REDIRECT_STATUSES and location:
+            sida.redirects.append(current)
+            current = urljoin(current, location.strip())
+            continue
+        if not 200 <= status < 300:
+            raise AnalysError(f"Kunde inte hämta {current}: HTTP {status}")
+        sida.status = status
+        sida.headers = headers
+        sida.url = current
         sida.ms = int((time.monotonic() - start) * 1000)
-        sida.bytes = min(len(body), MAX_BYTES)
-        sida.html = body[:MAX_BYTES].decode("utf-8", "replace")
+        sida.bytes = min(len(body), max_bytes)
+        sida.html = body[:max_bytes].decode("utf-8", "replace")
         return sida
     raise AnalysError("För många omdirigeringar.")
 

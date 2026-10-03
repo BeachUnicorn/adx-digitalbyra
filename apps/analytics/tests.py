@@ -38,6 +38,7 @@ from .utils import (
     anonymize_ip,
     classify_referrer,
     classify_source,
+    get_client_ip,
     is_bot,
     normalize_path,
     parse_user_agent,
@@ -132,6 +133,32 @@ class IPAnonymizationTests(TestCase):
     def test_invalid_ip_returns_none(self):
         self.assertIsNone(anonymize_ip("not-an-ip"))
         self.assertIsNone(anonymize_ip(""))
+
+
+class ClientIpTests(TestCase):
+    """nginx BYGGER PÅ X-Forwarded-For: den första posten är vad klienten
+    skickade. Granskningen 2026-10-03 fann att den användes."""
+
+    def test_the_first_forwarded_entry_is_never_trusted(self):
+        request = RequestFactory().get(
+            "/", HTTP_X_FORWARDED_FOR="203.0.113.66, 198.51.100.9", REMOTE_ADDR="127.0.0.1"
+        )
+        self.assertEqual(get_client_ip(request), "198.51.100.9")
+
+    def test_x_real_ip_from_nginx_wins(self):
+        request = RequestFactory().get(
+            "/",
+            HTTP_X_REAL_IP="198.51.100.10",
+            HTTP_X_FORWARDED_FOR="203.0.113.66, 198.51.100.10",
+            REMOTE_ADDR="127.0.0.1",
+        )
+        self.assertEqual(get_client_ip(request), "198.51.100.10")
+
+    def test_garbage_falls_back_to_remote_addr(self):
+        request = RequestFactory().get(
+            "/", HTTP_X_FORWARDED_FOR="198.51.100.9, nonsens", REMOTE_ADDR="192.0.2.4"
+        )
+        self.assertEqual(get_client_ip(request), "192.0.2.4")
 
 
 # ===========================================================================

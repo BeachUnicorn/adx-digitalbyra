@@ -1,0 +1,140 @@
+{% comment %}
+Granskningsformuläret (manage_review.ReviewForm). Varje del (rubrikerna,
+sökorden, sidans ingress ...) har ett skäl-fält: ändras något i delen krävs
+ett skäl, och kunden ser det bredvid ändringen. manage-flamingo.js visar
+skäl-fältet först när delen ändrats; utan skript syns alla.
+Rubrikerna och beskrivningarna visar de ifyllda rutorna och två tomma; de
+övriga tomma ligger i en <details> (split_slots) och postas ändå.
+{% endcomment %}
+<form method="post" class="m-form mf-review" id="granskning" data-review-form novalidate>
+    {% csrf_token %}
+
+    {% if problems_need_ack and problems %}
+    <div class="m-form-error mf-problems" role="alert">
+        <p><b>Kontrollerna hittade något.</b> Rätta det, eller bocka i längst ner att du läst kontrollerna.</p>
+        <ul>{% for p in problems %}<li>{{ p }}</li>{% endfor %}</ul>
+    </div>
+    {% endif %}
+
+    <section class="m-panel m-form-panel" aria-labelledby="mf-ad-title">
+        <h2 class="m-form-section" id="mf-ad-title">Annonsen</h2>
+        <p class="m-form-hint">Google visar två eller tre rubriker och en eller två beskrivningar åt gången och testar kombinationerna. Töm en ruta för att ta bort texten.</p>
+        <div class="m-serp mf-serp" aria-label="Ungefär så här i Google" data-serp>
+            <div class="m-serp__label">Sponsrad</div>
+            <div class="m-serp__url">{{ landing_full_url }}</div>
+            <div class="m-serp__title" data-serp-title>{{ form.headlines.0.value }}{% if form.headlines.1.value %} | {{ form.headlines.1.value }}{% endif %}</div>
+            <div class="m-serp__desc" data-serp-desc>{{ form.descriptions.0.value }}</div>
+        </div>
+
+        <fieldset class="mf-group{% if groups.headlines.changed or groups.headlines.reason_error %} is-changed{% endif %}" data-review-group="headlines">
+            <legend class="mf-legend">Rubriker <span>högst {{ headline_max }} tecken, 3 till 15 st</span></legend>
+            {% if groups.headlines.error %}<div class="m-field-error mf-group__error">{{ groups.headlines.error }}</div>{% endif %}
+            {% with slots=form.headline_slots %}
+            <div class="mf-slots">
+                {% for slot in slots.shown %}{% include "manage/flamingo/_text_slot.html" with label="Rubrik" %}{% endfor %}
+            </div>
+            {% if slots.more %}
+            <details class="mf-more">
+                <summary>Fler rubriker <span>{{ slots.more|length }} tomma</span></summary>
+                <div class="mf-slots">
+                    {% for slot in slots.more %}{% include "manage/flamingo/_text_slot.html" with label="Rubrik" %}{% endfor %}
+                </div>
+            </details>
+            {% endif %}
+            {% endwith %}
+            {% include "manage/flamingo/_reason.html" with key="headlines" group=groups.headlines %}
+        </fieldset>
+
+        <fieldset class="mf-group{% if groups.descriptions.changed or groups.descriptions.reason_error %} is-changed{% endif %}" data-review-group="descriptions">
+            <legend class="mf-legend">Beskrivningar <span>högst {{ description_max }} tecken, 2 till 4 st</span></legend>
+            {% if groups.descriptions.error %}<div class="m-field-error mf-group__error">{{ groups.descriptions.error }}</div>{% endif %}
+            {% with slots=form.description_slots %}
+            {% for slot in slots.shown %}{% include "manage/flamingo/_text_slot.html" with label="Beskrivning" multiline=True %}{% endfor %}
+            {% if slots.more %}
+            <details class="mf-more">
+                <summary>Fler beskrivningar <span>{{ slots.more|length }} tomma</span></summary>
+                {% for slot in slots.more %}{% include "manage/flamingo/_text_slot.html" with label="Beskrivning" multiline=True %}{% endfor %}
+            </details>
+            {% endif %}
+            {% endwith %}
+            {% include "manage/flamingo/_reason.html" with key="descriptions" group=groups.descriptions %}
+        </fieldset>
+    </section>
+
+    <section class="m-panel m-form-panel" aria-labelledby="mf-kw-title">
+        <h2 class="m-form-section" id="mf-kw-title">Sökorden</h2>
+
+        <fieldset class="mf-group{% if groups.keywords.changed or groups.keywords.reason_error %} is-changed{% endif %}" data-review-group="keywords">
+            <legend class="mf-legend">Sökord <span>fras, exakt eller bred</span></legend>
+            {% if groups.keywords.error %}<div class="m-field-error mf-group__error">{{ groups.keywords.error }}</div>{% endif %}
+            <div class="mf-rows">
+                {% for row in form.keywords %}
+                <div class="m-field mf-row">
+                    <input name="kw_text" value="{{ row.text }}" aria-label="Sökord {{ forloop.counter }}" autocomplete="off" placeholder="Nytt sökord">
+                    <select name="kw_match" aria-label="Matchningstyp, sökord {{ forloop.counter }}">
+                        {% for value, label in match_choices %}<option value="{{ value }}"{% if row.match == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                    {% if row.error %}<div class="m-field-error mf-row__error">{{ row.error }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <p class="m-field-help">Töm en rad för att ta bort sökordet. De tomma raderna längst ner är för nya.</p>
+            {% include "manage/flamingo/_reason.html" with key="keywords" group=groups.keywords %}
+        </fieldset>
+
+        <fieldset class="mf-group{% if groups.negatives.changed or groups.negatives.reason_error %} is-changed{% endif %}" data-review-group="negatives">
+            <legend class="mf-legend">Negativa sökord <span>ett per rad</span></legend>
+            <div class="m-field">
+                <label for="f-negatives" class="m-sr-only">Negativa sökord, ett per rad</label>
+                <textarea id="f-negatives" name="negatives" rows="6" spellcheck="false">{{ form.negatives }}</textarea>
+                {% if form.errors.negatives %}<div class="m-field-error">{{ form.errors.negatives }}</div>{% endif %}
+            </div>
+            {% include "manage/flamingo/_reason.html" with key="negatives" group=groups.negatives %}
+        </fieldset>
+    </section>
+
+    <section class="m-panel m-form-panel" aria-labelledby="mf-page-title">
+        <h2 class="m-form-section" id="mf-page-title">Sidan</h2>
+        <p class="m-form-hint">Landningssidan på <code>{{ campaign.landing_url }}</code>. Bara bekräftade uppgifter får stå här.</p>
+
+        {% include "manage/flamingo/_page_field.html" with key="page_title" group=groups.page_title label="Rubrik" value=form.page.title error=form.errors.page_title %}
+        {% include "manage/flamingo/_page_field.html" with key="page_lead" group=groups.page_lead label="Ingress" value=form.page.lead error=form.errors.page_lead multiline=True %}
+        {% include "manage/flamingo/_page_field.html" with key="page_points" group=groups.page_points label="Punkter, en per rad" value=form.page.points error=form.errors.page_points multiline=True %}
+        {% include "manage/flamingo/_page_field.html" with key="page_phone" group=groups.page_phone label="Telefon (ringknappen, tom = ingen)" value=form.page.phone error=form.errors.page_phone %}
+        {% include "manage/flamingo/_page_field.html" with key="page_form_title" group=groups.page_form_title label="Formulärets rubrik" value=form.page.form_title error=form.errors.page_form_title %}
+
+        <fieldset class="mf-group{% if groups.page_questions.changed or groups.page_questions.reason_error %} is-changed{% endif %}" data-review-group="page_questions">
+            <legend class="mf-legend">Frågor i formuläret <span>utöver namn och telefon</span></legend>
+            <div class="mf-rows">
+                {% for row in form.questions %}
+                <div class="m-field mf-row mf-row--q">
+                    <input name="q_label" value="{{ row.label }}" aria-label="Fråga {{ forloop.counter }}" autocomplete="off" placeholder="Ny fråga">
+                    <select name="q_kind" aria-label="Sorts svar, fråga {{ forloop.counter }}">
+                        {% for value, label in question_kinds %}<option value="{{ value }}"{% if row.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+                    </select>
+                    {% if row.error %}<div class="m-field-error mf-row__error">{{ row.error }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% include "manage/flamingo/_reason.html" with key="page_questions" group=groups.page_questions %}
+        </fieldset>
+
+        {% include "manage/flamingo/_page_field.html" with key="page_note" group=groups.page_note label="Text under formuläret" value=form.page.note error=form.errors.page_note multiline=True %}
+    </section>
+
+    <section class="m-panel m-form-panel" aria-labelledby="mf-send-title">
+        <h2 class="m-form-section" id="mf-send-title">Till kunden</h2>
+        <div class="m-field">
+            <label for="f-note">Meddelande till kunden, om du vill</label>
+            <textarea id="f-note" name="note" rows="3" maxlength="1000">{{ form.note }}</textarea>
+            <div class="m-field-help">Står överst i granskningen i verktyget, ovanför ändringarna.</div>
+        </div>
+        {% if problems_need_ack %}
+        <label class="mf-ack"><input type="checkbox" name="accept_checks" value="1"> Jag har läst kontrollerna och skickar ändå</label>
+        {% endif %}
+        <div class="mf-submit">
+            <button type="submit" class="m-btn">Klar, skicka till kunden</button>
+            <p class="m-form-hint">Kunden ser ändringarna och skälen i ADX Flamingo och godkänner där. Inget mejl skickas; vill du säga till gör du det själv.</p>
+        </div>
+    </section>
+</form>

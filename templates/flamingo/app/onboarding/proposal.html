@@ -1,0 +1,139 @@
+{% extends "flamingo/app/base.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Förslaget (kundresan steg 2). Kontext från app_views/onboarding.proposal:
+form (WebsiteForm), scan_state (none/running/done/failed/interrupted), host,
+timeline [{state, title, meta}], services [{service, checked, mode}], rating,
+example {service, host, headline, description [(text, is_fact)], marks_facts,
+budget, area} eller None (onboarding._example).
+Inget publiceras härifrån: tjänsterna är förslag tills kunden kryssat i dem,
+uppgifterna är obekräftade tills kunden bekräftat dem under Företaget.
+Exempelannonsen bygger bara på bekräftade uppgifter (de understrukna).
+{% endcomment %}
+{% block app_title %}Förslaget{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">Ditt förslag</p>
+    <h1 class="fl-app-title">{{ customer.name }}</h1>
+    <p class="fl-app-lead">Vi läser din hemsida och föreslår vilka tjänster som ska annonseras och vad vi får säga om dig. Inget publiceras härifrån.</p>
+  </div>
+  {% if rating %}
+  <div class="fl-app-head__actions">
+    <span class="fl-onb-rating"><span class="fl-onb-rating__star" aria-hidden="true">&#9733;</span>{{ rating }} på Google</span>
+  </div>
+  {% endif %}
+</header>
+
+<section class="fl-panel" aria-labelledby="fl-onb-site">
+  <h2 class="fl-panel__title" id="fl-onb-site">Din hemsida</h2>
+  {% if read_only %}
+  <p class="fl-panel__text">{% if account.website_url %}{{ account.website_url }}{% else %}Ingen hemsida angiven än.{% endif %}</p>
+  {% else %}
+  <form method="post" class="fl-form" data-fl-busy="Läser hemsidan ...">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="scan">
+    <div class="fl-field{% if form.website_url.errors %} is-error{% endif %}">
+      <label class="fl-field__label" for="fl-onb-url">Adress till hemsidan</label>
+      <div class="fl-onb-inline">
+        <input class="fl-input" id="fl-onb-url" type="text" name="website_url" value="{{ form.website_url.value|default_if_none:'' }}" maxlength="200" inputmode="url" autocomplete="url" autocapitalize="off" spellcheck="false" placeholder="dittforetag.se" required{% if form.website_url.errors %} aria-invalid="true" aria-describedby="fl-onb-url-error"{% endif %}>
+        <button type="submit" class="fl-btn">{% if scan_state == "done" %}Läs av igen{% else %}Läs av hemsidan{% endif %}</button>
+      </div>
+      {% for error in form.website_url.errors %}<p class="fl-field__error" id="fl-onb-url-error">{{ error }}</p>{% endfor %}
+      <p class="fl-field__help">Vi läser startsidan och några sidor den länkar till. Det tar en stund. Det du redan bekräftat skrivs aldrig över.</p>
+    </div>
+  </form>
+  {% endif %}
+</section>
+
+<section class="fl-panel fl-panel--soft" aria-labelledby="fl-onb-done">
+  <h2 class="fl-sr" id="fl-onb-done">Det vi gjort</h2>
+  <ol class="fl-timeline">
+    {% for item in timeline %}
+    <li class="fl-timeline__item is-{{ item.state }}">
+      <span class="fl-timeline__dot" aria-hidden="true"></span>
+      <div class="fl-timeline__body">
+        {% if item.state == "now" %}<b>{{ item.title }}</b>{% else %}<span>{{ item.title }}</span>{% endif %}
+        {% if item.meta %}<span class="fl-timeline__meta">{{ item.meta }}</span>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+</section>
+
+<section class="fl-panel" aria-labelledby="fl-onb-services">
+  <h2 class="fl-panel__title" id="fl-onb-services">Tjänster vi skulle marknadsföra, och hur de säljs</h2>
+  {% if services %}
+    {% if read_only %}
+    <ul class="fl-onb-chiplist">
+      {% for item in services %}
+      <li class="fl-onb-chip{% if item.service.is_active %} is-on{% endif %}"><i class="fl-dot fl-dot--{{ item.service.sales_mode }}" aria-hidden="true"></i><b class="fl-onb-chip__text">{{ item.service.name }} <small class="fl-onb-chip__mode">&middot; {{ item.mode }}</small></b>{% if not item.service.is_active %}<span class="fl-sr">, inte med</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <form method="post" class="fl-form" id="fl-onb-services-form">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="services">
+      <fieldset class="fl-field fl-onb-fieldset">
+        <legend class="fl-field__help">Kryssa i det du vill annonsera. Hur varje tjänst säljs ändrar du under Företaget.</legend>
+        <div class="fl-chips">
+          {% for item in services %}
+          <label class="fl-chips__item"><input type="checkbox" name="service" value="{{ item.service.pk }}"{% if item.checked %} checked{% endif %}><span><i class="fl-dot fl-dot--{{ item.service.sales_mode }}" aria-hidden="true"></i><b class="fl-onb-chip__text">{{ item.service.name }} <small class="fl-onb-chip__mode">&middot; {{ item.mode }}</small></b></span></label>
+          {% endfor %}
+          <a class="fl-chips__item fl-chips__item--add" href="{% url 'flamingo:app_business' %}#ny-tjanst"><span>+ lägg till</span></a>
+        </div>
+      </fieldset>
+    </form>
+    {% endif %}
+  {% else %}
+  <div class="fl-empty">
+    <p class="fl-empty__title">Inga tjänster än</p>
+    <p class="fl-empty__text">{% if scan_state == "done" %}Vi hittade inga tjänster på hemsidan. Lägg till dem själv under Företaget.{% else %}Läs av hemsidan ovan, eller lägg till tjänsterna själv under Företaget.{% endif %}</p>
+    {% if not read_only %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_business' %}#ny-tjanst">Lägg till en tjänst</a>{% endif %}
+  </div>
+  {% endif %}
+</section>
+
+{% if example %}
+<section class="fl-onb-example" aria-labelledby="fl-onb-example">
+  <h2 class="fl-sr" id="fl-onb-example">Exempel på en annons och föreslagen start</h2>
+  <div class="fl-cols">
+    {% if example.headline %}
+    <div class="fl-ad fl-onb-example__ad">
+      <p class="fl-kicker fl-onb-example__kicker">Exempel, {{ example.service.name }}</p>
+      <p class="fl-ad__top"><b>Sponsrad</b> <span>{{ example.host }}</span></p>
+      <p class="fl-ad__headline">{{ example.headline }}</p>
+      {% if example.description %}<p class="fl-ad__desc">{% for seg, is_fact in example.description %}{% if is_fact %}<span class="fl-fact{% if is_fact == "phone" %} fl-fact--phone{% endif %}">{{ seg }}</span>{% else %}{{ seg }}{% endif %}{% endfor %}</p>{% endif %}
+    </div>
+    {% endif %}
+    <div class="fl-panel fl-onb-start">
+      <p class="fl-kicker">Föreslagen start</p>
+      <p class="fl-kpi__value">{{ example.budget|kr }}/dag</p>
+      <p class="fl-panel__text">{% if example.area %}Område: {{ example.area }}. {% else %}Området väljer du när du skapar kampanjen. {% endif %}Pengarna betalar du direkt till Google.</p>
+    </div>
+  </div>
+</section>
+{% endif %}
+
+{% comment %}Som i kundresan: raden längst ner, med knappen som sparar tjänsterna (form= pekar på formuläret ovanför exemplet).{% endcomment %}
+{% if services and not read_only %}
+<div class="fl-form__actions fl-onb-save">
+  <p class="fl-form__note">{% include "flamingo/app/onboarding/_proposal_note.html" %}</p>
+  <button type="submit" form="fl-onb-services-form" class="fl-btn">Spara tjänsterna och fortsätt</button>
+</div>
+{% elif example %}
+<p class="fl-panel__note">{% include "flamingo/app/onboarding/_proposal_note.html" %}</p>
+{% endif %}
+
+{% if not services or read_only %}
+<section class="fl-panel fl-onb-next" aria-labelledby="fl-onb-next">
+  <div class="fl-onb-next__text">
+    <p class="fl-kicker">Nästa steg</p>
+    <h2 class="fl-panel__title" id="fl-onb-next">Företaget</h2>
+    <p class="fl-panel__text">Bekräfta det vi får säga om dig: telefon, adress, priser och annat.</p>
+  </div>
+  <a class="fl-btn" href="{% url 'flamingo:app_business' %}">Till Företaget</a>
+</section>
+{% endif %}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-onboarding.js' %}?v={{ static_version }}" defer></script>{% endblock %}

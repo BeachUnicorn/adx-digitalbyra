@@ -91,10 +91,11 @@ class BlockPageForm(forms.ModelForm):
         return candidate
 
     #: Adresser som en sida med den här designen inte kan få, eftersom en
-    #: annan rutt redan äger dem: /flamingo/ är Flamingos område, och
-    #: /flamingo/app/ är verktyget.
+    #: annan rutt redan äger dem: /flamingo/ är Flamingos område,
+    #: /flamingo/app/ är verktyget och /lp/ är Flamingo-kundernas
+    #: landningssidor.
     RESERVED_SLUGS = {
-        BlockPage.DESIGN_ADX: {BlockPage.FLAMINGO_HOME_SLUG},
+        BlockPage.DESIGN_ADX: {BlockPage.FLAMINGO_HOME_SLUG, "lp"},
         BlockPage.DESIGN_FLAMINGO: {"app"},
     }
 

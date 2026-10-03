@@ -135,7 +135,7 @@
         "data": {
           "kicker": "Hela vägen",
           "title": "Från visning till affär, i kronor.",
-          "intro": "Bandet visar var kunderna faller bort på vägen. Siffrorna räknas ur dina annonser och det du markerar i inkorgen, inte av AI.",
+          "intro": "Bandet visar var kunderna faller bort på vägen. Förfrågningar och affärer räknas ur det du markerar i inkorgen, inte av AI. Visningar och klick kommer när Google-rapporterna är kopplade.",
           "note": "Exempeldata.",
           "anchor": "",
           "stages": [

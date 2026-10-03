@@ -4,6 +4,7 @@ from apps.aidocs import manage_views as aidocs_views
 from apps.assistant import history_views, oauth_views
 from apps.assistant import views as assistant_views
 from apps.cloud import manage_views as cloud_views
+from apps.flamingo import manage_review as flamingo_review
 from apps.flamingo import manage_views as flamingo_views
 from apps.monitor import manage_views as monitor_views
 from apps.offers import manage_views as offer_views
@@ -94,6 +95,28 @@ urlpatterns = [
         name="flamingo_customer_update",
     ),
     path("kunder/<int:pk>/flamingo/visa/", flamingo_views.view_as, name="flamingo_view_as"),
+    path(
+        "kunder/<int:pk>/flamingo/google/",
+        flamingo_review.google_update,
+        name="flamingo_google_update",
+    ),
+    path("flamingo/granska/", flamingo_review.queue, name="flamingo_queue"),
+    path("flamingo/granska/<int:pk>/", flamingo_review.review, name="flamingo_review"),
+    path(
+        "flamingo/kampanj/<int:pk>/publicera/",
+        flamingo_review.publish,
+        name="flamingo_publish",
+    ),
+    path(
+        "flamingo/kampanj/<int:pk>/editor.csv",
+        flamingo_review.editor_csv,
+        name="flamingo_editor_csv",
+    ),
+    path(
+        "flamingo/konverteringar.csv",
+        flamingo_review.conversions_csv,
+        name="flamingo_conversions_csv",
+    ),
     # Övervakning (apps/monitor)
     path("drift/", monitor_views.drift, name="drift"),
     path("kunder/<int:pk>/overvakning/", monitor_views.monitor_update, name="monitor_update"),

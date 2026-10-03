@@ -1,0 +1,191 @@
+{% extends "manage/base.html" %}
+{% load static flamingo_app %}
+
+{% block title %}Granska: ADX Flamingo{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/manage-flamingo.css' %}?v={{ static_version }}">
+{% endblock %}
+
+{% block content %}
+<div class="mf-page">
+{% comment %}
+Byråns kö för ADX Flamingo (apps/flamingo/manage_review.py). Inget här
+mejlar kunden: kunden ser granskningen i verktyget.
+{% endcomment %}
+<div class="m-page-head">
+    <p class="m-page-head__back"><a href="{% url 'manage:flamingo_overview' %}">ADX Flamingo</a></p>
+    <h1 class="m-page-head__title">Granska</h1>
+    <p class="m-page-head__subtitle">Kampanjer som väntar på ADX, det som ska publiceras och affärerna som ska tillbaka till Google. Inget här mejlar kunden.</p>
+</div>
+
+<nav class="mf-tiles" aria-label="Delar av kön">
+    <a class="m-stat mf-tile{% if to_review %} is-hot{% endif %}" href="#att-granska"><span class="m-stat__value">{{ to_review|length }}</span><span class="m-stat__label">Att granska</span></a>
+    <a class="m-stat mf-tile" href="#att-publicera"><span class="m-stat__value">{{ to_publish|length }}</span><span class="m-stat__label">Att publicera</span></a>
+    <a class="m-stat mf-tile" href="#hos-kunden"><span class="m-stat__value">{{ waiting|length }}</span><span class="m-stat__label">Hos kunden</span></a>
+    <a class="m-stat mf-tile" href="#konverteringar"><span class="m-stat__value">{{ uploads|length }}</span><span class="m-stat__label">Konverteringar i kö</span></a>
+</nav>
+
+<h2 class="m-section-title mf-section" id="att-granska">Att granska <span class="mf-section__note">äldst först</span></h2>
+{% if to_review %}
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Kampanj</th><th>Kund</th><th>Tjänst</th><th>Inskickad</th><th>Runda</th><th></th></tr></thead>
+        <tbody>
+        {% for item in to_review %}
+            <tr>
+                <td><a class="mf-strong" href="{% url 'manage:flamingo_review' item.campaign.pk %}">{{ item.campaign.name }}</a></td>
+                <td>{{ item.customer.name }}</td>
+                <td><div>{{ item.campaign.service.name }}<br><span class="m-muted">{{ item.campaign.get_sales_mode_display }}</span></div></td>
+                <td class="m-num">{{ item.submitted_at|date:"j b H:i" }}</td>
+                <td class="m-num">{% if item.review %}{{ item.review.round }}{% else %}-{% endif %}</td>
+                <td><a class="m-btn m-btn--small" href="{% url 'manage:flamingo_review' item.campaign.pk %}">Granska</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="m-panel"><p class="m-empty">Inget väntar på granskning.</p></div>
+{% endif %}
+
+<h2 class="m-section-title mf-section" id="att-publicera">Godkända, ej publicerade</h2>
+{% if to_publish %}
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Kampanj</th><th>Kund</th><th>Godkänd</th><th>Google</th><th></th></tr></thead>
+        <tbody>
+        {% for c in to_publish %}
+            <tr>
+                <td><a class="mf-strong" href="{% url 'manage:flamingo_review' c.pk %}">{{ c.name }}</a><br><span class="m-muted">{{ c.service.name }}</span></td>
+                <td>{{ c.account.customer.name }}</td>
+                <td class="m-num">{{ c.approved_at|date:"j b H:i" }}</td>
+                <td>{% if c.account.google_ready %}<span class="m-badge m-badge--published">Klart</span>{% else %}<span class="m-badge m-badge--in_progress">{{ c.account.get_google_status_display }}</span>{% endif %}</td>
+                <td><a class="m-btn m-btn--small" href="{% url 'manage:flamingo_review' c.pk %}#publicering">Publicera</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="m-panel"><p class="m-empty">Inget godkänt väntar på publicering.</p></div>
+{% endif %}
+
+<h2 class="m-section-title mf-section" id="hos-kunden">Granskade, hos kunden</h2>
+{% if waiting %}
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Kampanj</th><th>Kund</th><th>Till kunden</th><th></th></tr></thead>
+        <tbody>
+        {% for c in waiting %}
+            <tr>
+                <td><a class="mf-strong" href="{% url 'manage:flamingo_review' c.pk %}">{{ c.name }}</a></td>
+                <td>{{ c.account.customer.name }}</td>
+                <td class="m-num">{{ c.sent_at|date:"j b H:i"|default:"-" }}</td>
+                <td><a class="m-btn m-btn--ghost m-btn--small" href="{% url 'manage:flamingo_review' c.pk %}">Öppna</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="m-field-help mf-after">Kunden godkänner i verktyget. Vill du påminna gör du det själv; inget skickas härifrån.</p>
+{% else %}
+<div class="m-panel"><p class="m-empty">Ingen granskad kampanj väntar på kunden.</p></div>
+{% endif %}
+
+<h2 class="m-section-title mf-section" id="live">Live och pausade</h2>
+{% if published %}
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Kampanj</th><th>Kund</th><th>Status</th><th>Publicerad</th><th>Budget per dag</th><th></th></tr></thead>
+        <tbody>
+        {% for c in published %}
+            <tr>
+                <td><a class="mf-strong" href="{% url 'manage:flamingo_review' c.pk %}">{{ c.name }}</a></td>
+                <td>{{ c.account.customer.name }}</td>
+                <td>{% if c.status == "live" %}<span class="m-badge m-badge--published">Live</span>{% else %}<span class="m-badge">Pausad</span>{% endif %}</td>
+                <td class="m-num">{{ c.published_at|date:"j b Y"|default:"-" }}</td>
+                <td class="m-num">{{ c.daily_budget_kr|kr }}</td>
+                <td>{% if c.status == "live" %}<a class="m-btn m-btn--ghost m-btn--small" href="{{ c.landing_url }}" target="_blank" rel="noopener">Sidan ↗</a>{% endif %}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="m-panel"><p class="m-empty">Ingen kampanj är publicerad än.</p></div>
+{% endif %}
+
+<h2 class="m-section-title mf-section" id="konverteringar">Konverteringar till Google</h2>
+<p class="m-field-help mf-before">Vunna affärer med Googles klick-id och ett belopp. Varje kund har sitt eget Google Ads-konto: ladda ner kundens fil, ladda upp den i kontot (Mål, Konverteringar, Uppladdningar) och markera raderna som exporterade. Konverteringen heter <code>{{ conversion_name }}</code> i filen och måste finnas med exakt det namnet i kundens konto.</p>
+{% if upload_groups %}
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Kund</th><th>Affärer</th><th>Värde</th><th></th></tr></thead>
+        <tbody>
+        {% for g in upload_groups %}
+            <tr>
+                <td class="mf-strong">{{ g.customer.name }}</td>
+                <td class="m-num">{{ g.count }}</td>
+                <td class="m-num">{{ g.value|kr }}</td>
+                <td>
+                    <div class="mf-actions">
+                        <a class="m-btn m-btn--small" href="{% url 'manage:flamingo_conversions_csv' %}?kund={{ g.customer.pk }}">Ladda ner CSV</a>
+                        <form method="post" action="{% url 'manage:flamingo_conversions_csv' %}" data-confirm="Har du laddat upp filen för {{ g.customer.name }} i Google Ads? Raderna markeras som exporterade.">{% csrf_token %}
+                            <input type="hidden" name="kund" value="{{ g.customer.pk }}">
+                            {% for u in g.uploads %}<input type="hidden" name="upload" value="{{ u.pk }}">{% endfor %}
+                            <button type="submit" class="m-btn m-btn--ghost m-btn--small">Markera som exporterade</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="m-field-help mf-after">Totalt {{ uploads|length }} affär{{ uploads|length|pluralize:"er" }} värda {{ upload_total|kr }}. <a href="{% url 'manage:flamingo_conversions_csv' %}">Alla kunder i en fil</a> (bara för kontroll: Google tar emot en fil per konto).</p>
+
+<div class="m-panel m-table-wrap mf-gap">
+    <table class="m-table">
+        <thead><tr><th>Förfrågan</th><th>Kund</th><th>Tjänst</th><th>Vunnen</th><th>Värde</th></tr></thead>
+        <tbody>
+        {% for u in uploads %}
+            <tr>
+                <td>{{ u.lead.display_name }}</td>
+                <td>{{ u.lead.account.customer.name }}</td>
+                <td>{{ u.lead.service_name|default:"-" }}</td>
+                <td class="m-num">{{ u.lead.won_at|default:u.created_at|date:"j b Y" }}</td>
+                <td class="m-num">{{ u.value_kr|kr }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="m-panel"><p class="m-empty">Inga affärer väntar på att skickas till Google.</p></div>
+{% endif %}
+
+{% if exported %}
+<h2 class="m-section-title mf-section">Senast exporterade</h2>
+<div class="m-panel m-table-wrap">
+    <table class="m-table">
+        <thead><tr><th>Förfrågan</th><th>Kund</th><th>Värde</th><th>Exporterad</th></tr></thead>
+        <tbody>
+        {% for u in exported %}
+            <tr>
+                <td>{{ u.lead.display_name }}</td>
+                <td>{{ u.lead.account.customer.name }}</td>
+                <td class="m-num">{{ u.value_kr|kr }}</td>
+                <td class="m-num">{{ u.exported_at|date:"j b H:i" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/manage-flamingo.js' %}?v={{ static_version }}" defer></script>
+{% endblock %}

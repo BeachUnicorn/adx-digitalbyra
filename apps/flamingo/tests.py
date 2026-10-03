@@ -212,6 +212,16 @@ class ManageTests(FlamingoFixture, TestCase):
         self.assertEqual(response["Location"], "/flamingo/")
         self.assertContains(client.get("/flamingo/"), "Du ser Flamingo som Acme AB")
 
+    def test_view_as_can_land_in_the_tool_but_never_outside_flamingo(self):
+        client = self.client_for(self.staff)
+        url = f"/manage/kunder/{self.acme.pk}/flamingo/visa/"
+        response = client.post(url, {"next": "/flamingo/app/"})
+        self.assertEqual(response["Location"], "/flamingo/app/")
+        for target in ("https://evil.example/flamingo/", "//evil.example/flamingo/", "/manage/"):
+            with self.subTest(target=target):
+                response = client.post(url, {"next": target})
+                self.assertEqual(response["Location"], "/flamingo/")
+
     def test_the_page_form_reserves_addresses(self):
         from apps.manage.forms import BlockPageForm
 

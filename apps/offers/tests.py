@@ -870,10 +870,14 @@ class AttachmentAndIpTests(TestCase):
         self.assertEqual(self.quote.attachments.count(), 0)
 
     def test_the_customers_ip_is_shown_stored_and_receipted(self):
+        # Som nginx skickar det: X-Real-IP är den anslutande adressen, och
+        # X-Forwarded-For har klientens egen (påhittade) post först.
         url = f"/offert/{self.quote.token}/acceptera/"
-        html = Client().get(url, HTTP_X_FORWARDED_FOR="203.0.113.5, 10.0.0.1").content.decode()
+        nginx = {"HTTP_X_REAL_IP": "203.0.113.5", "HTTP_X_FORWARDED_FOR": "10.9.9.9, 203.0.113.5"}
+        html = Client().get(url, **nginx).content.decode()
         self.assertIn("203.0.113.5", html)
-        Client().post(url, ACCEPT, HTTP_X_FORWARDED_FOR="203.0.113.5")
+        self.assertNotIn("10.9.9.9", html)
+        Client().post(url, ACCEPT, **nginx)
         self.quote.refresh_from_db()
         self.assertEqual(self.quote.accepted_ip, "203.0.113.5")
         receipt = Client().get(self.quote.get_public_url()).content.decode()
@@ -886,6 +890,20 @@ class AttachmentAndIpTests(TestCase):
             META = {"HTTP_X_FORWARDED_FOR": "not-an-ip", "REMOTE_ADDR": "198.51.100.7"}
 
         self.assertEqual(client_ip(R()), "198.51.100.7")
+
+    def test_a_spoofed_first_forwarded_entry_is_never_used(self):
+        """nginx bygger på X-Forwarded-For: den första posten är klientens."""
+        from .public_views import client_ip
+
+        class R:
+            META = {
+                "HTTP_X_FORWARDED_FOR": "203.0.113.66, 198.51.100.9",
+                "REMOTE_ADDR": "127.0.0.1",
+            }
+
+        self.assertEqual(client_ip(R()), "198.51.100.9")
+        R.META["HTTP_X_REAL_IP"] = "198.51.100.10"
+        self.assertEqual(client_ip(R()), "198.51.100.10")
 
 
 class DuplicateTests(TestCase):

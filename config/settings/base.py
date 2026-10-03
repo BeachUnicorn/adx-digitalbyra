@@ -253,6 +253,24 @@ ANALYTICS_ENABLED = env.bool("ANALYTICS_ENABLED", default=True)
 # no maps are rendered at all.
 GOOGLE_MAPS_API_KEY = env.str("GOOGLE_MAPS_API_KEY", default="")
 
+# ADX Flamingo (apps/flamingo/README.md). Tomt = integrationen är av och
+# verktyget kör den manuella vägen: Editor-CSV och kopplingen som byrån bockar
+# av i stället för Google Ads API, fakta från hemsidan och kunden i stället för
+# Google Places, och inget sms (det loggas att inget skickades) utan 46elks.
+GOOGLE_ADS_DEVELOPER_TOKEN = env.str("GOOGLE_ADS_DEVELOPER_TOKEN", default="")
+# Byråns förvaltarkonto (MCC), tio siffror.
+GOOGLE_ADS_LOGIN_CUSTOMER_ID = env.str("GOOGLE_ADS_LOGIN_CUSTOMER_ID", default="")
+GOOGLE_PLACES_API_KEY = env.str("GOOGLE_PLACES_API_KEY", default="")
+ELKS_API_USERNAME = env.str("ELKS_API_USERNAME", default="")
+ELKS_API_PASSWORD = env.str("ELKS_API_PASSWORD", default="")
+# Avsändaren i sms: högst elva tecken (bokstäver och siffror) eller ett nummer.
+ELKS_SENDER = env.str("ELKS_SENDER", default="")
+# Landningssidornas domän i Editor-filen (tomt = https://adx.se) och namnet på
+# offline-konverteringen i kundernas Google Ads-konton (tomt = "ADX Flamingo
+# affär"). Se apps/flamingo/exports.py.
+FLAMINGO_LANDING_BASE_URL = env.str("FLAMINGO_LANDING_BASE_URL", default="")
+FLAMINGO_CONVERSION_NAME = env.str("FLAMINGO_CONVERSION_NAME", default="")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
