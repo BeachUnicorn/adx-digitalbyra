@@ -48,6 +48,9 @@ Inget på sidan mejlar kunden.
         {% include "manage/flamingo/_side.html" %}
     </aside>
 </div>
+{% if editable and landing and customer.is_active and account.is_enabled %}
+<form id="mf-landing-view-as" method="post" action="{% url 'manage:flamingo_view_as' customer.pk %}" hidden>{% csrf_token %}<input type="hidden" name="next" value="{{ landing.editor_url }}"></form>
+{% endif %}
 </div>
 {% endblock %}
 

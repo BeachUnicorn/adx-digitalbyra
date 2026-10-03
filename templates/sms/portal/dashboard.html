@@ -1,0 +1,133 @@
+{% extends "portal/base.html" %}
+{% load sms_tags %}
+{% comment %}
+Kundens SMS-översikt: månadens siffror överst, staplar per dag, länderna
+och sedan varje sms med hela texten. Bara kundens egna sms (portal_views:
+allt hämtas via kundens SmsAccount). Staplarnas siffror syns när man pekar,
+fokuserar eller trycker, och finns också som tabell under diagrammet.
+{% endcomment %}
+{% block content %}
+{% with heading="SMS" %}{% include "sms/portal/_head.html" %}{% endwith %}
+<div class="sms-dash">
+
+{% if waiting %}<p class="sms-live-note">{{ waiting }} sms väntar på besked om de gick iväg och räknas med uppskattat pris så länge. ADX stämmer av dem mot leverantören.</p>{% endif %}
+
+<section class="sms-kpis" aria-label="Siffror för {{ month }}">
+  <div class="m-stat sms-kpi">
+    <span class="m-stat__label">Skickade i {{ month }}</span>
+    <span class="m-stat__value">{{ usage.sms }}</span>
+    <span class="sms-kpi__sub">{{ usage.parts }} sms-del{{ usage.parts|pluralize:"ar" }}</span>
+  </div>
+  <div class="m-stat sms-kpi">
+    <span class="m-stat__label">Kostnad i {{ month }}</span>
+    <span class="m-stat__value">{{ usage.cost|sms_kr }} <small>kr</small></span>
+    <span class="sms-meter{% if usage.cap_reached %} is-full{% elif usage.cap_pct >= 80 %} is-high{% endif %}" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ usage.cap_pct }}" aria-label="Andel av taket"><span style="width: {{ usage.cap_pct }}%"></span></span>
+    <span class="sms-kpi__sub">{{ usage.cap_pct }} % av taket {{ usage.cap|sms_kr:0 }} kr{% if usage.cap_reached %}: <b>taket är nått</b>{% endif %}</span>
+    {% if usage.test_cost %}<span class="sms-kpi__sub">varav {{ usage.test_cost|sms_kr }} kr testsändningar som inte faktureras{% if usage.cap_used != usage.cost %} och inte räknas mot taket{% endif %}</span>{% endif %}
+  </div>
+  <div class="m-stat sms-kpi">
+    <span class="m-stat__label">Levererade</span>
+    <span class="m-stat__value">{% if usage.delivered_pct is not None %}{{ usage.delivered_pct }} <small>%</small>{% else %}-{% endif %}</span>
+    <span class="sms-kpi__sub">{{ usage.delivered }} av {{ usage.sms }}{% if usage.pending %}, {{ usage.pending }} väntar på kvitto{% endif %}</span>
+  </div>
+  <div class="m-stat sms-kpi">
+    <span class="m-stat__label">Misslyckade</span>
+    <span class="m-stat__value">{{ usage.failed }}</span>
+    <span class="sms-kpi__sub">{{ usage.stopped }} stoppade före sändning</span>
+  </div>
+</section>
+
+<section class="m-panel tv-panel sms-chart-panel" aria-labelledby="sms-chart-title">
+  <div class="sms-chart-head">
+    <h2 class="tv-sec-title" id="sms-chart-title">Sms per dag</h2>
+    <span class="tv-muted">Senaste 30 dagarna: {{ chart.total }} sms</span>
+  </div>
+  {% if chart.total %}
+  <div class="sms-chart" role="group" aria-label="Sms per dag de senaste 30 dagarna. Varje stapel är en dag; peka eller tryck för siffrorna.">
+    <div class="sms-chart__scale" aria-hidden="true"><span>{{ chart.peak }}</span><span>0</span></div>
+    <div class="sms-chart__bars">
+      {% for d in chart.days %}
+      <div class="sms-bar sms-bar--{{ d.align }}{% if not d.sms %} is-zero{% endif %}" tabindex="0" data-sms-bar aria-label="{{ d.date|date:'j F' }}: {{ d.sms }} sms, {{ d.delivered }} levererade, {{ d.failed }} misslyckade, {{ d.cost|sms_kr }} kr">
+        <span class="sms-bar__fill" style="height: {{ d.height }}%"></span>
+        <span class="sms-bar__tip" aria-hidden="true"><b>{{ d.sms }} sms</b><span>{{ d.date|date:"D j b" }}</span>{% if d.sms %}<span>{{ d.parts }} delar, {{ d.delivered }} levererade{% if d.failed %}, {{ d.failed }} misslyckade{% endif %}</span><span>{{ d.cost|sms_kr }} kr</span>{% endif %}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="sms-chart__axis" aria-hidden="true"><span>{{ chart.first|date:"j b" }}</span><span>{{ chart.middle|date:"j b" }}</span><span>I dag</span></div>
+  <details class="aw-details">
+    <summary>Visa som tabell</summary>
+    <div class="m-table-wrap">
+    <table class="m-table sms-table">
+      <thead><tr><th>Dag</th><th class="m-num">Sms</th><th class="m-num">Delar</th><th class="m-num">Levererade</th><th class="m-num">Misslyckade</th><th class="m-num">Kostnad</th></tr></thead>
+      <tbody>{% for d in chart.days reversed %}{% if d.sms %}<tr><td>{{ d.date|date:"D j b" }}</td><td class="m-num">{{ d.sms }}</td><td class="m-num">{{ d.parts }}</td><td class="m-num">{{ d.delivered }}</td><td class="m-num">{{ d.failed }}</td><td class="m-num">{{ d.cost|sms_kr }} kr</td></tr>{% endif %}{% endfor %}</tbody>
+    </table>
+    </div>
+  </details>
+  {% else %}
+  <p class="tv-empty tv-empty--inline">Inga sms de senaste 30 dagarna. Skicka det första med en nyckel från <a class="tv-link" href="{% url 'sms:keys' %}">Nycklar och tak</a>; <a class="tv-link" href="{% url 'sms:docs' %}">dokumentationen</a> visar hur.</p>
+  {% endif %}
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="sms-countries-title">
+  <h2 class="tv-sec-title" id="sms-countries-title">Per land i {{ month }}</h2>
+  {% if countries %}
+  <div class="m-table-wrap">
+  <table class="m-table sms-table">
+    <thead><tr><th>Land</th><th class="m-num">Sms</th><th class="m-num">Delar</th><th class="m-num">Levererade</th><th class="m-num">Misslyckade</th><th class="m-num">Kostnad</th></tr></thead>
+    <tbody>
+    {% for c in countries %}
+    <tr><td>{{ c.name }} <span class="tv-muted">{{ c.country }}</span></td><td class="m-num">{{ c.sms }}</td><td class="m-num">{{ c.parts }}</td><td class="m-num">{{ c.delivered }}</td><td class="m-num">{{ c.failed }}</td><td class="m-num">{{ c.cost|sms_kr }} kr</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="tv-prop__note">Priset skiljer sig mellan länder. Kontot får skicka till: {% for code in account.countries %}{{ code|sms_country }}{% if not forloop.last %}, {% endif %}{% endfor %}.</p>
+  {% else %}
+  <p class="tv-empty tv-empty--inline">Inga skickade sms i {{ month }} än.</p>
+  {% endif %}
+</section>
+
+<section class="m-panel tv-panel" id="meddelanden" aria-labelledby="sms-messages-title">
+  <h2 class="tv-sec-title" id="sms-messages-title">Sms{% if page.paginator.count %} <span>{{ page.paginator.count }}</span>{% endif %}</h2>
+  <form method="get" action="#meddelanden" class="sms-filter" role="search">
+    <input type="search" name="q" value="{{ q }}" class="tv-input" placeholder="Sök i text, nummer eller reference" aria-label="Sök bland sms">
+    <select name="status" class="tv-input sms-filter__select" aria-label="Status">
+      {% for value, label in status_filters %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="m-btn m-btn--small">Visa</button>
+    {% if filtered %}<a href="{% url 'sms:dashboard' %}#meddelanden" class="m-btn m-btn--small m-btn--ghost">Rensa</a>{% endif %}
+  </form>
+  {% if page.object_list %}
+  <div class="m-table-wrap">
+  <table class="m-table sms-table sms-messages">
+    <thead><tr><th>Tid</th><th>Till</th><th>Text</th><th class="m-num sms-col-low">Delar</th><th>Status</th><th class="m-num">Pris</th></tr></thead>
+    <tbody>
+    {% for m in page.object_list %}
+    <tr>
+      <td class="sms-nowrap">{{ m.created_at|date:"j b H:i" }}</td>
+      <td class="sms-nowrap"><div><span class="sms-mono">{{ m.to }}</span>{% if m.country %}<div class="tv-muted tv-cell-sub">{{ m.country|sms_country }}</div>{% endif %}</div></td>
+      <td><div><div class="sms-body">{{ m.body }}</div>{% if m.reference or m.api_key %}<div class="tv-muted tv-cell-sub">{% if m.reference %}reference {{ m.reference }}{% endif %}{% if m.reference and m.api_key %} &middot; {% endif %}{% if m.api_key %}nyckel {{ m.api_key.name }}{% endif %}</div>{% endif %}</div></td>
+      <td class="m-num sms-col-low"><div>{{ m.parts }}{% if m.encoding == 'ucs2' %}<div class="tv-muted tv-cell-sub" title="Texten har tecken utanför GSM-alfabetet och skickas som UCS-2: 70 tecken per sms i stället för 160">UCS-2</div>{% endif %}</div></td>
+      <td><div>{% if m.is_unknown %}<span class="sms-status sms-status--reserved">Okänt läge</span>{% else %}<span class="sms-status sms-status--{{ m.status }}">{{ m.get_status_display }}</span>{% endif %}{% if m.test_mode %} <span class="m-badge" title="Provkörning: inget sms skickades">prov</span>{% endif %}{% if m.error_code %}<div class="tv-muted tv-cell-sub">{% if m.error_code == 'provider_error' %}Leverantören tog inte emot sms:et. Inget debiterades.{% elif m.is_unknown %}Leverantören svarade inte säkert, så sms:et kan ha skickats. ADX stämmer av det.{% else %}{{ m.error }}{% endif %}</div>{% elif m.delivered_at %}<div class="tv-muted tv-cell-sub">{{ m.delivered_at|date:"j b H:i" }}</div>{% endif %}</div></td>
+      <td class="m-num">{% if m.customer_price %}<span>{% if m.is_estimate or m.needs_check %}ca {% endif %}{{ m.customer_price|sms_kr }} kr</span>{% else %}<span class="tv-muted">0 kr</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% if page.paginator.num_pages > 1 %}
+  <nav class="sms-pager" aria-label="Sidor">
+    {% if page.has_previous %}<a class="m-btn m-btn--small m-btn--ghost" href="?{% if query %}{{ query }}&amp;{% endif %}sida={{ page.previous_page_number }}#meddelanden">Nyare</a>{% else %}<span></span>{% endif %}
+    <span class="tv-muted">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="m-btn m-btn--small m-btn--ghost" href="?{% if query %}{{ query }}&amp;{% endif %}sida={{ page.next_page_number }}#meddelanden">Äldre</a>{% else %}<span></span>{% endif %}
+  </nav>
+  {% endif %}
+  {% elif filtered %}
+  <p class="tv-empty tv-empty--inline">Inga sms matchar sökningen.</p>
+  {% else %}
+  <p class="tv-empty tv-empty--inline">Inga sms än.</p>
+  {% endif %}
+</section>
+</div>
+{% endblock %}

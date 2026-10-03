@@ -92,7 +92,9 @@ def _css_mtime():
         "css/flamingo-app-onboarding.css",
         "css/flamingo-app-campaigns.css",
         "css/flamingo-app-inbox.css",
-        "css/flamingo-lp.css",
+        "css/flamingo-lp-ren.css",
+        "css/flamingo-pb.css",
+        "css/flamingo-pb-ai.css",
         "css/manage-flamingo.css",
         "js/dist/tiptap-editor.js",
         "js/manage-tables.js",
@@ -101,6 +103,8 @@ def _css_mtime():
         "js/manage.js",
         "js/flamingo-app-onboarding.js",
         "js/flamingo-lp.js",
+        "js/flamingo-pb.js",
+        "js/flamingo-pb-ai.js",
         "js/manage-flamingo.js",
     ):
         try:

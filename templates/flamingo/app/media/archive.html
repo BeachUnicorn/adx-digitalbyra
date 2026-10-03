@@ -1,0 +1,232 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+Mediaarkivet (sidbyggaren, skärm 07 i adx-marketing/sidbyggaren-mockup.html).
+Kontext från app_views/media.media_archive: tab, tabs [(nyckel, rubrik, antal)],
+rows [{asset, uses [Use]}], count, limit, full, can_upload, accept, max_files,
+logo, swatches [(hex, huvudfärg)], pages, logo_pages, candidates [{c, path}],
+site_host, import_max, is_demo.
+
+Ett formulär per handling (action=upload/alt/logo/unlogo/delete/import/palette);
+id:t prövas mot kundens konto i vyn. Utan skript fungerar allt med vanliga
+formulär; static/js/flamingo-media.js lägger till släpp-ytan, uppladdning
+med förlopp och antalet på knappen för bilderna från hemsidan. Filfältet
+ligger i släpp-ytan (etiketten): med skript syns det inte, ytan öppnar
+filväljaren med ett klick eller med Tab och mellanslag och får en ring vid
+fokus; utan skript står webbläsarens fält kvar, med knappen Ladda upp.
+{% endcomment %}
+{% block app_title %}Media{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-media.css' %}?v={{ static_version }}">{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">Media</p>
+    <h1 class="fl-app-title">Mediaarkivet</h1>
+    <p class="fl-app-lead">Logotypen och bilderna som dina sidor använder. Vi gör dem lätta för mobilen: WebP, högst 2&nbsp;400 pixlar på längsta sidan.</p>
+  </div>
+  <div class="fl-app-head__actions">
+    <span class="fl-md-count{% if full %} is-full{% endif %}">{{ count }} av {{ limit }} bilder</span>
+  </div>
+</header>
+
+<nav class="fl-tabs fl-md-tabs" aria-label="Visa bilderna">
+  {% for key, label, n in tabs %}
+  <a class="fl-tabs__tab" href="{% url 'flamingo:app_media' %}{% if key != 'alla' %}?visa={{ key }}{% endif %}"{% if tab == key %} aria-current="page"{% endif %}>{{ label }}{% if n %} <span class="fl-md-tabs__n">{{ n }}</span>{% endif %}</a>
+  {% endfor %}
+</nav>
+
+{% if tab == "hemsidan" %}
+<section class="fl-panel fl-panel--accent" aria-labelledby="fl-md-site">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-md-site">Bilder från {% if site_host %}{{ site_host }}{% else %}hemsidan{% endif %}</h2>
+    {% if account.scanned_at %}<span class="fl-panel__note">Läst {{ account.scanned_at|date:"j b" }}. Bara miniatyrer sparade.</span>{% endif %}
+  </div>
+  {% if is_demo %}
+  <p class="fl-notice fl-notice--info"><span>Det här är ett demokonto, så inga bilder hämtas från någon hemsida.</span></p>
+  {% endif %}
+  {% if candidates %}
+  <p class="fl-panel__text">När hemsidan lästes av sparade vi miniatyrer och var bilderna låg. Välj de bilder du vill använda, så hämtar vi dem till arkivet.</p>
+  {% if read_only %}
+  <ul class="fl-md-grid">
+    {% for row in candidates %}
+    <li class="fl-md-tile"><span class="fl-md-tile__img">{% if row.c.thumb %}<img src="{{ row.c.thumb.url }}" alt="{{ row.c.alt }}" loading="lazy">{% endif %}</span><span class="fl-md-tile__body"><span class="fl-md-src">{{ row.path }}</span></span></li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <form method="post" class="fl-form" data-fl-media-import>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="import">
+    <fieldset class="fl-md-pickset">
+      <legend class="fl-sr">Bilder att hämta</legend>
+      <ul class="fl-md-grid fl-md-grid--pick">
+        {% for row in candidates %}
+        <li class="fl-md-tile fl-md-pick">
+          <input class="fl-md-pick__check" type="checkbox" id="fl-md-c{{ row.c.pk }}" name="candidate" value="{{ row.c.pk }}"{% if is_demo %} disabled{% endif %}>
+          <label class="fl-md-pick__label" for="fl-md-c{{ row.c.pk }}">
+            <span class="fl-md-tile__img">{% if row.c.thumb %}<img src="{{ row.c.thumb.url }}" alt="{{ row.c.alt }}" loading="lazy">{% endif %}</span>
+            <span class="fl-md-tile__body">
+              {% if row.c.likely_logo %}<span class="fl-badge fl-badge--pending">Trolig logotyp</span>{% endif %}
+              <span class="fl-md-src">{{ row.path }}</span>
+              {% if row.c.width %}<span class="fl-md-tile__meta">{{ row.c.width }} x {{ row.c.height }} px</span>{% endif %}
+            </span>
+          </label>
+        </li>
+        {% endfor %}
+      </ul>
+    </fieldset>
+    <label class="fl-check fl-md-rights"><input type="checkbox" name="rights" value="1" required{% if is_demo %} disabled{% endif %}><span>Vi äger bilderna eller har rätt att använda dem.</span></label>
+    <div class="fl-form__actions">
+      <p class="fl-form__note">Bilderna hämtas från hemsidan och sparas som WebP. Högst {{ import_max }} åt gången.</p>
+      <button type="submit" class="fl-btn" data-fl-media-import-btn{% if is_demo %} disabled{% endif %}>Hämta de valda bilderna till arkivet</button>
+    </div>
+  </form>
+  {% endif %}
+  {% elif not is_demo %}
+  <div class="fl-empty">
+    <p class="fl-empty__title">Inga bilder från hemsidan att välja</p>
+    <p class="fl-empty__text">När hemsidan läses av under Förslaget sparar vi miniatyrer av bilderna och var de låg. Sedan väljer du här vilka som hämtas till arkivet.</p>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_proposal' %}">Till Förslaget</a>
+  </div>
+  {% endif %}
+</section>
+{% else %}
+<section class="fl-panel" aria-labelledby="fl-md-up">
+  <h2 class="fl-panel__title" id="fl-md-up">Ladda upp</h2>
+  {% if read_only %}
+  <p class="fl-panel__note">Förhandsvisningen är skrivskyddad.</p>
+  {% elif full %}
+  <p class="fl-notice fl-notice--warn"><span>Arkivet är fullt ({{ limit }} bilder). Ta bort bilder som inte används för att få plats med nya.</span></p>
+  {% else %}
+  <form method="post" enctype="multipart/form-data" class="fl-md-drop" action="{% url 'flamingo:app_media' %}" data-fl-media-upload="{% url 'flamingo:app_media_upload' %}" data-max-files="{{ max_files }}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upload">
+    <input type="hidden" name="visa" value="{{ tab }}">
+    <label class="fl-md-drop__zone" for="fl-md-file">
+      <svg class="fl-md-drop__icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3"/></svg>
+      <span class="fl-md-drop__title">Släpp bilder här, eller välj filer</span>
+      <span class="fl-md-drop__text">JPG, PNG, WebP eller GIF, högst 15 MB per bild och {{ max_files }} åt gången.</span>
+      <input class="fl-md-drop__input" id="fl-md-file" type="file" name="file" accept="{{ accept }}" multiple>
+    </label>
+    <div class="fl-md-drop__row">
+      <button type="submit" class="fl-btn fl-btn--sm" data-fl-media-submit>Ladda upp</button>
+    </div>
+    <div class="fl-md-progress" data-fl-media-progress hidden>
+      <progress class="fl-md-progress__bar" max="100" value="0"></progress>
+      <span class="fl-md-progress__text" data-fl-media-status role="status" aria-live="polite"></span>
+    </div>
+    <p class="fl-field__help">Ladda bara upp bilder som ni äger eller har rätt att använda. SVG tas inte emot.</p>
+  </form>
+  {% endif %}
+</section>
+
+<section class="fl-panel{% if not logo %} fl-panel--soft{% endif %}" aria-labelledby="fl-md-colors">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-md-colors">Färger från logotypen</h2>
+    {% if logo and pages %}<span class="fl-panel__note">{{ logo_pages }} av {{ pages|length }} sidor använder dem</span>{% endif %}
+  </div>
+  {% if not logo %}
+  <p class="fl-panel__text">Välj en bild som logotyp med "Gör till logotyp", så föreslår vi färger till sidorna ur den.</p>
+  {% elif not swatches %}
+  <p class="fl-panel__text">Logotypen har inga tydliga färger (bara vitt, svart eller genomskinligt). Välj en av de färdiga paletterna på sidan i stället.</p>
+  {% else %}
+  <ul class="fl-md-swatches" aria-label="Färgerna">
+    {% for color, primary in swatches %}
+    <li class="fl-md-swatch{% if primary %} is-primary{% endif %}">
+      <svg class="fl-md-swatch__chip" viewBox="0 0 40 40" aria-hidden="true" focusable="false"><rect x="1" y="1" width="38" height="38" rx="10" fill="{{ color }}"/></svg>
+      <span class="fl-md-swatch__code">{{ color }}</span>
+      {% if primary %}<span class="fl-md-swatch__role">Huvudfärg</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="fl-panel__note">Är huvudfärgen för ljus för text gör sidan den mörkare tills den går att läsa.</p>
+  {% if read_only %}
+  {% elif pages %}
+  <form method="post" class="fl-md-palette">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="palette">
+    <input type="hidden" name="visa" value="{{ tab }}">
+    <div class="fl-field">
+      <label class="fl-field__label" for="fl-md-palette-page">Använd på</label>
+      <select class="fl-input" id="fl-md-palette-page" name="page">
+        <option value="alla">Alla sidor ({{ pages|length }})</option>
+        {% for page in pages %}<option value="{{ page.pk }}">{{ page.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="fl-btn fl-btn--sm">Använd som palett</button>
+  </form>
+  <p class="fl-field__help">Paletten gäller direkt, också på sidor som är live.</p>
+  {% else %}
+  <p class="fl-panel__note">Du har inga sidor än. Nya sidor får färgerna att välja som palett.</p>
+  {% endif %}
+  {% endif %}
+</section>
+{% endif %}
+
+<section class="fl-md-archive" aria-labelledby="fl-md-grid-title">
+  <h2 class="fl-md-h2" id="fl-md-grid-title">{% if tab == "hemsidan" %}Hämtade från hemsidan{% elif tab == "logotyp" %}Logotypen{% elif tab == "uppladdat" %}Uppladdade bilder{% else %}I arkivet{% endif %}</h2>
+  {% if rows %}
+  <ul class="fl-md-grid">
+    {% for row in rows %}{% with asset=row.asset %}
+    <li class="fl-md-tile{% if asset.is_logo %} is-logo{% endif %}" id="bild-{{ asset.pk }}">
+      <span class="fl-md-tile__img{% if asset.is_logo %} fl-md-tile__img--logo{% endif %}">{% if asset.thumb %}<img src="{{ asset.thumb.url }}" alt="{{ asset.alt }}" width="{{ asset.width }}" height="{{ asset.height }}" loading="lazy">{% elif asset.file %}<img src="{{ asset.file.url }}" alt="{{ asset.alt }}" width="{{ asset.width }}" height="{{ asset.height }}" loading="lazy">{% endif %}</span>
+      <div class="fl-md-tile__body">
+        <p class="fl-md-tile__alt">{% if asset.alt %}{{ asset.alt }}{% else %}<span class="fl-md-muted">Ingen alternativtext</span>{% endif %}</p>
+        <p class="fl-md-tile__meta">
+          {% if asset.is_logo %}<span class="fl-badge fl-badge--done">Logotyp</span>{% endif %}
+          {% if asset.source == "site" %}<span class="fl-src fl-src--site">Hemsidan</span>{% endif %}
+          <span>{{ asset.width }} x {{ asset.height }} px</span>
+        </p>
+        {% if row.uses %}<p class="fl-md-tile__uses">Används på {% for use in row.uses %}<a href="{% url 'flamingo:app_page' use.page.pk %}">{{ use.page.name }}</a> ({{ use.where }}){% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+        {% if asset.source == "site" and asset.source_url %}<p class="fl-md-src">{{ asset.source_url }}</p>{% endif %}
+        {% if not read_only %}
+        <details class="fl-md-edit">
+          <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ändra<span class="fl-sr"> bilden {{ asset.alt|default:forloop.counter }}</span></summary>
+          <div class="fl-md-edit__in">
+            <form method="post" class="fl-md-edit__alt">
+              {% csrf_token %}
+              <input type="hidden" name="action" value="alt">
+              <input type="hidden" name="asset" value="{{ asset.pk }}">
+              <input type="hidden" name="visa" value="{{ tab }}">
+              <label class="fl-field__label" for="fl-md-alt{{ asset.pk }}">Alternativtext</label>
+              <input class="fl-input" id="fl-md-alt{{ asset.pk }}" type="text" name="alt" value="{{ asset.alt }}" maxlength="200" placeholder="Vad visar bilden?">
+              <p class="fl-field__help">Läses upp för den som inte ser bilden.</p>
+              <button type="submit" class="fl-btn fl-btn--sm">Spara texten</button>
+            </form>
+            <div class="fl-md-edit__actions">
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="asset" value="{{ asset.pk }}">
+                <input type="hidden" name="visa" value="{{ tab }}">
+                {% if asset.is_logo %}
+                <input type="hidden" name="action" value="unlogo">
+                <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Inte logotyp</button>
+                {% else %}
+                <input type="hidden" name="action" value="logo">
+                <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Gör till logotyp</button>
+                {% endif %}
+              </form>
+              <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="delete">
+                <input type="hidden" name="asset" value="{{ asset.pk }}">
+                <input type="hidden" name="visa" value="{{ tab }}">
+                <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm fl-md-danger">Ta bort</button>
+              </form>
+            </div>
+            {% if row.uses %}<p class="fl-field__help">Bilden går att ta bort när ingen sida använder den.</p>{% endif %}
+          </div>
+        </details>
+        {% endif %}
+      </div>
+    </li>
+    {% endwith %}{% endfor %}
+  </ul>
+  {% else %}
+  <div class="fl-empty">
+    <p class="fl-empty__title">{% if tab == "logotyp" %}Ingen logotyp vald{% elif tab == "hemsidan" %}Inga bilder hämtade från hemsidan än{% else %}Inga bilder än{% endif %}</p>
+    <p class="fl-empty__text">{% if tab == "logotyp" %}Ladda upp logotypen och välj "Gör till logotyp" på den.{% elif tab == "hemsidan" %}Välj bilder ovan, så hamnar de här.{% else %}Ladda upp logotypen och bilder från riktiga jobb. Sidorna blir trovärdigare med egna bilder.{% endif %}</p>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}
+{% block extra_js %}{{ block.super }}<script src="{% static 'js/flamingo-media.js' %}?v={{ static_version }}" defer></script>{% endblock %}

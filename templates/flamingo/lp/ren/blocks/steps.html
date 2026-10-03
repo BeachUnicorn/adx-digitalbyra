@@ -1,0 +1,23 @@
+{% load flamingo_pb %}{% comment %}
+Så går det till: tre eller fyra numrerade steg (view.steps, så många som
+varianten visar) som en tidslinje: på en bred skärm siffrorna på en linje
+bredvid varandra, i mobilen under varandra med linjen till vänster. Inga
+kort. Ett tomt steg har en platshållare i redigeringsläget.
+{% endcomment %}<section class="rn-block rn-steps rn-steps--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}>
+  <div class="rn-wrap">
+    <header class="rn-head rn-head--start">
+      {% if f.title %}<h2 class="rn-h2"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2" %}{% endif %}
+    </header>
+    <ol class="rn-steps__list">
+      {% for step in view.steps %}
+      <li class="rn-step">
+        <span class="rn-step__n" aria-hidden="true">{{ forloop.counter }}</span>
+        <div class="rn-step__body">
+          <h3 class="rn-h4 rn-step__title"{% pb "steps" forloop.counter0 "title" %}>{{ step.title }}</h3>
+          {% if step.text %}<p class="rn-step__text"{% pb "steps" forloop.counter0 "text" %}>{{ step.text }}</p>{% else %}{% pb_empty_path "steps" forloop.counter0 "text" "p" "rn-step__text" %}{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+  </div>
+</section>

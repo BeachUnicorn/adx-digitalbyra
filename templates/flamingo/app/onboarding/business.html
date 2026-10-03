@@ -203,6 +203,15 @@ add_service/edit_service); id:t prövas mot kundens konto i vyn.
   {% endif %}
 </section>
 
+<section class="fl-panel fl-panel--soft" id="omdomen" aria-labelledby="fl-onb-reviews">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-onb-reviews">Omdömen från Google</h2>
+    {% if account.google_place_id %}<span class="fl-panel__note">{% if account.google_place_name %}{{ account.google_place_name }}{% else %}Place ID angivet{% endif %}</span>{% endif %}
+  </div>
+  <p class="fl-panel__text">{% if account.google_place_id %}Välj vilka omdömen från din Google-profil som syns på sidorna.{% else %}Koppla din Google-profil, så kan sidorna visa betyget och de omdömen du väljer. Betyg hämtas bara från Google.{% endif %}</p>
+  <div class="fl-panel__actions"><a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_reviews' %}">{% if account.google_place_id %}Till omdömena{% else %}Koppla Google-profilen{% endif %}</a></div>
+</section>
+
 <section class="fl-panel fl-onb-next" aria-labelledby="fl-onb-next">
   <div class="fl-onb-next__text">
     <p class="fl-kicker">Nästa steg</p>

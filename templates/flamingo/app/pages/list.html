@@ -1,0 +1,99 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+Sidorna (app_views/pages.page_list, mockupen skärm 09): kontots
+landningssidor som kort med en liten bild av sidan (blocken i ordning, i
+sidans färg), namnet, hur många kampanjer som visar den, läget och när den
+ändrades. "Ny sida" bygger en sida ur mallarna för en tjänst; "Kopiera"
+gör en kopia av utkastet; "Ta bort" går bara för en sida som ingen kampanj
+visar. Kontext: rows [{page, campaigns, usage, state, state_kind, badge,
+changed, thumb}], services.
+{% endcomment %}
+{% block app_title %}Sidor{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-pb.css' %}?v={{ static_version }}">{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Sidor</h1>
+    <p class="fl-app-lead">Landningssidorna dina annonser leder till. En egen sida per kampanj rekommenderas, men flera kampanjer som säljer samma sak kan dela en sida. En ändring på en delad sida syns i alla kampanjer som visar den.</p>
+  </div>
+  {% if not read_only and services %}
+  <div class="fl-app-head__actions">
+    <a class="fl-btn" href="#pb-new">Ny sida</a>
+  </div>
+  {% endif %}
+</header>
+
+{% if rows %}
+<ul class="pb-pages">
+  {% for row in rows %}
+  <li class="pb-pagec">
+    <a class="pb-pagec__thumb" href="{% url 'flamingo:app_page' row.page.pk %}" tabindex="-1" aria-hidden="true">
+      <span class="pb-thumb pb-thumb--{{ row.page.palette }}">
+        <span class="pb-thumb__bar"></span>
+        {% for kind in row.thumb %}<span class="pb-thumb__row pb-thumb__row--{{ kind }}"></span>{% endfor %}
+      </span>
+    </a>
+    <div class="pb-pagec__main">
+      <a class="pb-pagec__name" href="{% url 'flamingo:app_page' row.page.pk %}">{{ row.page.name }}</a>
+      <p class="pb-pagec__meta">{{ row.usage }}<span class="pb-sep" aria-hidden="true"></span>ändrad {{ row.changed }}<span class="pb-sep" aria-hidden="true"></span>Färg: {{ row.page.get_palette_display|lower }}</p>
+      {% if row.campaigns %}<p class="pb-pagec__camps">{% for c in row.campaigns %}<a href="{% url 'flamingo:app_campaign' c.pk %}?flik=sidan">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+    </div>
+    <div class="pb-pagec__side">
+      {% if row.state_kind == "published" %}<span class="fl-badge fl-badge--paused">Publicerad, ingen kampanj live</span>{% else %}<span class="fl-badge fl-badge--{{ row.badge }}">{{ row.state }}</span>{% endif %}
+      <div class="pb-pagec__actions">
+        <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_page' row.page.pk %}">Redigera<span class="fl-sr"> {{ row.page.name }}</span></a>
+        {% if not read_only %}
+        <form method="post" action="{% url 'flamingo:app_page_copy' row.page.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Kopiera<span class="fl-sr"> {{ row.page.name }}</span></button>
+        </form>
+        <details class="pb-pagec__delete">
+          <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ta bort<span class="fl-sr"> {{ row.page.name }}</span></summary>
+          <div class="pb-pagec__confirm">
+            {% if row.campaigns %}
+            <p>Sidan används av {% for c in row.campaigns %}{% if forloop.last and not forloop.first %} och {% elif not forloop.first %}, {% endif %}{{ c.name }}{% endfor %} och kan inte tas bort. Välj en annan sida för {% if row.campaigns|length == 1 %}kampanjen{% else %}kampanjerna{% endif %} under fliken Sidan först.</p>
+            {% else %}
+            <p>Sidan tas bort för gott. Ingen kampanj visar den.</p>
+            <form method="post" action="{% url 'flamingo:app_page_delete' row.page.pk %}">
+              {% csrf_token %}
+              <button type="submit" class="fl-btn fl-btn--sm pb-btn-danger">Ta bort sidan</button>
+            </form>
+            {% endif %}
+          </div>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="fl-empty fl-panel">
+  <p class="fl-empty__title">Inga sidor än</p>
+  <p class="fl-empty__text">Varje ny kampanj får en egen sida, byggd av dina bekräftade uppgifter. Du kan också skapa en sida här och välja den för en kampanj sedan.</p>
+</div>
+{% endif %}
+
+{% if not read_only %}
+<section class="fl-panel pb-new" id="pb-new" aria-labelledby="pb-new-title">
+  <h2 class="fl-panel__title" id="pb-new-title">Ny sida</h2>
+  {% if services %}
+  <p class="fl-panel__text">Sidan byggs av mallarna för tjänsten, med dina bekräftade uppgifter. Sedan ändrar du den som du vill och väljer den för en kampanj under fliken Sidan.</p>
+  <form method="post" action="{% url 'flamingo:app_page_new' %}" class="fl-form pb-new__form">
+    {% csrf_token %}
+    <div class="fl-field">
+      <label class="fl-field__label" for="pb-new-service">Tjänst</label>
+      <select class="fl-input" id="pb-new-service" name="service">
+        {% for s in services %}<option value="{{ s.pk }}">{{ s.name }} ({{ s.get_sales_mode_display|lower }})</option>{% endfor %}
+      </select>
+    </div>
+    <div class="pb-new__actions"><button type="submit" class="fl-btn">Skapa sidan</button></div>
+  </form>
+  {% else %}
+  <p class="fl-panel__text">Lägg till en tjänst under <a href="{% url 'flamingo:app_business' %}">Företaget</a> först, så byggs sidan av mallarna för den.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

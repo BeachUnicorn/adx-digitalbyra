@@ -12,7 +12,11 @@ Strukturen kommer från regler, inte från AI:
   själv ...) och några per sätt att sälja.
 - Landningssidan: rubrik, ingress, punkter ur bekräftade uppgifter,
   telefon och formulärets frågor efter sättet att sälja (ringer, offert,
-  boka tid).
+  boka tid). Innehållet blir block i kampanjens egen LandingPage i
+  sidbyggaren (pagebuilder.blocks_from_content): ringer direkt ger Hero med
+  ringknapp och en ringremsa, offert Hero med formulär och formulär med
+  frågor, boka tid formuläret för att boka tid. Ett nytt förslag rör sidan
+  bara så länge den är orörd (pagebuilder.refresh_from_proposal).
 
 Rubrikerna och beskrivningarna skrivs av AI (apps.assistant.llm) när den är
 konfigurerad, dygnsbudgeten räcker och kontot inte gjort AI_DAILY_MAX
@@ -24,6 +28,17 @@ och kastas om det har en siffra som inte finns bland uppgifterna, ett
 påstående som inte går att belägga eller ett löfte om tid. Räcker det som
 blir kvar inte fylls det på från mallarna.
 
+Priset i annonsen (Giovanni 2026-10-03): har tjänsten ett bekräftat pris
+(uppgiften pris-<tjänst>) som självt säger "från" före beloppet, får
+förslaget en rubrik och en beskrivning med "från X kr" ur just det värdet,
+tidigt i listan (from_amount: aldrig ur ett timpris, ett pris per enhet
+eller en rabatt). Sidans Hero får priset som första punkt, som det står.
+Den som inte vill betala det klickar inte, och klicket kostar inget. Utan
+bekräftat pris skrivs inget pris (price_texts).
+
+Telefonnumret är ett nummer ur uppgiften (one_phone), aldrig hela texten:
+"08-... (vardagar) eller 070-... (jour)" ger det första numret.
+
 Inget publiceras och inget skickas härifrån: förslaget är ett utkast tills
 kunden skickat det (och ADX granskat det, om kunden bad om granskning).
 """
@@ -32,6 +47,8 @@ import json
 import logging
 import re
 from dataclasses import dataclass, field
+
+from django.utils.text import slugify
 
 from apps.assistant import llm
 from apps.common.security import sanitize_plain_text
@@ -52,8 +69,9 @@ logger = logging.getLogger(__name__)
 SOURCE_AI = "ai"
 SOURCE_TEMPLATES = "templates"
 
-#: Fälten förslaget fyller i (och sparar).
-PROPOSAL_FIELDS = ("headlines", "descriptions", "keywords", "negatives", "page")
+#: Fälten förslaget fyller i (och sparar). Sidan sparas i sidbyggaren
+#: (Proposal.page blir block i kampanjens LandingPage), inte i Campaign.page.
+PROPOSAL_FIELDS = ("headlines", "descriptions", "keywords", "negatives")
 #: Ett betyg används bara från de här källorna: annonsen skriver "i betyg
 #: på Google", och det ska vara sant.
 NOTE_AI_DAILY_LIMIT = "Dagens AI-förslag för kontot är slut, så texterna bygger på mallar."
@@ -148,6 +166,16 @@ class Info:
     claims: list = field(default_factory=list)
     #: Alla bekräftade uppgifter: [(etikett, värde)], för AI.
     facts: list = field(default_factory=list)
+    #: Tjänstens bekräftade pris som det står ("Utryckning från 995 kr"), och
+    #: från-beloppet ur det ("995", from_amount: bara när uppgiften säger
+    #: "från"). Tomma utan ett bekräftat pris för tjänsten.
+    price: str = ""
+    price_amount: str = ""
+
+    @property
+    def price_from(self):
+        """Från-priset ("från 995 kr"), eller tomt utan bekräftat pris."""
+        return f"från {self.price_amount} kr" if self.price_amount else ""
 
 
 @dataclass
@@ -156,6 +184,8 @@ class Proposal:
     descriptions: list
     keywords: list
     negatives: list
+    #: Sidans innehåll i den gamla formen (build_page), som
+    #: pagebuilder.blocks_from_content gör till block.
     page: dict
     #: SOURCE_AI eller SOURCE_TEMPLATES: vem skrev rubrikerna och beskrivningarna.
     source: str
@@ -216,6 +246,108 @@ def info_for(campaign):
     return _info(campaign.account, campaign.service, campaign.area)
 
 
+#: Prisuppgiftens nyckel per tjänst (samma som Företaget och demot:
+#: "pris-" och tjänstens namn som slug, scan.PRICE_PREFIX).
+PRICE_PREFIX = "pris-"
+#: Ett belopp i kronor: "995 kr", "12 900 kr", "1 900:-".
+_AMOUNT = re.compile(r"(?<![\d,.])(\d{1,3}(?:\s\d{3})+|\d+)\s*(?:kr\b|kronor\b|:-)", re.I)
+
+
+def price_fact_key(service_name):
+    """Nyckeln för tjänstens pris: "Byte av varmvattenberedare" ger
+    "pris-byte-av-varmvattenberedare"."""
+    return (PRICE_PREFIX + slugify(service_name or ""))[:64].rstrip("-")
+
+
+def price_amount(value):
+    """Det första beloppet i kronor i ett pris ("Utryckning från 995 kr" ger
+    "995"), med samma mellanslag som i uppgiften. "" utan belopp. Säger
+    inget om beloppet är ett från-pris: det gör from_amount."""
+    match = _AMOUNT.search(value or "")
+    return " ".join(match.group(1).split()) if match else ""
+
+
+#: "från" direkt före beloppet (högst två ord emellan: "från ca 995 kr").
+_FROM_BEFORE = re.compile(r"\bfrån\s+(?:[^\W\d]+\s+){0,2}$", re.I)
+#: Ett pris per tid, per enhet eller en rabatt är inget från-pris för jobbet:
+#: "Timpris från 650 kr", "650 kr/h", "från 650 kr per timme", "rabatt från
+#: 500 kr".
+_NOT_FROM = re.compile(r"tim|/\s*h\b|\bper\b|/\s*(?:st|m2|m²|kvm|m)\b|rabatt|avdrag", re.I)
+_CLAUSE_STOPS = ".,;:!?()"
+
+
+def from_amount(value):
+    """Beloppet som ett från-pris ("995" ur "Utryckning från 995 kr"), men
+    bara när uppgiften själv säger "från" eller "fr." före beloppet och
+    inget som "tim", "/h", "per" eller "rabatt" står i samma led. ""
+    annars: "Timpris 650 kr" blir aldrig "från 650 kr" (bara bekräftade
+    uppgifter, som de står)."""
+    text = re.sub(r"\bfr\.(?=\s)", "från", value or "", flags=re.I)
+    match = _AMOUNT.search(text)
+    if not match or not _FROM_BEFORE.search(text[: match.start()]):
+        return ""
+    # Ledet beloppet står i: från skiljetecknet före till skiljetecknet efter.
+    start = max(text.rfind(ch, 0, match.start()) for ch in _CLAUSE_STOPS) + 1
+    ends = [i for i in (text.find(ch, match.end()) for ch in _CLAUSE_STOPS) if i != -1]
+    if _NOT_FROM.search(text[start : min(ends) if ends else len(text)]):
+        return ""
+    return " ".join(match.group(1).split())
+
+
+#: Ett telefonnummer i en text: siffror med mellanslag och bindestreck,
+#: med eller utan landsnummer ("08-000 00 00", "+46 70 123 45 67").
+_PHONE_RUN = re.compile(r"(?<![\w+])(?:\+|00)?\d[\d \-]{5,}\d(?!\w)")
+#: Telefonfältens längd i sidbyggaren (pagebuilder.registry.PHONE_MAX).
+PHONE_MAX = 40
+
+
+def one_phone(value, max_length=PHONE_MAX):
+    """Det första telefonnumret i en uppgift, som det står: "08-000 00 00
+    (vardagar) eller 070-000 00 00 (jour)" ger "08-000 00 00". Numret måste
+    gå att tolka (sms.normalize_phone) och rymmas i max_length. "" när inget
+    nummer passar; kastar aldrig."""
+    from .sms import normalize_phone
+
+    text = " ".join(str(value or "").replace("‑", "-").split())
+    for match in _PHONE_RUN.finditer(text):
+        number = match.group().strip(" -")
+        if len(number) <= max_length and normalize_phone(number):
+            return number
+    return ""
+
+
+def service_price(account, service, rows=None):
+    """Tjänstens bekräftade pris som det står, eller "". Bara uppgiften
+    för just den tjänsten (pris-<tjänst>), aldrig en annan tjänsts pris."""
+    key = price_fact_key(service.name)
+    if key == PRICE_PREFIX.rstrip("-"):
+        return ""
+    for fact in confirmed_fact_rows(account) if rows is None else rows:
+        if fact.key == key:
+            return _clean(fact.value)
+    return ""
+
+
+def page_price(account, service_name, rows=None):
+    """(pris, etikett) som en sida eller ett block om tjänsten får visa:
+    tjänstens eget bekräftade pris (pris-<tjänst>), annars ett bekräftat
+    pris som inte hör till någon tjänst (till exempel ett timpris). Aldrig
+    en annan tjänsts pris. ("", "") utan pris."""
+    rows = confirmed_fact_rows(account) if rows is None else rows
+    key = price_fact_key(service_name) if service_name else ""
+    if key and key != PRICE_PREFIX.rstrip("-"):
+        for fact in rows:
+            if fact.key == key and _clean(fact.value):
+                return _clean(fact.value), _clean(service_name, 120)
+    for fact in rows:
+        if fact.key.startswith(PRICE_PREFIX) or fact_kind(fact) != "price":
+            continue
+        value = _clean(fact.value)
+        if value:
+            return value, _clean(fact.label, 120)
+    return "", ""
+
+
 def _info(account, service, area):
     info = Info(
         company=company_name(account.customer),
@@ -223,20 +355,80 @@ def _info(account, service, area):
         mode=service.sales_mode,
         places=places_of(area),
     )
-    for fact in confirmed_fact_rows(account):
+    rows = confirmed_fact_rows(account)
+    for fact in rows:
         label, value = _clean(fact.label, 120), _clean(fact.value)
         if not value:
             continue
         kind = fact_kind(fact)
         info.facts.append((label, value))
         if kind == "phone" and not info.phone:
-            info.phone = value
+            # Ett nummer, aldrig hela uppgiften ("08-... (vardagar) eller
+            # 070-... (jour)" ryms inte i sidans telefonfält).
+            info.phone = one_phone(value)
         elif kind == "rating" and not info.rating:
             match = re.search(r"\d+(?:[.,]\d+)?", value)
             info.rating = match.group().replace(".", ",") if match else ""
         elif kind not in _NOT_CLAIMS:
             info.claims.append((label, value))
+    info.price = service_price(account, service, rows)
+    info.price_amount = from_amount(info.price)
     return info
+
+
+def price_texts(info):
+    """(rubriker, beskrivningar) med tjänstens från-pris, bäst först. Tomma
+    utan ett bekräftat pris. Beloppet är exakt det i uppgiften."""
+    if not info.price_amount:
+        return [], []
+    s, s_lower = _upper_first(info.service), _lower_first(info.service)
+    amount, c = info.price_amount, info.company
+    first = info.places[0] if info.places else ""
+    headlines = [f"{s} från {amount} kr", f"Från {amount} kr", f"{s} {info.price_from}"]
+    tail = {
+        Service.SALES_CALL: f"Ring {c}.",
+        Service.SALES_BOOK: "Föreslå en dag och tid som passar dig.",
+    }.get(info.mode, "Beskriv jobbet och begär en offert.")
+    descriptions = []
+    if first:
+        descriptions.append(f"{s} i {first} från {amount} kr. {tail}")
+    descriptions += [
+        f"{s} från {amount} kr. {tail}",
+        f"{_upper_first(s_lower)} från {amount} kr hos {c}.",
+        f"Från {amount} kr. {tail}",
+    ]
+    return headlines, descriptions
+
+
+def _first_fitting(candidates, limit):
+    """[den första kandidaten som ryms], eller []."""
+    return next(([text] for text in candidates if len(text) <= limit), [])
+
+
+def has_price_from(texts, info):
+    """Står från-priset ("från 995 kr") i någon av texterna?"""
+    if not info.price_amount:
+        return False
+    amount = r"\s".join(re.escape(part) for part in info.price_amount.split())
+    pattern = re.compile(rf"\bfrån\s+{amount}\s*kr\b", re.I)
+    return any(pattern.search(text or "") for text in texts)
+
+
+def with_price(texts, candidates, limit, count, context, info):
+    """Texterna med från-priset som nummer två: en text som redan har det
+    flyttas upp, annars läggs den första kandidaten som klarar
+    kontrollerna till. Listan hålls inom count."""
+    if not info.price_amount:
+        return texts
+    for i, text in enumerate(texts):
+        if has_price_from([text], info):
+            return texts[:1] + [text] + texts[1:i] + texts[i + 1 :] if i > 1 else texts
+    if not candidates:
+        return texts
+    fitted = _fit(candidates, limit, 1, context)
+    if not fitted:
+        return texts
+    return _fit(texts[:1] + fitted + texts[1:], limit, count, context)
 
 
 # ---------------------------------------------------------------------------
@@ -360,6 +552,9 @@ def template_headlines(info):
     if first:
         out += [f"{s} i {first}", f"{s} {first}"]
     out.append(s)
+    # Från-priset tidigt: det sållar bort klick från dem som inte vill
+    # betala det (bara ett bekräftat pris för just den här tjänsten).
+    out[1:1] = _first_fitting(price_texts(info)[0], HEADLINE_MAX)
     if info.mode == Service.SALES_CALL:
         out += [f"Ring {c}", "Ring oss direkt", f"Ring för {s_lower}"]
         if info.phone:
@@ -409,6 +604,7 @@ def template_descriptions(info):
         out.append(f"Berätta om jobbet så återkommer {c} med en offert på {s_lower}.")
         in_where = f" i {where}" if where else ""
         out.append(f"Behöver du {s_lower}{in_where}? Beskriv jobbet och begär en offert.")
+    out[1:1] = _first_fitting(price_texts(info)[1], DESCRIPTION_MAX)
     if where:
         out.append(f"{c} gör {s_lower} i {where}.")
     claims = [_claim_line(label, value) for label, value in info.claims]
@@ -458,6 +654,9 @@ UPPDRAG
 - {DESCRIPTION_COUNT} beskrivningar, högst {DESCRIPTION_MAX} tecken var, alla olika.
 - Skriv för hur kunderna köper tjänsten (se "sätt_att_sälja").
 - Enkel, konkret svenska. Nämn tjänsten och orten där det passar.
+- Står "från_pris" i indata: skriv det i minst en rubrik och en beskrivning, \
+exakt som det står. Det sållar bort dem som inte vill betala det innan de \
+klickar. Andra priser skriver du inte.
 
 HÅRDA REGLER
 - Använd bara det som står i indata. Allt under "uppgifter" är bekräftat av \
@@ -488,13 +687,17 @@ def ai_available():
 
 def ai_input(info):
     """Det enda AI får se: bekräftade uppgifter, tjänsten, området, sättet."""
-    return {
+    data = {
         "företag": info.company,
         "tjänst": info.service,
         "sätt_att_sälja": MODE_TEXT.get(info.mode, ""),
         "orter": info.places,
         "uppgifter": [{"uppgift": label, "värde": value} for label, value in info.facts],
     }
+    if info.price_from:
+        # Bara ett bekräftat pris för just den här tjänsten.
+        data["från_pris"] = info.price_from
+    return data
 
 
 def _tool_input(response):
@@ -552,16 +755,22 @@ def ai_texts(info, user=None, account=None):
 
 
 def build_page(info, context):
-    """Campaign.page efter sättet att sälja. Bara bekräftade uppgifter.
-
-    Landningssidan (public_views.page_content, lp/page.html) ritar själv
-    ringknappen ("Ring <nummer>") och betyget ur de bekräftade uppgifterna,
-    så de står inte här. I läget "ringer direkt" visas note som "Medan du
-    väntar" (ett råd till den som ringt), så generatorn lämnar den tom."""
+    """Sidans innehåll efter sättet att sälja, i formen
+    {title, lead, points, phone, form_title, questions, note}. Bara
+    bekräftade uppgifter. pagebuilder.blocks_from_content gör det till
+    block: Hero ritar ringknappen ("Ring <nummer>") och betyget, och i läget
+    "ringer direkt" blir note rutan "Medan du väntar" (ett råd till den som
+    ringt), så generatorn lämnar den tom."""
     s, s_lower, c = _upper_first(info.service), _lower_first(info.service), info.company
     first = info.places[0] if info.places else ""
+    # Tjänstens bekräftade pris som första punkt, som det står i uppgiften:
+    # priset tidigt på sidan, samma som i annonsen.
+    prices = [info.price] if info.price else []
     points = _fit(
-        [_claim_line(label, value) for label, value in info.claims], 120, MAX_POINTS, context
+        prices + [_claim_line(label, value) for label, value in info.claims],
+        120,
+        MAX_POINTS,
+        context,
     )
     page = {
         "title": f"{s} i {first}" if first else s,
@@ -621,20 +830,41 @@ def example_texts(account, service, area=""):
 
 
 def apply_proposal(campaign, proposal):
-    """Lägg förslagets innehåll (PROPOSAL_FIELDS) på kampanjen, utan att spara."""
+    """Lägg förslagets innehåll (PROPOSAL_FIELDS) på kampanjen, utan att
+    spara. Sidan hör till sidbyggaren (save_page)."""
     campaign.headlines = proposal.headlines
     campaign.descriptions = proposal.descriptions
     campaign.keywords = proposal.keywords
     campaign.negatives = proposal.negatives
-    campaign.page = proposal.page
+
+
+def save_page(campaign, proposal, user=None):
+    """Förslagets sida i sidbyggaren: en kampanj utan sida får en egen
+    (pagebuilder.create_page_for_campaign); har den en sida byggs utkastet
+    om bara när förslaget byggde den för kampanjen och ingen ändrat den
+    sedan (pagebuilder.refresh_from_proposal). Returnerar sidan, eller None
+    när kontot redan har pagebuilder.MAX_PAGES sidor (kampanjen visar då
+    ingen sida, och fliken Sidan säger det)."""
+    from . import pagebuilder
+
+    if campaign.landing_page_id is None:
+        try:
+            return pagebuilder.create_page_for_campaign(campaign, content=proposal.page, user=user)
+        except pagebuilder.PageLimit:
+            logger.info("Flamingo: kampanj %s fick ingen sida (gränsen)", campaign.pk)
+            return None
+    pagebuilder.refresh_from_proposal(campaign, proposal.page, user=user)
+    return campaign.landing_page
 
 
 def build_proposal(campaign, user=None, save=True):
     """Fyll kampanjen med ett förslag och spara det (bara innehållet:
-    status, område och budget rörs inte). Returnerar Proposal.
+    status, område och budget rörs inte), och ge kampanjen sin egen sida i
+    sidbyggaren om den inte har någon (save_page). Returnerar Proposal.
 
     save=False sparar inget; vyn sparar då själv under lås (campaigns.py
-    gör AI-anropet utan att hålla kampanjens rad låst)."""
+    gör AI-anropet utan att hålla kampanjens rad låst) och anropar
+    save_page."""
     info = info_for(campaign)
     context = checks.context_for(campaign)
 
@@ -656,6 +886,13 @@ def build_proposal(campaign, user=None, save=True):
             )
         else:
             note = "AI:s texter klarade inte kontrollerna, så de bygger på mallar."
+    # Från-priset i annonsen, också när AI skrev texterna (bara ett bekräftat
+    # pris för tjänsten; with_price gör inget utan det).
+    price_h, price_d = price_texts(info)
+    headlines = with_price(headlines, price_h, HEADLINE_MAX, HEADLINE_COUNT, context, info)
+    descriptions = with_price(
+        descriptions, price_d, DESCRIPTION_MAX, DESCRIPTION_COUNT, context, info
+    )
 
     keywords = build_keywords(info)
     # Ett negativt sökord som står i ett av kampanjens egna sökord skulle
@@ -675,4 +912,5 @@ def build_proposal(campaign, user=None, save=True):
     apply_proposal(campaign, proposal)
     if save:
         campaign.save(update_fields=[*PROPOSAL_FIELDS, "updated_at"])
+        save_page(campaign, proposal, user=user)
     return proposal

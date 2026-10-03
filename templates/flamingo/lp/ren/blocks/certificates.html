@@ -1,0 +1,29 @@
+{% load flamingo_pb %}{% comment %}
+Certifikat: auktorisationer, försäkringar och medlemskap som kunden
+bekräftat. badges: märken på en rad (direkt efter Toppen en smal remsa,
+surface "strip"); icons: en rad med ikon, namn och text, centrerad. Ett
+tomt textfält har en platshållare i redigeringsläget.
+{% endcomment %}<section class="rn-block rn-certs rn-certs--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}>
+  <div class="rn-wrap rn-certs__in">
+    <header class="rn-head rn-certs__head">
+      {% if f.title %}<h2 class="rn-h2 rn-certs__title"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2 rn-certs__title" %}{% endif %}
+    </header>
+    {% if b.variant == "icons" %}
+    <ul class="rn-certs__grid">
+      {% for item in f.items %}
+      <li class="rn-certs__card">
+        <svg class="rn-ic rn-certs__icon" aria-hidden="true" focusable="false"><use href="#rn-i-badge"></use></svg>
+        <div class="rn-certs__body">
+          <h3 class="rn-h4"{% pb "items" forloop.counter0 "name" %}>{{ item.name }}</h3>
+          {% if item.text %}<p class="rn-muted"{% pb "items" forloop.counter0 "text" %}>{{ item.text }}</p>{% else %}{% pb_empty_path "items" forloop.counter0 "text" "p" "rn-muted" %}{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <ul class="rn-badges rn-certs__badges">
+      {% for item in f.items %}<li class="rn-badge"><svg class="rn-ic rn-badge__icon" aria-hidden="true" focusable="false"><use href="#rn-i-shield"></use></svg><span{% pb "items" forloop.counter0 "name" %}>{{ item.name }}</span></li>{% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</section>

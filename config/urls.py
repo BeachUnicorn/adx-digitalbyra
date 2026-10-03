@@ -33,6 +33,8 @@ urlpatterns = [
     ),
     path("manage/", include("apps.manage.urls")),
     path("forfragan/", include("apps.inquiries.urls")),
+    # Kundportalens SMS-sidor (apps/sms), före resten av portalen.
+    path("kund/sms/", include("apps.sms.portal_urls")),
     # Kundportalen (apps/projects). Före sajtens slug-catchall.
     path("kund/", include("apps.projects.portal_urls")),
     # ADX Flamingo, bakom behörighet (apps/flamingo). Före sajtens slug-catchall,
@@ -43,6 +45,8 @@ urlpatterns = [
     path("lp/", include("apps.flamingo.public_urls")),
     # JSON-API för Mac-appen ADX Fokus (apps/projects/api.py).
     path("api/v1/", include("apps.projects.api_urls")),
+    # SMS-API:t för kunderna och 46elks leveransrapporter (apps/sms/api.py).
+    path("api/sms/", include("apps.sms.api_urls")),
     # Offertlänkarna till kund. Före sajtens slug-catchall.
     path("", include("apps.offers.urls")),
     # Integrationsguider för andra AI-assistenter (apps/aidocs) på /aiz/, kodskyddade.

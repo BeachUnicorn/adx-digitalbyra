@@ -29,10 +29,12 @@ publicerar från kön.
 
 go_live, i ordning:
 
-1. Kontrollerna (checks.validate) ska vara tomma, kontot kopplat under ADX
-   med ett id och området ska ge minst en ort. Betalningen hos Google krävs
-   inte: annonserna visas först när kunden lagt in den, och ADX ligger inte
-   ute med några pengar (beslut 2026-10-03).
+1. Kontrollerna (checks.validate, med landningssidan) ska vara tomma,
+   kontot kopplat under ADX med ett id och området ska ge minst en ort.
+   Betalningen hos Google krävs inte: annonserna visas först när kunden
+   lagt in den, och ADX ligger inte ute med några pengar (beslut
+   2026-10-03). En landningssida som aldrig publicerats publiceras nu
+   (pagebuilder.publish_for_campaign).
 2. Spärren (Campaign.claim_google_publish) tas med en egen UPDATE som
    sparas direkt, utanför transaktionen nedan. Den finns kvar om processen
    dör mitt i ett anrop, och säger då åt nästa försök att leta först.
@@ -89,7 +91,7 @@ from datetime import timedelta
 from django.db import DatabaseError, transaction
 from django.utils import timezone
 
-from . import checks, exports, generator, google_ads, limits
+from . import checks, exports, generator, google_ads, limits, pagebuilder
 from .models import DESCRIPTION_COUNT, HEADLINE_COUNT, Campaign, FlamingoAccount, Review
 
 logger = logging.getLogger(__name__)
@@ -680,6 +682,16 @@ def go_live(campaign, user=None, now=None, _again=False):
             f"Kontrollerna hittade {len(problems)} problem i kampanjen. Inget publicerades. "
             f"Det första: {problems[0].message}"
         )
+    # Landningssidan: en sida som aldrig publicerats publiceras nu, innan
+    # Google anropas (pagebuilder.publish_for_campaign). Säger kontrollerna
+    # nej publiceras ingenting. Går Google sedan inte att nå står sidan som
+    # publicerad, men den syns inte förrän kampanjen är live.
+    try:
+        pagebuilder.publish_for_campaign(campaign, user)
+    except pagebuilder.PageError as exc:
+        raise PublishError(
+            f"Sidan kunde inte publiceras. {exc.message} Inget publicerades."
+        ) from None
 
     now = now or timezone.now()
     current = Campaign.objects.select_related("account__customer", "service").get(pk=campaign.pk)

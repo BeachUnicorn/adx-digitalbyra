@@ -1,0 +1,42 @@
+{% load flamingo_pb %}{% comment %}
+Område: orterna kunden når. list: orterna som märken; map: en egen ritad
+karta (SVG) med orterna runt den första, utan kartbilder och utan något
+som hämtas från andra (render._area_map). Kartan är en bild av området,
+inte en exakt karta.
+I mobilen ritas kartans namn större (CSS), och märkena under står ändå
+för orterna.
+{% endcomment %}<section class="rn-block rn-area rn-area--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}>
+  <div class="rn-wrap rn-area__in">
+    <div class="rn-area__copy">
+      {% if f.title %}<h2 class="rn-h2"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2" %}{% endif %}
+      {% if f.text %}<p class="rn-lead"{% pb "text" %}>{{ f.text|linebreaksbr }}</p>{% else %}{% pb_empty "text" "p" "rn-lead" %}{% endif %}
+      <ul class="rn-chips rn-area__chips">
+        {% for place in f.places %}<li class="rn-chip"><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-pin"></use></svg><span{% pb "places" forloop.counter0 %}>{{ place }}</span></li>{% empty %}{% pb_empty "places" "li" "rn-chip" %}{% endfor %}
+      </ul>
+    </div>
+    {% if b.variant == "map" and view.map.points %}
+    <figure class="rn-area__map">
+      <svg class="rn-map" viewBox="0 0 {{ view.map.width }} {{ view.map.height }}" role="img" aria-label="Karta över området: {{ f.places|join:', ' }}">
+        <rect class="rn-map__bg" x="0" y="0" width="{{ view.map.width }}" height="{{ view.map.height }}" rx="28"/>
+        <g class="rn-map__grid">
+          <path d="M0 100H640M0 200H640M0 300H640M160 0V400M320 0V400M480 0V400"/>
+        </g>
+        <path class="rn-map__road" d="M-20 300C120 260 210 290 320 200S520 90 660 120"/>
+        <path class="rn-map__road rn-map__road--thin" d="M60 -20C110 120 210 160 320 200S430 330 400 420"/>
+        <ellipse class="rn-map__ring rn-map__ring--outer" cx="{{ view.map.cx }}" cy="{{ view.map.cy }}" rx="250" ry="160"/>
+        <ellipse class="rn-map__ring" cx="{{ view.map.cx }}" cy="{{ view.map.cy }}" rx="150" ry="96"/>
+        {% for p in view.map.points %}
+        {% if p.main %}
+        <circle class="rn-map__halo" cx="{{ p.x }}" cy="{{ p.y }}" r="34"/>
+        <circle class="rn-map__main" cx="{{ p.x }}" cy="{{ p.y }}" r="11"/>
+        <text class="rn-map__label rn-map__label--main" x="{{ p.x }}" y="{{ p.ly }}" text-anchor="middle">{{ p.name }}</text>
+        {% else %}
+        <circle class="rn-map__dot" cx="{{ p.x }}" cy="{{ p.y }}" r="7"/>
+        <text class="rn-map__label" x="{{ p.x }}" y="{{ p.y }}" dx="{% if p.anchor == 'start' %}14{% elif p.anchor == 'end' %}-14{% else %}0{% endif %}" dy="{% if p.anchor == 'middle' %}-16{% else %}6{% endif %}" text-anchor="{{ p.anchor }}">{{ p.name }}</text>
+        {% endif %}
+        {% endfor %}
+      </svg>
+    </figure>
+    {% endif %}
+  </div>
+</section>

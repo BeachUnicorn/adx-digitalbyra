@@ -1,0 +1,48 @@
+{% load flamingo_pb %}{% comment %}
+Toppen (typen "hero"). Överrubriken (kicker) säger tjänsten och orten, samma
+ord som annonsen; rubriken säger vad kunden får. Varianter: call (stor
+ringknapp och ett kort med numret), form (formuläret står bredvid när
+formulärblocket kommer direkt efter), image (bilden först: på en bred skärm
+till höger ut mot kanten, i mobilen överst), text (bara text, centrerad).
+Numret ritas som en ringlänk i alla varianter. Med bild och bara text leder
+den stora knappen till formuläret när sidans formulär har frågor
+(view.to_form), annars ringer den. Betyget kommer från
+Google-profilen, eller ett bekräftat betyg från Google eller ADX (site.rating,
+site.rating_text), och står under knapparna.
+{% endcomment %}<section class="rn-block rn-hero rn-hero--{{ b.variant }}" id="{{ b.id }}"{% pb_block %}>
+  <div class="rn-wrap rn-hero__in">
+    {% if b.variant == "image" %}
+    <figure class="rn-hero__media"{% pb_media "image" %}>{% if view.image %}{% rn_img view.image sizes="(min-width: 1024px) 50vw, 100vw" eager=True cls="rn-hero__img" %}{% else %}<span class="rn-hero__placeholder" aria-hidden="true"></span>{% endif %}</figure>
+    {% endif %}
+    <div class="rn-hero__text">
+      {% if f.kicker %}<p class="rn-hero__kicker"{% pb "kicker" %}>{{ f.kicker }}</p>{% else %}{% pb_empty "kicker" "p" "rn-hero__kicker" %}{% endif %}
+      <h1 class="rn-h1 rn-hero__title{% if view.long_title %} rn-h1--long{% endif %}"{% pb "title" %}>{{ f.title }}</h1>
+      {% if f.lead %}<p class="rn-lead rn-hero__lead"{% pb "lead" %}>{{ f.lead|linebreaksbr }}</p>{% else %}{% pb_empty "lead" "p" "rn-lead rn-hero__lead" %}{% endif %}
+      <div class="rn-actions rn-hero__actions">
+        {% if b.variant == "form" or view.to_form %}
+          {% if site.has_form %}<a class="rn-btn rn-btn--primary rn-btn--lg rn-hero__toform" href="#formular"><span>{{ site.spec.title }}</span><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-arrow"></use></svg></a>{% endif %}
+          {% if f.phone %}<a class="rn-hero__or" href="{{ view.tel }}" data-fl-call><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-phone"></use></svg><span>Eller ring <span class="rn-nowrap"{% pb "phone" %}>{{ f.phone }}</span></span></a>{% else %}{% pb_empty "phone" "span" "rn-hero__or" %}{% endif %}
+        {% else %}
+          {% if f.phone %}<a class="rn-btn rn-btn--primary rn-btn--lg rn-hero__call" href="{{ view.tel }}" data-fl-call><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-phone"></use></svg><span>Ring <span class="rn-nowrap"{% pb "phone" %}>{{ f.phone }}</span></span></a>{% else %}{% pb_empty "phone" "span" "rn-btn rn-btn--primary rn-btn--lg" %}{% endif %}
+          {% if site.has_form %}<a class="rn-btn rn-btn--outline rn-btn--lg rn-hero__write" href="#formular">Skicka en förfrågan</a>{% endif %}
+        {% endif %}
+      </div>
+      {% if f.points %}<ul class="rn-points rn-hero__points">{% for point in f.points %}<li class="rn-points__item"><svg class="rn-ic rn-points__icon" aria-hidden="true" focusable="false"><use href="#rn-i-check"></use></svg><span{% pb "points" forloop.counter0 %}>{{ point }}</span></li>{% endfor %}</ul>{% else %}{% pb_empty "points" "div" "rn-points rn-hero__points" %}{% endif %}
+      {% if site.rating %}<p class="rn-rating"><span class="rn-rating__score"><b>{{ site.rating }}</b> av 5</span><span class="rn-starrow" aria-hidden="true">{% for s in view.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}"><use href="#rn-i-{% if s == 'half' %}star-half{% else %}star{% endif %}"></use></svg>{% endfor %}</span><span class="rn-rating__count">{% if site.review_count %}{{ site.review_count }} omdömen på Google{% else %}på Google{% endif %}</span></p>
+      {% elif site.rating_text %}<p class="rn-rating"><span class="rn-starrow" aria-hidden="true"><svg class="rn-ic rn-star rn-star--full"><use href="#rn-i-star"></use></svg></span><span>{{ site.rating_text }}</span></p>{% endif %}
+    </div>
+    {% if b.variant == "call" and f.phone %}
+    <aside class="rn-callcard" aria-label="Kontakt">
+      <span class="rn-callcard__icon" aria-hidden="true"><svg class="rn-ic"><use href="#rn-i-phone"></use></svg></span>
+      <p class="rn-callcard__label">Ring {{ site.business }}</p>
+      <a class="rn-callcard__number" href="{{ view.tel }}" data-fl-call><span class="rn-nowrap">{{ f.phone }}</span></a>
+      {% if site.hours or site.address %}
+      <dl class="rn-callcard__facts">
+        {% if site.hours %}<div class="rn-callcard__row"><dt><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-clock"></use></svg><span class="rn-sr">Öppet</span></dt><dd>{{ site.hours }}</dd></div>{% endif %}
+        {% if site.address %}<div class="rn-callcard__row"><dt><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-pin"></use></svg><span class="rn-sr">Adress</span></dt><dd>{{ site.address }}</dd></div>{% endif %}
+      </dl>
+      {% endif %}
+    </aside>
+    {% endif %}
+  </div>
+</section>

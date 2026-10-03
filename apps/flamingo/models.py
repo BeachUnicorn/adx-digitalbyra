@@ -12,7 +12,11 @@ Datamodellen följer flödet i README.md (kundresan, steg 2-12):
     FlamingoAccount   kundens Flamingo: hemsida, Google-kopplingen, sms-val
     Fact              det vi får säga om företaget, med källa och bekräftelse
     Service           tjänsterna och hur de säljs (ringer / offert / boka tid)
-    Campaign          en kampanj per tjänst: annonser, sökord, landningssidan
+    MediaAsset        en bild i kundens mediaarkiv (uppladdad eller från hemsidan)
+    SiteImageCandidate  en bild som läsningen hittade på hemsidan (bara miniatyren)
+    LandingPage       en landningssida i sidbyggaren: block i ett utkast och
+                      en publicerad version (pagebuilder/)
+    Campaign          en kampanj per tjänst: annonser, sökord och sin landningssida
     CampaignDayStats  en dag ur Googles rapport: kostnad, visningar, klick
     Review            en granskningsrunda per inskick, med byråns ändringar
     Lead              en förfrågan från landningssidan, ett samtal eller manuellt
@@ -28,6 +32,7 @@ import hashlib
 import hmac
 import logging
 import re
+import secrets
 
 from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
@@ -435,6 +440,64 @@ class FlamingoAccount(models.Model):
     autoreply_enabled = models.BooleanField("Autosvar till den som frågar", default=False)
     autoreply_text = models.TextField("Autosvarets text", default=AUTOREPLY_DEFAULT)
 
+    # Kundens Google-profil (Google Business Profile), för blocket
+    # "Omdömen från Google" i sidbyggaren. Kunden pekar ut profilen (sök,
+    # länk från Google Maps eller Place ID) och väljer vilka omdömen som
+    # syns; texten ändras aldrig. Hämtningen (reviews.py) anropar aldrig
+    # Google för ett demokonto. Sidan visar omdömena med Googles märkning,
+    # författarens namn och länken till profilen.
+    #
+    # Profilen måste vara kundens: reviews.store_details prövar den mot
+    # hemsidan, namnet och telefonnumret (places.matches). Liknar den inte
+    # kunden sätts google_place_unverified, betyget sparas obekräftat,
+    # omdömena och betyget syns inte på sidorna, och byrån larmas, tills
+    # kunden eller byrån intygar att profilen är deras (reviews.confirm_owner,
+    # google_place_confirmed_at och _by).
+    google_place_id = models.CharField("Googles Place ID", max_length=200, blank=True)
+    google_place_unverified = models.BooleanField(
+        "Profilen liknar inte företaget",
+        default=False,
+        help_text=(
+            "Omdömen och betyg från profilen syns inte förrän någon intygat att den är kundens."
+        ),
+    )
+    google_place_confirmed_at = models.DateTimeField("Profilen intygad", null=True, blank=True)
+    google_place_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Profilen intygad av",
+    )
+    google_place_name = models.CharField("Namnet på Google", max_length=200, blank=True)
+    google_maps_uri = models.URLField("Profilen på Google Maps", max_length=500, blank=True)
+    google_rating = models.DecimalField(
+        "Betyg på Google", max_digits=2, decimal_places=1, null=True, blank=True
+    )
+    google_review_count = models.PositiveIntegerField(
+        "Antal omdömen på Google", null=True, blank=True
+    )
+    #: Omdömena som de hämtades, nyast först:
+    #:   [{"id": "places/<place>/reviews/<id>",  Googles namn på omdömet (stabilt)
+    #:     "author": "Anna L.",                  författarens namn (visas alltid)
+    #:     "author_uri": "https://...",          författarens profil hos Google, eller ""
+    #:     "rating": 5,                          1-5
+    #:     "text": "Kom samma kväll ...",        omdömet, oförändrat (aldrig HTML)
+    #:     "time": "2026-09-14T10:12:00Z",       när det skrevs (ISO 8601)
+    #:     "relative": "för 3 veckor sedan"}]    Googles relativa tid, eller ""
+    #: Författarens bild hämtas aldrig från Google på /lp/ (besökarens
+    #: integritet): sidan ritar initialer i stället.
+    google_reviews = models.JSONField("Omdömen från Google", default=list, blank=True)
+    #: Id:n (google_reviews[i]["id"]) som kunden valt att visa, i visningsordning.
+    google_reviews_selected = models.JSONField("Valda omdömen", default=list, blank=True)
+    google_reviews_fetched_at = models.DateTimeField("Omdömena hämtade", null=True, blank=True)
+
+    #: Dagens räknare för spärrarna som kostar pengar eller bandbredd
+    #: (limits.reserve_daily): {"day": "2026-10-03", "places_search": 2,
+    #: "places_details": 1, "site_import": 6}. Nollställs när dagen byts.
+    daily_usage = models.JSONField("Dagens användning", default=dict, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -496,15 +559,54 @@ class FlamingoAccount(models.Model):
 
     def usable_fact_rows(self):
         """Bekräftade uppgifter med ett värde, som Fact-rader, utan betyg som
-        inte kommer från Google eller ADX (is_rating_like)."""
+        inte kommer från Google eller ADX (is_rating_like), och utan betyg
+        från Google när kundens Google-profil inte är intygad
+        (google_profile_trusted)."""
         rows = self.facts.filter(confirmed=True).exclude(value="").order_by("order", "id")
-        return [f for f in rows if f.is_usable]
+        trusted = self.google_profile_trusted
+        return [
+            f
+            for f in rows
+            if f.is_usable and (trusted or not (f.is_rating and f.source == Fact.SOURCE_GOOGLE))
+        ]
 
     def confirmed_facts(self):
         """Bekräftade uppgifter med ett värde, som {key: value}. Det enda
         AI och mallarna får använda (README: AI får bara använda bekräftade
         fakta). Ett betyg från hemsidan eller kunden är aldrig med."""
         return {f.key: f.value for f in self.usable_fact_rows()}
+
+    @property
+    def google_profile_trusted(self):
+        """Får sidorna och förslagen visa det som hämtats från
+        Google-profilen? Inte när profilen inte liknar företaget och ingen
+        intygat att den är kundens (google_place_unverified)."""
+        return not self.google_place_unverified
+
+    @property
+    def trusted_google_rating(self):
+        """Betyget från Google-profilen, eller None när profilen inte är
+        intygad som kundens (google_profile_trusted)."""
+        return self.google_rating if self.google_profile_trusted else None
+
+    def selected_google_reviews(self):
+        """Omdömena från Google som kunden valt att visa, i kundens ordning.
+        Bara de som finns bland de hämtade (google_reviews) och har en
+        författare; tom lista när inget är valt, eller när profilen inte är
+        intygad som kundens (google_profile_trusted). Id:n i valet som inte
+        finns bland de hämtade hoppas över men står kvar i valet."""
+        if not self.google_profile_trusted:
+            return []
+        by_id = {}
+        for review in self.google_reviews or []:
+            if isinstance(review, dict) and review.get("id") and review.get("author"):
+                by_id.setdefault(str(review["id"]), review)
+        chosen = []
+        for review_id in self.google_reviews_selected or []:
+            review = by_id.pop(str(review_id), None)
+            if review is not None:
+                chosen.append(review)
+        return chosen
 
 
 def google_id_taken(google_id, exclude_pk=None):
@@ -615,6 +717,277 @@ class Service(models.Model):
 
 
 # ---------------------------------------------------------------------------
+# Sidbyggaren: mediaarkivet och landningssidorna (apps/flamingo/pagebuilder/)
+# ---------------------------------------------------------------------------
+
+#: Mediaarkivets gränser (beslut 2026-10-03): högst så många bilder per
+#: konto, längsta sidan i pixlar, och formatet bilderna sparas i.
+MEDIA_MAX_PER_ACCOUNT = 200
+MEDIA_MAX_SIDE = 2400
+MEDIA_FORMAT = "WEBP"
+#: Miniatyrens längsta sida (arkivet, srcset på sidan).
+MEDIA_THUMB_SIDE = 640
+
+
+def media_upload_path(instance, filename):
+    """flamingo/<slump>/<slump>.<ändelse>: en egen mapp med ett namn som
+    inte går att gissa för varje fil (MEDIA_ROOT serveras av nginx utan
+    inloggning). Filens ursprungliga namn sparas aldrig i sökvägen."""
+    ext = (filename.rsplit(".", 1)[-1] if "." in filename else "webp").lower()
+    ext = re.sub(r"[^a-z0-9]", "", ext)[:5] or "webp"
+    return f"flamingo/{secrets.token_urlsafe(18)}/{secrets.token_hex(8)}.{ext}"
+
+
+class MediaAsset(models.Model):
+    """En bild i kundens mediaarkiv. Sidorna pekar på den med sitt id
+    (blockens mediafält, pagebuilder/). Uppladdningen, prövningen,
+    nedskalningen till MEDIA_MAX_SIDE och omkodningen till WebP görs i
+    media.py. Filerna tas bort när raden tas bort."""
+
+    SOURCE_UPLOAD = "upload"
+    SOURCE_SITE = "site"
+    SOURCE_CHOICES = [
+        (SOURCE_UPLOAD, "Uppladdad"),
+        (SOURCE_SITE, "Från hemsidan"),
+    ]
+
+    account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="media")
+    file = models.ImageField(
+        "Bild",
+        upload_to=media_upload_path,
+        width_field="width",
+        height_field="height",
+        max_length=200,
+    )
+    thumb = models.ImageField("Miniatyr", upload_to=media_upload_path, max_length=200, blank=True)
+    width = models.PositiveIntegerField("Bredd", default=0)
+    height = models.PositiveIntegerField("Höjd", default=0)
+    alt = models.CharField("Alternativtext", max_length=200, blank=True)
+    is_logo = models.BooleanField("Logotyp", default=False)
+    source = models.CharField("Källa", max_length=10, choices=SOURCE_CHOICES, default=SOURCE_UPLOAD)
+    #: Var bilden låg på kundens hemsida (bara för SOURCE_SITE).
+    source_url = models.URLField("Adress på hemsidan", max_length=500, blank=True)
+    #: Kunden intygade att företaget äger bilden eller har rätt att använda
+    #: den ("Vi äger bilderna eller har rätt att använda dem").
+    rights_confirmed_at = models.DateTimeField("Rätten intygad", null=True, blank=True)
+    rights_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Intygad av",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "Bild"
+        verbose_name_plural = "Bilder"
+        indexes = [models.Index(fields=["account", "-created_at"], name="flamingo_media_account")]
+
+    def __str__(self):
+        return self.alt or f"Bild {self.pk}"
+
+
+class SiteImageCandidate(models.Model):
+    """En bild som läsningen av hemsidan hittade. Bara miniatyren och
+    adressen sparas; kunden väljer vilka som hämtas på riktigt till
+    arkivet (imported_asset)."""
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="site_images"
+    )
+    source_url = models.URLField("Adress på hemsidan", max_length=500)
+    thumb = models.ImageField("Miniatyr", upload_to=media_upload_path, max_length=200, blank=True)
+    width = models.PositiveIntegerField("Bredd", null=True, blank=True)
+    height = models.PositiveIntegerField("Höjd", null=True, blank=True)
+    #: Ser ut som logotypen ("logo" i adressen, alt-texten eller klassen,
+    #: eller hemsidans ikon): markeras för kunden (media.image_ref).
+    likely_logo = models.BooleanField("Trolig logotyp", default=False)
+    #: Sidans egen alt-text, förslaget när bilden hämtas till arkivet.
+    alt = models.CharField("Alt-text på hemsidan", max_length=200, blank=True)
+    found_at = models.DateTimeField("Hittad", default=timezone.now)
+    imported_asset = models.ForeignKey(
+        MediaAsset,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="candidates",
+        verbose_name="Hämtad som",
+    )
+
+    class Meta:
+        ordering = ["-found_at", "-id"]
+        verbose_name = "Bild från hemsidan"
+        verbose_name_plural = "Bilder från hemsidan"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "source_url"], name="flamingo_site_image_unique"
+            )
+        ]
+
+    def __str__(self):
+        return self.source_url
+
+
+def _delete_image_files(sender, instance, **kwargs):
+    """Filerna går med raden, men först när borttagningen är sparad: en
+    transaktion som rullas tillbaka ska inte lämna en rad utan fil."""
+    names = [f for f in (getattr(instance, "file", None), instance.thumb) if f]
+    if not names:
+        return
+
+    def remove():
+        for image in names:
+            try:
+                image.storage.delete(image.name)
+            except Exception:  # noqa: BLE001 - en kvarglömd fil fäller ingenting
+                logger.warning("Flamingo: bildfilen %s kunde inte tas bort", image.name)
+
+    transaction.on_commit(remove)
+
+
+models.signals.post_delete.connect(_delete_image_files, sender=MediaAsset)
+models.signals.post_delete.connect(_delete_image_files, sender=SiteImageCandidate)
+
+
+def empty_page_content():
+    """Ett tomt utkast eller en opublicerad sida: {"blocks": []}."""
+    return {"blocks": []}
+
+
+class LandingPage(models.Model):
+    """En landningssida i sidbyggaren. Blocken och deras JSON beskrivs i
+    apps/flamingo/pagebuilder/__init__.py.
+
+    draft       det kunden (eller ADX i kundvyn) arbetar med
+    published   det besökarna ser; {"blocks": []} tills sidan publicerats
+                första gången (published_at)
+    rev         ökar med ett för varje sparat utkast (pagebuilder.save_draft):
+                en sparning med ett gammalt rev nekas, så att två flikar
+                aldrig skriver över varandra utan att veta om det; en
+                publicering med ett gammalt rev nekas också
+    built_for,  kampanjen vars förslag byggde sidan och utkastets rev då
+    built_rev   (pagebuilder.create_page_for_campaign). Ett nytt förslag
+                bygger om sidan bara för den kampanjen och bara så länge rev
+                är detsamma (pagebuilder.refresh_from_proposal); en sida som
+                kunden valt, kopierat eller ändrat byggs aldrig om
+
+    En sida kan användas av flera kampanjer (Campaign.landing_page). Varje
+    kampanj har ändå sin egen adress /lp/<page_slug>/, så att förfrågningarna
+    räknas till rätt kampanj. Ingen låsning av sidor eller block: en ändring
+    på en sida som är live publiceras direkt när kontrollerna går igenom, och
+    byrån får ett larm (pagebuilder.publish_page). Det gäller också paletten,
+    logotypen och en live-kampanjs byte av sida. Kunden mejlas aldrig."""
+
+    DESIGN_REN = "ren"
+    DESIGN_CHOICES = [(DESIGN_REN, "Ren")]
+
+    PALETTE_BLUE = "blue"
+    PALETTE_GREEN = "green"
+    PALETTE_RED = "red"
+    PALETTE_ORANGE = "orange"
+    PALETTE_GRAPHITE = "graphite"
+    #: Färgerna från kundens logotyp (logo_colors), fylls i av mediaarkivet.
+    PALETTE_LOGO = "logo"
+    PALETTE_CHOICES = [
+        (PALETTE_BLUE, "Blå"),
+        (PALETTE_GREEN, "Grön"),
+        (PALETTE_RED, "Röd"),
+        (PALETTE_ORANGE, "Orange"),
+        (PALETTE_GRAPHITE, "Grafit"),
+        (PALETTE_LOGO, "Från logotypen"),
+    ]
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="landing_pages"
+    )
+    name = models.CharField("Namn", max_length=120)
+    design = models.CharField("Design", max_length=20, choices=DESIGN_CHOICES, default=DESIGN_REN)
+    palette = models.CharField(
+        "Palett", max_length=20, choices=PALETTE_CHOICES, default=PALETTE_BLUE
+    )
+    #: Färgerna ur logotypen, som mediaarkivet läser ut:
+    #:   {"primary": "#1F6FEB", "accent": "#F2994A", "asset": 12}
+    #: Bara hexkoder (#RRGGBB). Renderaren justerar dem tills kontrasten
+    #: klarar WCAG AA (pagebuilder/render.py, palette_vars).
+    logo_colors = models.JSONField("Färger från logotypen", default=dict, blank=True)
+    draft = models.JSONField("Utkast", default=empty_page_content, blank=True)
+    published = models.JSONField("Publicerad", default=empty_page_content, blank=True)
+    published_at = models.DateTimeField("Publicerad", null=True, blank=True)
+    published_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Publicerad av",
+    )
+    rev = models.PositiveIntegerField("Version av utkastet", default=1)
+    built_for = models.ForeignKey(
+        "Campaign",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Byggd av förslaget för",
+    )
+    built_rev = models.PositiveIntegerField(
+        "Utkastets rev när förslaget byggde det", null=True, blank=True
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        verbose_name = "Landningssida"
+        verbose_name_plural = "Landningssidor"
+
+    def __str__(self):
+        return self.name
+
+    @staticmethod
+    def _blocks(content):
+        blocks = content.get("blocks") if isinstance(content, dict) else None
+        return [b for b in blocks if isinstance(b, dict)] if isinstance(blocks, list) else []
+
+    @property
+    def draft_blocks(self):
+        return self._blocks(self.draft)
+
+    @property
+    def published_blocks(self):
+        return self._blocks(self.published)
+
+    @property
+    def is_published(self):
+        return self.published_at is not None
+
+    @property
+    def live_blocks(self):
+        """Blocken en kampanj visar: den publicerade versionen, eller
+        utkastet för en sida som aldrig publicerats (det är det som
+        publiceras när kampanjen går live)."""
+        return self.published_blocks if self.is_published else self.draft_blocks
+
+    @property
+    def has_unpublished_changes(self):
+        return self.is_published and self.draft_blocks != self.published_blocks
+
+    def blocks_for(self, which):
+        """which = "draft" eller "published"."""
+        return self.published_blocks if which == "published" else self.draft_blocks
+
+
+# ---------------------------------------------------------------------------
 # Kampanjen och granskningen
 # ---------------------------------------------------------------------------
 
@@ -657,7 +1030,10 @@ class Campaign(models.Model):
         (STATUS_PAUSED, "Pausad"),
     ]
     #: Fälten som utgör kampanjens innehåll: det kunden skickar in, det
-    #: byrån granskar och det som jämförs mellan rundorna.
+    #: byrån granskar och det som jämförs mellan rundorna. Landningssidan är
+    #: inte längre ett fält här: den ligger i sidbyggaren (landing_page) och
+    #: ändras där, och ögonblicksbilden säger vilken sida och version som
+    #: skickades (content_snapshot). Gamla rundor har kvar "page".
     CONTENT_FIELDS = (
         "name",
         "area",
@@ -667,7 +1043,6 @@ class Campaign(models.Model):
         "descriptions",
         "keywords",
         "negatives",
-        "page",
     )
 
     account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="campaigns")
@@ -692,8 +1067,10 @@ class Campaign(models.Model):
     #: [{"text": "badrumsrenovering nacka", "match": "phrase"}, ...]
     keywords = models.JSONField("Sökord", default=list, blank=True)
     negatives = models.JSONField("Negativa sökord", default=list, blank=True)
-    #: Landningssidans innehåll. Generatorn skriver det, byrån granskar det
-    #: och /lp/<page_slug>/ ritar det. Bara bekräftade fakta får stå här.
+    #: HISTORIK: landningssidans innehåll från tiden före sidbyggaren.
+    #: Migreringen 0011 flyttade det till en LandingPage (landing_page), och
+    #: inget läser fältet längre; det står kvar så att gamla kampanjer och
+    #: granskningar går att förstå. Formen var:
     #:   {"title": "Rörjour i Nacka",                 rubriken
     #:    "lead": "Vattenläcka eller stopp? ...",      ingressen
     #:    "points": ["Säker Vatten-auktoriserade"],    punkter under ingressen
@@ -704,7 +1081,20 @@ class Campaign(models.Model):
     #:                   "kind": "text"}],              Lead.answers[label]
     #:    "note": "..."}                               text under formuläret
     #: kind är "text", "textarea" eller "date" (boka tid).
-    page = models.JSONField("Landningssidan", default=dict, blank=True)
+    page = models.JSONField("Landningssidan före sidbyggaren", default=dict, blank=True)
+    #: Sidan kampanjen visar på /lp/<page_slug>/. Flera kampanjer kan dela en
+    #: sida; adressen är ändå kampanjens egen, så förfrågningarna räknas till
+    #: rätt kampanj. RESTRICT: en sida som en kampanj använder kan inte tas
+    #: bort (en live-annons skulle annars leda till en 404), men kontot kan
+    #: tas bort med allt sitt, eftersom kampanjen då tas bort i samma svep.
+    landing_page = models.ForeignKey(
+        LandingPage,
+        null=True,
+        blank=True,
+        on_delete=models.RESTRICT,
+        related_name="campaigns",
+        verbose_name="Landningssida",
+    )
     page_slug = models.SlugField("Sidans adress", max_length=80, unique=True)
     #: Kundens val vid inskicket: "Jag vill att ADX granskar kampanjen innan
     #: den publiceras" (av från början, beslut 2026-10-03). Utan granskning
@@ -803,8 +1193,15 @@ class Campaign(models.Model):
         return round(self.daily_budget_kr * 30.4)
 
     def content_snapshot(self):
-        """Kampanjens innehåll som ett JSON-bart dict (Review.snapshot)."""
-        return {field: getattr(self, field) for field in self.CONTENT_FIELDS}
+        """Kampanjens innehåll som ett JSON-bart dict (Review.snapshot):
+        CONTENT_FIELDS och vilken landningssida (id, namn, utkastets rev)
+        kampanjen hade när den skickades."""
+        snapshot = {field: getattr(self, field) for field in self.CONTENT_FIELDS}
+        page = self.landing_page if self.landing_page_id else None
+        snapshot["landing"] = (
+            {"id": page.pk, "name": page.name, "rev": page.rev} if page is not None else None
+        )
+        return snapshot
 
     def latest_review(self):
         return self.reviews.order_by("-round").first()

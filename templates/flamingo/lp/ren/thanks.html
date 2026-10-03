@@ -1,0 +1,23 @@
+{% extends "flamingo/lp/ren/layout.html" %}
+{% comment %}
+Tacksidan efter formuläret. Inga löften om när eller hur: bara att
+förfrågan är skickad, och numret om det brådskar. Tel:-länken här räknas
+inte som ett klick (data-fl-call saknas med flit: den som redan skickat en
+förfrågan är redan räknad).
+{% endcomment %}
+{% block title %}Tack | {{ site.business }}{% endblock %}
+{% block content %}
+<section class="rn-block rn-thanks">
+  <div class="rn-wrap rn-thanks__in">
+    <svg class="rn-thanks__icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22"/><path d="M14 24.5l6.5 6.5L34 17.5"/></svg>
+    <h1 class="rn-h1 rn-thanks__title">Tack!</h1>
+    <p class="rn-lead">Din förfrågan är skickad till {{ site.business }}.</p>
+    {% if preview %}<p class="rn-preview-note">Förhandsvisning: ingen förfrågan skapades.</p>{% endif %}
+    {% if site.phone %}
+    <p class="rn-thanks__text">Vill du lägga till något, eller brådskar det?</p>
+    <a class="rn-btn rn-btn--primary rn-btn--lg" href="{{ site.tel }}"><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-phone"></use></svg><span>Ring <span class="rn-nowrap">{{ site.phone }}</span></span></a>
+    {% endif %}
+    <p class="rn-thanks__back"><a href="{{ campaign.landing_url }}">Tillbaka till sidan</a></p>
+  </div>
+</section>
+{% endblock %}

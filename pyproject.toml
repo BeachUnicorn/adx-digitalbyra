@@ -25,6 +25,7 @@ dependencies = [
     "markdown>=3.5",
     "dnspython>=2.8.0",
     "cryptography>=46",
+    "phonenumbers>=9.0.40",
 ]
 
 [dependency-groups]

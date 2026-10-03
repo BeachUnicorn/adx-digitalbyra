@@ -18,6 +18,7 @@ import importlib
 import io
 import json
 import re
+import tempfile
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -33,7 +34,7 @@ from apps.projects.access import VIEW_AS_KEY
 from apps.projects.auth import contact_for_email
 from apps.projects.models import Customer
 
-from . import checks, google_ads, scan, sms
+from . import checks, google_ads, pagebuilder, scan, sms
 from .manage_review import queued_uploads
 from .management.commands import flamingo_demo as demo
 from .models import (
@@ -54,14 +55,21 @@ ELKS = {
     "ELKS_API_USERNAME": "u-test",
     "ELKS_API_PASSWORD": "p-test",
     "ELKS_SENDER": "ADXFlamingo",
+    "SMS_SEND_LIVE": True,
 }
 #: PTS serier för fiktiva nummer: 08-465 004 00-99 och 070-174 06 05-99.
 FICTIONAL_PHONE = re.compile(r"^\+46(?:8465004\d\d|7017406(?:0[5-9]|[1-9]\d))$")
 
 
+#: Demots bilder (mediaarkivet) hamnar här under testerna, aldrig i
+#: MEDIA_ROOT: en testkörning ska inte lämna filer efter sig.
+DEMO_MEDIA = tempfile.mkdtemp(prefix="flamingo-demo-")
+
+
 def run_demo(*args):
     out = io.StringIO()
-    call_command("flamingo_demo", *args, stdout=out)
+    with override_settings(MEDIA_ROOT=DEMO_MEDIA):
+        call_command("flamingo_demo", *args, stdout=out)
     return out.getvalue()
 
 
@@ -294,7 +302,9 @@ class DemoContentTests(DemoFixture, TestCase):
     def test_every_phone_number_is_reserved_for_fiction(self):
         numbers = [self.customer.phone, self.account.notify_phone]
         numbers += list(self.account.facts.filter(key="telefon").values_list("value", flat=True))
-        numbers += [c.page.get("phone", "") for c in self.account.campaigns.all()]
+        for page in self.account.landing_pages.all():
+            for block in page.draft_blocks:
+                numbers.append(pagebuilder.active_fields(block).get("phone") or "")
         numbers += list(self.account.leads.exclude(phone="").values_list("phone", flat=True))
         numbers += list(self.account.sms_log.exclude(to="").values_list("to", flat=True))
         for text in [self.account.autoreply_text]:
@@ -381,8 +391,11 @@ class DemoContentTests(DemoFixture, TestCase):
             self.assertEqual(checks.validate(campaign), [], campaign.name)
             for review in campaign.reviews.all():
                 submitted = Campaign(account=self.account, service=campaign.service)
-                for field, value in review.snapshot.items():
-                    setattr(submitted, field, value)
+                for field in Campaign.CONTENT_FIELDS:
+                    if field in review.snapshot:
+                        setattr(submitted, field, review.snapshot[field])
+                # Sidan ligger i sidbyggaren och prövas med kampanjen ovan.
+                submitted.landing_page = campaign.landing_page
                 self.assertEqual(checks.validate(submitted), [], f"{campaign.name} {review}")
         draft = self.account.campaigns.get(status=Campaign.STATUS_DRAFT)
         self.assertTrue(checks.validate(draft))

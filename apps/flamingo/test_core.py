@@ -28,6 +28,7 @@ from .models import (
     format_google_ads_id,
     make_page_slug,
 )
+from .testing import pages_from_campaigns
 
 User = get_user_model()
 
@@ -71,6 +72,7 @@ class CoreFixture:
             name="Hemlig kampanj",
             status=Campaign.STATUS_LIVE,
         )
+        pages_from_campaigns(cls.live, cls.draft, cls.secret)
         cls.lead = Lead.objects.create(account=cls.account, campaign=cls.live, name="Sara Holm")
         cls.secret_lead = Lead.objects.create(
             account=cls.other_account, name="Hemlig Person", phone="070-999"
@@ -146,7 +148,11 @@ class ModelTests(CoreFixture, TestCase):
         Review.objects.create(campaign=self.draft, round=1)
         self.assertEqual(self.draft.next_round(), 2)
         self.assertEqual(self.draft.pending_review().round, 1)
-        self.assertEqual(set(self.draft.content_snapshot()), set(Campaign.CONTENT_FIELDS))
+        snapshot = self.draft.content_snapshot()
+        self.assertEqual(set(snapshot), {*Campaign.CONTENT_FIELDS, "landing"})
+        self.assertNotIn("page", Campaign.CONTENT_FIELDS)
+        page = self.draft.landing_page
+        self.assertEqual(snapshot["landing"], {"id": page.pk, "name": page.name, "rev": page.rev})
 
     def test_service_is_protected_while_a_campaign_uses_it(self):
         from django.db.models import ProtectedError

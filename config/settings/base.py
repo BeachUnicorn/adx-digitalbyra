@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "apps.aidocs",
     "apps.cloud",
     "apps.flamingo",
+    "apps.sms",
     "reversion",
     "apps.assistant",
 ]
@@ -285,8 +286,10 @@ GOOGLE_ADS_INVITE_ON_CREATE = env.bool("GOOGLE_ADS_INVITE_ON_CREATE", default=Fa
 # SECRET_KEY (byts den kopplar byrån Google igen).
 FLAMINGO_TOKEN_KEY = env.str("FLAMINGO_TOKEN_KEY", default="")
 GOOGLE_PLACES_API_KEY = env.str("GOOGLE_PLACES_API_KEY", default="")
-ELKS_API_USERNAME = env.str("ELKS_API_USERNAME", default="")
-ELKS_API_PASSWORD = env.str("ELKS_API_PASSWORD", default="")
+# 46elks: ett konto för både Flamingos sms och SMS-API:t (apps/sms). De äldre
+# namnen SMS_46ELKS_USER/SMS_46ELKS_PASSWORD gäller när ELKS_* saknas.
+ELKS_API_USERNAME = env.str("ELKS_API_USERNAME", default=env.str("SMS_46ELKS_USER", default=""))
+ELKS_API_PASSWORD = env.str("ELKS_API_PASSWORD", default=env.str("SMS_46ELKS_PASSWORD", default=""))
 # Avsändaren i sms: högst elva tecken (bokstäver och siffror) eller ett nummer.
 ELKS_SENDER = env.str("ELKS_SENDER", default="")
 # Landningssidornas domän i Editor-filen (tomt = https://adx.se) och namnet på
@@ -294,6 +297,26 @@ ELKS_SENDER = env.str("ELKS_SENDER", default="")
 # affär"). Se apps/flamingo/exports.py.
 FLAMINGO_LANDING_BASE_URL = env.str("FLAMINGO_LANDING_BASE_URL", default="")
 FLAMINGO_CONVERSION_NAME = env.str("FLAMINGO_CONVERSION_NAME", default="")
+
+# SMS-API:t för kunderna (apps/sms/README.md), via 46elks med uppgifterna ovan.
+SMS_PROVIDER = env.str("SMS_PROVIDER", default="46elks")
+# Av = varje sändning går till 46elks med dryrun=yes: inget sms skickas och
+# raden märks som provkörning. Slås på i produktionens .env, aldrig lokalt.
+SMS_SEND_LIVE = env.bool("SMS_SEND_LIVE", default=False)
+# Basen för leveransrapporternas adress. Tomt = SITE_BASE_URL. Måste vara
+# https och nåbar från 46elks; annars begärs ingen rapport.
+SMS_CALLBACK_BASE_URL = env.str("SMS_CALLBACK_BASE_URL", default="")
+# Valfri spärr: leveransrapporter bara från de här adresserna (46elks listar
+# sina på /docs/verify-callback-origin). Tomt = ingen IP-spärr; signaturen
+# i adressen räcker för att stoppa förfalskningar.
+SMS_DLR_ALLOWED_IPS = env.list("SMS_DLR_ALLOWED_IPS", default=[])
+# Gränserna (apps/sms/ratelimit.py). Minutgränsen gäller per nyckel och per
+# kund; byråns gräns gäller alla kunders sms tillsammans och håller dem under
+# 46elks 100 i minuten för kontot, med plats kvar för Flamingos sms.
+SMS_RATE_PER_SECOND = env.int("SMS_RATE_PER_SECOND", default=20)
+SMS_RATE_PER_MINUTE = env.int("SMS_RATE_PER_MINUTE", default=60)
+SMS_GLOBAL_PER_MINUTE = env.int("SMS_GLOBAL_PER_MINUTE", default=80)
+SMS_DAILY_MAX_PER_KEY = env.int("SMS_DAILY_MAX_PER_KEY", default=5000)
 
 LOGGING = {
     "version": 1,

@@ -1,0 +1,7 @@
+{% extends "flamingo/lp/ren/layout.html" %}
+{% comment %}
+Landningssidan: blocken i sidans ordning, var och en ritad av sin mall i
+flamingo/lp/ren/blocks/ (pagebuilder.render). blocks_html är redan
+escapad block för block.
+{% endcomment %}
+{% block content %}{{ blocks_html }}{% endblock %}

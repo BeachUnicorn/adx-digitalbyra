@@ -4,16 +4,25 @@ kundens kunder.
 
 - Bara en kampanj som är live, på ett aktiverat konto hos en aktiv kund, har
   en publik sida. Allt annat är 404 (sajtens vanliga 404-sida).
+- Sidan är kampanjens LandingPage (sidbyggaren, apps/flamingo/pagebuilder/),
+  ritad i designen Ren av pagebuilder.render_page_html. Besökarna ser den
+  publicerade versionen; en live-kampanj vars sida aldrig publicerats är 404
+  (det ska inte kunna hända: sidan publiceras när kampanjen går live).
+  Flera kampanjer kan dela en sida, men adressen är kampanjens egen, så
+  förfrågningarna och klicken räknas till rätt kampanj.
 - Byrån (staff) kan förhandsvisa varje kampanj, oavsett status, med en
-  synlig remsa överst. Formuläret skickar inget i förhandsvisningen.
+  synlig remsa överst: den publicerade versionen, eller utkastet med
+  ?utkast=1 (och alltid för en sida som inte publicerats). Formuläret
+  skickar inget i förhandsvisningen.
 - Sidan är kundens egen: kundens namn, ingen Flamingo- eller ADX-design.
-  Innehållet kommer från campaign.page och kundens bekräftade uppgifter.
-  Ett betyg visas bara om uppgiften är bekräftad OCH kommer från Google
-  (eller ADX): ett betyg från hemsidan eller som kunden skrivit själv visas
-  aldrig för allmänheten.
-- Formuläret skapar en Lead (limits.create_form_lead, leads.create_lead)
-  med klick-id och utm ur adressen, och sms.notify_new_lead skickar det
-  kunden slagit på. Inga mejl.
+  Innehållet kommer från blocken och kundens bekräftade uppgifter. Ett
+  betyg visas bara om det kommer från Google-profilen eller är en bekräftad
+  uppgift från Google (eller ADX): ett betyg från hemsidan eller som kunden
+  skrivit själv visas aldrig för allmänheten.
+- Formuläret (sidans formulärblock, pagebuilder.form_spec) skapar en Lead
+  (limits.create_form_lead, leads.create_lead) med klick-id och utm ur
+  adressen, och sms.notify_new_lead skickar det kunden slagit på. Svaren på
+  frågorna sparas som Lead.answers[frågans etikett]. Inga mejl.
 - Ett klick på telefonnumret (varje tel:-länk med data-fl-call) skickas av
   static/js/flamingo-lp.js med sendBeacon till call_click
   (/lp/<slug>/ring/) och blir en förfrågan "Klick på telefonnumret". Inget
@@ -22,7 +31,8 @@ kundens kunder.
 - Mätningen hos Google: sidan frågar inte om samtycke (beslut 2026-10-03).
   En förfrågan eller ett klick på numret med gclid köas som konvertering
   (Lead.can_send_to_google), och Lead.ad_consent lämnas tomt: sidan tar
-  inte emot något svar om samtycke, så inget kan hittas på. Inga kakor.
+  inte emot något svar om samtycke, så inget kan hittas på. Inga kakor
+  utöver formulärets CSRF-nyckel, ingen statistik från ADX, noindex.
 
 Skydd: CSRF, ett osynligt honungsfält (en bot som fyller det får samma
 tack-sida, men ingen förfrågan skapas), spärrarna i limits.py (högst
@@ -42,10 +52,9 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.projects.access import is_agency_user
 
-from . import leads, limits, sms
-from .generator import company_name
+from . import leads, limits, pagebuilder, sms
 from .manage_review import staff_state
-from .models import PAGE_QUESTION_KINDS, RATING_SOURCES, Campaign, Service
+from .models import Campaign
 
 logger = logging.getLogger("security")
 
@@ -53,32 +62,14 @@ logger = logging.getLogger("security")
 RATE_LIMIT = limits.LEADS_PER_IP
 #: Förfrågningar i timmen till en kampanj, från alla tillsammans.
 CAMPAIGN_RATE_LIMIT = limits.LEADS_PER_CAMPAIGN
-#: Formulärets frågor (Campaign.page["questions"]) visas högst så här många.
-QUESTIONS_MAX = 8
 #: Honungsfältet: osynligt för människor, ifyllt av botar.
 HONEYPOT = "webbplats"
-
-#: Uppgifter (Fact.key) som sidan läser, i turordning.
-FACT_NAME = ("foretagsnamn", "foretag", "namn")
-FACT_PHONE = ("telefon",)
-FACT_ADDRESS = ("adress",)
-FACT_RATING = ("betyg", "google-betyg", "omdomen", "rating")
-
-#: Formulärets rubrik när sidan inte har någon egen, per sätt att sälja.
-FORM_TITLES = {
-    Service.SALES_CALL: "Hellre att vi ringer dig?",
-    Service.SALES_QUOTE: "Berätta om jobbet",
-    Service.SALES_BOOK: "Boka en tid",
-}
-SUBMIT_LABELS = {
-    Service.SALES_CALL: "Ring upp mig",
-    Service.SALES_QUOTE: "Skicka",
-    Service.SALES_BOOK: "Skicka",
-}
+#: ?utkast=1 visar byrån utkastet i stället för den publicerade sidan.
+DRAFT_PARAM = "utkast"
 
 
 # ---------------------------------------------------------------------------
-# Kampanjen och sidans innehåll
+# Kampanjen och sidan
 # ---------------------------------------------------------------------------
 
 
@@ -90,7 +81,7 @@ def _campaign_for(request, slug):
     en publik sida: ett påhittat företag ska inte gå att hitta, inte ens
     för demokundens kontakt."""
     campaign = (
-        Campaign.objects.select_related("account__customer", "service")
+        Campaign.objects.select_related("account__customer", "service", "landing_page")
         .filter(page_slug=slug)
         .first()
     )
@@ -110,73 +101,29 @@ def _campaign_for(request, slug):
     raise Http404
 
 
-def _first(facts, keys):
-    for key in keys:
-        value = (facts.get(key) or "").strip()
-        if value:
-            return value
-    return ""
-
-
-def _questions(page):
-    """Sidans extra frågor, bara de som går att rita."""
-    questions, seen = [], set()
-    for raw in page.get("questions") or []:
-        if not isinstance(raw, dict):
-            continue
-        key = str(raw.get("key") or "").strip()
-        label = str(raw.get("label") or "").strip()
-        kind = raw.get("kind") if raw.get("kind") in PAGE_QUESTION_KINDS else "text"
-        if not key or not label or key in seen:
-            continue
-        seen.add(key)
-        questions.append({"key": key, "label": label[:120], "kind": kind, "field": f"q_{key}"})
-        if len(questions) >= QUESTIONS_MAX:
-            break
-    return questions
-
-
-def _rating(account):
-    """Ett bekräftat betyg från Google (eller ADX), annars "". Ett betyg från
-    hemsidan, eller som kunden skrivit själv, visas aldrig."""
-    rows = {
-        key: value.strip()
-        for key, value in account.facts.filter(
-            confirmed=True, key__in=FACT_RATING, source__in=RATING_SOURCES
-        ).values_list("key", "value")
-    }
-    return _first(rows, FACT_RATING)
-
-
-def page_content(campaign):
-    """Det sidan visar, ur campaign.page och de bekräftade uppgifterna."""
-    page = campaign.page if isinstance(campaign.page, dict) else {}
-    facts = campaign.account.confirmed_facts()
-    # Samma namn som annonserna (generator.company_name): utan bolagsform och
-    # utan byråns anteckningar i parentes, "Lindqvist Rör AB (demo)" blir
-    # "Lindqvist Rör".
-    business = _first(facts, FACT_NAME) or company_name(campaign.account.customer)
-    # "phone" på sidan vinner, även tom (tom = ingen ringknapp). Saknas
-    # nyckeln helt används den bekräftade uppgiften.
-    phone = str(page.get("phone") or "").strip() if "phone" in page else _first(facts, FACT_PHONE)
-    mode = campaign.service.sales_mode
-    points = [str(p).strip() for p in page.get("points") or [] if str(p).strip()]
-    return {
-        "business": business,
-        "title": str(page.get("title") or "").strip() or campaign.service.name,
-        "lead": str(page.get("lead") or "").strip(),
-        "points": points[:6],
-        "phone": phone,
-        "tel": sms.tel_href(phone) if phone else "",
-        "rating": _rating(campaign.account),
-        "address": _first(facts, FACT_ADDRESS),
-        "form_title": str(page.get("form_title") or "").strip()
-        or FORM_TITLES.get(mode, "Berätta om jobbet"),
-        "submit_label": SUBMIT_LABELS.get(mode, "Skicka"),
-        "note": str(page.get("note") or "").strip(),
-        "questions": _questions(page),
-        "mode": mode,
-    }
+def _page_for(request, campaign, preview):
+    """(sidan, which) för kampanjen, eller 404. which är "published" för
+    besökarna; byrån ser utkastet med ?utkast=1, och alltid för en sida som
+    aldrig publicerats."""
+    page = campaign.landing_page
+    staff = is_agency_user(request.user)
+    if page is None:
+        if not preview:
+            logger.error("flamingo lp: kampanj %s är live men saknar sida", campaign.pk)
+            raise Http404
+        page = pagebuilder.ensure_own_page(campaign)
+        campaign.landing_page = page
+    wants_draft = staff and request.GET.get(DRAFT_PARAM) == "1"
+    if not page.is_published:
+        if not preview and not staff:
+            logger.error(
+                "flamingo lp: kampanj %s är live men sidan %s är inte publicerad",
+                campaign.pk,
+                page.pk,
+            )
+            raise Http404
+        return page, "draft"
+    return page, "draft" if wants_draft else "published"
 
 
 # ---------------------------------------------------------------------------
@@ -191,8 +138,12 @@ def _valid_phone(value):
 
 
 class LeadForm(forms.Form):
-    """Landningssidans formulär. Fälten ritas för hand i lp/page.html;
-    formuläret står för gränserna och felen. Frågorna läggs till per sida."""
+    """Landningssidans formulär. Fälten ritas för hand i
+    lp/ren/blocks/form.html; formuläret står för gränserna och felen.
+    Frågorna kommer från sidans formulärblock (pagebuilder.FormSpec).
+
+    Formulärets variant styr: "short" (som "ringer direkt" förut) har namnet
+    valfritt och bara mobilen; "questions" och "booking" kräver namnet."""
 
     name = forms.CharField(label="Namn", max_length=leads.NAME_MAX, required=False)
     phone = forms.CharField(
@@ -209,13 +160,13 @@ class LeadForm(forms.Form):
     )
     message = forms.CharField(label="Meddelande", max_length=leads.MESSAGE_MAX, required=False)
 
-    def __init__(self, *args, content, **kwargs):
+    def __init__(self, *args, spec=None, **kwargs):
         super().__init__(*args, **kwargs)
-        self.content = content
-        if content["mode"] != Service.SALES_CALL:
+        self.spec = spec or pagebuilder.FormSpec()
+        if self.spec.name_required:
             self.fields["name"].required = True
             self.fields["name"].error_messages["required"] = "Skriv ditt namn."
-        for question in content["questions"]:
+        for question in self.spec.questions:
             if question["kind"] == "date":
                 field = forms.DateField(
                     label=question["label"],
@@ -233,7 +184,7 @@ class LeadForm(forms.Form):
                 field.error_messages["max_length"] = (
                     f"Högst {field.max_length} tecken, det här är för långt."
                 )
-            field.widget.attrs.setdefault("id", f"lp-{name}")
+            field.widget.attrs.setdefault("id", f"rn-{name}")
 
     def lead_data(self):
         data = {
@@ -243,7 +194,7 @@ class LeadForm(forms.Form):
             "message": self.cleaned_data.get("message", ""),
             "answers": {},
         }
-        for question in self.content["questions"]:
+        for question in self.spec.questions:
             value = self.cleaned_data.get(question["field"])
             if value:
                 text = value.isoformat() if hasattr(value, "isoformat") else str(value)
@@ -253,34 +204,37 @@ class LeadForm(forms.Form):
         return data
 
 
-def _limit_message(content, reason):
+def _limit_message(site, reason):
     """Lugnt besked när en spärr slagit till, med numret om det finns."""
     if reason == limits.LIMIT_CAMPAIGN:
         text = "Formuläret tar inte emot fler förfrågningar just nu. "
     else:
         text = "Det har kommit många förfrågningar från din uppkoppling. "
-    if content["phone"]:
-        return text + f"Ring {content['business']} på {content['phone']} i stället."
+    if site.phone:
+        return text + f"Ring {site.business} på {site.phone} i stället."
     return text + "Försök igen lite senare."
 
 
-def _render(request, template, context, status=200):
-    response = render(request, template, context, status=status)
-    response["X-Robots-Tag"] = "noindex, nofollow"
-    return response
-
-
-def _base_context(request, campaign, preview):
-    content = page_content(campaign)
-    return {
+def _layout_extra(request, campaign, preview, page, which):
+    """Layoutens kontext utöver sidan: remsan för byrån och länkarna mellan
+    utkastet och den publicerade sidan."""
+    is_staff = is_agency_user(request.user)
+    extra = {
         "campaign": campaign,
-        "content": content,
         "preview": preview,
-        "is_staff": is_agency_user(request.user),
+        "is_staff": is_staff,
         # Remsan är byråns: byråns ord för läget ("Att granska", "Hos
         # kunden"), inte kundens ("Väntar på dig").
-        "status_label": staff_state(campaign, campaign.pending_review())[0],
+        "status_label": staff_state(campaign, campaign.pending_review())[0] if is_staff else "",
+        "review_url": reverse("manage:flamingo_review", args=[campaign.pk]) if is_staff else "",
+        "draft_url": "",
+        "published_url": "",
     }
+    if is_staff:
+        extra["draft_url"] = f"{campaign.landing_url}?{DRAFT_PARAM}=1"
+        if page.is_published:
+            extra["published_url"] = campaign.landing_url
+    return extra
 
 
 def _measure_context(request, campaign, preview):
@@ -297,11 +251,21 @@ def _measure_context(request, campaign, preview):
     }
 
 
+def _respond(html, status=200):
+    response = HttpResponse(html, status=status)
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
 @require_http_methods(["GET", "HEAD", "POST"])
 def landing(request, slug):
     campaign, preview = _campaign_for(request, slug)
-    context = _base_context(request, campaign, preview)
-    content = context["content"]
+    page, which = _page_for(request, campaign, preview)
+    account = campaign.account
+    blocks = page.blocks_for(which)
+    # Sidan utan formulär (bara ringknappar) tar ändå emot en postning med
+    # det korta formulärets fält, så att ingen förfrågan tappas.
+    spec = pagebuilder.form_spec(blocks) or pagebuilder.FormSpec()
     tracking = leads.tracking_from(request.GET)
     status = 200
 
@@ -311,7 +275,7 @@ def landing(request, slug):
             # ska inte lära sig vad som stoppade den.
             logger.warning("flamingo lp: honungsfältet ifyllt (kampanj %s)", campaign.pk)
             return redirect("flamingo_public:thanks", slug=campaign.page_slug)
-        form = LeadForm(request.POST, content=content)
+        form = LeadForm(request.POST, spec=spec)
         if form.is_valid():
             if preview:
                 # Förhandsvisningen skapar ingen förfrågan och skickar inget.
@@ -323,27 +287,20 @@ def landing(request, slug):
             logger.warning(
                 "flamingo lp: för många förfrågningar (%s, kampanj %s)", refused, campaign.pk
             )
-            form.add_error(None, _limit_message(content, refused))
+            site = pagebuilder.render.site_info(page, account, blocks)
+            form.add_error(None, _limit_message(site, refused))
             status = 429
         tracking = leads.tracking_from(request.POST, request.GET)
     else:
-        form = LeadForm(content=content)
+        form = LeadForm(spec=spec)
 
-    questions = [{**q, "bound": form[q["field"]]} for q in content["questions"]]
-    context.update(_measure_context(request, campaign, preview))
-    context.update(
-        {
-            "form": form,
-            "questions": questions,
-            "tracking": tracking,
-            "honeypot": HONEYPOT,
-            "action": request.get_full_path(),
-            "review_url": reverse("manage:flamingo_review", args=[campaign.pk])
-            if context["is_staff"]
-            else "",
-        }
+    extra = _layout_extra(request, campaign, preview, page, which)
+    extra.update(_measure_context(request, campaign, preview))
+    extra.update({"tracking": tracking, "action": request.get_full_path()})
+    html = pagebuilder.render_page_html(
+        page, account, campaign, which=which, request=request, form=form, extra=extra
     )
-    return _render(request, "flamingo/lp/page.html", context, status=status)
+    return _respond(html, status=status)
 
 
 def _live_campaign(slug):
@@ -395,8 +352,11 @@ def call_click(request, slug):
 @require_http_methods(["GET", "HEAD"])
 def thanks(request, slug):
     campaign, preview = _campaign_for(request, slug)
-    context = _base_context(request, campaign, preview)
-    context["review_url"] = (
-        reverse("manage:flamingo_review", args=[campaign.pk]) if context["is_staff"] else ""
+    page, which = _page_for(request, campaign, preview)
+    extra = _layout_extra(request, campaign, preview, page, which)
+    context = pagebuilder.page_view_context(
+        page, campaign.account, campaign, which=which, request=request, extra=extra
     )
-    return _render(request, "flamingo/lp/thanks.html", context)
+    response = render(request, pagebuilder.render.THANKS_TEMPLATE, context)
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response

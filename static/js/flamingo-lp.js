@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Kundens landningssidor (/lp/<slug>/), templates/flamingo/lp/.
+   Kundens landningssidor (/lp/<slug>/), templates/flamingo/lp/ren/.
 
    Klick på numret, valfritt (sidan och numret fungerar utan skript). Varje
    a[data-fl-call] skickar ett sendBeacon till body[data-fl-beacon]
@@ -14,6 +14,36 @@
    ========================================================================== */
 (function () {
   "use strict";
+
+  /* Före och efter (sidbyggarens block, variant "Reglage"): reglaget flyttar
+     gränsen mellan bilderna. Utan skript står gränsen i mitten. */
+  Array.prototype.forEach.call(document.querySelectorAll("[data-rn-compare]"), function (figure) {
+    var range = figure.querySelector("input[type=range]");
+    var frame = figure.querySelector(".rn-compare__frame");
+    if (!range || !frame) {
+      return;
+    }
+    var update = function () {
+      frame.style.setProperty("--pos", range.value + "%");
+    };
+    range.addEventListener("input", update);
+    update();
+  });
+
+  /* Ringremsan i mobilen: med skript glider den upp först när knapparna i
+     Toppen inte syns längre, så att numret inte står tre gånger på den
+     första skärmen. Utan skript (eller IntersectionObserver) syns den hela
+     tiden. Klicken räknas som förut (a[data-fl-call] nedan). */
+  var callbar = document.querySelector(".rn-callbar");
+  var heroActions = document.querySelector(".rn-hero__actions");
+  if (callbar && heroActions && "IntersectionObserver" in window) {
+    document.body.classList.add("rn--reveal");
+    new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        callbar.classList.toggle("is-shown", !entry.isIntersecting);
+      });
+    }).observe(heroActions);
+  }
 
   var beacon = document.body.getAttribute("data-fl-beacon") || "";
   var TRACKING = [

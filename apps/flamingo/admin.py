@@ -16,9 +16,12 @@ from .models import (
     Fact,
     FlamingoAccount,
     GoogleAdsConnection,
+    LandingPage,
     Lead,
+    MediaAsset,
     Review,
     Service,
+    SiteImageCandidate,
     SmsLog,
 )
 
@@ -96,7 +99,7 @@ class CampaignAdmin(admin.ModelAdmin):
     )
     list_filter = ("status", "review_requested")
     search_fields = ("name", "page_slug", "account__customer__name")
-    raw_id_fields = ("account", "service", "approved_by", "created_by")
+    raw_id_fields = ("account", "service", "landing_page", "approved_by", "created_by")
     readonly_fields = (
         "google_resources",
         "google_synced_at",
@@ -216,3 +219,31 @@ class SmsLogAdmin(admin.ModelAdmin):
 
 admin.site.register(Fact)
 admin.site.register(Service)
+
+
+@admin.register(LandingPage)
+class LandingPageAdmin(admin.ModelAdmin):
+    """Sidorna i sidbyggaren. Blocken redigeras i verktyget (/flamingo/app/sidor/);
+    här bara för felsökning. Publicera alltid därifrån (pagebuilder.publish_page),
+    aldrig genom att ändra published här: då körs inga kontroller."""
+
+    list_display = ("name", "account", "design", "palette", "published_at", "rev", "updated_at")
+    list_filter = ("design", "palette")
+    search_fields = ("name", "account__customer__name")
+    raw_id_fields = ("account", "created_by", "published_by")
+    readonly_fields = ("published", "published_at", "published_by", "rev", "created_at")
+
+
+@admin.register(MediaAsset)
+class MediaAssetAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "account", "width", "height", "is_logo", "source", "created_at")
+    list_filter = ("source", "is_logo")
+    search_fields = ("alt", "account__customer__name")
+    raw_id_fields = ("account", "rights_confirmed_by")
+
+
+@admin.register(SiteImageCandidate)
+class SiteImageCandidateAdmin(admin.ModelAdmin):
+    list_display = ("source_url", "account", "found_at", "imported_asset")
+    search_fields = ("source_url", "account__customer__name")
+    raw_id_fields = ("account", "imported_asset")

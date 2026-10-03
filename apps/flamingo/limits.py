@@ -24,6 +24,11 @@ gunicorn-arbetare och töms vid omstart), så en spärr gäller hela sajten.
                             sedan skriver mallarna texterna (generator.py).
     Sms                     i sms.py: ett autosvar per nummer och dygn, och
                             högst SMS_DAILY_MAX sms per konto och dag.
+    Per konto och dygn      reserve_daily: Google Places (reviews.py),
+                            bilderna från hemsidan och larmen om ett konto
+                            (alerts.send_account_alert).
+    Per konto och timme     reserve_hourly: uppladdade bilder
+                            (media.UPLOADS_PER_HOUR).
 
 Besökarens IP sparas aldrig. Lead.ip_hash är en HMAC av adressen med
 SECRET_KEY som nyckel: samma adress ger samma värde, men värdet går inte att
@@ -277,3 +282,64 @@ def reserve_ai(account, now=None):
             return False
         FlamingoAccount.objects.filter(pk=row.pk).update(ai_day=today, ai_count=count + 1)
     return True
+
+
+# ---------------------------------------------------------------------------
+# Dagens räknare för det som kostar pengar eller bandbredd (mediaarkivet och
+# Google-omdömena): FlamingoAccount.daily_usage, per svenskt dygn.
+# ---------------------------------------------------------------------------
+
+
+def daily_used(account, kind, now=None):
+    """Hur många av sorten kind kontot använt i dag (läses, bokförs inte)."""
+    usage = account.daily_usage if isinstance(account.daily_usage, dict) else {}
+    if usage.get("day") != stockholm_today(now).isoformat():
+        return 0
+    value = usage.get(kind)
+    return value if isinstance(value, int) and value > 0 else 0
+
+
+def reserve_daily(account, kind, maximum, count=1, now=None):
+    """Får kontot count till av sorten kind i dag? True betyder ja, och då är
+    de bokförda. Kontots rad låses medan det avgörs, så två samtidiga klick
+    kan inte båda smita förbi gränsen. Bokförs alltid före anropet (ett
+    anrop som misslyckas har ändå kostat)."""
+    today = stockholm_today(now).isoformat()
+    with transaction.atomic():
+        row = (
+            FlamingoAccount.objects.select_for_update().only("id", "daily_usage").get(pk=account.pk)
+        )
+        usage = row.daily_usage if isinstance(row.daily_usage, dict) else {}
+        if usage.get("day") != today:
+            usage = {"day": today}
+        used = usage.get(kind) if isinstance(usage.get(kind), int) else 0
+        if count < 1 or used + count > maximum:
+            return False
+        usage[kind] = used + count
+        FlamingoAccount.objects.filter(pk=row.pk).update(daily_usage=usage)
+    account.daily_usage = usage
+    return True
+
+
+def reserve_hourly(account, kind, maximum, count=1, now=None):
+    """Som reserve_daily, men per svensk timme (klockans timme, inte
+    rullande): högst maximum av sorten kind mellan till exempel 14:00 och
+    15:00. Räknas i samma rad (daily_usage), som nollställs varje dygn."""
+    hour = timezone.localtime(now or timezone.now(), STOCKHOLM).strftime("%H")
+    return reserve_daily(account, f"{kind}@{hour}", maximum, count=count, now=now)
+
+
+def release_daily(account, kind, count=1, now=None):
+    """Lämna tillbaka count av sorten kind (en bokning som aldrig blev ett
+    anrop, till exempel en bild som inte hann hämtas)."""
+    today = stockholm_today(now).isoformat()
+    with transaction.atomic():
+        row = (
+            FlamingoAccount.objects.select_for_update().only("id", "daily_usage").get(pk=account.pk)
+        )
+        usage = row.daily_usage if isinstance(row.daily_usage, dict) else {}
+        if usage.get("day") != today or not isinstance(usage.get(kind), int):
+            return
+        usage[kind] = max(0, usage[kind] - max(0, count))
+        FlamingoAccount.objects.filter(pk=row.pk).update(daily_usage=usage)
+    account.daily_usage = usage

@@ -1,83 +1,75 @@
 {% comment %}
-Fliken Sidan: landningssidans innehåll (Campaign.page) och en
-förhandsvisning i telefonformat: landningssidans egen mall
-(flamingo/lp/page.html) i en iframe med sandbox, eller telefonbilden om den
-inte går att rita. Formuläret när can_edit. Sidan blir publik på /lp/<slug>/
-först när kampanjen är live.
+Fliken Sidan: kampanjens landningssida i sidbyggaren (mockupen skärm 09).
+Vilken sida kampanjen visar (egen eller delad med andra kampanjer, med en
+tydlig varning som namnger de andra kampanjerna), blocken, läget,
+kontrollerna, "Redigera sidan" och en förhandsvisning i telefonformat
+(utkastet ritat av pagebuilder.render_page_html i en iframe med sandbox,
+eller telefonbilden om den inte går att rita). Sidan blir publik på
+/lp/<slug>/ först när kampanjen är live; då publiceras den också om den
+aldrig varit det. Kontext: campaigns.page_context.
 {% endcomment %}
 <div class="fl-camp-pagegrid">
-  {% if can_edit %}
-  <form method="post" class="fl-form fl-panel" id="camp-page-form">
-    {% csrf_token %}
-    <input type="hidden" name="section" value="page">
-    <div class="fl-panel__head">
-      <h2 class="fl-panel__title">Sidan</h2>
-      <span class="fl-camp-hint">{{ campaign.get_sales_mode_display }}</span>
-    </div>
-    <div class="fl-field{% if page_errors.title %} is-error{% endif %}">
-      <label class="fl-field__label" for="camp-p-title">Rubrik</label>
-      <input class="fl-input" type="text" id="camp-p-title" name="title" value="{{ page.title }}" maxlength="120">
-      {% for e in page_errors.title %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
-    </div>
-    <div class="fl-field{% if page_errors.lead %} is-error{% endif %}">
-      <label class="fl-field__label" for="camp-p-lead">Ingress</label>
-      <textarea class="fl-input fl-camp-short" id="camp-p-lead" name="lead" rows="3" maxlength="500">{{ page.lead }}</textarea>
-      {% for e in page_errors.lead %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
-    </div>
-    <div class="fl-field{% if page_errors.points %} is-error{% endif %}">
-      <label class="fl-field__label" for="camp-p-points">Punkter</label>
-      <p class="fl-field__help">Korta rader om företaget, en per rad. Bara sådant som står bland dina bekräftade uppgifter.</p>
-      <textarea class="fl-input fl-camp-short" id="camp-p-points" name="points" rows="4">{{ points_text }}</textarea>
-      {% for e in page_errors.points %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
-    </div>
-    <div class="fl-form__row">
-      <div class="fl-field{% if page_errors.phone %} is-error{% endif %}">
-        <label class="fl-field__label" for="camp-p-phone">Telefon</label>
-        <input class="fl-input" type="tel" id="camp-p-phone" name="phone" value="{{ page.phone }}" maxlength="40" autocomplete="off">
-        <p class="fl-field__help">Från dina bekräftade uppgifter. Tomt betyder att sidan inte visar något nummer.</p>
-        {% for e in page_errors.phone %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+  <div class="fl-pb-side">
+    {% if landing_page %}
+    <section class="fl-panel" aria-labelledby="camp-page-title">
+      <div class="fl-panel__head">
+        <h2 class="fl-panel__title" id="camp-page-title">{{ landing_page.name }}</h2>
+        {% if landing_page.has_unpublished_changes %}<span class="fl-badge fl-badge--needs_customer">Ändringar ej publicerade</span>{% elif landing_page.is_published and campaign.status == "live" %}<span class="fl-badge fl-badge--live">Live</span>{% elif landing_page.is_published %}<span class="fl-badge fl-badge--paused">Publicerad, kampanjen är inte live</span>{% else %}<span class="fl-badge fl-badge--draft">Utkast</span>{% endif %}
       </div>
-    </div>
-    <div class="fl-field{% if page_errors.form_title %} is-error{% endif %}">
-      <label class="fl-field__label" for="camp-p-form-title">Formulärets rubrik</label>
-      <input class="fl-input" type="text" id="camp-p-form-title" name="form_title" value="{{ page.form_title }}" maxlength="120">
-      {% for e in page_errors.form_title %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
-    </div>
-    <fieldset class="fl-field{% if page_errors.questions %} is-error{% endif %}">
-      <legend class="fl-field__label">Frågor i formuläret</legend>
-      <p class="fl-field__help">Namn och telefon frågar sidan alltid efter. Lämna en rad tom för att ta bort frågan.</p>
-      <ul class="fl-camp-questions">
-        {% for q in question_rows %}
-        <li class="fl-camp-question">
-          <label class="fl-sr" for="camp-q{{ forloop.counter }}">Fråga {{ forloop.counter }}</label>
-          <input class="fl-input" type="text" id="camp-q{{ forloop.counter }}" name="q_label" value="{{ q.label }}" maxlength="120"{% if not q.label %} placeholder="Ny fråga"{% endif %}>
-          <label class="fl-sr" for="camp-qk{{ forloop.counter }}">Svarets typ för fråga {{ forloop.counter }}</label>
-          <select class="fl-input fl-camp-question__kind" id="camp-qk{{ forloop.counter }}" name="q_kind">
-            {% for value, label in question_kinds %}<option value="{{ value }}"{% if value == q.kind %} selected{% endif %}>{{ label }}</option>{% endfor %}
-          </select>
-        </li>
-        {% endfor %}
+      {% if page_others %}
+      <p class="fl-camp-shared"><span class="fl-camp-shared__dot" aria-hidden="true"></span><span><b>Delad sida.</b> Sidan visas också i {% for c in page_others %}{% if forloop.last and not forloop.first %} och {% elif not forloop.first %}, {% endif %}<a href="{% url 'flamingo:app_campaign' c.pk %}?flik=sidan">{{ c.name }}</a>{% endfor %}. En ändring på sidan syns i {% if page_others|length == 1 %}båda kampanjerna{% else %}alla kampanjerna{% endif %}.</span></p>
+      {% else %}
+      <p class="fl-camp-hint">Kampanjens egen sida. Ingen annan kampanj visar den, så en ändring här syns bara i {{ campaign.name }}.</p>
+      {% endif %}
+      {% if page_blocks %}
+      <ol class="fl-pb-blocks">
+        {% for row in page_blocks %}<li class="fl-pb-blocks__row"><span class="fl-pb-blocks__name">{{ row.name }}</span><span class="fl-pb-blocks__meta">{{ row.variant }}{% if row.headline and row.headline|lower != row.name|lower %}: {{ row.headline }}{% endif %}</span></li>{% endfor %}
+      </ol>
+      {% endif %}
+      {% if page_problems %}
+      <ul class="fl-camp-problems">
+        {% for p in page_problems %}<li class="fl-camp-problems__item">{% if p.where %}{{ p.where }}: {% endif %}{{ p.message }}</li>{% endfor %}
       </ul>
-      {% for e in page_errors.questions %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
-    </fieldset>
-    <div class="fl-field{% if page_errors.note %} is-error{% endif %}">
-      <label class="fl-field__label" for="camp-p-note">Text under formuläret</label>
-      <textarea class="fl-input fl-camp-short" id="camp-p-note" name="note" rows="2" maxlength="500">{{ page.note }}</textarea>
-      {% for e in page_errors.note %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+      {% endif %}
+      <p class="fl-camp-hint">Öppna sidan i sidbyggaren för att ändra texter, block och bilder. Färg: {{ landing_page.get_palette_display|lower }}.</p>
+      <div class="fl-panel__actions">
+        <a class="fl-btn" href="{{ page_editor_url }}">Redigera sidan</a>
+      </div>
+    </section>
+    {% if not read_only and campaign.status != "in_review" %}
+    <section class="fl-panel" aria-labelledby="camp-page-choice">
+      <h2 class="fl-panel__title" id="camp-page-choice">Vilken sida kampanjen visar</h2>
+      <p class="fl-camp-hint">En egen sida rekommenderas: den kan säga exakt samma sak som annonserna, ort och tjänst. En delad sida passar när flera kampanjer säljer samma sak, men då syns en ändring i alla kampanjer som visar den. Adressen är kampanjens egen i båda fallen, så förfrågningarna räknas rätt.</p>
+      {% if page_is_live %}<p class="fl-camp-hint">Kampanjen är live, så den kan bara byta till en sida som är publicerad.</p>{% endif %}
+      <form method="post" class="fl-form fl-pb-choice">
+        {% csrf_token %}
+        <input type="hidden" name="section" value="landing">
+        <label class="fl-field__label" for="camp-page-select">Sida</label>
+        <select class="fl-input" id="camp-page-select" name="page">
+          <option value="own"{% if not page_others %} selected{% endif %}>{% if page_others %}Gör en egen kopia för den här kampanjen (rekommenderas){% else %}Egen sida för den här kampanjen (rekommenderas){% endif %}</option>
+          {% for row in page_choice_rows %}<option value="{{ row.page.pk }}">{{ row.page.name }}{% if row.campaigns %}, visas i {% for c in row.campaigns %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% if not row.page.is_published %} (inte publicerad){% endif %}</option>{% endfor %}
+        </select>
+        <p class="fl-field__help">Väljer du en sida som andra kampanjer visar syns en ändring på den i alla de kampanjerna.</p>
+        <div class="fl-form__actions">
+          <button type="submit" class="fl-btn fl-btn--ghost">Byt sida</button>
+        </div>
+      </form>
+    </section>
+    {% endif %}
+    {% else %}
+    <div class="fl-empty fl-panel">
+      <p class="fl-empty__title">Ingen sida än</p>
+      <p class="fl-empty__text">Kampanjen får en egen sida när den öppnas av kunden.</p>
     </div>
-    <div class="fl-form__actions">
-      <p class="fl-form__note">Sidan blir publik först när kampanjen är live.</p>
-      <button type="submit" class="fl-btn">Spara sidan</button>
-    </div>
-  </form>
-  {% endif %}
+    {% endif %}
+  </div>
   <section class="fl-camp-preview" aria-labelledby="camp-page-preview">
     <h2 class="fl-camp-label" id="camp-page-preview">Så ser sidan ut i en telefon</h2>
     {% if landing_html %}
     <div class="fl-camp-phone fl-camp-phone--frame">
-      <iframe class="fl-camp-lpframe" title="Förhandsvisning av sidan {{ page.title }}" sandbox="allow-same-origin" srcdoc="{{ landing_html|force_escape }}" loading="lazy"></iframe>
+      <iframe class="fl-camp-lpframe" title="Förhandsvisning av sidan {{ landing_page.name }}" sandbox="allow-same-origin" srcdoc="{{ landing_html|force_escape }}" loading="lazy"></iframe>
     </div>
-    <p class="fl-camp-hint fl-camp-preview__note">Samma sida som besökarna ser. Formuläret i förhandsvisningen skickar inget.</p>
+    <p class="fl-camp-hint fl-camp-preview__note">Utkastet, som besökarna ser det när det är publicerat. Formuläret i förhandsvisningen skickar inget.</p>
     {% else %}
     {% include "flamingo/app/campaigns/_page_preview.html" %}
     {% endif %}

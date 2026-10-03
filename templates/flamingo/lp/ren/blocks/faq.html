@@ -1,0 +1,18 @@
+{% load flamingo_pb %}{% comment %}
+Vanliga frågor: tre eller sex (view.items), som utfällbara rader
+(details) utan skript. På en bred skärm rubriken till vänster.
+{% endcomment %}<section class="rn-block rn-faq rn-faq--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}>
+  <div class="rn-wrap rn-faq__in">
+    <header class="rn-head rn-head--start">
+      {% if f.title %}<h2 class="rn-h2"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2" %}{% endif %}
+    </header>
+    <div class="rn-faq__list">
+      {% for item in view.items %}
+      <details class="rn-faq__item"{% if forloop.first %} open{% endif %}>
+        <summary class="rn-faq__q"><span{% pb "items" forloop.counter0 "q" %}>{{ item.q }}</span><svg class="rn-ic rn-faq__icon" aria-hidden="true" focusable="false"><use href="#rn-i-plus"></use></svg></summary>
+        <p class="rn-faq__a"{% pb "items" forloop.counter0 "a" %}>{{ item.a|linebreaksbr }}</p>
+      </details>
+      {% endfor %}
+    </div>
+  </div>
+</section>

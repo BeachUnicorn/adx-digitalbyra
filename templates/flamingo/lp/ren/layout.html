@@ -1,0 +1,72 @@
+{% load static flamingo_pb %}<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+{% comment %}
+Kundens landningssida i designen Ren (sidbyggaren, apps/flamingo/pagebuilder/).
+Fristående och i kundens namn: varken Flamingos eller ADX:s design. Typsnittet
+(Figtree, OFL) är självhostat och inget hämtas från andra domäner, så
+besökaren lämnar inga spår hos någon annan. Ingen statistik från ADX.
+
+Kontext från pagebuilder.render.page_view_context: page, account, campaign,
+site (business, phone, tel, address, hours, rating, logo, has_form ...),
+blocks_html, palette_style (palettens CSS-variabler), editing, which,
+page_title, page_description, has_callbar. Från public_views dessutom
+preview, is_staff, status_label, review_url, call_beacon, tracking, action,
+draft_url och published_url.
+
+Varje tel:-länk har data-fl-call; static/js/flamingo-lp.js räknar klicket
+utan att hålla upp samtalet. I redigeringsläget (editing) laddas inget
+skript, och dokumentet förbjuder skript (render.EDITING_CSP). Inte heller med
+no_scripts (förhandsvisningen på fliken Sidan, en ram med sandbox utan
+skript). CSRF-nyckeln finns i en dold ruta när klicken räknas, också på en
+sida utan formulär.
+
+Sidhuvudet ligger fast överst från 720 px. I mobilen, när ringremsan finns,
+är numret i sidhuvudet bara en ikon (numret står i remsan och i Toppen).
+{% endcomment %}
+<title>{% block title %}{{ page_title }} | {{ site.business }}{% endblock %}</title>
+{% if page_description %}<meta name="description" content="{{ page_description }}">{% endif %}
+<link rel="preload" href="{% static 'fonts/files/figtree-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{% static 'css/flamingo-lp-ren.css' %}?v={{ static_version }}">
+<style>{{ palette_style }}</style>
+{% block scripts %}{% if not editing and not no_scripts %}<script src="{% static 'js/flamingo-lp.js' %}?v={{ static_version }}" defer></script>{% endif %}{% endblock %}
+</head>
+<body class="rn{% if has_callbar %} rn--callbar{% endif %}{% if editing %} rn--editing{% endif %}"{% if call_beacon %} data-fl-beacon="{{ call_beacon }}"{% endif %}>
+{% include "flamingo/lp/ren/_sprite.html" %}
+{% if call_beacon %}<div hidden>{% csrf_token %}</div>{% endif %}
+{% if is_staff and not editing %}
+<div class="rn-staff" role="note">
+  <div class="rn-wrap rn-staff__in">
+    <p class="rn-staff__text">{% if preview %}<b>Förhandsvisning.</b> Kampanjens status: {{ status_label }}. Sidan syns bara för ADX och formuläret skickar inget.{% else %}<b>Live.</b> Du är inloggad som ADX. En förfrågan härifrån hamnar i kundens inkorg, men ett klick på numret räknas inte.{% endif %}
+    {% if which == "draft" %}Du ser utkastet{% if page.is_published %}, inte den publicerade sidan{% else %}; sidan är inte publicerad än{% endif %}.{% elif page.has_unpublished_changes %}Du ser den publicerade sidan. Utkastet har ändringar som inte är publicerade.{% endif %}</p>
+    <p class="rn-staff__links">{% if which == "draft" and published_url %}<a class="rn-staff__link" href="{{ published_url }}">Visa den publicerade</a>{% elif which == "published" and draft_url %}<a class="rn-staff__link" href="{{ draft_url }}">Visa utkastet</a>{% endif %}{% if review_url %}<a class="rn-staff__link" href="{{ review_url }}">Till granskningen</a>{% endif %}</p>
+  </div>
+</div>
+{% endif %}
+
+<header class="rn-top">
+  <div class="rn-wrap rn-top__in">
+    <p class="rn-brand">{% if site.logo %}{% rn_img site.logo eager=True cls="rn-brand__logo" alt=site.business %}{% else %}<span class="rn-brand__name">{{ site.business }}</span>{% endif %}</p>
+    {% if site.phone %}<a class="rn-top__call" href="{{ site.tel }}" data-fl-call><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-phone"></use></svg><span class="rn-top__num"><span class="rn-sr">Ring </span><span class="rn-nowrap">{{ site.phone }}</span></span></a>{% endif %}
+  </div>
+</header>
+
+<main class="rn-main" id="innehall">
+{% block content %}{% endblock %}
+</main>
+
+<footer class="rn-foot">
+  <div class="rn-wrap rn-foot__in">
+    <div class="rn-foot__who">
+      <p class="rn-foot__name">{{ site.business }}</p>
+      {% if site.address %}<p class="rn-foot__line">{{ site.address }}</p>{% endif %}
+      {% if site.phone %}<p class="rn-foot__line"><a href="{{ site.tel }}" data-fl-call><span class="rn-nowrap">{{ site.phone }}</span></a></p>{% endif %}
+    </div>
+    <p class="rn-foot__by"><a href="https://adx.se" rel="noopener">Sidan drivs av ADX</a></p>
+  </div>
+</footer>
+</body>
+</html>

@@ -860,11 +860,15 @@ class SettingsViewTests(Fixture, TestCase):
         self.assertContains(response, "anna@ror.se")
         self.assertContains(response, 'data-fl-sms-count="fl-onb-reply-count"')
 
-    @override_settings(ELKS_API_USERNAME="u", ELKS_API_PASSWORD="p", ELKS_SENDER="ADX")
+    @override_settings(
+        ELKS_API_USERNAME="u", ELKS_API_PASSWORD="p", ELKS_SENDER="ADX", SMS_SEND_LIVE=True
+    )
     def test_the_page_says_when_sms_is_on(self):
         self.assertContains(self.client.get(self.url), "Sms-tjänsten är inkopplad.")
 
-    @override_settings(ELKS_API_USERNAME="u", ELKS_API_PASSWORD="p", ELKS_SENDER="")
+    @override_settings(
+        ELKS_API_USERNAME="u", ELKS_API_PASSWORD="p", ELKS_SENDER="", SMS_SEND_LIVE=True
+    )
     def test_without_a_sender_sms_is_not_on(self):
         """sms.py skickar inget utan avsändare, så sidan får inte säga inkopplat."""
         self.assertContains(self.client.get(self.url), "Sms är inte inkopplat än.")

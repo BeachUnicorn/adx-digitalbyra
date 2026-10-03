@@ -25,38 +25,54 @@ med "Visa Flamingo som kunden" på kundkortet. Kontakter som kopplats till
 demokunden kopplas bort (användarna rörs inte, utom demokontakten nedan som
 stängs av). Lokalt finns kontakten DEMO_CONTACT, utan lösenord.
 
+Landningssidorna byggs i sidbyggaren (pagebuilder/): en sida per kampanj,
+utom Rörjour som delas av två kampanjer, och tillsammans har sidorna varje
+blocktyp och variant. Bilderna i mediaarkivet ritas här med Pillow och är
+tydligt påhittade ("Exempelbild"). Google-profilen och omdömena är också
+påhittade och hämtas aldrig från Google.
+
 Idempotent: demokunden hittas på namnet OCH is_demo och uppdateras, och
-innehållet (uppgifter, tjänster, kampanjer, granskningar, förfrågningar,
-sms och Googles siffror) byggs om från grunden varje gång. Inget dubbleras.
+innehållet (uppgifter, tjänster, kampanjer, sidor, bilder, granskningar,
+förfrågningar, sms och Googles siffror) byggs om från grunden varje gång.
+Inget dubbleras.
 En annan kund med samma namn, som inte är demokontot, rörs aldrig:
 kommandot avbryts i stället.
 
 Ingenting skickas: inga mejl, inga sms, inget till Google.
 """
 
+import io
 from datetime import datetime, time, timedelta
+from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.utils import timezone
 from django.utils.text import slugify
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from apps.projects.models import Customer
 
-from ... import sms
+from ... import pagebuilder, sms
 from ...models import (
+    MEDIA_FORMAT,
+    MEDIA_THUMB_SIDE,
     Campaign,
     CampaignDayStats,
     Fact,
     FlamingoAccount,
+    LandingPage,
     Lead,
+    MediaAsset,
     Review,
     Service,
     SmsLog,
 )
+from ...pagebuilder import BuildContext
 from ...scan import PRICE_PREFIX
 
 User = get_user_model()
@@ -114,6 +130,10 @@ FACTS = [
     ("grundat", "Grundat", "2009", Fact.SOURCE_ADX, True, 61),
     ("behorighet", "Behörighet", "Säker Vatten-auktoriserade", Fact.SOURCE_SITE, False, 62),
     ("omdomen-hemsidan", "Omdömen på hemsidan", "Trustpilot: 4,9", Fact.SOURCE_SITE, False, 63),
+    ("forsakring", "Försäkring", "Ansvarsförsäkring", Fact.SOURCE_CUSTOMER, True, 63),
+    ("f-skatt", "F-skatt", "Godkänd för F-skatt", Fact.SOURCE_ADX, True, 64),
+    ("garanti", "Garanti", "Två års garanti på arbetet", Fact.SOURCE_CUSTOMER, True, 65),
+    ("kontaktperson", "Kontaktperson", "Kim Exempel", Fact.SOURCE_CUSTOMER, True, 66),
     ("omrade", "Område", "Nacka, Värmdö och Tyresö", Fact.SOURCE_CUSTOMER, True, 70),
     (
         _price_key("Rörjour"),
@@ -131,6 +151,47 @@ FACTS = [
         False,
         91,
     ),
+    (
+        _price_key("Byte av varmvattenberedare"),
+        "Pris, Byte av varmvattenberedare",
+        "Från 12 900 kr med montering",
+        Fact.SOURCE_CUSTOMER,
+        True,
+        92,
+    ),
+    (
+        _price_key("Filmning av avlopp"),
+        "Pris, Filmning av avlopp",
+        "Filmning från 1 900 kr",
+        Fact.SOURCE_CUSTOMER,
+        True,
+        93,
+    ),
+]
+
+#: Google-profilen och omdömena: påhittade, som allt annat i demot. De
+#: hämtas aldrig från Google, och profilen har ingen länk till Google Maps.
+GOOGLE_REVIEWS = [
+    (
+        "Anna E.",
+        5,
+        "Läckan under diskbänken var lagad på en kvart, och vi fick veta vad som hade hänt. "
+        "Trevligt och tydligt bemötande.",
+        "för 2 veckor sedan",
+    ),
+    (
+        "Johan E.",
+        5,
+        "Noggranna och städade efter sig. Bra pris på utryckningen.",
+        "för en månad sedan",
+    ),
+    (
+        "Maria E.",
+        4,
+        "Bra jobb med varmvattenberedaren. Fick vänta på en reservdel.",
+        "för 2 månader sedan",
+    ),
+    ("Erik E.", 5, "Snabb hjälp med stoppet i avloppet en söndag.", "för 3 månader sedan"),
 ]
 
 NEGATIVES = ["jobb", "lön", "utbildning", "gör det själv", "gratis", "praktik"]
@@ -143,7 +204,7 @@ def _kw(text, match="phrase"):
 def _change(part, label, before, after, reason, field=None):
     """En ändring i en granskning, som manage_review sparar den."""
     return {
-        "field": field or ("page" if part.startswith("page_") else part),
+        "field": field or part,
         "part": part,
         "label": label,
         "before": before,
@@ -185,6 +246,8 @@ class Command(BaseCommand):
             self._account_settings(account, staff, now)
             services = self._facts_and_services(account)
             campaigns = self._campaigns(account, services, contact, staff, now)
+            media = self._media(account, contact, now)
+            self._pages(account, campaigns, media, contact, staff, now)
             self._day_stats(campaigns, now)
             self._leads(account, services, campaigns, now)
         self._print_urls(customer, campaigns, contact)
@@ -253,6 +316,11 @@ class Command(BaseCommand):
         account.sms_log.all().delete()
         account.leads.all().delete()
         account.campaigns.all().delete()
+        # Sidorna efter kampanjerna (en sida som en kampanj visar kan inte
+        # tas bort), bilderna sist; filerna tas bort när raden är borta.
+        account.landing_pages.all().delete()
+        account.site_images.all().delete()
+        account.media.all().delete()
         account.services.all().delete()
         account.facts.all().delete()
 
@@ -287,6 +355,29 @@ class Command(BaseCommand):
             "call": f"{base}/2",
             "deal": f"{base}/3",
         }
+
+        account.google_place_id = "demo-exempelror"
+        account.google_place_name = "Exempelrör (demo)"
+        account.google_maps_uri = ""
+        account.google_rating = Decimal("4.8")
+        account.google_review_count = 37
+        account.google_reviews = [
+            {
+                "id": f"places/demo-exempelror/reviews/{n}",
+                "author": author,
+                "author_uri": "",
+                "rating": rating,
+                "text": text,
+                "time": (enabled_at + timedelta(days=n)).isoformat(),
+                "relative": relative,
+            }
+            for n, (author, rating, text, relative) in enumerate(GOOGLE_REVIEWS, start=1)
+        ]
+        account.google_reviews_selected = [r["id"] for r in account.google_reviews[:3]]
+        account.google_reviews_fetched_at = now - timedelta(days=1)
+        # Den påhittade profilen är demots egen (reviews.store_details prövar
+        # riktiga profiler mot kunden; demot hämtar aldrig från Google).
+        account.google_place_unverified = False
 
         account.notify_phone = OWNER_MOBILE
         account.notify_sms = True
@@ -375,19 +466,6 @@ class Command(BaseCommand):
                 _kw("stopp i avlopp"),
             ],
             negatives=NEGATIVES + ["lediga jobb"],
-            page={
-                "title": "Rörjour i Nacka",
-                "lead": "Vattenläcka eller stopp? Ring oss, jouren är öppen dygnet runt.",
-                "points": [
-                    "Jour dygnet runt, alla dagar",
-                    "Nacka, Värmdö och Tyresö",
-                    "Utryckning från 995 kr",
-                ],
-                "phone": PHONE,
-                "form_title": "Hellre att vi ringer dig?",
-                "questions": [],
-                "note": "Stäng huvudkranen medan du väntar. Den sitter oftast vid vattenmätaren.",
-            },
             google_campaign_id="9000000001",
             google_resources=self._google_resources(9000000001),
             google_synced_at=now - timedelta(hours=2),
@@ -445,15 +523,6 @@ class Command(BaseCommand):
             ],
             keywords=[_kw("avloppsspolning nacka"), _kw("spola avlopp"), _kw("stopp i avlopp")],
             negatives=NEGATIVES,
-            page={
-                "title": "Avloppsspolning i Nacka",
-                "lead": "Stopp i avloppet? Ring oss, så spolar vi rent.",
-                "points": ["Nacka, Värmdö och Tyresö", "Jour dygnet runt, alla dagar"],
-                "phone": PHONE,
-                "form_title": "Hellre att vi ringer dig?",
-                "questions": [],
-                "note": "",
-            },
             google_campaign_id="9000000002",
             google_resources=self._google_resources(9000000002),
             google_synced_at=now - timedelta(hours=2),
@@ -495,17 +564,6 @@ class Command(BaseCommand):
             ],
             keywords=[_kw("byta varmvattenberedare"), _kw("ny varmvattenberedare")],
             negatives=NEGATIVES + ["begagnad"],
-            page={
-                "title": "Byte av varmvattenberedare i Nacka",
-                "lead": "Berätta om din varmvattenberedare så får du en offert.",
-                "points": ["Nacka, Värmdö och Tyresö"],
-                "phone": PHONE,
-                "form_title": "Berätta om jobbet",
-                "questions": [
-                    {"key": "storlek", "label": "Hur många liter rymmer den?", "kind": "text"},
-                ],
-                "note": "",
-            },
             approved_at=now - timedelta(hours=22),
             approved_by=contact,
             created_by=contact,
@@ -531,22 +589,9 @@ class Command(BaseCommand):
             ],
             keywords=[_kw("badrumsrenovering nacka"), _kw("renovera badrum")],
             negatives=NEGATIVES + ["badrumsmatta"],
-            page={
-                "title": "Badrumsrenovering i Nacka",
-                "lead": "Berätta om ditt badrum så återkommer vi med en offert.",
-                "points": ["Nacka, Värmdö och Tyresö"],
-                "phone": PHONE,
-                "form_title": "Berätta om ditt badrum",
-                "questions": [
-                    {"key": "storlek", "label": "Ungefär hur stort är badrummet?", "kind": "text"},
-                    {"key": "jobbet", "label": "Vad vill du göra?", "kind": "textarea"},
-                ],
-                "note": "",
-            },
             created_by=contact,
             created_at=now - timedelta(days=4),
         )
-        before_lead = "Vi renoverar ditt badrum snabbt och billigt."
         self._review(
             needs,
             1,
@@ -555,7 +600,6 @@ class Command(BaseCommand):
                 **needs.content_snapshot(),
                 "headlines": ["Badrum Nacka dygnet runt"] + needs.headlines[1:],
                 "negatives": NEGATIVES,
-                "page": {**needs.page, "lead": before_lead},
             },
             submitted_by=contact,
             state=Review.STATE_DONE,
@@ -576,15 +620,8 @@ class Command(BaseCommand):
                     "badrumsmatta",
                     "De som söker på badrumsmattor vill inte renovera.",
                 ),
-                _change(
-                    "page_lead",
-                    "Sidans ingress",
-                    before_lead,
-                    needs.page["lead"],
-                    "Inga påståenden om pris eller tid som inte finns bland uppgifterna.",
-                ),
             ],
-            note="Tre ändringar. Godkänn om de ser rätt ut.",
+            note="Två ändringar. Godkänn om de ser rätt ut.",
         )
 
         # -- Hos ADX, andra rundan ---------------------------------------
@@ -603,15 +640,6 @@ class Command(BaseCommand):
             ],
             keywords=[_kw("rörjour värmdö"), _kw("rörmokare värmdö")],
             negatives=NEGATIVES,
-            page={
-                "title": "Rörjour på Värmdö",
-                "lead": "Vattenläcka eller stopp? Ring oss, jouren är öppen dygnet runt.",
-                "points": ["Jour dygnet runt, alla dagar"],
-                "phone": PHONE,
-                "form_title": "Hellre att vi ringer dig?",
-                "questions": [],
-                "note": "",
-            },
             created_by=contact,
             created_at=now - timedelta(days=6),
         )
@@ -666,15 +694,6 @@ class Command(BaseCommand):
             ],
             keywords=[_kw("filma avlopp"), _kw("filmning av avlopp")],
             negatives=NEGATIVES,
-            page={
-                "title": "Filmning av avlopp i Nacka",
-                "lead": "Boka en tid så filmar vi avloppet och visar var stoppet sitter.",
-                "points": ["Nacka, Värmdö och Tyresö"],
-                "phone": PHONE,
-                "form_title": "Boka en tid",
-                "questions": [{"key": "datum", "label": "Önskat datum", "kind": "date"}],
-                "note": "",
-            },
             created_by=contact,
             created_at=now - timedelta(hours=20),
         )
@@ -695,6 +714,635 @@ class Command(BaseCommand):
             "in_review": in_review,
             "draft": draft,
         }
+
+    # ------------------------------------------------------------------
+    # Mediaarkivet: påhittade bilder, ritade här
+    # ------------------------------------------------------------------
+
+    def _font(self, size, weight=500):
+        """Figtree (sidornas typsnitt, static/fonts/), eller Pillows eget om
+        filen inte går att läsa."""
+        path = settings.BASE_DIR / "static" / "fonts" / "files" / "figtree-latin.woff2"
+        try:
+            font = ImageFont.truetype(str(path), size)
+            font.set_variation_by_axes([weight])
+        except (OSError, ValueError):
+            return ImageFont.load_default(size=size)
+        return font
+
+    def _picture(self, size, top, bottom, label, place="left", scene=""):
+        """En tydligt påhittad bild: en färgtoning med mjukt ljus, ett enkelt
+        motiv (scene: rör, kakel, beredare, avlopp eller en person) och
+        texten "Exempelbild: ..." i ett litet märke nere till vänster eller
+        höger (place), så att reglaget i Före och efter inte delar den."""
+        width, height = size
+        image = Image.new("RGB", size, top)
+        draw = ImageDraw.Draw(image)
+        for y in range(height):
+            t = y / max(1, height - 1)
+            color = tuple(round(a + (b - a) * t) for a, b in zip(top, bottom, strict=True))
+            draw.line([(0, y), (width, y)], fill=color)
+        # Mjukt ljus från ett fönster uppe till höger.
+        glow = Image.new("L", size, 0)
+        ImageDraw.Draw(glow).ellipse(
+            [width * 0.45, -height * 0.55, width * 1.35, height * 0.75], fill=150
+        )
+        glow = glow.filter(ImageFilter.GaussianBlur(width // 9))
+        image = Image.composite(Image.new("RGB", size, (255, 255, 255)), image, glow)
+        motif = getattr(self, f"_scene_{scene}", None)
+        if motif is not None:
+            image = motif(image)
+        # Lite brus, så att ytan inte ser platt ut.
+        noise = Image.effect_noise(size, 18).convert("RGB")
+        image = Image.blend(image, noise, 0.035)
+        draw = ImageDraw.Draw(image)
+        font = self._font(max(22, width // 46), 600)
+        box = draw.textbbox((0, 0), label, font=font)
+        text_w, text_h = box[2] - box[0], box[3] - box[1]
+        pad_x, pad_y = round(text_h * 0.9), round(text_h * 0.6)
+        # Märket står en bit in från kanten, så att det syns också när bilden
+        # beskärs (Toppen i mobilen visar bilden i 16:9).
+        margin_x, margin_y = round(width * 0.09), round(height * 0.15)
+        top_y = height - margin_y - text_h - 2 * pad_y
+        left = margin_x if place != "right" else width - margin_x - text_w - 2 * pad_x
+        draw.rounded_rectangle(
+            [left, top_y, left + text_w + 2 * pad_x, top_y + text_h + 2 * pad_y],
+            radius=text_h + pad_y,
+            fill=(255, 255, 255),
+        )
+        draw.text((left + pad_x, top_y + pad_y - box[1]), label, font=font, fill=(32, 33, 36))
+        return image
+
+    def _soft_shadow(self, image, shape, offset=(0, 18), blur=28, alpha=90):
+        """En mjuk skugga under en form (shape: en lista med punkter eller en
+        rektangel som ImageDraw tar)."""
+        mask = Image.new("L", image.size, 0)
+        draw = ImageDraw.Draw(mask)
+        moved = [(x + offset[0], y + offset[1]) for x, y in shape]
+        draw.rounded_rectangle([moved[0], moved[1]], radius=40, fill=alpha)
+        mask = mask.filter(ImageFilter.GaussianBlur(blur))
+        return Image.composite(Image.new("RGB", image.size, (40, 44, 52)), image, mask)
+
+    def _pipe(self, draw, points, width, color, light):
+        """Ett rör: en tjock linje med rundade knän och en ljus rand."""
+        dark = tuple(max(0, c - 46) for c in color)
+        draw.line(points, fill=dark, width=width + 6, joint="curve")
+        for x, y in (points[0], points[-1]):
+            draw.ellipse(
+                [x - width / 2 - 3, y - width / 2 - 3, x + width / 2 + 3, y + width / 2 + 3],
+                fill=dark,
+            )
+        draw.line(points, fill=color, width=width, joint="curve")
+        for x, y in (points[0], points[-1]):
+            draw.ellipse([x - width / 2, y - width / 2, x + width / 2, y + width / 2], fill=color)
+        shifted = [(x - width * 0.18, y - width * 0.18) for x, y in points]
+        draw.line(shifted, fill=light, width=max(3, width // 5), joint="curve")
+
+    def _scene_pipes(self, image):
+        width, height = image.size
+        draw = ImageDraw.Draw(image)
+        step = width // 9
+        for x in range(0, width, step):
+            draw.line([(x, 0), (x, height * 0.74)], fill=(255, 255, 255), width=2)
+        for y in range(0, round(height * 0.74), step // 2):
+            draw.line([(0, y), (width, y)], fill=(255, 255, 255), width=2)
+        draw.rectangle([0, height * 0.74, width, height], fill=(206, 196, 184))
+        w = round(height * 0.075)
+        copper, light = (196, 112, 64), (238, 176, 128)
+        self._pipe(
+            draw,
+            [(-40, height * 0.32), (width * 0.42, height * 0.32), (width * 0.42, height * 0.88)],
+            w,
+            copper,
+            light,
+        )
+        self._pipe(
+            draw,
+            [
+                (width * 1.05, height * 0.48),
+                (width * 0.62, height * 0.48),
+                (width * 0.62, height * 0.88),
+            ],
+            w,
+            copper,
+            light,
+        )
+        silver, shine = (168, 176, 186), (226, 230, 236)
+        self._pipe(
+            draw,
+            [(width * 0.2, -40), (width * 0.2, height * 0.58), (width * 0.86, height * 0.58)],
+            round(w * 0.8),
+            silver,
+            shine,
+        )
+        for cx in (width * 0.42, width * 0.62):
+            draw.rounded_rectangle(
+                [cx - w * 0.9, height * 0.6, cx + w * 0.9, height * 0.66],
+                radius=8,
+                fill=(120, 124, 132),
+            )
+        return image
+
+    def _scene_tiles(self, image):
+        width, height = image.size
+        draw = ImageDraw.Draw(image)
+        step = width // 10
+        for x in range(0, width + step, step):
+            draw.line([(x, 0), (x, height * 0.7)], fill=(250, 250, 250), width=3)
+        for y in range(0, round(height * 0.7), step):
+            draw.line([(0, y), (width, y)], fill=(250, 250, 250), width=3)
+        floor = tuple(max(0, c - 34) for c in image.getpixel((width // 2, height - 2)))
+        draw.rectangle([0, height * 0.7, width, height], fill=floor)
+        image = self._soft_shadow(
+            image, [(width * 0.52, height * 0.42), (width * 0.9, height * 0.78)]
+        )
+        draw = ImageDraw.Draw(image)
+        draw.rounded_rectangle(
+            [width * 0.52, height * 0.42, width * 0.9, height * 0.78],
+            radius=48,
+            fill=(252, 252, 250),
+        )
+        draw.rounded_rectangle(
+            [width * 0.56, height * 0.47, width * 0.86, height * 0.72],
+            radius=36,
+            fill=(236, 240, 242),
+        )
+        draw.rounded_rectangle(
+            [width * 0.12, height * 0.12, width * 0.36, height * 0.46],
+            radius=20,
+            fill=(232, 238, 242),
+            outline=(200, 208, 214),
+            width=6,
+        )
+        return image
+
+    def _scene_heater(self, image):
+        width, height = image.size
+        box = [(width * 0.36, height * 0.1), (width * 0.64, height * 0.86)]
+        image = self._soft_shadow(image, box, offset=(18, 22), blur=36, alpha=110)
+        draw = ImageDraw.Draw(image)
+        (x0, y0), (x1, y1) = box
+        for i in range(round(x1 - x0)):
+            t = i / max(1, x1 - x0)
+            shade = round(236 + 18 * (1 - abs(t - 0.38) * 2.2))
+            draw.line([(x0 + i, y0 + 40), (x0 + i, y1 - 40)], fill=(min(255, shade),) * 3)
+        draw.rounded_rectangle([x0, y0, x1, y0 + 90], radius=46, fill=(246, 246, 246))
+        draw.rounded_rectangle([x0, y1 - 90, x1, y1], radius=46, fill=(226, 226, 226))
+        cx = (x0 + x1) / 2
+        draw.ellipse(
+            [cx - 46, y0 + 160, cx + 46, y0 + 252],
+            fill=(255, 255, 255),
+            outline=(190, 196, 204),
+            width=6,
+        )
+        draw.line([(cx, y0 + 206), (cx + 26, y0 + 186)], fill=(200, 70, 50), width=6)
+        self._pipe(
+            draw, [(cx - 60, y1), (cx - 60, height + 40)], 36, (196, 112, 64), (238, 176, 128)
+        )
+        self._pipe(
+            draw, [(cx + 60, y1), (cx + 60, height + 40)], 36, (168, 176, 186), (226, 230, 236)
+        )
+        return image
+
+    def _scene_drain(self, image, clean=False):
+        width, height = image.size
+        draw = ImageDraw.Draw(image)
+        cx, cy, r = width * 0.5, height * 0.52, height * 0.34
+        draw.ellipse([cx - r - 26, cy - r - 26, cx + r + 26, cy + r + 26], fill=(200, 204, 208))
+        inner = (70, 74, 80) if clean else (92, 78, 60)
+        draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=inner)
+        for i in range(7):
+            y = cy - r * 0.75 + i * r * 0.25
+            half = (r * r - (y - cy) ** 2) ** 0.5 * 0.86
+            draw.rounded_rectangle(
+                [cx - half, y - 7, cx + half, y + 7], radius=7, fill=(214, 218, 222)
+            )
+        if not clean:
+            for dx, dy, rr in ((-0.3, 0.2, 0.22), (0.25, -0.1, 0.16), (0.05, 0.35, 0.12)):
+                draw.ellipse(
+                    [
+                        cx + dx * r - rr * r,
+                        cy + dy * r - rr * r,
+                        cx + dx * r + rr * r,
+                        cy + dy * r + rr * r,
+                    ],
+                    fill=(128, 104, 72),
+                )
+        return image
+
+    def _scene_drain_clean(self, image):
+        return self._scene_drain(image, clean=True)
+
+    def _scene_person(self, image):
+        width, height = image.size
+        draw = ImageDraw.Draw(image)
+        cx = width * 0.5
+        draw.ellipse(
+            [cx - width * 0.4, height * 0.62, cx + width * 0.4, height * 1.35], fill=(64, 86, 112)
+        )
+        draw.rounded_rectangle(
+            [cx - width * 0.08, height * 0.5, cx + width * 0.08, height * 0.66],
+            radius=30,
+            fill=(218, 178, 150),
+        )
+        draw.ellipse(
+            [cx - width * 0.17, height * 0.2, cx + width * 0.17, height * 0.56],
+            fill=(226, 186, 158),
+        )
+        draw.chord(
+            [cx - width * 0.18, height * 0.16, cx + width * 0.18, height * 0.44],
+            180,
+            360,
+            fill=(92, 70, 56),
+        )
+        return image
+
+    def _logo(self):
+        image = Image.new("RGBA", (720, 180), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(image)
+        draw.rounded_rectangle([8, 30, 128, 150], radius=36, fill=(27, 102, 210, 255))
+        draw.ellipse([44, 58, 92, 122], fill=(255, 255, 255, 255))
+        font = self._font(88, 650)
+        draw.text((156, 28), "Exempelrör", font=font, fill=(32, 33, 36, 255))
+        return image
+
+    def _asset(self, account, image, alt, contact, now, *, is_logo=False):
+        """Ett MediaAsset ur en Pillow-bild: WebP, med miniatyr."""
+
+        def webp(img):
+            buffer = io.BytesIO()
+            img.save(buffer, MEDIA_FORMAT, quality=82)
+            return ContentFile(buffer.getvalue(), name="bild.webp")
+
+        thumb = image.copy()
+        thumb.thumbnail((MEDIA_THUMB_SIDE, MEDIA_THUMB_SIDE))
+        asset = MediaAsset(
+            account=account,
+            alt=alt,
+            is_logo=is_logo,
+            source=MediaAsset.SOURCE_UPLOAD,
+            rights_confirmed_at=now,
+            rights_confirmed_by=contact,
+        )
+        asset.file.save("bild.webp", webp(image), save=False)
+        asset.thumb.save("tumme.webp", webp(thumb), save=False)
+        asset.save()
+        return asset
+
+    def _media(self, account, contact, now):
+        pictures = {
+            "jour": (
+                (1800, 1350),
+                (214, 226, 240),
+                (176, 196, 220),
+                "Exempelbild: rörjour",
+                "left",
+                "pipes",
+            ),
+            "vvb": (
+                (1600, 1200),
+                (220, 230, 226),
+                (180, 204, 196),
+                "Exempelbild: ny beredare",
+                "left",
+                "heater",
+            ),
+            "bad_fore": (
+                (1600, 1000),
+                (204, 200, 190),
+                (160, 156, 148),
+                "Exempelbild: före",
+                "left",
+                "tiles",
+            ),
+            "bad_efter": (
+                (1600, 1000),
+                (226, 236, 244),
+                (189, 211, 230),
+                "Exempelbild: efter",
+                "right",
+                "tiles",
+            ),
+            "rör_fore": (
+                (1600, 1200),
+                (196, 190, 180),
+                (150, 144, 134),
+                "Exempelbild: avlopp före",
+                "left",
+                "drain",
+            ),
+            "rör_efter": (
+                (1600, 1200),
+                (220, 232, 226),
+                (180, 206, 192),
+                "Exempelbild: avlopp efter",
+                "left",
+                "drain_clean",
+            ),
+            "person": (
+                (1000, 1250),
+                (238, 230, 220),
+                (210, 196, 180),
+                "Exempelbild: Kim",
+                "left",
+                "person",
+            ),
+        }
+        alts = {
+            "jour": "Påhittad exempelbild av rör under en diskbänk",
+            "vvb": "Påhittad exempelbild av en ny varmvattenberedare",
+            "bad_fore": "Påhittad exempelbild av ett badrum före renoveringen",
+            "bad_efter": "Påhittad exempelbild av ett badrum efter renoveringen",
+            "rör_fore": "Påhittad exempelbild av ett avlopp före spolningen",
+            "rör_efter": "Påhittad exempelbild av ett avlopp efter spolningen",
+            "person": "Påhittad exempelbild av Kim Exempel",
+        }
+        media = {
+            key: self._asset(account, self._picture(*spec), alts[key], contact, now)
+            for key, spec in pictures.items()
+        }
+        media["logo"] = self._asset(account, self._logo(), "Exempelrör", contact, now, is_logo=True)
+        return media
+
+    # ------------------------------------------------------------------
+    # Landningssidorna (sidbyggaren)
+    # ------------------------------------------------------------------
+
+    def _block(self, account, kind, variant, ctx, **fields):
+        """Ett block ur mallen, med fälten ändrade där demot vill visa mer."""
+        block = pagebuilder.new_block(kind, variant, account, ctx=ctx)
+        if fields:
+            block["versions"][0]["fields"].update(fields)
+        return block
+
+    def _pages(self, account, campaigns, media, contact, staff, now):
+        """En sida per kampanj, utom Rörjour som delas av Rörjour Nacka (live)
+        och Rörjour Värmdö (hos ADX). Tillsammans har sidorna varje blocktyp
+        och variant. Sidorna för kampanjerna som är live eller pausade är
+        publicerade; de andra är utkast."""
+        call = Service.SALES_CALL
+        quote = Service.SALES_QUOTE
+        book = Service.SALES_BOOK
+        places = ["Nacka", "Värmdö", "Tyresö"]
+        b = self._block
+
+        jour_ctx = BuildContext(service="Rörjour", places=places, mode=call)
+        # Toppen som i den godkända skissen: bilden först, tjänsten och orten
+        # i överrubriken och en rubrik om vad kunden får.
+        hero = b(
+            account,
+            "hero",
+            "image",
+            jour_ctx,
+            kicker="Rörjour i Nacka",
+            title="Läcker det? Ring oss, så kommer vi och lagar det.",
+            lead="Rörmokare i Nacka, Värmdö och Tyresö. Jouren är öppen dygnet runt, alla dagar.",
+            points=["Utryckning från 995 kr", "Jour dygnet runt, alla dagar"],
+            image=media["jour"].pk,
+        )
+        # En andra version av rubriken: kunden kan byta mellan dem.
+        pagebuilder.add_version(
+            hero,
+            dict(pagebuilder.active_fields(hero), title="Vattenläcka eller stopp? Ring jouren."),
+            pagebuilder.SOURCE_CUSTOMER,
+            contact,
+            activate=False,
+            now=now - timedelta(days=2),
+        )
+        jour = [
+            hero,
+            b(account, "certificates", "badges", jour_ctx),
+            b(
+                account,
+                "price",
+                "from",
+                jour_ctx,
+                text=(
+                    "Priset för utryckningen. Resten bestämmer vi tillsammans innan jobbet börjar."
+                ),
+            ),
+            b(account, "reviews_google", "cards", jour_ctx),
+            b(account, "steps", "three", jour_ctx),
+            b(account, "faq", "three", jour_ctx),
+            b(
+                account,
+                "area",
+                "map",
+                jour_ctx,
+                text="Jouren kommer till hela Nacka, Värmdö och Tyresö.",
+            ),
+            b(
+                account,
+                "form",
+                "short",
+                jour_ctx,
+                note_title="Bra att veta",
+                note="Stäng huvudkranen medan du väntar. Den sitter oftast vid vattenmätaren.",
+            ),
+            b(
+                account,
+                "callbar",
+                "call_write",
+                jour_ctx,
+                title="Läcker det just nu? Ring jouren.",
+            ),
+        ]
+
+        spol_ctx = BuildContext(service="Avloppsspolning", places=places[:1], mode=call)
+        spolning = [
+            b(
+                account,
+                "hero",
+                "text",
+                spol_ctx,
+                kicker="Avloppsspolning i Nacka",
+                title="Stopp i avloppet? Ring, så spolar vi rent.",
+                lead="Kök, badrum eller hela fastigheten. Berätta var det står still.",
+                points=[],
+            ),
+            b(account, "reviews_google", "line", spol_ctx),
+            b(account, "steps", "four", spol_ctx),
+            b(
+                account,
+                "guarantee",
+                "terms",
+                spol_ctx,
+                terms=["Gäller arbetet vi har gjort", "Säg till så tittar vi på det igen"],
+            ),
+            b(account, "faq", "six", spol_ctx),
+            b(account, "callbar", "call", spol_ctx),
+        ]
+
+        vvb_ctx = BuildContext(service="Byte av varmvattenberedare", places=places[:1], mode=quote)
+        vvb = [
+            b(
+                account,
+                "hero",
+                "image",
+                vvb_ctx,
+                kicker="Byte av varmvattenberedare i Nacka",
+                title="Varmvatten igen, med en ny beredare.",
+                lead="Berätta om din varmvattenberedare så får du en offert med montering.",
+                image=media["vvb"].pk,
+            ),
+            b(account, "reviews_google", "cards", vvb_ctx),
+            b(account, "price", "examples", vvb_ctx),
+            b(
+                account,
+                "person",
+                "image",
+                vvb_ctx,
+                role="Rörmokare och ägare",
+                text=(
+                    "Jag kommer själv och tittar på din beredare, och du får veta vad som "
+                    "behöver göras innan vi börjar."
+                ),
+                image=media["person"].pk,
+            ),
+            b(
+                account,
+                "form",
+                "questions",
+                vvb_ctx,
+                title="Berätta om jobbet",
+                questions=[
+                    {"key": "storlek", "label": "Hur många liter rymmer den?", "kind": "text"},
+                ],
+            ),
+        ]
+
+        bad_ctx = BuildContext(service="Badrumsrenovering", places=places[:1], mode=quote)
+        badrum = [
+            b(
+                account,
+                "hero",
+                "form",
+                bad_ctx,
+                kicker="Badrumsrenovering i Nacka",
+                title="Ett nytt badrum, från ritning till kakel.",
+                lead="Berätta om ditt badrum så återkommer vi med en offert.",
+                points=["Nacka, Värmdö och Tyresö", "Två års garanti på arbetet"],
+            ),
+            b(
+                account,
+                "form",
+                "questions",
+                bad_ctx,
+                title="Berätta om ditt badrum",
+                questions=[
+                    {"key": "storlek", "label": "Ungefär hur stort är badrummet?", "kind": "text"},
+                    {"key": "jobbet", "label": "Vad vill du göra?", "kind": "textarea"},
+                ],
+            ),
+            b(
+                account,
+                "before_after",
+                "slider",
+                bad_ctx,
+                caption="Ett badrum i Nacka, före och efter.",
+                before=media["bad_fore"].pk,
+                after=media["bad_efter"].pk,
+            ),
+            b(account, "reviews_google", "quote", bad_ctx),
+            b(account, "certificates", "icons", bad_ctx),
+            b(account, "guarantee", "short", bad_ctx),
+            b(
+                account,
+                "person",
+                "noimage",
+                bad_ctx,
+                role="Ägare",
+                text="Jag går igenom badrummet med dig innan vi bestämmer något.",
+            ),
+            b(
+                account,
+                "area",
+                "list",
+                bad_ctx,
+                title="Vi jobbar i Nacka, Värmdö och Tyresö",
+                places=places,
+            ),
+            b(account, "callbar", "call_write", bad_ctx, title="Hellre att prata om badrummet?"),
+        ]
+
+        film_ctx = BuildContext(service="Filmning av avlopp", places=places[:1], mode=book)
+        filmning = [
+            b(
+                account,
+                "hero",
+                "form",
+                film_ctx,
+                kicker="Filmning av avlopp i Nacka",
+                title="Se var stoppet sitter, innan någon gräver.",
+                lead="Boka en tid så filmar vi avloppet och visar var stoppet sitter.",
+            ),
+            b(
+                account,
+                "form",
+                "booking",
+                film_ctx,
+                title="Boka en tid",
+                questions=[
+                    {"key": "datum", "label": "Önskat datum", "kind": "date"},
+                    {"key": "tid", "label": "Förmiddag eller eftermiddag?", "kind": "text"},
+                ],
+            ),
+            b(account, "price", "fixed", film_ctx, price="Filmning från 1 900 kr"),
+            b(
+                account,
+                "before_after",
+                "pair",
+                film_ctx,
+                before=media["rör_fore"].pk,
+                after=media["rör_efter"].pk,
+            ),
+            b(account, "steps", "three", film_ctx),
+            b(account, "callbar", "call_write", film_ctx, title="Frågor om filmningen? Ring oss."),
+        ]
+
+        specs = [
+            (
+                "Rörjour",
+                jour,
+                [campaigns["live"], campaigns["in_review"]],
+                LandingPage.PALETTE_BLUE,
+            ),
+            (
+                "Avloppsspolning Nacka",
+                spolning,
+                [campaigns["paused"]],
+                LandingPage.PALETTE_GRAPHITE,
+            ),
+            ("Byte av varmvattenberedare", vvb, [campaigns["approved"]], LandingPage.PALETTE_GREEN),
+            ("Badrumsrenovering", badrum, [campaigns["needs_customer"]], LandingPage.PALETTE_RED),
+            ("Filmning av avlopp", filmning, [campaigns["draft"]], LandingPage.PALETTE_ORANGE),
+        ]
+        pages = {}
+        for name, blocks, users, palette in specs:
+            blocks = pagebuilder.validate_blocks(blocks, account=account)
+            published = any(
+                c.status in (Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED) for c in users
+            )
+            page = LandingPage.objects.create(
+                account=account,
+                name=name,
+                palette=palette,
+                draft={"blocks": blocks},
+                published={"blocks": pagebuilder.blocks.copy_blocks(blocks)}
+                if published
+                else {"blocks": []},
+                published_at=min(c.published_at for c in users if c.published_at)
+                if published
+                else None,
+                published_by=staff if published else None,
+                created_by=contact,
+                created_at=min(c.created_at for c in users),
+            )
+            Campaign.objects.filter(pk__in=[c.pk for c in users]).update(landing_page=page)
+            for campaign in users:
+                campaign.landing_page = page
+            pages[name] = page
+        return pages
 
     def _day_stats(self, campaigns, now):
         """Googles siffror per dag för de publicerade kampanjerna: påhittade
@@ -935,8 +1583,11 @@ class Command(BaseCommand):
         w("  /flamingo/app/kampanjer/")
         for state, campaign in campaigns.items():
             w(f"  /flamingo/app/kampanjer/{campaign.pk}/   ({state})")
-        w("Landningssidan (bara byrån ser den, alla andra får 404):")
-        w(f"  {campaigns['live'].landing_url}")
+        w("Sidorna i sidbyggaren:")
+        w("  /flamingo/app/sidor/")
+        w("Landningssidorna (bara byrån ser dem, alla andra får 404):")
+        for state, campaign in campaigns.items():
+            w(f"  {campaign.landing_url}   ({state})")
         w("Byråns granskning:")
         w("  /manage/flamingo/granska/")
         w(f"  /manage/flamingo/granska/{campaigns['in_review'].pk}/")

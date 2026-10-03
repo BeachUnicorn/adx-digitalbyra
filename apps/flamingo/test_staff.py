@@ -31,6 +31,7 @@ from .models import (
     Review,
     Service,
 )
+from .testing import pages_from_campaigns
 
 User = get_user_model()
 
@@ -112,6 +113,7 @@ class StaffFixture:
             submitted_at=timezone.now() - timedelta(days=2),
             snapshot=cls.secret.content_snapshot(),
         )
+        pages_from_campaigns(cls.in_review, cls.approved, cls.secret)
 
     @staticmethod
     def _campaign(account, service, name, status):
@@ -158,8 +160,8 @@ class StaffFixture:
 def form_data(campaign, **changes):
     """Granskningsformuläret som en webbläsare skickar det, med ändringar.
 
-    Nycklar: headline_<n>, description_<n>, negatives, page_lead ... som i
-    formuläret; kw_text/kw_match och q_label/q_kind som listor."""
+    Nycklar: headline_<n>, description_<n>, negatives ... som i formuläret;
+    kw_text/kw_match som listor. Sidan rättas i sidbyggaren, inte här."""
     data = {}
     for i in range(15):
         data[f"headline_{i}"] = campaign.headlines[i] if i < len(campaign.headlines) else ""
@@ -170,16 +172,6 @@ def form_data(campaign, **changes):
     data["kw_text"] = [k["text"] for k in campaign.keywords] + ["", "", ""]
     data["kw_match"] = [k["match"] for k in campaign.keywords] + ["phrase"] * 3
     data["negatives"] = "\r\n".join(campaign.negatives)
-    page = campaign.page
-    data["page_title"] = page.get("title", "")
-    # Webbläsaren skickar textrutornas radbrytningar som CRLF.
-    data["page_lead"] = page.get("lead", "").replace("\n", "\r\n")
-    data["page_points"] = "\r\n".join(page.get("points", []))
-    data["page_phone"] = page.get("phone", "")
-    data["page_form_title"] = page.get("form_title", "")
-    data["page_note"] = page.get("note", "")
-    data["q_label"] = [q["label"] for q in page.get("questions", [])] + ["", ""]
-    data["q_kind"] = [q["kind"] for q in page.get("questions", [])] + ["text", "text"]
     data["note"] = ""
     data.update(changes)
     return data
@@ -401,9 +393,9 @@ class ReviewTests(NoChecks, StaffFixture, TestCase):
             kw_text=["badrumsrenovering nacka", "", "", "", ""],
             kw_match=["phrase", "exact", "phrase", "phrase", "phrase"],
             reason_keywords="För smalt.",
+            # Sidan rättas i sidbyggaren, inte här: fältet läses inte längre.
             page_lead="Berätta om ditt badrum så återkommer vi med en offert.",
-            reason_page_lead="Inga löften om tid.",
-            note="Fyra ändringar.",
+            note="Tre ändringar.",
         )
         response = self.staff_client().post(self.url(), data)
         self.assertRedirects(response, reverse("manage:flamingo_queue"))
@@ -435,11 +427,9 @@ class ReviewTests(NoChecks, StaffFixture, TestCase):
         keyword = next(c for c in changes if c["part"] == "keywords")
         self.assertEqual(keyword["before"], "renovera badrum (exakt)")
         self.assertEqual(keyword["after"], "")
-        lead = next(c for c in changes if c["part"] == "page_lead")
-        self.assertEqual(lead["field"], "page")
-        self.assertEqual(lead["reason"], "Inga löften om tid.")
-        self.assertEqual(len(changes), 4)
-        self.assertEqual(self.review.note, "Fyra ändringar.")
+        self.assertFalse([c for c in changes if c["field"] == "page"])
+        self.assertEqual(len(changes), 3)
+        self.assertEqual(self.review.note, "Tre ändringar.")
         self.assertEqual(self.review.state, Review.STATE_DONE)
         self.assertEqual(self.review.reviewer, self.staff)
 
@@ -451,11 +441,9 @@ class ReviewTests(NoChecks, StaffFixture, TestCase):
         self.assertEqual(
             campaign.keywords, [{"text": "badrumsrenovering nacka", "match": "phrase"}]
         )
-        self.assertEqual(
-            campaign.page["lead"], "Berätta om ditt badrum så återkommer vi med en offert."
-        )
-        # Det som inte ändrades står kvar som det var.
-        self.assertEqual(campaign.page["questions"], self.in_review.page["questions"])
+        # Sidan står kvar som den var: den rättas i sidbyggaren.
+        self.assertEqual(campaign.landing_page.draft, self.in_review.landing_page.draft)
+        self.assertEqual(campaign.page, self.in_review.page)
         self.assertEqual(mail.outbox, [])
 
     def test_a_changed_part_needs_a_reason(self):
@@ -572,13 +560,19 @@ class ChecksTests(StaffFixture, TestCase):
     def test_the_checks_become_lines_of_text(self):
         problems = [
             checks.Problem(field="headlines", message="Ordet billigast.", index=0),
-            checks.Problem(field="page", message="Siffran 24 saknas.", part="lead"),
+            checks.Problem(
+                field="page", message="Siffran 24 saknas.", part="lead", where="Hero, ingress"
+            ),
             checks.Problem(field="", message="Något annat."),
         ]
         with mock.patch.object(checks, "validate", return_value=problems):
             self.assertEqual(
                 manage_review.run_checks(self.in_review),
-                ["Rubrik 1: Ordet billigast.", "Ingress: Siffran 24 saknas.", "Något annat."],
+                [
+                    "Rubrik 1: Ordet billigast.",
+                    "Sidan, hero, ingress: Siffran 24 saknas.",
+                    "Något annat.",
+                ],
             )
 
     def test_a_broken_check_never_breaks_the_review(self):
@@ -596,8 +590,18 @@ class ChecksTests(StaffFixture, TestCase):
         cases = [
             (SimpleNamespace(field="headlines", message="För lång.", index=2, part=""), "Rubrik 3"),
             (SimpleNamespace(field="keywords", message="Krock.", index=0, part=""), "Sökord 1"),
-            (SimpleNamespace(field="page", message="Saknas.", index=None, part="phone"), "Telefon"),
-            (SimpleNamespace(field="page", message="Siffra.", index=1, part="points"), "Punkt 2"),
+            (
+                SimpleNamespace(
+                    field="page", message="Saknas.", index=None, part="phone", where="Hero, telefon"
+                ),
+                "Sidan, hero, telefon",
+            ),
+            (
+                SimpleNamespace(
+                    field="page", message="Siffra.", index=1, part="points", where="Hero, punkter 2"
+                ),
+                "Sidan, hero, punkter 2",
+            ),
             (SimpleNamespace(field="area", message="Ange.", index=None, part=""), "Område"),
         ]
         for problem, where in cases:

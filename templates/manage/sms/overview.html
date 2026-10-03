@@ -1,0 +1,106 @@
+{% extends "manage/base.html" %}
+{% load static sms_tags %}
+{% comment %}
+SMS-API:t för byrån: kunderna med SMS, månadens summor, sms att stämma av
+mot 46elks och månadsunderlagen (stäng månaden, CSV för faktureringen).
+Kunderna mejlas aldrig härifrån.
+{% endcomment %}
+{% block title %}SMS-API{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/sms.css' %}?v={{ static_version }}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+  <h1 class="m-page-head__title">SMS-API</h1>
+  <p class="m-page-head__subtitle">Kundernas sms via 46elks. Aktiveras per kund på kundkortet; underlagen faktureras i efterhand per månad.</p>
+</div>
+
+{% if not configured %}
+<p class="sms-live-note"><b>46elks är inte inkopplat.</b> ELKS_API_USERNAME och ELKS_API_PASSWORD (eller SMS_46ELKS_USER och SMS_46ELKS_PASSWORD) saknas i miljön, så alla sms stoppas med provider_error.</p>
+{% elif not live %}
+<p class="sms-live-note"><b>Provläge.</b> SMS_SEND_LIVE är av: varje sms går till 46elks med dryrun, inget skickas och raderna märks som prov.</p>
+{% endif %}
+
+<section class="sms-kpis" aria-label="{{ period|date:'F Y' }}">
+  <div class="m-stat sms-kpi"><span class="m-stat__label">Kunder med SMS</span><span class="m-stat__value">{{ totals.enabled }}</span><span class="sms-kpi__sub">{{ accounts|length }} med konto</span></div>
+  <div class="m-stat sms-kpi"><span class="m-stat__label">Sms i {{ period|date:"F" }}</span><span class="m-stat__value">{{ totals.sms }}</span><span class="sms-kpi__sub">alla kunder</span></div>
+  <div class="m-stat sms-kpi"><span class="m-stat__label">Kundernas kostnad</span><span class="m-stat__value">{{ totals.cost|sms_kr }} <small>kr</small></span><span class="sms-kpi__sub">utan årsavgifter</span></div>
+  <div class="m-stat sms-kpi"><span class="m-stat__label">Varav påslag</span><span class="m-stat__value">{{ totals.margin|sms_kr }} <small>kr</small></span><span class="sms-kpi__sub">46elks: {{ totals.provider|sms_kr }} kr</span></div>
+</section>
+
+<p class="m-section-title">Kunder</p>
+<div class="m-panel m-table-wrap">
+  <table class="m-table sms-table">
+    <thead><tr><th>Kund</th><th>Avsändare</th><th>Läge</th><th class="m-num">Sms i {{ period|date:"F" }}</th><th class="m-num">Kostnad</th><th class="m-num">Tak</th><th class="sms-col-low">Senaste sms</th></tr></thead>
+    <tbody>
+    {% for a in accounts %}
+    <tr{% if not a.is_enabled %} class="is-off"{% endif %}>
+      <td><a class="tv-link" href="{% url 'manage:customer_detail' a.customer.pk %}#sms"><b>{{ a.customer.name }}</b></a></td>
+      <td><span class="sms-mono">{{ a.sender_name|default:"-" }}</span></td>
+      <td>{% if a.is_enabled %}<span class="sms-status sms-status--delivered">Aktiverat</span>{% else %}<span class="sms-status sms-status--rejected">Avstängt</span>{% endif %}</td>
+      <td class="m-num">{{ a.month_sms }}</td>
+      <td class="m-num">{{ a.month_cost|sms_kr }} kr</td>
+      <td class="m-num"><span>{{ a.monthly_cap_kr }} kr{% if a.cap_pct >= 80 %} <span class="m-badge{% if a.cap_pct >= 100 %} m-badge--alert{% endif %}">{{ a.cap_pct }} %</span>{% endif %}</span></td>
+      <td class="sms-col-low">{% if a.last_message %}{{ a.last_message|date:"j b H:i" }}{% else %}<span class="tv-muted">aldrig</span>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="m-empty">Ingen kund har SMS än. Aktivera det på kundkortet.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% if to_check %}
+<p class="m-section-title" id="kontrollera">Kontrollera mot 46elks</p>
+<div class="m-panel tv-panel">
+  <p class="tv-prop__note">46elks svarade inte säkert på de här sms:en, svaret kom aldrig, eller 46elks id kom först med leveransrapporten. Ett reserverat sms räknas mot kundens tak med uppskattat pris och håller kundens reference, så inget skickas två gånger; kundens månad stängs inte förrän det är avstämt. Leta upp sms:et i 46elks sms-historik (mottagare och tid) och markera vad som hände. Kunden mejlas inte.</p>
+  <div class="m-table-wrap">
+  <table class="m-table sms-table">
+    <thead><tr><th>Kund</th><th>Sms</th><th>Läge</th><th></th></tr></thead>
+    <tbody>
+    {% for m in to_check %}
+    <tr>
+      <td><a class="tv-link" href="{% url 'manage:customer_detail' m.account.customer.pk %}#sms"><b>{{ m.account.customer.name }}</b></a></td>
+      <td><div>Sms {{ m.pk }} till <span class="sms-mono">{{ m.to }}</span><div class="tv-muted tv-cell-sub">{{ m.created_at|date:"j b Y H:i" }}, {{ m.customer_price|sms_kr }} kr{% if m.reference %}, reference {{ m.reference }}{% endif %}</div></div></td>
+      <td><div>{% if m.is_unknown %}<span class="sms-status sms-status--reserved">Okänt läge</span><div class="tv-muted tv-cell-sub">{{ m.error }}</div>{% elif m.status == 'reserved' %}<span class="sms-status sms-status--reserved">Reserverat</span><div class="tv-muted tv-cell-sub">Svaret från 46elks kom aldrig.</div>{% else %}<span class="sms-status sms-status--{{ m.status }}">{{ m.get_status_display }}</span><div class="tv-muted tv-cell-sub">46elks id <span class="sms-mono sms-break">{{ m.provider_id }}</span> kom med leveransrapporten; priset är uppskattat.</div>{% endif %}</div></td>
+      <td class="m-num"><div class="sms-actions">{% if m.status == 'reserved' %}<form method="post" action="{% url 'manage:sms_resolve_check' m.pk %}" data-sms-confirm="Markera sms {{ m.pk }} som skickat? Det debiteras med det uppskattade priset.">{% csrf_token %}<input type="hidden" name="sent" value="1"><button type="submit" class="m-btn m-btn--small">Skickades</button></form><form method="post" action="{% url 'manage:sms_resolve_check' m.pk %}" data-sms-confirm="Markera sms {{ m.pk }} som inte skickat? Det kostar då inget, och kundens reference blir fri.">{% csrf_token %}<input type="hidden" name="sent" value="0"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Skickades inte</button></form>{% else %}<form method="post" action="{% url 'manage:sms_resolve_check' m.pk %}">{% csrf_token %}<input type="hidden" name="sent" value="1"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Avstämt</button></form>{% endif %}</div></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+<p class="m-section-title" id="underlag">Månadsunderlag</p>
+<div class="m-panel tv-panel">
+  <p class="tv-prop__note">En månad stängs efter att den tagit slut: underlagen fryses och ändras inte efter det. Cron stänger förra månaden den första varje månad (apps/sms/README.md); knappen gör samma sak. Årsavgiften står på den månad kundens tjänsteår börjar. CSV-filen har en rad per kund, semikolon och decimalkomma.</p>
+  <form method="post" action="{% url 'manage:sms_close_month' %}" class="tv-row" data-sms-confirm="Stäng {{ previous|date:'Y-m' }} för alla SMS-kunder? Underlagen fryses.">{% csrf_token %}
+    <input type="hidden" name="period" value="{{ previous|date:'Y-m' }}">
+    <button type="submit" class="m-btn m-btn--small">Stäng {{ previous|date:"F Y" }}</button>
+    <span class="tv-muted">Kunderna mejlas inte.</span>
+  </form>
+  {% if periods %}
+  <div class="m-table-wrap">
+  <table class="m-table sms-table">
+    <thead><tr><th>Period</th><th class="m-num">Stängda underlag</th><th class="m-num">Summa stängt</th><th class="m-num sms-col-low">Varav årsavgifter</th><th>Läge</th><th></th></tr></thead>
+    <tbody>
+    {% for p in periods %}
+    <tr>
+      <td>{{ p.period|date:"Y-m" }}</td>
+      <td class="m-num">{{ p.closed_count }}</td>
+      <td class="m-num">{{ p.closed_total|sms_kr }} kr</td>
+      <td class="m-num sms-col-low">{{ p.closed_fee|sms_kr }} kr</td>
+      <td>{% if p.is_current %}<span class="sms-status sms-status--sent">Pågår</span>{% elif p.open %}<span class="sms-status sms-status--blocked_cap">Inte stängd</span>{% else %}<span class="sms-status sms-status--delivered">Stängd</span>{% endif %}</td>
+      <td class="m-num"><div class="sms-actions">{% if p.open %}<form method="post" action="{% url 'manage:sms_close_month' %}" data-sms-confirm="Stäng {{ p.period|date:'Y-m' }} för alla SMS-kunder? Underlagen fryses.">{% csrf_token %}<input type="hidden" name="period" value="{{ p.period|date:'Y-m' }}"><button type="submit" class="m-btn m-btn--small">Stäng</button></form>{% endif %}<a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:sms_statements_csv' p.period.year p.period.month %}">CSV</a></div></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="tv-empty tv-empty--inline">Inga månader med sms än.</p>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{% static 'js/sms.js' %}?v={{ static_version }}" defer></script>{% endblock %}

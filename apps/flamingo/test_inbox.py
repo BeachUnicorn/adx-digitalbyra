@@ -31,6 +31,7 @@ from .models import (
     SmsLog,
 )
 from .public_views import HONEYPOT, RATE_LIMIT
+from .testing import pages_from_campaigns
 
 User = get_user_model()
 STHLM = ZoneInfo("Europe/Stockholm")
@@ -38,6 +39,7 @@ ELKS = {
     "ELKS_API_USERNAME": "u-test",
     "ELKS_API_PASSWORD": "p-test",
     "ELKS_SENDER": "ADXFlamingo",
+    "SMS_SEND_LIVE": True,
 }
 NO_ELKS = {"ELKS_API_USERNAME": "", "ELKS_API_PASSWORD": "", "ELKS_SENDER": ""}
 
@@ -128,6 +130,7 @@ class InboxFixture:
         cls.secret_lead = Lead.objects.create(
             account=cls.other_account, name="Hemlig Person", phone="070-999 99 99"
         )
+        pages_from_campaigns(cls.call_page, cls.quote_page, cls.draft, cls.secret_page)
 
     def setUp(self):
         cache.clear()
@@ -183,7 +186,7 @@ class LandingPageTests(InboxFixture, TestCase):
                 )
         response = anon.get(self.call_page.landing_url)
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, "flamingo/lp/page.html")
+        self.assertTemplateUsed(response, "flamingo/lp/ren/page.html")
 
     def test_a_disabled_account_or_inactive_customer_hides_the_page(self):
         FlamingoAccount.objects.filter(pk=self.account.pk).update(is_enabled=False)
@@ -220,7 +223,9 @@ class LandingPageTests(InboxFixture, TestCase):
         response = Client().get(self.call_page.landing_url)
         html = response.content.decode()
         # Samma företagsnamn som annonserna: utan bolagsform.
-        self.assertIn('<p class="lp-business">Lindqvist Rör</p>', html)
+        self.assertIn(
+            '<p class="rn-brand"><span class="rn-brand__name">Lindqvist Rör</span></p>', html
+        )
         self.assertIn("Rörjour i Nacka", html)
         self.assertIn('name="robots" content="noindex', html)
         self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
@@ -228,7 +233,7 @@ class LandingPageTests(InboxFixture, TestCase):
         self.assertIn('href="https://adx.se"', html)
         self.assertIn("Sidan drivs av ADX", html)
         self.assertIn("Exempelvägen 4, Nacka", html)
-        self.assertIn("css/flamingo-lp.css", html)
+        self.assertIn("css/flamingo-lp-ren.css", html)
         self.assertNotIn("ADX Flamingo", html)
         self.assertNotIn("flamingo.css", html)
         self.assertIn("width=device-width", html)
@@ -248,8 +253,9 @@ class LandingPageTests(InboxFixture, TestCase):
 
     def test_call_mode_has_the_phone_first_and_the_form_last(self):
         html = Client().get(self.call_page.landing_url).content.decode()
-        self.assertIn("Ring 08-000 00 00", html)
-        self.assertLess(html.index('class="lp-call"'), html.index("<form"))
+        # Numret radbryts aldrig (rn-nowrap); texten är densamma.
+        self.assertIn('Ring <span class="rn-nowrap">08-000 00 00</span>', html)
+        self.assertLess(html.index("rn-hero__call"), html.index("<form"))
         self.assertIn("Medan du väntar", html)
         self.assertNotIn('name="email"', html)
 
@@ -259,8 +265,9 @@ class LandingPageTests(InboxFixture, TestCase):
         self.assertIn('name="q_storlek"', html)
         self.assertIn('type="date"', html)
         self.assertIn('name="email"', html)
-        self.assertIn("eller ring", html)
-        self.assertLess(html.index("<form"), html.index("eller ring"))
+        text = re.sub(r"<[^>]+>", "", html)
+        self.assertIn("Hellre att prata? Ring 08-000 00 00", text)
+        self.assertLess(html.index("<form"), html.index("Hellre att prata?"))
 
     def test_click_ids_and_utm_ride_along_in_hidden_fields(self):
         url = (
@@ -280,8 +287,8 @@ class LandingPageTests(InboxFixture, TestCase):
 
     def test_no_inline_styles_or_scripts(self):
         base = Path(settings.BASE_DIR) / "templates" / "flamingo"
-        for folder in ("lp", "app/inbox"):
-            for path in (base / folder).glob("*.html"):
+        for folder in ("lp", "app/inbox", "app/pages"):
+            for path in (base / folder).rglob("*.html"):
                 text = path.read_text(encoding="utf-8")
                 with self.subTest(path=path.name):
                     self.assertNotIn("style=", text)

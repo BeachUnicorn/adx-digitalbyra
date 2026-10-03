@@ -1,0 +1,19 @@
+{% extends "portal/base.html" %}
+{% comment %}
+Bara byrån i kundvyn ser den här sidan: kunden har inte SMS aktiverat, och
+kunden själv får en vanlig 404 på samma adress.
+{% endcomment %}
+{% block content %}
+<div class="pt-narrow">
+  <div class="tv-head">
+    <div>
+      <div class="tv-kicker">{{ customer.name }}</div>
+      <h1 class="tv-h1">SMS</h1>
+    </div>
+  </div>
+  <div class="m-panel tv-panel">
+    <p class="tv-prop__note">SMS är inte aktiverat för {{ customer.name }}. Kunden ser ingen SMS-länk, och adressen ger kunden en 404. Aktivera på kundkortet.</p>
+    <p><a class="m-btn m-btn--small" href="{% url 'manage:customer_detail' customer.pk %}#sms">Till kundkortet</a></p>
+  </div>
+</div>
+{% endblock %}

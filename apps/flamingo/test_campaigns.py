@@ -20,7 +20,7 @@ from apps.assistant import llm
 from apps.projects.access import VIEW_AS_KEY
 from apps.projects.models import Customer
 
-from . import checks, generator
+from . import checks, generator, pagebuilder
 from .models import (
     DESCRIPTION_COUNT,
     DESCRIPTION_MAX,
@@ -34,6 +34,8 @@ from .models import (
     Review,
     Service,
 )
+from .pagebuilder import registry
+from .testing import pages_from_campaigns
 
 User = get_user_model()
 AGENCY = "byran@example.com"
@@ -121,8 +123,11 @@ class CampaignFixture:
             session.save()
         return client
 
-    def make_campaign(self, service=None, area="Nacka + 15 km", **fields):
-        return Campaign.objects.create(
+    def make_campaign(self, service=None, area="Nacka + 15 km", migrated=True, **fields):
+        """En kampanj med sin sida: Campaign.page blir block som i
+        migreringen 0011 (testing.pages_from_campaigns). migrated=False: utan
+        sida, som en ny kampanj (förslaget bygger den)."""
+        campaign = Campaign.objects.create(
             account=self.account,
             service=service or self.badrum,
             name=fields.pop("name", "Badrumsrenovering Nacka"),
@@ -130,9 +135,33 @@ class CampaignFixture:
             daily_budget_kr=fields.pop("daily_budget_kr", 200),
             **fields,
         )
+        if migrated:
+            pages_from_campaigns(campaign)
+        return campaign
+
+    def page_of(self, campaign):
+        """Sidans innehåll ur blocken i sidbyggaren, i den gamla formen."""
+        campaign.refresh_from_db()
+        blocks = campaign.landing_page.draft_blocks
+        hero = next(pagebuilder.active_fields(b) for b in blocks if b["type"] == "hero")
+        form = next((pagebuilder.active_fields(b) for b in blocks if b["type"] == "form"), {})
+        return {
+            "kicker": hero["kicker"],
+            "title": hero["title"],
+            "lead": hero["lead"],
+            "points": hero["points"],
+            "phone": hero["phone"],
+            "form_title": form.get("title", ""),
+            "questions": form.get("questions", []),
+            "note": form.get("note", ""),
+            "variants": [f"{b['type']}:{b['variant']}" for b in blocks],
+        }
 
     def proposal_for(self, service=None, area="Nacka + 15 km"):
-        campaign = self.make_campaign(service=service, area=area)
+        """En ny kampanj och dess förslag: förslaget bygger kampanjens sida
+        (pagebuilder.create_page_for_campaign), som för en kampanj från
+        formuläret. En sida från migreringen byggs aldrig om av ett förslag."""
+        campaign = self.make_campaign(service=service, area=area, migrated=False)
         return campaign, generator.build_proposal(campaign)
 
     def url(self, campaign, tab=""):
@@ -168,20 +197,26 @@ class GeneratorTemplateTests(NoAI, CampaignFixture, TestCase):
             with self.subTest(service=service.name):
                 campaign, _ = self.proposal_for(service)
                 campaign.refresh_from_db()
-                text = json.dumps(campaign.content_snapshot(), ensure_ascii=False).lower()
+                text = json.dumps(
+                    [campaign.content_snapshot(), campaign.landing_page.draft_blocks],
+                    ensure_ascii=False,
+                ).lower()
                 self.assertNotIn("4 990", text)
                 self.assertNotIn("4990", text)
                 self.assertNotIn("kvadratmeter", text)
                 self.assertNotIn("garanti", text)
-                self.assertEqual(campaign.page["phone"], PHONE)
+                self.assertEqual(self.page_of(campaign)["phone"], PHONE)
                 self.assertIn("4,8 i betyg på google", text)
 
     def test_an_unconfirmed_phone_is_never_used(self):
         Fact.objects.filter(account=self.account, key="telefon").update(confirmed=False)
         campaign, _ = self.proposal_for(self.jour)
         campaign.refresh_from_db()
-        self.assertEqual(campaign.page["phone"], "")
-        self.assertNotIn("08-000", json.dumps(campaign.content_snapshot()))
+        self.assertEqual(self.page_of(campaign)["phone"], "")
+        self.assertNotIn(
+            "08-000",
+            json.dumps([campaign.content_snapshot(), campaign.landing_page.draft_blocks]),
+        )
         self.assertEqual(checks.validate(campaign), [])
 
     def test_keywords_are_service_variants_times_places(self):
@@ -227,26 +262,41 @@ class GeneratorTemplateTests(NoAI, CampaignFixture, TestCase):
         self.assertFalse([p for p in checks.validate(campaign) if p.field == "keywords"])
 
     def test_the_page_follows_the_sales_mode(self):
+        """Förslagets sida blir block i kampanjens egen sida i sidbyggaren:
+        ringer direkt ger Hero med ringknapp och en ringremsa, offert Hero
+        med formulär och frågor, boka tid formuläret för att boka tid."""
         call, _ = self.proposal_for(self.jour)
-        self.assertEqual(call.page["title"], "Rörjour i Nacka")
-        self.assertEqual(call.page["questions"], [])
-        self.assertTrue(call.page["form_title"])
-        # Landningssidan visar note som "Medan du väntar" i ringläget.
-        self.assertEqual(call.page["note"], "")
-        self.assertIn("Jour: Dygnet runt, alla dagar", call.page["points"])
+        page = self.page_of(call)
+        self.assertEqual(page["variants"], ["hero:call", "form:short", "callbar:call"])
+        # Tjänsten och orten i överrubriken (samma ord som annonsen), och en
+        # rubrik om vad kunden får.
+        self.assertEqual(page["kicker"], "Rörjour i Nacka")
+        self.assertEqual(page["title"], registry.HERO_TITLES[Service.SALES_CALL])
+        self.assertEqual(page["questions"], [])
+        self.assertTrue(page["form_title"])
+        # Rutan vid formuläret är tom i ringläget.
+        self.assertEqual(page["note"], "")
+        # Punkterna i vanlig svenska, inte "Jour: Dygnet runt, alla dagar".
+        self.assertIn("Jour dygnet runt, alla dagar", page["points"])
         # Betyget ritar landningssidan själv ur uppgifterna.
-        self.assertFalse([p for p in call.page["points"] if "4,8" in p])
+        self.assertFalse([p for p in page["points"] if "4,8" in p])
+        self.assertEqual(call.page, {})
 
         quote, _ = self.proposal_for(self.badrum)
-        self.assertEqual(quote.page["form_title"], "Beskriv jobbet")
-        self.assertEqual([q["key"] for q in quote.page["questions"]], ["jobbet", "storlek"])
-        self.assertNotIn("call_label", call.page)
+        page = self.page_of(quote)
+        self.assertEqual(page["variants"], ["hero:form", "form:questions"])
+        self.assertEqual(page["form_title"], "Beskriv jobbet")
+        self.assertEqual([q["key"] for q in page["questions"]], ["jobbet", "storlek"])
 
         book, _ = self.proposal_for(self.puts)
-        self.assertEqual(book.page["title"], "Boka fönsterputs i Nacka")
-        self.assertIn("date", [q["kind"] for q in book.page["questions"]])
-        for page in (call.page, quote.page, book.page):
-            self.assertEqual(page["phone"], PHONE)
+        page = self.page_of(book)
+        self.assertEqual(page["variants"], ["hero:form", "form:booking"])
+        self.assertEqual(page["kicker"], "Fönsterputs i Nacka")
+        self.assertEqual(page["title"], registry.HERO_TITLES[Service.SALES_BOOK])
+        self.assertIn("date", [q["kind"] for q in page["questions"]])
+        for campaign in (call, quote, book):
+            self.assertEqual(self.page_of(campaign)["phone"], PHONE)
+            self.assertEqual(pagebuilder.page_problems(campaign.landing_page), [])
 
     def test_service_names_and_places(self):
         self.assertEqual(
@@ -426,7 +476,7 @@ class ChecksTests(NoAI, CampaignFixture, TestCase):
                     "headlines": ["x" * 31, "Nytt badrum", "Begär en offert"],
                     "descriptions": ["y" * 91, "Berätta om jobbet."],
                     "keywords": self.campaign.keywords,
-                    "page": self.campaign.page,
+                    "landing_page": self.campaign.landing_page,
                 }
             )
         )
@@ -527,13 +577,24 @@ class ChecksTests(NoAI, CampaignFixture, TestCase):
                 self.assertEqual(found == [], ok)
         self.assertTrue(self.messages("area", area=""))
 
+    def set_hero(self, **fields):
+        """Ändra Hero i kampanjens sida (utkastet, sidan är inte publicerad)."""
+        page = self.campaign.landing_page
+        blocks = page.draft_blocks
+        blocks[0]["versions"][0]["fields"].update(fields)
+        page.draft = {"blocks": blocks}
+        page.save()
+
     def test_the_page(self):
-        page = dict(self.campaign.page)
-        self.assertTrue(self.messages("page", page={**page, "title": ""}))
-        self.assertTrue(self.messages("page", page={**page, "phone": "070-123 45 67"}))
-        self.assertEqual(self.messages(page=page), [])
-        self.campaign.page = {**page, "lead": "Billigast i Nacka", "points": ["Från 499 kr"]}
-        parts = {(p.part, p.index) for p in checks.validate(self.campaign)}
+        """Sidan kontrolleras i sidbyggaren (pagebuilder.page_problems): det
+        som visas när kampanjen går live, här utkastet."""
+        self.assertEqual(self.messages(), [])
+        self.set_hero(title="")
+        self.assertTrue(self.messages("page"))
+        self.set_hero(title="Badrumsrenovering i Nacka", phone="070-123 45 67")
+        self.assertTrue(self.messages("page"))
+        self.set_hero(phone=PHONE, lead="Billigast i Nacka", points=["Från 499 kr"])
+        parts = {(p.part, p.index) for p in checks.validate(self.campaign) if p.field == "page"}
         self.assertEqual(parts, {("lead", None), ("points", 0)})
 
 
@@ -732,7 +793,8 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
         client = self.client_for(self.staff, view_as=self.acme)
         page = client.get(self.url(campaign, "sidan"))
         self.assertEqual(page.status_code, 200)
-        self.assertContains(page, "Spara sidan")
+        self.assertContains(page, "Öppna sidan i sidbyggaren")
+        self.assertContains(page, "Byt sida")
         self.assertContains(page, "gäller på riktigt")
         self.assertContains(page, reverse("manage:flamingo_review", args=[campaign.pk]))
         client.post(self.url(campaign), {"section": "ads", "headline": ["Ny", "Nyare", "Nyast"]})
@@ -784,7 +846,7 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
         self.assertContains(page, 'value="call" checked', html=False)
         self.assertContains(page, 'value="Nacka, Värmdö och Tyresö"', html=False)
         self.assertNotContains(page, "förfrågningar i månaden")
-        self.assertContains(page, "två veckor")
+        self.assertContains(page, "syns när annonserna gått en tid")
         self.assertContains(page, "ungefär <b>6\u00a0080\u00a0kr i månaden</b>", html=False)
 
     def test_budget(self):
@@ -819,30 +881,21 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
         )
         self.assertEqual(campaign.negatives, ["jobb", "lön"])
 
-        client.post(
-            self.url(campaign),
-            {
-                "section": "page",
-                "title": "Nytt badrum i Nacka",
-                "lead": "Berätta om badrummet.",
-                "points": "Jour: Dygnet runt\n\nNacka och Värmdö",
-                "phone": PHONE,
-                "form_title": "Om badrummet",
-                "q_label": ["Hur stort?", "", "Hur stort?"],
-                "q_kind": ["text", "text", "date"],
-                "note": "",
-            },
-        )
+        # Sidan ändras i sidbyggaren; här väljer kunden vilken sida kampanjen
+        # visar: en annan sida på kontot, eller en egen igen.
+        own = campaign.landing_page
+        other, _ = self.proposal_for(self.jour)
+        client.post(self.url(campaign), {"section": "landing", "page": str(other.landing_page.pk)})
         campaign.refresh_from_db()
-        self.assertEqual(campaign.page["title"], "Nytt badrum i Nacka")
-        self.assertEqual(campaign.page["points"], ["Jour: Dygnet runt", "Nacka och Värmdö"])
-        self.assertEqual(
-            campaign.page["questions"],
-            [
-                {"key": "hur-stort", "label": "Hur stort?", "kind": "text"},
-                {"key": "hur-stort-2", "label": "Hur stort?", "kind": "date"},
-            ],
-        )
+        self.assertEqual(campaign.landing_page, other.landing_page)
+        client.post(self.url(campaign), {"section": "landing", "page": "own"})
+        campaign.refresh_from_db()
+        self.assertNotEqual(campaign.landing_page, other.landing_page)
+        self.assertNotEqual(campaign.landing_page, own)  # en kopia av den delade
+        # Bara en sida på det egna kontot.
+        foreign = self.secret.landing_page or pagebuilder.ensure_own_page(self.secret)
+        response = client.post(self.url(campaign), {"section": "landing", "page": str(foreign.pk)})
+        self.assertEqual(response.status_code, 404)
 
         client.post(
             self.url(campaign),
@@ -854,10 +907,14 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
             ("Värmdö + 25 km", 25, 300),
         )
 
+        title = self.page_of(campaign)["title"]
         client.post(self.url(campaign), {"section": "regenerate"})
         campaign.refresh_from_db()
         self.assertIn("badrumsrenovering värmdö", {k["text"] for k in campaign.keywords})
-        self.assertEqual(campaign.page["title"], "Badrumsrenovering i Värmdö")
+        # Sidan är en kopia av en sida kunden valt, inte en som förslaget
+        # byggde för kampanjen: ett nytt förslag rör den aldrig.
+        self.assertIsNone(campaign.landing_page.built_for_id)
+        self.assertEqual(self.page_of(campaign)["title"], title)
 
     def test_the_list(self):
         self.proposal_for(self.badrum)
@@ -947,7 +1004,7 @@ class ReviewAndPreviewTests(NoAI, CampaignFixture, TestCase):
     def test_the_page_tab_shows_the_landing_page_template_in_a_sandbox(self):
         campaign, _ = self.proposal_for(self.jour)
         response = self.client_for(self.anna).get(self.url(campaign, "sidan"))
-        self.assertTemplateUsed(response, "flamingo/lp/page.html")
+        self.assertTemplateUsed(response, "flamingo/lp/ren/page.html")
         html = response.content.decode()
         self.assertIn('sandbox="allow-same-origin"', html)
         self.assertNotIn("allow-scripts", html)
@@ -957,10 +1014,11 @@ class ReviewAndPreviewTests(NoAI, CampaignFixture, TestCase):
         self.assertIn('srcdoc="&lt;!DOCTYPE html&gt;', html)
         self.assertNotIn('srcdoc="<', html)
         srcdoc = html.split('srcdoc="', 1)[1].split('"', 1)[0]
-        self.assertIn("lp-title", srcdoc)
+        self.assertIn("rn-h1", srcdoc)
         self.assertIn("&lt;/html&gt;", srcdoc)
         # Ringknappen med det bekräftade numret, escapad i srcdoc.
-        self.assertIn(f"Ring {PHONE}", html)
+        self.assertIn(f"&gt;{PHONE}&lt;", srcdoc)
+        self.assertIn("rn-hero__call", srcdoc)
         self.assertIn("Förhandsvisning: formuläret skickar inget.", html)
         # Den publika sidan finns inte förrän kampanjen är live.
         self.assertEqual(Client().get(campaign.landing_url).status_code, 404)
@@ -968,7 +1026,7 @@ class ReviewAndPreviewTests(NoAI, CampaignFixture, TestCase):
     def test_the_preview_falls_back_when_the_landing_page_cannot_be_drawn(self):
         campaign, _ = self.proposal_for(self.badrum)
         with patch(
-            "apps.flamingo.app_views.campaigns.render_to_string", side_effect=RuntimeError("trasig")
+            "apps.flamingo.pagebuilder.render_page_html", side_effect=RuntimeError("trasig")
         ):
             response = self.client_for(self.anna).get(self.url(campaign, "sidan"))
         self.assertEqual(response.status_code, 200)

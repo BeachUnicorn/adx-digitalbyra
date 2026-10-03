@@ -1,0 +1,22 @@
+{% load static %}{% comment %}
+Rubriken och flikarna för kundens SMS-sidor (apps/sms/portal_views.py).
+Stilarna och skriptet laddas här, inne i sidan: portalens ram har ingen
+egen plats för dem, och de behövs bara på de här sidorna.
+{% endcomment %}<link rel="stylesheet" href="{% static 'css/sms.css' %}?v={{ static_version }}">
+<script src="{% static 'js/sms.js' %}?v={{ static_version }}" defer></script>
+<div class="tv-head">
+  <div>
+    <div class="tv-kicker">{{ customer.name }}</div>
+    <h1 class="tv-h1">{{ heading|default:"SMS" }}</h1>
+    {% if lead %}<div class="tv-sub">{{ lead }}</div>{% endif %}
+  </div>
+</div>
+<nav class="m-filter sms-tabs" aria-label="SMS">
+  <a href="{% url 'sms:dashboard' %}" class="m-filter__item{% if tab == 'dashboard' %} is-active{% endif %}"{% if tab == 'dashboard' %} aria-current="page"{% endif %}>Översikt</a>
+  <a href="{% url 'sms:keys' %}" class="m-filter__item{% if tab == 'keys' %} is-active{% endif %}"{% if tab == 'keys' %} aria-current="page"{% endif %}>Nycklar och tak</a>
+  <a href="{% url 'sms:docs' %}" class="m-filter__item{% if tab == 'docs' %} is-active{% endif %}"{% if tab == 'docs' %} aria-current="page"{% endif %}>Dokumentation</a>
+  <a href="{% url 'sms:statements' %}" class="m-filter__item{% if tab == 'statements' %} is-active{% endif %}"{% if tab == 'statements' %} aria-current="page"{% endif %}>Månadsunderlag</a>
+</nav>
+{% if request.viewing_as %}
+<p class="sms-live-note" role="note"><b>SMS-sidorna är inte skrivskyddade i kundvyn:</b> du ser och kan göra exakt det {{ customer.name }} kan. Det du gör här gäller på riktigt och sparas i ditt namn.</p>
+{% endif %}

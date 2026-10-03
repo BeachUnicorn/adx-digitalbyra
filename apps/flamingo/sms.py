@@ -89,9 +89,13 @@ NOTE_DEMO = "Demokonto: inga sms skickas."
 
 
 def is_configured():
-    """46elks är inkopplat: alla tre inställningarna har ett värde."""
+    """46elks är inkopplat: alla tre inställningarna har ett värde, och
+    SMS_SEND_LIVE är på. Uppgifterna delas med SMS-tjänsten (apps/sms), så
+    samma strömbrytare gäller här: utan den skickar Flamingo inget, inte heller
+    lokalt där de riktiga uppgifterna finns i .env."""
     return bool(
-        getattr(settings, "ELKS_API_USERNAME", "")
+        getattr(settings, "SMS_SEND_LIVE", False)
+        and getattr(settings, "ELKS_API_USERNAME", "")
         and getattr(settings, "ELKS_API_PASSWORD", "")
         and getattr(settings, "ELKS_SENDER", "")
     )

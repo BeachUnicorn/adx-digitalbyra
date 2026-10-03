@@ -43,6 +43,7 @@ from .models import (
 from .rules import waiting_leads
 from .templatetags.flamingo_app import kr
 from .test_google_ads import API, CONFIGURED, NOTHING, TOKEN_OK, FakeGoogle, google_error
+from .testing import pages_from_campaigns
 
 User = get_user_model()
 CUSTOMER_ID = "1234567891"
@@ -50,6 +51,7 @@ ELKS = {
     "ELKS_API_USERNAME": "u-test",
     "ELKS_API_PASSWORD": "p-test",
     "ELKS_SENDER": "ADXFlamingo",
+    "SMS_SEND_LIVE": True,
 }
 DATETIME_WITH_OFFSET = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}$")
 
@@ -101,6 +103,7 @@ class MeasureFixture:
         cls.draft = Campaign.objects.create(
             account=cls.account, service=cls.badrum, name="Utkast", page={"title": "Utkast"}
         )
+        pages_from_campaigns(cls.call_page, cls.quote_page, cls.draft)
 
     def setUp(self):
         cache.clear()
@@ -329,7 +332,7 @@ class LandingMeasureTests(MeasureFixture, TestCase):
         script = (settings.BASE_DIR / "static" / "js" / "flamingo-lp.js").read_text()
         self.assertNotIn("ad_consent", script)
         self.assertNotIn("sessionStorage", script)
-        css = (settings.BASE_DIR / "static" / "css" / "flamingo-lp.css").read_text()
+        css = (settings.BASE_DIR / "static" / "css" / "flamingo-lp-ren.css").read_text()
         self.assertNotIn("lp-consent", css)
 
     def test_tel_links_are_marked_and_the_beacon_is_only_for_visitors(self):
@@ -341,7 +344,7 @@ class LandingMeasureTests(MeasureFixture, TestCase):
             self.assertIn("data-fl-call", link)
         self.assertIn(f'data-fl-beacon="{self.ring_url(self.quote_page)}"', html)
         call = Client().get(self.call_page.landing_url).content.decode()
-        self.assertRegex(call, r'<a class="lp-call" href="tel:[^"]+" data-fl-call>')
+        self.assertRegex(call, r'<a class="[^"]*rn-hero__call" href="tel:[^"]+" data-fl-call>')
         staff = Client()
         staff.force_login(self.staff)
         self.assertNotIn("data-fl-beacon", staff.get(self.quote_page.landing_url).content.decode())

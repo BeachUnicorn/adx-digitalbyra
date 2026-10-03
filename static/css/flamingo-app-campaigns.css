@@ -238,3 +238,43 @@ span.fl-camp-submit__direct,span.fl-camp-submit__review{display:none}
 @media (prefers-reduced-motion:reduce){
   .fl-camp-map__zone,.fl-camp-more__summary::before{transition:none}
 }
+
+/* ---------- Sidbyggaren: sidans block i en lista (fliken Sidan, Sidor) ---------- */
+.fl-pb-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.fl-pb-blocks{display:flex;flex-direction:column;margin:0;padding:0;list-style:none;counter-reset:fl-pb}
+.fl-pb-blocks__row{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;padding:10px 0;border-top:1px solid var(--fl-soft);font-size:16px;line-height:1.45;counter-increment:fl-pb}
+.fl-pb-blocks__row:first-child{border-top:0}
+.fl-pb-blocks__row::before{content:counter(fl-pb);min-width:22px;font-variant-numeric:tabular-nums;color:var(--fl-muted)}
+.fl-pb-blocks__name{font-weight:600;color:var(--fl-ink)}
+.fl-pb-blocks__meta{min-width:0;color:var(--fl-muted);overflow-wrap:anywhere}
+.fl-pb-choice{display:flex;flex-direction:column;gap:8px}
+
+/* ---------- Landningssidan: egen eller befintlig (ny kampanj, fliken Sidan) ----------
+   Mockupen sidbyggaren skärm 09 (.choice, .opt). Väljaren av befintlig sida
+   tonas ner när "Egen sida" är vald (:has; utan stöd står den som vanligt). */
+.fl-camp-pagechoice{display:flex;flex-direction:column;gap:10px}
+.fl-camp-opt{
+  display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1.5px solid var(--fl-line);
+  border-radius:var(--fl-r-sm);background:var(--fl-white);cursor:pointer;
+}
+.fl-camp-opt:hover{border-color:#CFCBDB}
+.fl-camp-opt:has(input:checked){border-color:var(--fl-violet);background:var(--fl-violet-tint)}
+.fl-camp-opt input{flex:none;width:20px;height:20px;margin:2px 0 0;accent-color:var(--fl-violet)}
+.fl-camp-opt input:focus-visible{outline:2px solid var(--fl-violet);outline-offset:3px}
+.fl-camp-opt__body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.fl-camp-opt__title{font-size:16px;font-weight:600;line-height:1.4;color:var(--fl-ink)}
+.fl-camp-opt__text{font-size:16px;line-height:1.5;color:var(--fl-muted)}
+.fl-camp-opt__pick{padding-left:48px;transition:opacity .15s ease}
+.fl-camp-pagechoice:has(input[value="own"]:checked) .fl-camp-opt__pick,
+.fl-camp-pagechoice:has(input[value="own"]:checked) .fl-camp-shared{opacity:.55}
+.fl-camp-shared{
+  display:flex;align-items:flex-start;gap:10px;margin:0;padding:12px 14px;border-radius:var(--fl-r-sm);
+  background:var(--fl-violet-tint);color:var(--fl-violet-ink);font-size:16px;line-height:1.5;
+}
+.fl-camp-shared a{color:inherit;font-weight:600;text-underline-offset:3px}
+.fl-camp-shared__dot{flex:none;width:10px;height:10px;margin-top:7px;border-radius:50%;background:var(--fl-violet)}
+.fl-camp-sharedlist{display:flex;flex-direction:column;gap:2px;margin:4px 0 0;padding:0;list-style:none}
+.fl-camp-sharedlist:empty{display:none}
+@media (max-width:560px){
+  .fl-camp-opt__pick{padding-left:0}
+}

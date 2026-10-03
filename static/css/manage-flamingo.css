@@ -194,3 +194,7 @@ a.mf-strong { text-decoration: underline; text-underline-offset: 3px; text-decor
   .mf-submit .m-btn,
   .mf-publish-form .m-btn { width: 100%; justify-self: stretch; }
 }
+
+/* Landningssidan i granskningen (_landing.html): länkarna på en rad. */
+.mf-landing-links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin-top:12px}
+.mf-inline-form{display:inline;margin:0}

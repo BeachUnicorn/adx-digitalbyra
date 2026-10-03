@@ -27,6 +27,12 @@ Reglerna:
   början i stället ("Ring +46 8 ..." eller "20 % rabatt på jour").
 - Sökord: minst ett, inget som krockar med ett negativt sökord.
 - Budget per dag mellan BUDGET_MIN och BUDGET_MAX kr. Ett område.
+- Landningssidan (sidbyggaren): pagebuilder.page_problems på det kampanjen
+  visar när den är live (landing_page_problems). Samma textkontroll på varje
+  fält, telefonnumret bland uppgifterna, minst ett sätt att nå företaget och
+  inga AI-typografitecken. Problemen har field="page", block, part och where;
+  för en publicerad sida är de märkta "på den publicerade sidan"
+  (pagebuilder.published_problems).
 """
 
 import re
@@ -56,9 +62,13 @@ class Problem:
     message: str
     #: Vilken rad i en lista (rubrik nummer 3 är index 2). None = hela fältet.
     index: int | None = None
-    #: Delen av sidan (page): title, lead, points, phone, form_title,
-    #: questions, note.
+    #: Fältet i blocket på sidan (page): title, lead, points, phone,
+    #: questions ... (pagebuilder.registry). Tomt för hela sidan.
     part: str = ""
+    #: Blockets id på sidan (b_...), tomt för hela sidan.
+    block: str = ""
+    #: Var problemet sitter, på svenska: "Hero, rubrik", "Formulär, fråga 2".
+    where: str = ""
 
 
 @dataclass(frozen=True)
@@ -299,37 +309,6 @@ def _keyword_problems(keywords, negatives):
     return problems
 
 
-#: Sidans textfält i den ordning de visas, med etiketten problemet får.
-PAGE_TEXT_PARTS = ("title", "lead", "form_title", "note")
-
-
-def _page_problems(page, context):
-    problems = []
-    page = page if isinstance(page, dict) else {}
-    if not (page.get("title") or "").strip():
-        problems.append(Problem("page", "Sidan behöver en rubrik.", part="title"))
-    for part in PAGE_TEXT_PARTS:
-        for message in text_problems(page.get(part) or "", context):
-            problems.append(Problem("page", message, part=part))
-    for i, point in enumerate(page.get("points") or []):
-        for message in text_problems(str(point), context):
-            problems.append(Problem("page", message, index=i, part="points"))
-    for i, question in enumerate(page.get("questions") or []):
-        label = question.get("label", "") if isinstance(question, dict) else str(question)
-        for message in text_problems(label, context):
-            problems.append(Problem("page", message, index=i, part="questions"))
-    phone = (page.get("phone") or "").strip()
-    if phone and number_tokens(phone) - context.numbers:
-        problems.append(
-            Problem(
-                "page",
-                "Telefonnumret finns inte bland dina bekräftade uppgifter.",
-                part="phone",
-            )
-        )
-    return problems
-
-
 def validate(campaign, context=None):
     """Alla problem i kampanjen, i den ordning redigeraren visar flikarna."""
     context = context or context_for(campaign)
@@ -368,5 +347,23 @@ def validate(campaign, context=None):
         plural="beskrivningar",
     )
     problems += _keyword_problems(campaign.keywords or [], campaign.negatives or [])
-    problems += _page_problems(campaign.page, context)
+    problems += landing_page_problems(campaign)
     return problems
+
+
+def landing_page_problems(campaign):
+    """Kampanjens landningssida (sidbyggaren): det besökarna ser när
+    kampanjen är live, alltså den publicerade versionen, eller utkastet för
+    en sida som aldrig publicerats (det publiceras när kampanjen går live).
+    Kontexten är sidans: alla kampanjer som använder den."""
+    from . import pagebuilder
+
+    page = campaign.landing_page if campaign.landing_page_id else None
+    if page is None:
+        return [Problem("page", "Kampanjen har ingen landningssida än.")]
+    if page.is_published:
+        # Det besökarna ser är den publicerade versionen: problemen märks
+        # "på den publicerade sidan" och säger att utkastet ska publiceras,
+        # så att kunden inte letar i ett utkast som redan är rättat.
+        return pagebuilder.published_problems(page)
+    return pagebuilder.page_problems(page, blocks=page.live_blocks)

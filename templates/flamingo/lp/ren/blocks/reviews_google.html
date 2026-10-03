@@ -1,0 +1,62 @@
+{% load flamingo_pb %}{% comment %}
+Omdömen från Google: de omdömen kunden valt (view.reviews, oförändrade)
+med Googles märkning, författarens namn och länken till profilen på Google
+Maps. Författarens bild hämtas aldrig från Google (besökarens integritet):
+initialerna ritas i stället. cards: tre kort; quote: ett stort citat;
+line: betyget i en rad. Blocket syns inte utan omdömen (render.py).
+
+Googles villkor för Places API (developers.google.com/maps/documentation/
+places/web-service/policies): texten "Google Maps" oförändrad och inte
+översatt (translate="no", hårt blanksteg så den inte radbryts), en länk
+till varje omdöme på Google Maps (review.uri), och en notis om hur
+omdömena valts ut och ordnats (kunden väljer, apps/flamingo/reviews.py).
+{% endcomment %}<section class="rn-block rn-reviews rn-reviews--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}{% if view.hidden %} data-pb-empty{% endif %}>
+  <div class="rn-wrap">
+    {% if b.variant == "line" %}
+    <div class="rn-reviews__line">
+      <span class="rn-gmark">Omdömen från Google</span>
+      {% if site.rating %}
+      <span class="rn-reviews__score"><b>{{ site.rating }}</b> av 5</span>
+      <span class="rn-starrow" aria-hidden="true">{% for s in view.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}"><use href="#rn-i-{% if s == 'half' %}star-half{% else %}star{% endif %}"></use></svg>{% endfor %}</span>
+      {% if site.review_count %}<span class="rn-reviews__count">{{ site.review_count }} omdömen</span>{% endif %}
+      {% endif %}
+      {% if site.maps_uri %}<a class="rn-link" href="{{ site.maps_uri }}" rel="noopener nofollow" target="_blank">Se omdömena på <span translate="no">Google&nbsp;Maps</span></a>{% else %}<span class="rn-small" translate="no">Google&nbsp;Maps</span>{% endif %}
+    </div>
+    {% else %}
+    <header class="rn-head rn-reviews__head">
+      <p class="rn-eyebrow rn-gmark">Omdömen från Google</p>
+      {% if f.title %}<h2 class="rn-h2"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2" %}{% endif %}
+      {% if site.rating %}
+      <p class="rn-reviews__summary"><span class="rn-reviews__score"><b class="rn-reviews__big">{{ site.rating }}</b> av 5</span><span class="rn-starrow" aria-hidden="true">{% for s in view.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}"><use href="#rn-i-{% if s == 'half' %}star-half{% else %}star{% endif %}"></use></svg>{% endfor %}</span>{% if site.review_count %}<span class="rn-reviews__count">{{ site.review_count }} omdömen på Google</span>{% else %}<span class="rn-reviews__count">på Google</span>{% endif %}</p>
+      {% endif %}
+      {% if view.reviews %}<p class="rn-small rn-reviews__note">{% if site.business %}{{ site.business }}{% else %}Företaget{% endif %} har valt vilka omdömen som visas här, och i vilken ordning. Källa: <span translate="no">Google&nbsp;Maps</span>.</p>{% endif %}
+    </header>
+    {% if b.variant == "quote" %}
+    {% for review in view.reviews %}
+    <figure class="rn-quote">
+      <svg class="rn-ic rn-quote__mark" aria-hidden="true" focusable="false"><use href="#rn-i-quote"></use></svg>
+      <blockquote class="rn-quote__text"><p>{{ review.text|linebreaksbr }}</p></blockquote>
+      <figcaption class="rn-review__by">
+        <span class="rn-avatar" aria-hidden="true">{{ review.initials }}</span>
+        <span class="rn-review__who">{% if review.author_uri %}<a href="{{ review.author_uri }}" rel="noopener nofollow ugc" target="_blank">{{ review.author }}</a>{% else %}{{ review.author }}{% endif %}<span class="rn-review__meta"><span class="rn-starrow rn-starrow--sm" aria-label="{{ review.rating }} av 5">{% for s in review.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}" aria-hidden="true"><use href="#rn-i-star"></use></svg>{% endfor %}</span>{% if review.relative %} {{ review.relative }}{% endif %} {% if review.uri %}<a href="{{ review.uri }}" rel="noopener nofollow" target="_blank">på <span translate="no">Google&nbsp;Maps</span></a>{% else %}på Google{% endif %}</span></span>
+      </figcaption>
+    </figure>
+    {% endfor %}
+    {% else %}
+    <ul class="rn-reviews__grid">
+      {% for review in view.reviews %}
+      <li class="rn-review">
+        <span class="rn-starrow" aria-label="{{ review.rating }} av 5">{% for s in review.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}" aria-hidden="true"><use href="#rn-i-star"></use></svg>{% endfor %}</span>
+        <p class="rn-review__text">{{ review.text|linebreaksbr }}</p>
+        <p class="rn-review__by">
+          <span class="rn-avatar" aria-hidden="true">{{ review.initials }}</span>
+          <span class="rn-review__who">{% if review.author_uri %}<a href="{{ review.author_uri }}" rel="noopener nofollow ugc" target="_blank">{{ review.author }}</a>{% else %}{{ review.author }}{% endif %}<span class="rn-review__meta">{% if review.relative %}{{ review.relative }} {% endif %}{% if review.uri %}<a href="{{ review.uri }}" rel="noopener nofollow" target="_blank">på <span translate="no">Google&nbsp;Maps</span></a>{% else %}på Google{% endif %}</span></span>
+        </p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if site.maps_uri %}<p class="rn-reviews__more"><a class="rn-btn rn-btn--outline" href="{{ site.maps_uri }}" rel="noopener nofollow" target="_blank">Se alla omdömen på <span translate="no">Google&nbsp;Maps</span></a></p>{% endif %}
+    {% endif %}
+  </div>
+</section>

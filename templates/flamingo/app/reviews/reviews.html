@@ -1,0 +1,218 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+Omdömen från Google (sidbyggaren, skärm 10 i adx-marketing/sidbyggaren-mockup.html).
+Kontext från app_views/reviews.reviews_view: configured (GOOGLE_PLACES_API_KEY),
+is_demo, can_call, connected, fetched, unverified (profilen liknar inte
+företaget: inget syns på sidorna förrän den är intygad), maps_uri (prövad
+länk), rows [{id, review, shown, number, stars, can_up, can_down}], rating,
+rating_stars, searches_left, details_left, hits (None eller [reviews.Hit]),
+pending (ett Place ID att bekräfta), query, show_id.
+
+Allt från Google visas med "Google Maps" oförändrat (translate="no"),
+författarens namn och länk, och en länk till omdömet på Google Maps
+(Googles villkor för Places API). Formulären med data-fl-once kan inte
+skickas två gånger i rad (static/js/flamingo-media.js): varje sökning och
+hämtning kostar.
+{% endcomment %}
+{% block app_title %}Omdömen från Google{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-media.css' %}?v={{ static_version }}">{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-rv-crumb" href="{% url 'flamingo:app_business' %}">Företaget</a></p>
+    <h1 class="fl-app-title">Omdömen från Google</h1>
+    <p class="fl-app-lead">Peka ut din Google-profil, så kan sidorna visa betyget och de omdömen du väljer. Texten ändras aldrig.</p>
+  </div>
+</header>
+
+{% if is_demo %}
+<p class="fl-notice fl-notice--info"><span>Det här är ett demokonto, så Google anropas aldrig. Profilen och omdömena här är påhittade.</span></p>
+{% elif not configured %}
+<p class="fl-notice fl-notice--warn"><span><b>Kopplingen till Google är inte påslagen än.</b> Du kan ange ditt Place ID nu, så hämtas omdömena när kopplingen är på.</span></p>
+{% endif %}
+
+{% if pending %}
+<section class="fl-panel fl-panel--accent" aria-labelledby="fl-rv-pending">
+  <h2 class="fl-panel__title" id="fl-rv-pending">Är det här ni?</h2>
+  <p class="fl-panel__text">Place ID <code class="fl-rv-code">{{ pending }}</code>. {% if can_call %}Vi hämtar namnet, betyget och omdömena från Google när du bekräftar. Stämmer namnet inte efteråt kopplar du bort profilen.{% else %}Vi sparar id:t och hämtar omdömena när kopplingen till Google är på.{% endif %}</p>
+  {% if not read_only %}
+  <form method="post" class="fl-panel__actions" data-fl-once>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="confirm">
+    <input type="hidden" name="place_id" value="{{ pending }}">
+    <button type="submit" class="fl-btn fl-btn--sm">Det här är vi</button>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_reviews' %}">Avbryt</a>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if hits is not None %}
+<section class="fl-panel fl-rv-google" aria-labelledby="fl-rv-hits">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-rv-hits">Träffar hos Google</h2>
+    <span class="fl-rv-gattr" translate="no">Google Maps</span>
+  </div>
+  {% if hits %}
+  <ul class="fl-list fl-rv-hits">
+    {% for hit in hits %}
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">{{ hit.name }}</span>
+        <span class="fl-list__meta">{% if hit.address %}{{ hit.address }}{% endif %}{% if hit.rating %}{% if hit.address %} &middot; {% endif %}{{ hit.rating }} av 5{% if hit.count %}, {{ hit.count }} omdömen{% endif %}{% endif %}</span>
+        {% if hit.maps_uri %}<a class="fl-rv-link" href="{{ hit.maps_uri }}" target="_blank" rel="noopener noreferrer">Visa på <span translate="no">Google Maps</span><span class="fl-sr"> (ny flik)</span></a>{% endif %}
+      </div>
+      {% if not read_only %}
+      <form method="post" data-fl-once>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="confirm">
+        <input type="hidden" name="place_id" value="{{ hit.place_id }}">
+        <button type="submit" class="fl-btn fl-btn--sm">Det här är vi<span class="fl-sr">: {{ hit.name }}</span></button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="fl-panel__text">Google hittade inget på "{{ query }}". Prova med orten, eller klistra in länken från Google Maps.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if connected %}
+<section class="fl-panel fl-rv-google" aria-labelledby="fl-rv-profile">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-rv-profile">Din Google-profil</h2>
+    <span class="fl-panel__note">{% if fetched %}Hämtad {{ account.google_reviews_fetched_at|date:"j b Y" }}{% else %}Inte hämtad än{% endif %}</span>
+  </div>
+  <div class="fl-rv-place">
+    <p class="fl-rv-place__name">{% if account.google_place_name %}{{ account.google_place_name }}{% else %}Namnet hämtas med omdömena{% endif %}</p>
+    {% if rating %}
+    <p class="fl-rv-place__score"><span class="fl-rv-stars" aria-hidden="true">{% for s in rating_stars %}<span class="fl-rv-star fl-rv-star--{{ s }}"></span>{% endfor %}</span><b>{{ rating }}</b> av 5{% if account.google_review_count %}, {{ account.google_review_count }} omdömen{% endif %}</p>
+    {% endif %}
+    <p class="fl-rv-place__id">Place ID <code class="fl-rv-code">{{ account.google_place_id }}</code></p>
+    {% if maps_uri %}<p><a class="fl-rv-link" href="{{ maps_uri }}" target="_blank" rel="noopener noreferrer">Öppna profilen på <span translate="no">Google Maps</span><span class="fl-sr"> (ny flik)</span></a></p>{% endif %}
+  </div>
+  {% if unverified %}
+  <div class="fl-rv-owner" role="note">
+    <p class="fl-panel__text"><b>Profilen liknar inte företaget.</b> Namnet, hemsidan och telefonnumret på Google stämmer inte med dina uppgifter, så omdömena och betyget syns inte på sidorna. ADX har fått veta det. Är profilen er kan du intyga det här.</p>
+    {% if not read_only %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="own">
+      <button type="submit" class="fl-btn fl-btn--primary fl-btn--sm">Profilen är vår</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% if not read_only %}
+  <div class="fl-panel__actions">
+    {% if can_call %}
+    <form method="post" data-fl-once>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="refresh">
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm"{% if not details_left %} disabled{% endif %}>Hämta omdömena igen</button>
+    </form>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="disconnect">
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Koppla bort profilen</button>
+    </form>
+  </div>
+  {% if can_call %}<p class="fl-field__help">{% if details_left %}Profilen kan hämtas {{ details_left }} gång{% if details_left != 1 %}er{% endif %} till i dag.{% else %}Profilen har hämtats så många gånger som går i dag.{% endif %} Omdömena hämtas också igen av sig själva med jämna mellanrum.</p>{% endif %}
+  {% endif %}
+</section>
+
+<section class="fl-panel fl-rv-google" aria-labelledby="fl-rv-list">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="fl-rv-list">Omdömen som syns</h2>
+    <span class="fl-rv-gattr" translate="no">Google Maps</span>
+  </div>
+  {% if rows %}
+  <p class="fl-panel__text">Kryssa i de omdömen som ska synas på sidorna. Upp och Ner ändrar ordningen bland de valda. Google ger oss högst fem omdömen, de som Google bedömer som mest relevanta.</p>
+  <form method="post" class="fl-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="select">
+    <ol class="fl-rv-list">
+      {% for row in rows %}
+      <li class="fl-rv-item{% if row.shown %} is-shown{% endif %}">
+        <input type="hidden" name="order" value="{{ row.id }}">
+        <label class="fl-rv-item__toggle">
+          <input type="checkbox" name="show" value="{{ row.id }}"{% if row.shown %} checked{% endif %}{% if read_only %} disabled{% endif %}>
+          <span>{% if row.shown %}Syns som nummer {{ row.number }}{% else %}Visa på sidorna{% endif %}<span class="fl-sr">: omdömet från {{ row.review.author }}</span></span>
+        </label>
+        <div class="fl-rv-item__body">
+          <p class="fl-rv-item__by">
+            {% if row.review.author_uri %}<a href="{{ row.review.author_uri }}" target="_blank" rel="noopener noreferrer nofollow">{{ row.review.author }}</a>{% else %}<b>{{ row.review.author }}</b>{% endif %}
+            <span class="fl-rv-stars" role="img" aria-label="{{ row.review.rating }} av 5">{% for s in row.stars %}<span class="fl-rv-star fl-rv-star--{{ s }}"></span>{% endfor %}</span>
+            {% if row.review.relative %}<span class="fl-rv-item__when">{{ row.review.relative }}</span>{% endif %}
+          </p>
+          {% if row.review.text %}<p class="fl-rv-item__text">{{ row.review.text|linebreaksbr }}</p>{% else %}<p class="fl-rv-item__text fl-md-muted">Bara betyg, ingen text.</p>{% endif %}
+          {% if row.review.uri %}<a class="fl-rv-link" href="{{ row.review.uri }}" target="_blank" rel="noopener noreferrer">Visa omdömet på <span translate="no">Google Maps</span><span class="fl-sr"> (ny flik)</span></a>{% endif %}
+        </div>
+        {% if row.shown and not read_only %}
+        <div class="fl-rv-item__move">
+          <button type="submit" name="move" value="{{ row.id }}:up" class="fl-btn fl-btn--ghost fl-btn--sm"{% if not row.can_up %} disabled{% endif %}>Upp<span class="fl-sr">: {{ row.review.author }}</span></button>
+          <button type="submit" name="move" value="{{ row.id }}:down" class="fl-btn fl-btn--ghost fl-btn--sm"{% if not row.can_down %} disabled{% endif %}>Ner<span class="fl-sr">: {{ row.review.author }}</span></button>
+        </div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% if not read_only %}
+    <div class="fl-form__actions">
+      <p class="fl-form__note">Sidan visar omdömena oförändrade med Googles märkning, författarens namn och en länk till omdömet på Google Maps, och säger att du valt vilka som visas.</p>
+      <button type="submit" class="fl-btn fl-btn--sm">Spara urvalet</button>
+    </div>
+    {% endif %}
+  </form>
+  {% elif fetched %}
+  <p class="fl-panel__text">Google har inga omdömen med text att visa för profilen än. Betyget kan ändå visas i blocket med varianten En rad.</p>
+  {% else %}
+  <p class="fl-panel__text">Omdömena syns här när de är hämtade från Google.</p>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if not read_only %}
+<section class="fl-panel{% if connected %} fl-panel--soft{% endif %}" aria-labelledby="fl-rv-find">
+  <h2 class="fl-panel__title" id="fl-rv-find">{% if connected %}Byt profil{% else %}Peka ut din Google-profil{% endif %}</h2>
+  <form method="post" class="fl-form fl-rv-find" data-fl-once>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="find">
+    <div class="fl-field">
+      <label class="fl-field__label" for="fl-rv-q">Sök företaget, eller klistra in länken från Google Maps</label>
+      <div class="fl-rv-find__row">
+        <input class="fl-input" id="fl-rv-q" type="text" name="q" value="{{ query }}" maxlength="500" autocomplete="off" placeholder="Företagets namn och ort, eller länken">
+        <button type="submit" class="fl-btn fl-btn--sm">Sök</button>
+      </div>
+      {% if is_demo %}
+      <p class="fl-field__help">Demot söker aldrig hos Google.</p>
+      {% elif configured %}
+      <p class="fl-field__help">Sök med namn och ort. {{ searches_left }} sökning{% if searches_left != 1 %}ar{% endif %} kvar i dag.</p>
+      {% else %}
+      <p class="fl-field__help">Sökningen fungerar när kopplingen till Google är på. En länk med Place ID går att använda redan nu.</p>
+      {% endif %}
+    </div>
+  </form>
+  <details class="fl-rv-id"{% if show_id %} open{% endif %}>
+    <summary class="fl-rv-id__summary">Ange Place ID i stället</summary>
+    <form method="post" class="fl-form fl-rv-find" data-fl-once>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="place_id">
+      <div class="fl-field">
+        <label class="fl-field__label" for="fl-rv-id">Place ID</label>
+        <div class="fl-rv-find__row">
+          <input class="fl-input fl-rv-code-input" id="fl-rv-id" type="text" name="place_id" maxlength="200" autocomplete="off" spellcheck="false" placeholder="ChIJ">
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Använd id:t</button>
+        </div>
+        <p class="fl-field__help">Googles id för företaget. Det börjar ofta med ChIJ och finns med Googles verktyg Place ID Finder.</p>
+      </div>
+    </form>
+  </details>
+</section>
+{% endif %}
+{% endblock %}
+{% block extra_js %}{{ block.super }}<script src="{% static 'js/flamingo-media.js' %}?v={{ static_version }}" defer></script>{% endblock %}

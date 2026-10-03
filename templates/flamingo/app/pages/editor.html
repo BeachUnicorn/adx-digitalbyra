@@ -1,0 +1,164 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+Redigeraren i sidbyggaren (app_views/pages.page_detail, mockupen skärm 01,
+02 och 04). Sidan i mitten i en ram (srcdoc: utkastet ritat av
+pagebuilder.render_page_html med editing=True, så att sidans CSS inte
+läcker hit och mediefrågorna gäller ramens bredd), blocken till vänster,
+verktygen överst. I mobilen kommer sidan först och verktygen ligger i en
+rad längst ner; varianter, versioner och nya block öppnas i ett ark.
+
+Allt som händer här sköts av static/js/flamingo-pb.js (det publika
+gränssnittet window.FlamingoPB står överst i filen). AI-panelen och
+konverteringskollen fyller #pb-panel-ai och #pb-panel-koll från
+static/js/flamingo-pb-ai.js; saknas den står en reservtext. Mediaväljaren
+ritas i #pb-panel-media.
+
+Kontext: page, campaigns, live_campaigns, shared, usage, state,
+state_kind, state_badge, canvas_html, saved, palettes, groups, config (JSON till
+skriptet).
+{% endcomment %}
+{% block app_title %}{{ page.name }}{% endblock %}
+{% block app_modifier %} fl-app--single fl-app--editor{% endblock %}
+{% block app_side %}{% endblock %}
+{% block app_head %}
+<link rel="stylesheet" href="{% static 'css/flamingo-pb.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo-pb-ai.css' %}?v={{ static_version }}">
+{% endblock %}
+{% block app_content %}
+{% include "flamingo/pagebuilder/icons.html" %}
+{% include "flamingo/app/pages/_icons.html" %}
+<div class="pb" id="pb" data-csrf="{{ csrf_token }}"{% if read_only %} data-read-only{% endif %}>
+  <header class="pb-top" aria-label="Sidan">
+    <div class="pb-top__lead">
+      <a class="pb-back" href="{% url 'flamingo:app_pages' %}"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-back"></use></svg><span>Sidor</span></a>
+      <div class="pb-top__titles">
+        <div class="pb-top__namerow">
+          <label class="fl-sr" for="pb-name">Sidans namn</label>
+          <input class="pb-name" id="pb-name" type="text" value="{{ page.name }}" maxlength="120" autocomplete="off" spellcheck="false"{% if read_only %} readonly{% endif %}>
+        </div>
+        <p class="pb-top__sub">{% if state_kind == "published" %}<span class="fl-badge fl-badge--paused" id="pb-state">Publicerad, ingen kampanj live</span>{% else %}<span class="fl-badge fl-badge--{{ state_badge }}" id="pb-state">{{ state }}</span>{% endif %}<span id="pb-usage">{{ usage }}</span><span class="pb-sep" aria-hidden="true"></span><span class="pb-saved" id="pb-saved" role="status">Sparat {{ saved }}</span></p>
+        <p class="pb-top__error" id="pb-name-error" role="alert" hidden></p>
+      </div>
+    </div>
+    <div class="pb-top__tools">
+      <div class="pb-seg" role="group" aria-label="Visa sidan som i">
+        <button type="button" class="pb-seg__btn" data-pb-device="mobile" aria-pressed="false"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-mobile"></use></svg><span>Mobil</span></button>
+        <button type="button" class="pb-seg__btn" data-pb-device="desktop" aria-pressed="true"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-desktop"></use></svg><span>Dator</span></button>
+      </div>
+      <div class="pb-pal" role="radiogroup" aria-labelledby="pb-pal-label">
+        <span class="pb-pal__label" id="pb-pal-label">Färg på sidan</span>
+        {% for p in palettes %}
+        <label class="pb-swatch pb-swatch--{{ p.key }}" title="{{ p.label }}{% if p.reason %}. {{ p.reason }}{% endif %}">
+          <input class="pb-swatch__input" type="radio" name="pb-palette" value="{{ p.key }}"{% if p.key == page.palette %} checked{% endif %}{% if not p.enabled or read_only %} disabled{% endif %}>
+          <span class="pb-swatch__dot" aria-hidden="true"></span>
+          <span class="fl-sr">{{ p.label }}{% if p.reason %}. {{ p.reason }}{% endif %}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <button type="button" class="pb-btn pb-btn--ghost pb-top__koll" id="pb-koll-btn" data-pb-open="koll" aria-label="Konverteringskoll" aria-describedby="pb-koll-badge"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-gauge"></use></svg><span class="pb-btn__label pb-btn__label--long">Konverteringskoll</span><span class="pb-btn__label pb-btn__label--short" aria-hidden="true">Koll</span><span class="pb-btn__badge" id="pb-koll-badge" hidden></span></button>
+      <button type="button" class="pb-btn pb-btn--ghost pb-top__ai" id="pb-ai-btn" data-pb-open="ai"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-sparkle"></use></svg><span class="pb-btn__label">AI</span><span class="pb-btn__badge" id="pb-ai-badge" hidden></span></button>
+      <button type="button" class="pb-btn pb-btn--warn" id="pb-problems-btn" aria-haspopup="dialog" hidden><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-warn"></use></svg><span id="pb-problems-count"></span></button>
+      <button type="button" class="pb-btn pb-btn--ghost pb-top__more" id="pb-more-btn" aria-haspopup="dialog" aria-label="Mer om sidan: färg, konverteringskoll och kontrollerna"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-dots"></use></svg><span class="pb-top__dot" id="pb-more-dot" hidden></span></button>
+      {% if not read_only %}
+      <button type="button" class="pb-btn pb-btn--primary" id="pb-publish"{% if page.is_published and not page.has_unpublished_changes %} disabled{% endif %}>{% if page.is_published %}Publicera ändringarna{% else %}Publicera{% endif %}</button>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if shared or live_campaigns %}
+  <p class="pb-mnote">{% if shared %}<svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-link"></use></svg><span>Delad av {{ campaigns|length }} kampanjer: en ändring syns i alla.</span>{% else %}<span class="pb-note__dot" aria-hidden="true"></span><span>Live. Ändringar syns när du publicerar.</span>{% endif %}</p>
+  <div class="pb-notes">
+    {% if shared %}
+    <p class="pb-note pb-note--shared"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-link"></use></svg><span>Sidan delas av {% for c in campaigns %}{% if forloop.last and not forloop.first %} och {% elif not forloop.first %}, {% endif %}<a href="{% url 'flamingo:app_campaign' c.pk %}?flik=sidan">{{ c.name }}</a>{% endfor %}. En ändring här syns i alla kampanjerna.</span></p>
+    {% endif %}
+    {% if live_campaigns %}
+    <p class="pb-note pb-note--live"><span class="pb-note__dot" aria-hidden="true"></span><span>Live i {% for c in live_campaigns %}{% if forloop.last and not forloop.first %} och {% elif not forloop.first %}, {% endif %}{{ c.name }}{% endfor %}. Det du ändrar sparas som ett utkast och syns för besökarna när du publicerar. ADX får veta när en live-sida ändras.</span></p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  <div class="pb-body" id="pb-body">
+    <aside class="pb-lib" id="pb-lib" aria-labelledby="pb-lib-title">
+      <h2 class="fl-sr" id="pb-lib-title">Block att lägga till</h2>
+      <div class="pb-lib__search">
+        <svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-search"></use></svg>
+        <label class="fl-sr" for="pb-lib-q">Sök block</label>
+        <input class="pb-lib__q" id="pb-lib-q" type="search" placeholder="Sök block" autocomplete="off">
+      </div>
+      <p class="pb-lib__hint">Dra ett block till sidan, eller klicka för att lägga det efter det valda. Klicka i en text och skriv. Esc i en text går till blockets verktyg.</p>
+      <div class="pb-lib__groups" id="pb-lib-groups">
+        {% for g in groups %}
+        <section class="pb-lib__group" data-pb-group="{{ g.key }}" aria-labelledby="pb-lib-g-{{ g.key }}">
+          <h3 class="pb-lib__title" id="pb-lib-g-{{ g.key }}">{{ g.name }}</h3>
+          <ul class="pb-lib__list">
+            {% for item in g.items %}
+            <li class="pb-lib__li"><button type="button" class="pb-lib__item" data-pb-add="{{ item.type.key }}" data-pb-search="{{ item.type.name|lower }} {{ item.type.principle|lower }}" title="{{ item.type.why }}"{% if not item.ok or read_only %} disabled{% endif %}>
+              <span class="pb-lib__icon" aria-hidden="true"><svg class="pb-ic"><use href="#pb-i-{{ item.type.icon }}"></use></svg></span>
+              <span class="pb-lib__text"><span class="pb-lib__name">{{ item.type.name }}</span><span class="pb-lib__reason" data-pb-reason>{% if not item.ok %}{{ item.reason }}{% endif %}</span></span>
+            </button></li>
+            {% endfor %}
+          </ul>
+        </section>
+        {% endfor %}
+        <p class="pb-lib__none" id="pb-lib-none" hidden>Inget block heter så.</p>
+      </div>
+    </aside>
+
+    <div class="pb-canvas" id="pb-canvas">
+      <div class="pb-stage" id="pb-stage">
+        <div class="pb-frame" id="pb-frame-wrap">
+          {% if canvas_html %}
+          <iframe class="pb-frame__iframe" id="pb-frame" title="Sidan {{ page.name }}. Klicka i en text och skriv." srcdoc="{{ canvas_html|force_escape }}"></iframe>
+          {% else %}
+          <p class="pb-canvas__error">Sidan gick inte att rita. Ladda om och försök igen.</p>
+          {% endif %}
+        </div>
+        <div class="pb-overlay" id="pb-overlay"></div>
+      </div>
+    </div>
+
+    <aside class="pb-panel" id="pb-panel" aria-labelledby="pb-panel-title" hidden>
+      <div class="pb-panel__head">
+        <h2 class="pb-panel__title" id="pb-panel-title" tabindex="-1"></h2>
+        <button type="button" class="pb-iconbtn" data-pb-close-panel aria-label="Stäng panelen"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-close"></use></svg></button>
+      </div>
+      <div class="pb-panel__body">
+        <div class="pb-panel__wrap" data-pb-panel="ai" data-pb-title="AI" hidden>
+          <div class="pb-panel__pane" id="pb-panel-ai"></div>
+          <p class="pb-panel__fallback">AI går inte att använda här just nu. Ladda om sidan och försök igen.</p>
+        </div>
+        <div class="pb-panel__wrap" data-pb-panel="koll" data-pb-title="Konverteringskoll" hidden>
+          <div class="pb-panel__pane" id="pb-panel-koll"></div>
+          <p class="pb-panel__fallback">Konverteringskollen går inte att visa här just nu. Ladda om sidan och försök igen.</p>
+        </div>
+        <div class="pb-panel__wrap" data-pb-panel="media" data-pb-title="Bild" hidden>
+          <div class="pb-panel__pane" id="pb-panel-media"></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <p class="pb-mhint" id="pb-mhint" role="status" hidden></p>
+  <nav class="pb-mbar" id="pb-mbar" aria-label="Verktyg för det valda blocket">
+    <button type="button" class="pb-mbar__btn" data-pb-m="variant" aria-disabled="true"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-variant"></use></svg><span>Variant</span></button>
+    <button type="button" class="pb-mbar__btn" data-pb-m="versions" aria-disabled="true"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-history"></use></svg><span>Versioner</span></button>
+    <button type="button" class="pb-mbar__btn" data-pb-m="ai"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-sparkle"></use></svg><span>AI</span></button>
+    <button type="button" class="pb-mbar__btn" data-pb-m="move" aria-disabled="true" aria-label="Mer för det valda blocket"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-dots"></use></svg><span>Mer</span></button>
+    <button type="button" class="pb-mbar__btn" data-pb-m="add"{% if read_only %} disabled{% endif %}><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-plus"></use></svg><span>Block</span></button>
+  </nav>
+
+  <div class="pb-stale" id="pb-stale" role="alertdialog" aria-labelledby="pb-stale-title" aria-describedby="pb-stale-text" hidden>
+    <p class="pb-stale__title" id="pb-stale-title">Sidan har ändrats på ett annat ställe</p>
+    <p class="pb-stale__text" id="pb-stale-text">Någon sparade sidan i en annan flik eller på en annan dator medan du skrev. Inget har skrivits över, men dina senaste ändringar här är inte sparade. Ladda om sidan för att se den senaste versionen och gör ändringen igen.</p>
+    <button type="button" class="pb-btn pb-btn--primary" id="pb-stale-reload">Ladda om sidan</button>
+  </div>
+  <div class="pb-toast" id="pb-toast" role="status" aria-live="polite"></div>
+  <noscript><p class="fl-notice fl-notice--warn">Sidbyggaren behöver JavaScript. Slå på det i webbläsaren och ladda om sidan.</p></noscript>
+</div>
+{{ config|json_script:"pb-config" }}
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/flamingo-pb.js' %}?v={{ static_version }}" defer></script>
+<script src="{% static 'js/flamingo-pb-ai.js' %}?v={{ static_version }}" defer></script>
+{% endblock %}

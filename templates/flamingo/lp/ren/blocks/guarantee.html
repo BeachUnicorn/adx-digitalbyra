@@ -1,0 +1,18 @@
+{% load flamingo_pb %}{% comment %}
+Garanti, bara med en bekräftad garanti bland uppgifterna. Garantin själv är
+rubriken ("Två års garanti på arbetet"). short: en rad med märket och
+rubriken (ett litet block); terms: med text och villkoren som en lista.
+{% endcomment %}<section class="rn-block rn-guarantee rn-guarantee--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}>
+  <div class="rn-wrap">
+    <div class="rn-guarantee__card">
+      <span class="rn-guarantee__icon" aria-hidden="true"><svg class="rn-ic"><use href="#rn-i-shield"></use></svg></span>
+      <div class="rn-guarantee__body">
+        {% if f.title %}<h2 class="rn-h2 rn-guarantee__title"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2 rn-guarantee__title" %}{% endif %}
+        {% if f.text %}<p class="rn-lead rn-guarantee__text"{% pb "text" %}>{{ f.text|linebreaksbr }}</p>{% else %}{% pb_empty "text" "p" "rn-lead rn-guarantee__text" %}{% endif %}
+        {% if b.variant == "terms" %}
+        {% if f.terms %}<ul class="rn-points rn-guarantee__terms">{% for term in f.terms %}<li class="rn-points__item"><svg class="rn-ic rn-points__icon" aria-hidden="true" focusable="false"><use href="#rn-i-check"></use></svg><span{% pb "terms" forloop.counter0 %}>{{ term }}</span></li>{% endfor %}</ul>{% else %}{% pb_empty "terms" "div" "rn-points rn-guarantee__terms" %}{% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>

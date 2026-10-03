@@ -25,8 +25,15 @@ början, Campaign.review_requested). Flödet, och vem som gör vad:
     live / pausad           publicerad, med API:t eller av byrån för hand
 
 Allt hämtas via kundens konto (account=account), aldrig på ett id ensamt.
-Byrån i kundvyn läser bara: grinden skickar tillbaka varje POST, och
-mallarna döljer formulären ({{ read_only }}). Inget här mejlar kunden.
+Byrån i kundvyn gör exakt det kunden gör, med samma formulär, och det den
+sparar gäller på riktigt (Giovanni 2026-10-03). Bara utkastförhandsvisningen
+i /manage/ är skrivskyddad: grinden skickar tillbaka varje POST och mallarna
+döljer formulären ({{ read_only }}). Inget här mejlar kunden.
+
+Landningssidan: en egen sida (förslaget bygger den, och bygger om den så
+länge ingen ändrat den) eller en befintlig sida på kontot. En kampanj som
+är live eller pausad byter bara till en publicerad sida som klarar
+kontrollerna, och byrån larmas (pagebuilder.use_shared_page).
 Inskick och godkännande larmar byrån (INQUIRY_NOTIFICATION_EMAIL) med vad
 som hände, vilket är fritt (CLAUDE.md: larm till byrån är fria). Ett
 demokonto larmar inte och anropar aldrig Google.
@@ -41,14 +48,12 @@ from django.db import transaction
 from django.db.models import Max
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect
-from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.text import slugify
 
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 
-from .. import checks, generator, google_publish
+from .. import checks, generator, google_publish, pagebuilder
 from ..alerts import send_agency_alert
 from ..models import (
     DESCRIPTION_COUNT,
@@ -57,8 +62,8 @@ from ..models import (
     HEADLINE_MAX,
     MATCH_CHOICES,
     MATCH_PHRASE,
-    PAGE_QUESTION_KINDS,
     Campaign,
+    LandingPage,
     Review,
     Service,
 )
@@ -79,9 +84,10 @@ DAYS_PER_MONTH = 30.4
 
 MAX_KEYWORDS = 50
 MAX_NEGATIVES = 100
-MAX_POINTS = 6
-MAX_QUESTIONS = 6
 BLANK_KEYWORD_ROWS = 3
+#: Ny kampanj: en egen sida (rekommenderas) eller en befintlig.
+PAGE_OWN = "own"
+PAGE_SHARED = "shared"
 #: Tomma rubrikrader att fylla i: tre till, minst fem rader totalt (högst 15).
 BLANK_TEXT_ROWS = 3
 MIN_TEXT_ROWS = 5
@@ -113,16 +119,6 @@ FIELD_LABELS = {
     "area": "Område",
     "daily_budget_kr": "Budget",
     "service": "Tjänsten",
-}
-QUESTION_KIND_LABELS = {"text": "Kort svar", "textarea": "Längre text", "date": "Datum"}
-PAGE_PART_LABELS = {
-    "title": "Rubrik",
-    "lead": "Ingress",
-    "points": "Punkter",
-    "phone": "Telefon",
-    "form_title": "Formulärets rubrik",
-    "questions": "Frågor",
-    "note": "Text under formuläret",
 }
 #: Sorteringen i listan: det som väntar på kunden först.
 STATUS_ORDER = {
@@ -287,10 +283,31 @@ class NewCampaignForm(forms.Form):
             "max_value": BUDGET_MAX_MESSAGE,
         },
     )
+    #: Landningssidan (mockupen skärm 09): en egen sida för kampanjen
+    #: (rekommenderas, förvalt) eller en befintlig sida på kontot.
+    page_choice = forms.ChoiceField(
+        label="Landningssida",
+        choices=[(PAGE_OWN, "Egen sida"), (PAGE_SHARED, "Befintlig sida")],
+        required=False,
+    )
+    shared_page = forms.CharField(label="Sidan", required=False, max_length=20)
 
-    def __init__(self, *args, service=None, **kwargs):
+    def __init__(self, *args, service=None, pages=(), **kwargs):
         self.service = service
+        self.pages = {page.pk: page for page in pages}
+        self.page_count = len(self.pages)
         super().__init__(*args, **kwargs)
+
+    def clean_shared_page(self):
+        """Sidan som en befintlig sida, bara bland kontots egna. Ett id från
+        ett annat konto finns inte i listan och ger samma fel som ett tomt."""
+        value = (self.cleaned_data.get("shared_page") or "").strip()
+        if not value:
+            return None
+        page = self.pages.get(int(value)) if value.isdigit() else None
+        if page is None:
+            raise forms.ValidationError("Välj en av sidorna i listan.")
+        return page
 
     def clean_new_service(self):
         name = sanitize_plain_text(self.cleaned_data.get("new_service"), max_length=120)
@@ -309,10 +326,21 @@ class NewCampaignForm(forms.Form):
         data = super().clean()
         if self.service is None and not data.get("new_service"):
             self.add_error("new_service", "Skriv vilken tjänst kampanjen gäller.")
+        if data.get("page_choice") != PAGE_SHARED and self.page_count >= pagebuilder.MAX_PAGES:
+            self.add_error(
+                "shared_page",
+                f"Kontot har redan {pagebuilder.MAX_PAGES} sidor. Välj en befintlig sida, "
+                "eller ta bort en sida som ingen kampanj använder.",
+            )
         own, preset = data.get("budget_own"), data.get("budget")
         if own is None and preset is None and "budget_own" not in self.errors:
             self.add_error("budget_own", "Välj en budget per dag.")
         data["daily_budget_kr"] = own if own is not None else preset
+        data["landing_page"] = None
+        if data.get("page_choice") == PAGE_SHARED:
+            if data.get("shared_page") is None and "shared_page" not in self.errors:
+                self.add_error("shared_page", "Välj vilken sida kampanjen ska använda.")
+            data["landing_page"] = data.get("shared_page")
         mode = data.get("sales_mode")
         if self.service is not None and mode and mode != self.service.sales_mode:
             busy = self.service.campaigns.exclude(status=Campaign.STATUS_DRAFT).exists()
@@ -361,14 +389,26 @@ def _default_place(account):
     return confirmed_place(account)
 
 
+def page_options(account, exclude=None):
+    """Kontots sidor att välja bland för en kampanj, med kampanjerna som
+    redan visar dem (de som påverkas av en ändring på sidan)."""
+    rows = []
+    for page in pagebuilder.pages_for(account):
+        if exclude is not None and page.pk == exclude.pk:
+            continue
+        rows.append({"page": page, "campaigns": list(pagebuilder.campaigns_using(page))})
+    return rows
+
+
 @app_view
 def campaign_new(request, account):
     services = list(account.services.filter(is_active=True).order_by("order", "id"))
     picked = request.POST.get("service") if request.method == "POST" else request.GET.get("tjanst")
     service, is_new = _chosen_service(account, picked, services)
+    pages = page_options(account)
 
     if request.method == "POST":
-        form = NewCampaignForm(request.POST, service=service)
+        form = NewCampaignForm(request.POST, service=service, pages=[r["page"] for r in pages])
         if form.is_valid():
             campaign, proposal = _create_campaign(request, account, service, form.cleaned_data)
             if proposal.source == generator.SOURCE_AI:
@@ -384,11 +424,13 @@ def campaign_new(request, account):
     else:
         form = NewCampaignForm(
             service=service,
+            pages=[r["page"] for r in pages],
             initial={
                 "sales_mode": service.sales_mode if service else Service.SALES_QUOTE,
                 "place": _default_place(account),
                 "radius_km": DEFAULT_RADIUS,
                 "budget": DEFAULT_BUDGET,
+                "page_choice": PAGE_OWN,
             },
         )
 
@@ -414,7 +456,10 @@ def campaign_new(request, account):
                 "radius_km": str(value("radius_km") or DEFAULT_RADIUS),
                 "budget": selected_budget,
                 "budget_own": value("budget_own"),
+                "page_choice": value("page_choice") or PAGE_OWN,
+                "shared_page": str(value("shared_page") or ""),
             },
+            "page_options": pages,
             "sales_choices": Service.SALES_CHOICES,
             "radius_choices": RADIUS_CHOICES,
             "budget_presets": [{"kr": kr, "monthly": monthly_kr(kr)} for kr in BUDGET_PRESETS],
@@ -455,6 +500,13 @@ def _create_campaign(request, account, service, data):
             daily_budget_kr=data["daily_budget_kr"],
             created_by=request.user,
         )
+        if data.get("landing_page") is not None:
+            # En befintlig sida: kampanjen visar den, och förslaget nedan
+            # bygger bara om den om den är orörd och ingen annan kampanj
+            # använder den (pagebuilder.refresh_from_proposal). Utan val får
+            # kampanjen en egen sida när förslaget byggs.
+            pagebuilder.use_shared_page(campaign, data["landing_page"], user=request.user)
+            campaign.refresh_from_db(fields=["landing_page"])
     # Utanför transaktionen: AI-anropet kan ta några sekunder.
     proposal = generator.build_proposal(campaign, user=request.user)
     return campaign, proposal
@@ -542,69 +594,52 @@ def _ad_previews(request, campaign, fact_values):
     return previews
 
 
-def _page_for_form(campaign):
-    page = campaign.page if isinstance(campaign.page, dict) else {}
-    questions = []
-    for q in page.get("questions") or []:
-        if isinstance(q, dict) and q.get("label"):
-            kind = q.get("kind") if q.get("kind") in PAGE_QUESTION_KINDS else "text"
-            questions.append({"label": str(q["label"]), "kind": kind})
-    phone = str(page.get("phone") or "")
-    return {
-        "title": str(page.get("title") or ""),
-        "lead": str(page.get("lead") or ""),
-        "points": [str(p) for p in page.get("points") or [] if str(p).strip()],
-        "phone": phone,
-        "form_title": str(page.get("form_title") or ""),
-        "questions": questions,
-        "note": str(page.get("note") or ""),
-    }
-
-
-#: Mallen landningssidan ritas med (apps/flamingo/public_views.py).
-LANDING_TEMPLATE = "flamingo/lp/page.html"
-
-
-def landing_preview(request, campaign):
-    """Landningssidan som besökaren ser den: samma mall och samma innehåll
-    (public_views.page_content och LeadForm), i förhandsvisningsläge. Ritas
-    i en iframe med sandbox (inga skript, formuläret går inte att skicka).
-    None om den inte går att rita; då visar sidan telefonbilden
-    (_page_preview.html) i stället, så redigeraren aldrig fälls av den."""
+def landing_preview(request, campaign, page):
+    """Landningssidan som besökaren ser den: utkastet ritat av sidbyggaren
+    (pagebuilder.render_page_html), i en iframe med sandbox (inga skript,
+    formuläret går inte att skicka). None om den inte går att rita; då
+    visar fliken telefonbilden (_page_preview.html) i stället, så att
+    kampanjsidan aldrig fälls av förhandsvisningen."""
     try:
-        from ..public_views import HONEYPOT, LeadForm, page_content
-
-        content = page_content(campaign)
-        form = LeadForm(content=content)
-        context = {
-            "campaign": campaign,
-            "content": content,
-            "preview": True,
-            "is_staff": False,
-            "status_label": "",
-            "form": form,
-            "questions": [{**q, "bound": form[q["field"]]} for q in content["questions"]],
-            "tracking": {},
-            "honeypot": HONEYPOT,
-            "action": "#",
-            "review_url": "",
-        }
-        return render_to_string(LANDING_TEMPLATE, context, request=request)
-    except Exception:  # noqa: BLE001 - förhandsvisningen får aldrig fälla redigeraren
+        return pagebuilder.render_page_html(
+            page,
+            campaign.account,
+            campaign,
+            which="draft",
+            request=request,
+            # no_scripts: ramen har sandbox utan skript, så layouten tar
+            # inte med flamingo-lp.js (annars "Blocked script execution").
+            extra={"preview": True, "action": "#", "no_scripts": True},
+        )
+    except Exception:  # noqa: BLE001 - förhandsvisningen får aldrig fälla kampanjsidan
         logger.exception("Landningssidans förhandsvisning gick inte att rita")
         return None
 
 
-def _page_errors(problems):
-    errors = {part: [] for part in PAGE_PART_LABELS}
-    for p in problems:
-        if p.field != "page":
-            continue
-        message = p.message
-        if p.index is not None:
-            message = f"Rad {p.index + 1}: {message}"
-        errors.setdefault(p.part or "title", []).append(message)
-    return errors
+def page_context(request, campaign, account, *, with_preview=False):
+    """Fliken Sidan och granskningen: kampanjens sida i sidbyggaren, vilka
+    andra kampanjer som visar den, läget och problemen."""
+    page = campaign.landing_page if campaign.landing_page_id else None
+    if page is None:
+        return {"landing_page": None}
+    others = [c for c in pagebuilder.campaigns_using(page) if c.pk != campaign.pk]
+    problems = pagebuilder.page_problems(page)
+    if page.has_unpublished_changes:
+        # Inskicket prövar den publicerade versionen: det som utkastet redan
+        # rättat syns här, märkt "på den publicerade sidan".
+        problems += pagebuilder.published_problems(page, draft_problems=problems, only_fixed=True)
+    return {
+        "landing_page": page,
+        "page_blocks": pagebuilder.block_rows(page.draft_blocks),
+        "page_others": others,
+        "page_problems": [{"where": p.where, "message": p.message} for p in problems],
+        "page_choices": [p for p in pagebuilder.pages_for(account) if p.pk != page.pk],
+        "page_choice_rows": page_options(account, exclude=page),
+        "page_is_live": campaign.status in (Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED),
+        "page_editor_url": reverse("flamingo:app_page", args=[page.pk]),
+        "page_preview_url": f"{campaign.landing_url}?utkast=1",
+        "landing_html": landing_preview(request, campaign, page) if with_preview else None,
+    }
 
 
 def _as_text(value):
@@ -795,8 +830,8 @@ def _summary(problems):
     for p in problems:
         tab = FIELD_TABS.get(p.field, "annonser")
         label = FIELD_LABELS.get(p.field, "")
-        if p.field == "page" and p.part:
-            label = f"Sidan, {PAGE_PART_LABELS.get(p.part, '').lower()}"
+        if p.field == "page" and p.where:
+            label = f"Sidan, {p.where[:1].lower()}{p.where[1:]}"
         if p.index is not None and p.field in ("headlines", "descriptions", "keywords"):
             label = f"{label}, rad {p.index + 1}"
         out.append({"tab": tab, "label": label, "message": p.message})
@@ -825,7 +860,15 @@ def campaign_detail(request, account, pk):
         if FIELD_TABS.get(p.field):
             tab_problems[FIELD_TABS[p.field]] += 1
 
-    page = _page_for_form(campaign)
+    if campaign.landing_page_id is None and not read_only:
+        # Kampanjer från tiden före sidbyggaren har alltid en sida
+        # (migreringen 0011); det här är reserven för en som skapats utan.
+        # Går det inte (kontot har redan MAX_PAGES sidor) visas kampanjen
+        # ändå, och fliken Sidan säger att sidan saknas.
+        try:
+            campaign.landing_page = pagebuilder.ensure_own_page(campaign, user=request.user)
+        except (pagebuilder.PageError, pagebuilder.BlockError) as exc:
+            logger.warning("Flamingo: kampanj %s fick ingen sida: %s", campaign.pk, exc)
     previews = _ad_previews(request, campaign, fact_values)
     keywords = [
         {
@@ -885,20 +928,16 @@ def campaign_detail(request, account, pk):
         "match_choices": MATCH_CHOICES,
         "negatives": [str(n) for n in campaign.negatives or []],
         "negatives_text": "\n".join(str(n) for n in campaign.negatives or []),
-        "page": page,
-        "page_errors": _page_errors(problems),
-        "points_text": "\n".join(page["points"]),
-        "question_rows": page["questions"] + [{"label": "", "kind": "text"}],
-        "question_kinds": [(k, QUESTION_KIND_LABELS[k]) for k in PAGE_QUESTION_KINDS],
+        "page_problem_list": [p for p in problems if p.field == "page"],
         "company": generator.company_name(account.customer),
         "page_host": request.get_host(),
-        "landing_html": landing_preview(request, campaign) if tab == "sidan" else None,
         # Kampanjen kan gå live när kontot är kopplat under ADX; betalningen
         # stoppar inte (beslut 2026-10-03).
         "google_linked": account.google_linked,
         # Vad inskicket utan granskning leder till (knappen och texten).
         "approval_path": google_publish.approval_path(account),
     }
+    context.update(page_context(request, campaign, account, with_preview=tab == "sidan"))
     context.update(_review_context(campaign))
     return render_app(request, "flamingo/app/campaigns/detail.html", "campaigns", context)
 
@@ -911,7 +950,7 @@ def campaign_detail(request, account, pk):
 SECTION_TABS = {
     "ads": "annonser",
     "keywords": "sokord",
-    "page": "sidan",
+    "landing": "sidan",
     "settings": "annonser",
     "regenerate": "annonser",
 }
@@ -962,31 +1001,6 @@ def _apply_keywords(campaign, post):
             negatives.append(text)
     campaign.negatives = negatives
     return ["keywords", "negatives"]
-
-
-def _apply_page(campaign, post):
-    page = dict(campaign.page) if isinstance(campaign.page, dict) else {}
-    page["title"] = sanitize_plain_text(post.get("title"), max_length=120)
-    page["lead"] = sanitize_multiline_text(post.get("lead"), max_length=500)
-    page["points"] = _lines(post.get("points"), MAX_POINTS, 120)
-    page["phone"] = sanitize_plain_text(post.get("phone"), max_length=40)
-    page["form_title"] = sanitize_plain_text(post.get("form_title"), max_length=120)
-    page["note"] = sanitize_multiline_text(post.get("note"), max_length=500)
-    questions, keys = [], set()
-    for label, kind in zip(post.getlist("q_label"), post.getlist("q_kind"), strict=False):
-        label = sanitize_plain_text(label, max_length=120)
-        if not label:
-            continue
-        key = slugify(label)[:40] or f"fraga-{len(questions) + 1}"
-        base, n = key, 2
-        while key in keys:
-            key, n = f"{base}-{n}", n + 1
-        keys.add(key)
-        kind = kind if kind in PAGE_QUESTION_KINDS else "text"
-        questions.append({"key": key, "label": label, "kind": kind})
-    page["questions"] = questions[:MAX_QUESTIONS]
-    campaign.page = page
-    return ["page"]
 
 
 def budget_error(budget):
@@ -1045,6 +1059,8 @@ def _edit(request, campaign):
     target = _detail_url(campaign, tab)
     if section == "regenerate":
         return _regenerate(request, campaign, target)
+    if section == "landing":
+        return _choose_page(request, campaign, target)
     with transaction.atomic():
         campaign = _locked(campaign)
         if not campaign.customer_can_edit:
@@ -1055,8 +1071,6 @@ def _edit(request, campaign):
             fields, text = _apply_ads(campaign, request.POST), "Annonserna är sparade."
         elif section == "keywords":
             fields, text = _apply_keywords(campaign, request.POST), "Sökorden är sparade."
-        elif section == "page":
-            fields, text = _apply_page(campaign, request.POST), "Sidan är sparad."
         elif section == "settings":
             fields, error = _apply_settings(campaign, request.POST)
             if fields is None:
@@ -1068,6 +1082,37 @@ def _edit(request, campaign):
 
         reopened = _reopen(campaign)
         campaign.save(update_fields=[*fields, *reopened, "updated_at"])
+    if reopened:
+        text += REOPENED_NOTE
+    messages.success(request, text)
+    return redirect(target)
+
+
+def _choose_page(request, campaign, target):
+    """Kampanjens sida: en egen (page=own) eller en annan sida på kontot
+    (page=<id>). Inte medan ADX granskar. Efter granskningen gör bytet
+    kampanjen till ett utkast igen, som andra ändringar."""
+    choice = request.POST.get("page", "")
+    if campaign.status == Campaign.STATUS_IN_REVIEW:
+        messages.error(request, _locked_message(campaign))
+        return redirect(target)
+    try:
+        if choice == "own":
+            page = pagebuilder.ensure_own_page(campaign, user=request.user)
+        else:
+            page = get_object_or_404(
+                LandingPage, pk=int(choice) if choice.isdigit() else 0, account=campaign.account
+            )
+            pagebuilder.use_shared_page(campaign, page, user=request.user)
+    except pagebuilder.PageError as exc:
+        messages.error(request, exc.message)
+        return redirect(target)
+    text = f"Kampanjen visar nu sidan {page.name}."
+    with transaction.atomic():
+        current = _locked(campaign)
+        reopened = _reopen(current)
+        if reopened:
+            current.save(update_fields=[*reopened, "updated_at"])
     if reopened:
         text += REOPENED_NOTE
     messages.success(request, text)
@@ -1093,6 +1138,8 @@ def _regenerate(request, campaign, target):
         generator.apply_proposal(current, proposal)
         reopened = _reopen(current)
         current.save(update_fields=[*generator.PROPOSAL_FIELDS, *reopened, "updated_at"])
+    # Sidan byggs bara om när den är orörd; allt som ändrats på den står kvar.
+    generator.save_page(current, proposal, user=request.user)
     text = "Ett nytt förslag är skrivet."
     if proposal.note:
         text += f" {proposal.note}"

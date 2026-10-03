@@ -42,6 +42,13 @@ för kontot. Raderna står kvar i kö för CSV-filen.
 
 Utan Google Ads API (inställningar saknas) skriver kommandot en rad och gör
 inget annat. Inga mejl, varken till byrån eller kunden.
+
+Före allt det, och oberoende av Google Ads API: omdömena från Google
+(reviews.refresh_due, Places API med GOOGLE_PLACES_API_KEY). Profiler som
+inte hämtats på en vecka hämtas igen, och innehåll som inte gått att hämta
+på reviews.MAX_AGE tas bort (Googles villkor). Aldrig demot. Kommandot
+skriver en rad bara när något hämtades, misslyckades eller togs bort.
+--prova hoppar över steget.
 """
 
 import importlib
@@ -49,7 +56,7 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from apps.flamingo import google_ads, google_conversions, google_reports
+from apps.flamingo import google_ads, google_conversions, google_reports, reviews
 from apps.flamingo.google_ads import GoogleAdsError
 from apps.flamingo.models import FlamingoAccount
 
@@ -88,6 +95,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        if not options.get("prova"):
+            self._reviews(options.get("konto"), options.get("verbosity", 1))
         if not google_ads.is_configured():
             self.stdout.write("Google Ads API är inte inkopplat, inget synkades.")
             return
@@ -220,6 +229,24 @@ class Command(BaseCommand):
         for pk, message in invalid:
             self.stdout.write(f"    rad {pk}: {message}")
         return text
+
+    def _reviews(self, account_pk, verbosity):
+        """Omdömena från Google (Places API), ett eget steg: ett fel här
+        stoppar aldrig synken med Google Ads."""
+        try:
+            summary = reviews.refresh_due(account_pk=account_pk)
+        except Exception:  # noqa: BLE001 - omdömena stoppar aldrig resten
+            logger.exception("Omdömen från Google: körningen misslyckades")
+            self.stdout.write("Omdömen från Google: oväntat fel, se loggen.")
+            return
+        for error in summary.errors:
+            self.stdout.write(f"  Omdömen från Google, {error}")
+        if summary.fetched or summary.failed or summary.expired or verbosity >= 2:
+            self.stdout.write(
+                f"Omdömen från Google: {summary.fetched} hämtade, {summary.failed} med fel, "
+                f"{summary.expired} rensade (för gamla)."
+                + (f" Inget hämtades: {summary.skipped}." if summary.skipped else "")
+            )
 
     @staticmethod
     def _record(account, message):

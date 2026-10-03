@@ -1,0 +1,17 @@
+{% load flamingo_pb %}{% comment %}
+Personen bakom: namn, roll och några rader. image: med en bild ur
+mediaarkivet bredvid texten; noimage: texten som ett citat med namnet under
+och initialen i en liten cirkel.
+{% endcomment %}<section class="rn-block rn-person rn-person--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}>
+  <div class="rn-wrap rn-person__in">
+    {% if b.variant == "image" %}
+    <figure class="rn-person__media"{% pb_media "image" %}>{% if view.image %}{% rn_img view.image sizes="(min-width: 1024px) 440px, 100vw" cls="rn-person__img" %}{% else %}<span class="rn-person__placeholder" aria-hidden="true"></span>{% endif %}</figure>
+    {% else %}
+    <svg class="rn-ic rn-person__mark" aria-hidden="true" focusable="false"><use href="#rn-i-quote"></use></svg>
+    {% endif %}
+    <figure class="rn-person__body">
+      {% if f.text %}<blockquote class="rn-person__text"><p{% pb "text" %}>{{ f.text|linebreaksbr }}</p></blockquote>{% else %}{% pb_empty "text" "p" "rn-person__text" %}{% endif %}
+      <figcaption class="rn-person__who">{% if b.variant != "image" %}<span class="rn-avatar" aria-hidden="true">{{ f.name|make_list|first|upper|default:"?" }}</span>{% endif %}<span class="rn-person__names"><span class="rn-person__name"{% pb "name" %}>{{ f.name }}</span>{% if f.role %}<span class="rn-person__role"{% pb "role" %}>{{ f.role }}</span>{% else %}{% pb_empty "role" "span" "rn-person__role" %}{% endif %}</span></figcaption>
+    </figure>
+  </div>
+</section>

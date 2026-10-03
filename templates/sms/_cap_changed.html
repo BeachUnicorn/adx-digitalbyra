@@ -1,0 +1,5 @@
+{% comment %}
+Vem som senast ändrade kostnadstaket och när (SmsAccount.monthly_cap_changed_*):
+kunden själv, eller byrån i kundvyn eller på kundkortet. På fliken Nycklar
+och tak och i kundkortets SMS-panel, med kontot som account.
+{% endcomment %}{% if account.monthly_cap_changed_at %}<p class="tv-muted sms-cap-changed">Ändrat {{ account.monthly_cap_changed_at|date:"j b Y" }}{% with who=account.monthly_cap_changed_by %}{% if who %} av {{ who.get_full_name|default:who.email|default:who.get_username }}{% endif %}{% endwith %}.</p>{% endif %}

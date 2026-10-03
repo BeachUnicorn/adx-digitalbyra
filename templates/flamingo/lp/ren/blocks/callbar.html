@@ -1,0 +1,17 @@
+{% load flamingo_pb %}{% comment %}
+Ringremsan. I mobilen fast längst ner med en stor ringknapp (call) eller
+ring och skriv (call_write, "Skriv" leder till formuläret); med skript
+glider den upp först när knapparna i Toppen har scrollats bort
+(flamingo-lp.js). På en bred skärm ett avslutande band med texten och
+knapparna. Klicket på numret räknas som en förfrågan (data-fl-call).
+{% endcomment %}<section class="rn-block rn-callbar rn-callbar--{{ b.variant }}" id="{{ b.id }}"{% pb_block %} aria-label="Ring {{ site.business }}">
+  <div class="rn-wrap">
+    <div class="rn-callbar__in">
+      {% if f.title %}<p class="rn-callbar__title"{% pb "title" %}>{{ f.title }}</p>{% else %}{% pb_empty "title" "p" "rn-callbar__title" %}{% endif %}
+      <div class="rn-callbar__actions">
+        {% if f.phone %}<a class="rn-btn rn-btn--primary rn-btn--lg rn-callbar__call" href="{{ view.tel }}" data-fl-call><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-phone"></use></svg><span>Ring<span class="rn-callbar__num"> <span class="rn-nowrap"{% pb "phone" %}>{{ f.phone }}</span></span></span></a>{% else %}{% pb_empty "phone" "span" "rn-btn rn-btn--primary rn-btn--lg" %}{% endif %}
+        {% if b.variant == "call_write" and site.has_form %}<a class="rn-btn rn-btn--tonal rn-btn--lg rn-callbar__write" href="#formular"><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-write"></use></svg><span>Skriv</span></a>{% endif %}
+      </div>
+    </div>
+  </div>
+</section>

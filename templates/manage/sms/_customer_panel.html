@@ -1,0 +1,57 @@
+{% load static sms_tags %}{% sms_card customer as sms %}
+{% comment %}
+Kundkortets SMS-panel (apps/sms). Aktiveringen gäller direkt: API:t och
+kundens nycklar fungerar bara när rutan är ikryssad. Ingen mejlas, varken
+vid aktivering eller avstängning. Kontexten kommer från sms_tags.sms_card,
+så kundkortets vy behöver inte känna till SMS.
+{% endcomment %}
+<link rel="stylesheet" href="{% static 'css/sms.css' %}?v={{ static_version }}">
+<div class="m-panel tv-panel tv-panel--read sms-card" id="sms">
+  <div class="tv-sec-title">SMS-API{% if sms.account.is_enabled %} <span class="m-badge m-badge--published">Aktiverat</span>{% elif sms.account %} <span class="m-badge">Avstängt</span>{% endif %}</div>
+  <p class="tv-prop__note">Kunden skickar sms från sina egna system via ADX API och 46elks, och ser allt under SMS i portalen. API:t och nycklarna fungerar bara när SMS är aktiverat. Kunden mejlas inte.</p>
+  {% if not sms.configured %}
+  <p class="sms-live-note"><b>46elks är inte inkopplat:</b> ELKS_API_USERNAME och ELKS_API_PASSWORD saknas, så alla sms stoppas med provider_error.</p>
+  {% elif not sms.live %}
+  <p class="sms-live-note"><b>Provläge:</b> SMS_SEND_LIVE är av. Varje sms går till 46elks med dryrun och skickas inte.</p>
+  {% endif %}
+
+  {% if sms.account %}{% with a=sms.account u=sms.usage %}
+  <p class="sms-card__usage">{{ u.period|date:"F"|capfirst }}: <b>{{ u.sms }} sms</b>, {{ u.cost|sms_kr }} kr{% if u.test_cost %} (varav {{ u.test_cost|sms_kr }} kr testsändningar som inte faktureras){% endif %}, {{ u.cap_pct }} % av taket {{ u.cap|sms_kr:0 }} kr{% if u.cap_reached %}, <b>taket är nått</b>{% endif %}. {{ sms.active_keys }} aktiv{{ sms.active_keys|pluralize:"a" }} nyck{{ sms.active_keys|pluralize:"el,lar" }}.{% if sms.next_fee and a.yearly_fee_kr %} Nästa årsavgift: {{ sms.next_fee|date:"F Y" }}.{% endif %}</p>
+  <span class="sms-meter{% if u.cap_reached %} is-full{% elif u.cap_pct >= 80 %} is-high{% endif %}" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ u.cap_pct }}" aria-label="Andel av kundens tak"><span style="width: {{ u.cap_pct }}%"></span></span>
+  {% if sms.to_check %}<p class="sms-live-note"><b>Kontrollera mot 46elks:</b> {{ sms.to_check }} sms har oklart läge eller uppskattat pris. <a class="tv-link" href="{% url 'manage:sms_overview' %}#kontrollera">Stäm av dem på SMS-översikten</a>.</p>{% endif %}
+  {% if a.is_enabled and a.enabled_at %}<p class="tv-muted">Aktiverat {{ a.enabled_at|date:"j b Y" }}{% if a.enabled_by %} av {{ a.enabled_by.first_name|default:a.enabled_by.get_username }}{% endif %}.</p>{% elif not a.is_enabled and a.disabled_at %}<p class="tv-muted">Avstängt {{ a.disabled_at|date:"j b Y" }}.</p>{% endif %}
+  {% endwith %}{% endif %}
+
+  <form method="post" action="{% url 'manage:sms_customer_update' customer.pk %}" class="tv-toggles">{% csrf_token %}
+    <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="is_enabled"{% if sms.account.is_enabled %} checked{% endif %}> Aktiverat: API:t och kundens nycklar fungerar</label>
+    <div class="tv-form__pair">
+      <div class="m-field"><label for="sms-sender">Avsändare (3-11 tecken, a-z och 0-9, börjar med bokstav)</label><input id="sms-sender" name="sender_name" value="{{ sms.form.sender_name }}" maxlength="11" pattern="[A-Za-z][A-Za-z0-9]{2,10}" class="tv-input" autocomplete="off"></div>
+      <div class="m-field"><label for="sms-countries">Tillåtna länder (landskoder)</label><input id="sms-countries" name="allowed_countries" value="{{ sms.form.countries|join:' ' }}" class="tv-input" placeholder="SE NO DK" autocomplete="off"></div>
+    </div>
+    <div class="tv-form__pair">
+      <div class="m-field"><label for="sms-markup">Påslag per sms-del (öre)</label><input id="sms-markup" type="number" name="markup_ore_per_part" min="0" max="1000" value="{{ sms.form.markup_ore_per_part }}" class="tv-input"></div>
+      <div class="m-field"><label for="sms-fee">Årsavgift (kr)</label><input id="sms-fee" type="number" name="yearly_fee_kr" min="0" max="100000" value="{{ sms.form.yearly_fee_kr }}" class="tv-input"></div>
+    </div>
+    <div class="tv-form__pair">
+      <div class="m-field"><label for="sms-cap-m">Kostnadstak per månad (kr, kunden ändrar själv, 0 stoppar allt)</label><input id="sms-cap-m" type="number" name="monthly_cap_kr" min="0" max="1000000" value="{{ sms.form.monthly_cap_kr }}" class="tv-input">{% include "sms/_cap_changed.html" with account=sms.account %}</div>
+      <div class="m-field"><label for="sms-year">Tjänsteåret börjar (årsavgiftens månad)</label><input id="sms-year" type="date" name="service_year_start" value="{{ sms.form.service_year_start|date:'Y-m-d' }}" class="tv-input"></div>
+    </div>
+    <p class="tv-prop__note">Bara länder kunden behöver: spärren skyddar mot sms-pumpning till dyra nummer utomlands. Tjänsteåret sätts till dagens datum vid första aktiveringen om fältet är tomt.</p>
+    <div class="tv-logfoot">
+      <button type="submit" class="m-btn m-btn--small">Spara SMS</button>
+      <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:sms_overview' %}">Alla SMS-kunder och underlag</a>
+    </div>
+  </form>
+  {% if sms.account.is_enabled and customer.is_active %}
+  <form method="post" action="{% url 'manage:sms_view_as' customer.pk %}" class="tv-logfoot">{% csrf_token %}
+    <button type="submit" class="m-btn m-btn--small m-btn--ghost">Visa SMS som kunden</button>
+    <span class="tv-muted">Samma sidor och knappar som kunden; det du gör där gäller på riktigt.</span>
+  </form>
+  {% endif %}
+  {% if sms.statements %}
+  <div class="tv-toggles">
+    <div class="tv-sec-title">Senaste underlag</div>
+    {% for s in sms.statements %}<p class="tv-line">{{ s.period|date:"Y-m" }}: <b>{{ s.total|sms_kr }} kr</b> <span class="tv-muted">{{ s.sms_count }} sms{% if s.fee %}, årsavgift {{ s.fee|sms_kr:0 }} kr{% endif %}{% if s.closed_at %}, stängt {{ s.closed_at|date:"j b" }}{% endif %}</span> <a class="tv-link" href="{% url 'manage:sms_statements_csv' s.period.year s.period.month %}">CSV</a></p>{% endfor %}
+  </div>
+  {% endif %}
+</div>

@@ -1,0 +1,125 @@
+/* Sidbyggarens AI-panel (.pba-) och Konverteringskoll (.pbk-), ritade av
+   static/js/flamingo-pb-ai.js i redigerarens paneler #pb-panel-ai och
+   #pb-panel-koll (mockupen skärm 05 och 06). Flamingos färger och
+   former ur flamingo.css (--fl-*), löptext 16 px, och allt radbryter i
+   375 px: inga fasta bredder, min-width:0 och långa ord bryts. */
+
+.pba,.pbk{display:flex;flex-direction:column;gap:16px;min-width:0;font-family:var(--fl-sans);font-size:16px;line-height:1.5;color:var(--fl-body)}
+.pba *,.pbk *{box-sizing:border-box}
+.pba p,.pbk p{margin:0}
+
+/* ---------- Kort och rubriker ---------- */
+.pba-card{display:flex;flex-direction:column;gap:14px;min-width:0;padding:18px;border:1px solid var(--fl-line);border-radius:var(--fl-r-md);background:var(--fl-white)}
+.pba-head{display:flex;align-items:center;gap:10px;min-width:0}
+.pba-spark{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--fl-band);color:var(--fl-white)}
+.pba-spark .pb-ic{width:18px;height:18px}
+.pba-title{margin:0;font-size:18px;font-weight:650;letter-spacing:-.01em;line-height:1.3;color:var(--fl-ink);overflow-wrap:anywhere}
+.pba-title:focus{outline:none}
+.pba-title:focus-visible{outline:2px solid var(--fl-violet);outline-offset:2px;border-radius:4px}
+.pba-text{font-size:16px;color:var(--fl-body);overflow-wrap:anywhere}
+.pba-small{font-size:15px;line-height:1.45;color:var(--fl-muted)}
+.pba-source{font-size:15px;line-height:1.45;color:var(--fl-muted);overflow-wrap:anywhere}
+
+/* ---------- Formuläret ---------- */
+.pba-form{display:flex;flex-direction:column;gap:14px;min-width:0}
+.pba-field{display:flex;flex-direction:column;gap:8px;min-width:0}
+.pba-label{margin:0;font-size:16px;font-weight:600;line-height:1.35;color:var(--fl-ink)}
+.pba-select{width:100%;min-width:0;max-width:100%;padding:10px 12px;border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-white);color:var(--fl-ink);font-family:var(--fl-sans);font-size:16px;line-height:1.4}
+.pba-select:focus{border-color:var(--fl-violet);box-shadow:0 0 0 3px #E4DCFF;outline:none}
+.pba-select:focus-visible{outline:2px solid var(--fl-violet);outline-offset:1px}
+.pba-select:disabled{background:var(--fl-panel2);color:var(--fl-muted)}
+
+/* Segmentet: radioknappar som ser ut som knappar. */
+.pba-seg{display:flex;flex-wrap:wrap;gap:6px;min-width:0}
+.pba-seg__item{position:relative;display:flex;min-width:0}
+.pba-seg__input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+.pba-seg__label{display:inline-flex;align-items:center;min-height:40px;padding:8px 14px;border:1px solid var(--fl-line);border-radius:999px;background:var(--fl-white);color:var(--fl-body);font-size:15px;font-weight:500;line-height:1.3;cursor:pointer}
+.pba-seg__label:hover{border-color:var(--fl-ink);color:var(--fl-ink)}
+.pba-seg__input:checked + .pba-seg__label{border-color:var(--fl-ink);background:var(--fl-ink);color:var(--fl-white)}
+.pba-seg__input:focus-visible + .pba-seg__label{outline:2px solid var(--fl-violet);outline-offset:2px}
+
+/* "AI använder": uppgifterna som chips. */
+.pba-chips{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none;min-width:0}
+.pba-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:5px 11px;border:1px solid #CDEBD9;border-radius:999px;background:#F1FAF4;color:#17703D;font-size:14px;font-weight:500;line-height:1.35;overflow-wrap:anywhere}
+.pba-chip__icon{flex:none;width:14px;height:14px}
+.pba-chip--none{border-color:var(--fl-line);background:var(--fl-panel2);color:var(--fl-muted)}
+
+/* "Saknas": vad som skulle göra förslaget bättre. */
+.pba-missing__list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.pba-missing__item{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;padding:10px 12px;border:1px dashed #F2C9B8;border-radius:var(--fl-r-sm);background:#FFF8F4}
+.pba-missing__text{flex:1 1 220px;min-width:0;font-size:15px;line-height:1.45;color:var(--fl-body);overflow-wrap:anywhere}
+.pba-missing__text b{color:var(--fl-ink)}
+
+.pba-note{padding:10px 12px;border-radius:var(--fl-r-sm);background:var(--fl-panel2);font-size:15px;line-height:1.45;color:var(--fl-muted);overflow-wrap:anywhere}
+.pba-note--warn{background:#FFF1E6;color:#8A3B00}
+.pba-error{padding:10px 12px;border-radius:var(--fl-r-sm);background:#FCEDED;font-size:15px;line-height:1.45;color:#8F1F1F;overflow-wrap:anywhere}
+.pba-done{font-size:15px;line-height:1.45;color:#17703D}
+.pba-done:empty{display:none}
+
+.pba-actions{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.pba-actions .fl-btn{gap:8px}
+.pba .fl-btn .pb-ic{width:18px;height:18px}
+.pba .fl-btn[disabled],.pbk .fl-btn[disabled]{opacity:.55;cursor:not-allowed;transform:none}
+.pba-go{min-width:0}
+
+/* Laddar: en ring som snurrar (står still med reducerad rörelse). */
+.pba-spin{flex:none;width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:pba-spin .8s linear infinite}
+@keyframes pba-spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.pba-spin{animation:none;border-right-color:currentColor;opacity:.6}}
+
+/* ---------- Förslaget och varför ---------- */
+.pba-list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.pba-li{display:flex;align-items:flex-start;gap:12px;min-width:0;padding:12px;border:1px solid var(--fl-line);border-radius:14px;background:var(--fl-white)}
+.pba-li__icon{flex:none;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--fl-violet-tint);color:var(--fl-violet)}
+.pba-li__icon .pb-ic{width:20px;height:20px}
+.pba-li__grow{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.pba-li__title{font-size:16px;font-weight:650;line-height:1.35;color:var(--fl-ink);overflow-wrap:anywhere}
+.pba-li__text{font-size:15px;line-height:1.45;color:var(--fl-muted);overflow-wrap:anywhere}
+
+.pba-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px}
+.pba-tag{display:inline-flex;align-items:center;max-width:100%;padding:3px 10px;border-radius:999px;background:#F4F0FF;color:var(--fl-violet-ink);font-size:13px;font-weight:600;line-height:1.4;overflow-wrap:anywhere}
+
+/* ---------- Skriv om ---------- */
+.pba-rw{display:flex;flex-direction:column;gap:12px;min-width:0}
+.pba-suggs{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.pba-suggs:empty{display:none}
+.pba-sugg{display:flex;flex-direction:column;gap:8px;min-width:0;padding:14px;border:1px solid var(--fl-line);border-radius:14px;background:var(--fl-white)}
+.pba-sugg--none{font-size:15px;color:var(--fl-muted);background:var(--fl-panel)}
+.pba-sugg__text{font-size:18px;font-weight:650;letter-spacing:-.01em;line-height:1.3;color:var(--fl-ink);overflow-wrap:anywhere;white-space:pre-line}
+.pba-sugg__why{font-size:15px;line-height:1.45;color:var(--fl-muted);overflow-wrap:anywhere}
+.pba-sugg__row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+
+/* AI-regeln. */
+.pba-guard{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:14px;background:#FFF8EC;color:#6B4A12;font-size:16px;line-height:1.5}
+.pba-guard__icon{flex:none;width:20px;height:20px;margin-top:2px}
+
+/* ---------- Konverteringskollen ---------- */
+.pbk-head{display:flex;align-items:center;gap:16px;min-width:0}
+.pbk-head__text{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.pbk-sum{font-size:16px;color:var(--fl-body);overflow-wrap:anywhere}
+.pbk-ring{--pbk-p:0;flex:none;display:grid;place-items:center;width:88px;height:88px;border-radius:50%;background:conic-gradient(var(--fl-ok) calc(var(--pbk-p) * 1%),var(--fl-soft) 0)}
+.pbk-ring__text{display:grid;place-items:center;width:68px;height:68px;border-radius:50%;background:var(--fl-white);color:var(--fl-ink);font-size:17px;font-weight:700;line-height:1.1;text-align:center;white-space:nowrap}
+
+.pbk-list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.pbk-item{display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px 12px;min-width:0;padding:12px;border:1px solid var(--fl-line);border-radius:14px;background:var(--fl-white)}
+.pbk-item.is-no{border-color:#F6D3C6;background:#FFFAF7}
+.pbk-st{flex:none;display:grid;place-items:center;width:24px;height:24px;margin-top:1px;border-radius:50%;color:var(--fl-white);font-size:14px;font-weight:700;line-height:1}
+.pbk-st .pb-ic{width:14px;height:14px}
+.is-ok .pbk-st{background:var(--fl-ok)}
+.is-no .pbk-st{background:#C2410C}
+.pbk-grow{flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:3px}
+.pbk-title{font-size:16px;font-weight:650;line-height:1.35;color:var(--fl-ink);overflow-wrap:anywhere}
+.pbk-text{font-size:15px;line-height:1.45;color:var(--fl-muted);overflow-wrap:anywhere}
+.pbk-item > .fl-btn{flex:none;margin-left:36px}
+.pbk-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.pbk-foot .pba-small{flex:1 1 220px;min-width:0}
+
+@media (min-width:561px){
+  .pbk-item > .fl-btn{margin-left:auto}
+}
+@media (max-width:560px){
+  .pba-card{padding:14px}
+  .pbk-ring{width:76px;height:76px}
+  .pbk-ring__text{width:58px;height:58px;font-size:15px}
+  .pba-actions .fl-btn{flex:1 1 auto}
+}

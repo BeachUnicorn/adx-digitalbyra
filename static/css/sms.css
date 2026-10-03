@@ -1,0 +1,143 @@
+/* SMS-API:t (apps/sms): kundportalens SMS-sidor, kundkortets panel och
+   byråns översikt. Bygger på panelens tokens (manage-skin.css) och tavlans
+   komponenter (tavla.css); här finns bara det som är SMS-sidornas eget.
+   Staplarna följer en enda färg (--s-info), statusarna sina reserverade
+   färger, och ingen status visas med färg ensam: texten står alltid där. */
+
+.sms-mono{font-family:var(--s-mono);font-size:.92em;letter-spacing:.01em;overflow-wrap:anywhere}
+.sms-nowrap{white-space:nowrap}
+
+/* ===== Flikar och notiser ===== */
+.sms-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 22px}
+.sms-live-note{margin:0 0 18px;padding:12px 18px;border:1px solid var(--s-warn-line);border-radius:16px;background:var(--s-warn-soft);font-size:16px;line-height:1.5;color:var(--m-text)}
+.sms-live-note b{color:var(--s-warn)}
+
+/* ===== Siffrorna överst ===== */
+.sms-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 18px}
+.sms-kpi{display:flex;flex-direction:column;gap:6px;min-width:0;padding:20px 22px}
+.sms-kpi .m-stat__label{margin:0;order:-1}
+.sms-kpi .m-stat__value{font-size:30px;line-height:1.1;font-variant-numeric:normal;overflow-wrap:anywhere}
+.sms-kpi .m-stat__value small{font-size:.5em;font-weight:500;letter-spacing:.02em;color:var(--m-text-muted)}
+.sms-kpi__sub{font-size:13.5px;line-height:1.45;color:var(--m-text-muted)}
+.sms-kpi__sub b{color:var(--s-danger)}
+
+/* Mätaren: fyllningen bär läget (ok, nära taket, taket nått); spåret är ett
+   ljusare steg av samma färg. */
+.sms-meter{display:block;height:8px;border-radius:999px;background:var(--s-info-soft);overflow:hidden;margin:2px 0}
+.sms-meter>span{display:block;height:100%;max-width:100%;border-radius:999px;background:var(--s-info)}
+.sms-meter.is-high{background:var(--s-warn-soft)}
+.sms-meter.is-high>span{background:var(--s-gold)}
+.sms-meter.is-full{background:var(--s-danger-bg)}
+.sms-meter.is-full>span{background:var(--s-danger)}
+
+/* Löptext på SMS-sidorna är minst 16 px (tavlans anteckningar är mindre). */
+.sms-docs .tv-prop__note,.sms-statements .tv-prop__note,.sms-dash .tv-prop__note,.sms-keys .tv-prop__note,
+.sms-card .tv-prop__note,.sms-card .tv-line{font-size:16px;line-height:1.5}
+
+/* ===== Staplarna per dag ===== */
+.sms-chart-panel{margin-bottom:16px}
+.sms-chart-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:26px}
+.sms-chart-head .tv-sec-title{margin:0}
+.sms-chart-head .tv-muted{font-size:13.5px}
+.sms-chart{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:stretch}
+.sms-chart__scale{display:flex;flex-direction:column;justify-content:space-between;font-family:var(--s-mono);font-size:11px;color:var(--m-text-muted);text-align:right;min-width:18px;margin:-7px 0}
+.sms-chart__bars{position:relative;display:flex;align-items:stretch;gap:2px;height:170px;border-top:1px solid var(--m-border);border-bottom:1px solid var(--m-border)}
+.sms-bar{position:relative;flex:1 1 0;min-width:0;cursor:pointer;outline:none}
+.sms-bar__fill{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:min(100%,24px);min-height:3px;border-radius:4px 4px 0 0;background:var(--s-info);transition:filter .12s ease}
+.sms-bar.is-zero .sms-bar__fill{background:var(--m-border);height:2px!important;min-height:2px;border-radius:0}
+.sms-bar:hover .sms-bar__fill,.sms-bar:focus-visible .sms-bar__fill,.sms-bar.is-open .sms-bar__fill{filter:brightness(1.35)}
+.sms-bar:focus-visible{box-shadow:inset 0 0 0 2px var(--m-text);border-radius:4px}
+/* Rutan hänger inne i diagrammet, upptill: ovanför staplarna klipps den av
+   panelen och sidhuvudet på en smal skärm. */
+.sms-bar__tip{display:none;position:absolute;bottom:auto;top:6px;z-index:5;min-width:150px;max-width:220px;padding:9px 12px;border-radius:12px;background:var(--m-text);color:var(--m-accent-text);font-size:13px;line-height:1.45;box-shadow:var(--s-float);pointer-events:none;white-space:normal}
+.sms-bar__tip b{display:block;font-size:15px}
+.sms-bar__tip span{display:block;color:rgba(255,255,255,.82)}
+.sms-bar--start .sms-bar__tip{left:0}
+.sms-bar--mid .sms-bar__tip{left:50%;transform:translateX(-50%)}
+.sms-bar--end .sms-bar__tip{right:0}
+.sms-bar:hover .sms-bar__tip,.sms-bar:focus-visible .sms-bar__tip,.sms-bar.is-open .sms-bar__tip{display:block}
+.sms-chart__axis{display:flex;justify-content:space-between;margin:8px 0 0 28px;font-family:var(--s-mono);font-size:11.5px;letter-spacing:.04em;color:var(--m-text-muted)}
+
+/* ===== Tabeller och listor ===== */
+.sms-table{width:100%}
+.sms-table tr.is-off td{opacity:.6}
+.sms-body{white-space:pre-wrap;overflow-wrap:anywhere;max-width:52ch;font-size:16px;line-height:1.5}
+/* I en tabell bryts en kod eller ett nummer inte mitt i: hellre en bredare kolumn. */
+.sms-table .sms-mono{overflow-wrap:normal}
+.sms-table .sms-mono.sms-break{overflow-wrap:anywhere}
+.sms-actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;align-items:center}
+.sms-actions form{margin:0}
+.sms-messages td{vertical-align:top}
+.tv-cell-sub{font-size:12.5px;margin-top:3px;line-height:1.4}
+.sms-filter{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 14px}
+.sms-filter .tv-input[type=search]{flex:1 1 220px}
+.sms-filter__select{flex:0 1 220px;min-width:0;appearance:auto}
+.sms-pager{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--m-border);font-size:13.5px}
+
+/* Statusar: text alltid, färgen förstärker bara. */
+.sms-status{display:inline-block;font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;border-radius:999px;padding:3px 10px;font-weight:500;border:1px solid var(--m-border);color:var(--m-text);white-space:nowrap}
+.sms-status--delivered{background:var(--s-ok-soft);color:var(--s-ok);border-color:var(--s-ok-line)}
+.sms-status--failed{background:var(--s-danger-bg);color:var(--s-danger);border-color:var(--s-danger-soft)}
+.sms-status--rejected,.sms-status--blocked_cap{background:var(--s-warn-soft);color:var(--s-warn);border-color:var(--s-warn-line)}
+.sms-status--sent,.sms-status--reserved{background:var(--s-info-soft);color:var(--s-info);border-color:var(--s-info-line)}
+
+/* ===== Nycklar och tak ===== */
+.sms-reveal{margin-bottom:16px}
+.sms-reveal .m-key-reveal__value{display:block;margin:12px 0;overflow-wrap:anywhere;word-break:break-all;user-select:all}
+.sms-form-row{border-top:0;padding-top:4px}
+.sms-inline-label{font-family:var(--s-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--m-text-muted)}
+.sms-input-num{flex:0 1 160px;min-width:110px}
+.sms-cap-now{display:grid;gap:8px;margin:6px 0 12px;font-size:14.5px}
+.sms-facts th{width:120px;vertical-align:top;font-family:var(--s-mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);padding:10px 14px 10px 0;text-align:left}
+.sms-facts td{padding:10px 0;line-height:1.5}
+.sms-facts tr+tr th,.sms-facts tr+tr td{border-top:1px solid var(--m-border)}
+.sms-facts tr:hover{background:transparent}
+
+/* ===== Månadsunderlagen ===== */
+/* Bredare än portalens läsbredd (pt-narrow, 820 px): åtta kolumner ryms
+   annars inte utan sidoscroll på en vanlig skärm. */
+.sms-statements.pt-narrow{max-width:1000px}
+
+/* ===== Dokumentationen ===== */
+.sms-docs .m-panel{margin-bottom:16px}
+.sms-docs .tv-prop__note{max-width:72ch}
+.sms-h3{font-family:var(--s-mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase;font-weight:500;color:var(--m-text-muted);margin:22px 0 8px}
+.sms-endpoint{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 10px;font-size:15px}
+.sms-method{font-family:var(--s-mono);font-size:11px;letter-spacing:.08em;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--m-text);color:var(--m-accent-text)}
+.sms-method--get{background:var(--s-info)}
+.sms-steps{margin:0 0 12px;padding-left:22px;line-height:1.6}
+.sms-steps li+li{margin-top:6px}
+.sms-code-wrap{position:relative;margin:0 0 12px}
+.sms-code{margin:0;padding:16px 18px;border-radius:14px;background:var(--m-text);color:#f4f6f8;font-family:var(--s-mono);font-size:12.5px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
+.sms-code-wrap .sms-copy{position:absolute;top:8px;right:8px;background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.25)}
+.sms-code-wrap .sms-copy:hover{background:rgba(255,255,255,.2);color:#fff}
+
+/* ===== Kundkortet ===== */
+.sms-card__usage{margin:6px 0 8px;font-size:16px;line-height:1.5}
+.sms-cap-changed{margin:6px 0 0;font-size:13.5px}
+.sms-card .sms-meter{margin-bottom:12px}
+
+@media (max-width:980px){
+  .sms-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+/* Surfplattebredd, innan tabellerna blir kort (760 px): kolumnerna med minst
+   värde göms i stället för att resten skjuts bakom en sidoscroll. I kortläget
+   syns de igen, som egna rader. */
+@media (min-width:761px) and (max-width:1000px){
+  .sms-table .sms-col-low{display:none}
+  /* Sex kolumner med hela texten: tätare celler ger texten plats. */
+  .sms-messages thead th,.sms-messages tbody td{padding-left:10px;padding-right:10px}
+  .sms-messages .sms-body{min-width:10em}
+}
+@media (max-width:760px){
+  .sms-kpis{gap:10px}
+  .sms-kpi{padding:16px}
+  .sms-kpi .m-stat__value{font-size:24px}
+  .sms-kpi .m-stat__label{font-size:10.5px;letter-spacing:.07em}
+  .sms-chart__bars{height:140px;gap:1px}
+  .sms-chart__axis{margin-left:24px}
+  .sms-body{max-width:none}
+  .sms-nowrap{white-space:normal}
+  .sms-code-wrap .sms-copy{position:static;margin-top:8px;background:transparent;color:var(--m-text);border-color:var(--m-border)}
+  .sms-facts th{width:84px}
+}

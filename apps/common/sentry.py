@@ -2,10 +2,18 @@
 Felrapporteringen till Sentry - och vad som ALDRIG får följa med dit.
 
 adx.se har adresser som i sig är behörigheter: offertlänken
-(/offert/<token>/ ger rätten att acceptera), AI-koden (/aiz/guide/?kod=) och
+(/offert/<token>/ ger rätten att acceptera), AI-koden (/aiz/guide/?kod=),
 den delade statusnyckeln (headern X-ADX-Key, samma på alla sajter vi
-driftar). Sentry tar med adress, query-sträng, headers och lokala variabler
-i varje händelse, så utan den här filen hamnar de hos en tredje part.
+driftar), SMS-API:ts nycklar (adxsms_...) och leveransadresserna för sms
+(/api/sms/46elks/dlr/<id>/<signatur>/). Sentry tar med adress, query-sträng,
+headers och lokala variabler i varje händelse, så utan den här filen hamnar
+de hos en tredje part.
+
+Lokala variabler behålls (de gör en felrapport användbar, test_sentry.py),
+men variabler med namnen i SECRET_NAMES maskas: där ligger också sms:ens
+mottagare och texter (to, body, data). I apps/sms tas de lokala variablerna
+bort helt: där bär nästan varje variabel ett nummer, en text eller en nyckel,
+under namn som inte går att lista.
 
 Tre lager, eftersom Sentrys eget skydd bara täcker det första till hälften:
 
@@ -45,7 +53,16 @@ SECRET_NAMES = [
     "id_token",
     "client_secret",
     "refresh_token_encrypted",
+    # SMS-API:t (apps/sms): mottagare, text och anropets kropp, och
+    # leveransadressens signatur.
+    "to",
+    "body",
+    "data",
+    "signature",
 ]
+
+#: Moduler vars lokala variabler aldrig skickas (se ovan).
+_NO_LOCALS_MODULES = ("apps.sms.",)
 
 _PATTERNS = [
     # Offertlänken: token i sökvägen.
@@ -64,11 +81,23 @@ _PATTERNS = [
         re.compile(r"(?i)\b((?:refresh_token|access_token|client_secret|id_token)=)[^&\s\"']+"),
         r"\1" + FILTERED,
     ),
+    # SMS-API:ts nycklar (apps/sms/models.SmsApiKey), var de än står.
+    (re.compile(r"adxsms_[A-Za-z0-9_\-]{8,}"), FILTERED),
+    # Leveransadressen för ett sms: signaturen i sökvägen.
+    (re.compile(r"(/api/sms/46elks/dlr/\d+/)[0-9a-f]{32}"), r"\1" + FILTERED),
 ]
 
 #: Anrop som inte ska spåras alls: maskinanrop var femte minut som annars
-#: äter kvoten, och statusanropet är just det som bär den delade nyckeln.
-_UNTRACED_PREFIXES = ("/healthz", "/status/", "/static/", "/media/", "/favicon")
+#: äter kvoten, statusanropet som bär den delade nyckeln, och 46elks
+#: leveransrapporter (en per sms, med signaturen i adressen).
+_UNTRACED_PREFIXES = (
+    "/healthz",
+    "/status/",
+    "/static/",
+    "/media/",
+    "/favicon",
+    "/api/sms/46elks/",
+)
 
 
 def scrub_text(value):
@@ -89,10 +118,32 @@ def _walk(node):
     return node
 
 
+def _frames(event):
+    """Ramarna i händelsens undantag och trådar, hur de än är formade."""
+    for key in ("exception", "threads"):
+        container = event.get(key)
+        values = container.get("values") if isinstance(container, dict) else None
+        for item in values if isinstance(values, list) else []:
+            stack = item.get("stacktrace") if isinstance(item, dict) else None
+            frames = stack.get("frames") if isinstance(stack, dict) else None
+            for frame in frames if isinstance(frames, list) else []:
+                if isinstance(frame, dict):
+                    yield frame
+
+
+def _drop_locals(event):
+    """Inga lokala variabler från _NO_LOCALS_MODULES."""
+    for frame in _frames(event):
+        module = str(frame.get("module") or "")
+        if "vars" in frame and module.startswith(_NO_LOCALS_MODULES):
+            frame["vars"] = {}
+    return event
+
+
 def scrub_event(event, hint=None):
     """before_send och before_send_transaction. Får aldrig själv fälla en rapport."""
     try:
-        return _walk(event)
+        return _drop_locals(_walk(event))
     except Exception:  # noqa: BLE001 - hellre ingen rapport än en omaskad
         return None
 

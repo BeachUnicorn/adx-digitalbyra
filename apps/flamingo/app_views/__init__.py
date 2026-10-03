@@ -45,6 +45,8 @@ APP_NAV = (
     ("overview", "flamingo:app", "Översikt"),
     ("inbox", "flamingo:app_inbox", "Inkorg"),
     ("campaigns", "flamingo:app_campaigns", "Kampanjer"),
+    ("pages", "flamingo:app_pages", "Sidor"),
+    ("media", "flamingo:app_media", "Media"),
     ("business", "flamingo:app_business", "Företaget"),
     ("google", "flamingo:app_google", "Google"),
     ("settings", "flamingo:app_settings", "Inställningar"),

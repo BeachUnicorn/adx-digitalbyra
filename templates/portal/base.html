@@ -1,4 +1,4 @@
-{% load static cloud_tags flamingo_tags %}<!DOCTYPE html>
+{% load static cloud_tags flamingo_tags sms_tags %}<!DOCTYPE html>
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
@@ -13,12 +13,14 @@
 <body class="m-body pt-body">
 {% has_aws_invoices request.customer as show_invoices %}
 {% show_flamingo request as show_flamingo %}
+{% show_sms request as show_sms %}
+{% if show_sms %}<link rel="stylesheet" href="{% static 'css/sms-nav.css' %}?v={{ static_version }}">{% endif %}
 {% comment %}
 Kundportalen i samma skinn som panelen: samma tokens, samma kort. Ingen
 hamburgare - två länkar får plats på alla skärmar. Det som INTE finns
 här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
 {% endcomment %}
-<nav class="m-nav pt-nav" aria-label="Kundportal">
+<nav class="m-nav pt-nav{% if show_sms %} pt-nav--sms{% endif %}" aria-label="Kundportal">
     <div class="m-container m-nav__inner">
         <a href="{% url 'portal:landing' %}" class="mob-brand" aria-label="ADX kundportal"><img src="{% static 'images/adx-logo.png' %}" alt="ADX"></a>
         <ul class="m-nav__links">
@@ -33,7 +35,8 @@ här är lika viktigt: inga timers, ingen tid, inga interna anteckningar.
             {% endif %}
         </ul>
         <div class="m-nav__right">
-            {# ADX Flamingo: inte i raden (vakten tillåter högst sju länkar) utan här och i mobilmenyn. #}
+            {# ADX Flamingo och SMS: inte i raden (vakten tillåter högst sju länkar) utan här och i mobilmenyn. #}
+            {% if show_sms %}<a href="{% url 'sms:dashboard' %}" class="m-nav__link{% if active == 'sms' %} is-active{% endif %}"{% if active == 'sms' %} aria-current="page"{% endif %}>SMS</a>{% endif %}
             {% if show_flamingo %}<a href="{% url 'flamingo:home' %}" class="pt-flamingo">ADX Flamingo</a>{% endif %}
             {% if request.viewing_as %}
             <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="m-nav__view-site">Lämna kundvyn</button></form>
@@ -70,6 +73,7 @@ hamburgaren (menu.js). Stängs med krysset, Esc eller en länk.
         <a href="{% url 'portal:reports' %}"{% if active == 'reports' %} class="is-active" aria-current="page"{% endif %}>Rapporter</a>
         <a href="{% url 'portal:log' %}"{% if active == 'log' %} class="is-active" aria-current="page"{% endif %}>Logg</a>
         {% if show_invoices %}<a href="{% url 'portal:invoices' %}"{% if active == 'invoices' %} class="is-active" aria-current="page"{% endif %}>Fakturor</a>{% endif %}
+        {% if show_sms %}<a href="{% url 'sms:dashboard' %}"{% if active == 'sms' %} class="is-active" aria-current="page"{% endif %}>SMS</a>{% endif %}
         {% if show_flamingo %}<a href="{% url 'flamingo:home' %}">ADX Flamingo</a>{% endif %}
     </nav>
     {% if not request.viewing_as %}
@@ -91,7 +95,7 @@ hamburgaren (menu.js). Stängs med krysset, Esc eller en länk.
         {% if request.viewing_as %}
         <div class="pt-banner" role="status">
             <span class="dot"></span>
-            <span>Du ser portalen som <b>{{ request.customer.name }}</b> - exakt det kunden ser. Skrivskyddat: skapa ärenden och svara från tavlan i panelen.</span>
+            <span>Du ser portalen som <b>{{ request.customer.name }}</b> - exakt det kunden ser.{% if active != 'sms' %} Skrivskyddat: skapa ärenden och svara från tavlan i panelen.{% endif %}</span>
             <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="m-btn m-btn--small m-btn--ghost">Lämna kundvyn</button></form>
         </div>
         {% endif %}

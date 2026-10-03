@@ -40,6 +40,7 @@ from . import checks, exports, generator, limits, scan, sms
 from .app_views import campaigns as campaign_views
 from .models import Campaign, Fact, FlamingoAccount, Lead, Service, SmsLog
 from .public_views import HONEYPOT
+from .testing import pages_from_campaigns
 
 User = get_user_model()
 STHLM = ZoneInfo("Europe/Stockholm")
@@ -47,6 +48,7 @@ ELKS = {
     "ELKS_API_USERNAME": "u-test",
     "ELKS_API_PASSWORD": "p-test",
     "ELKS_SENDER": "ADXFlamingo",
+    "SMS_SEND_LIVE": True,
 }
 CHROME = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -91,6 +93,7 @@ class Fixture:
             area="Värmdö + 15 km",
             daily_budget_kr=200,
         )
+        pages_from_campaigns(cls.live, cls.draft)
 
     def setUp(self):
         cache.clear()
@@ -292,6 +295,23 @@ class LeadLockTests(TransactionTestCase):
 # ---------------------------------------------------------------------------
 # 4. Sms
 # ---------------------------------------------------------------------------
+
+
+class SmsSendLiveTests(Fixture, TestCase):
+    """Uppgifterna till 46elks delas med SMS-tjänsten (apps/sms) och finns
+    på riktigt i lokala .env. Utan SMS_SEND_LIVE skickar Flamingo inget."""
+
+    @override_settings(**{**ELKS, "SMS_SEND_LIVE": False})
+    def test_nothing_is_sent_without_sms_send_live(self):
+        self.assertFalse(sms.is_configured())
+        with mock.patch.object(sms, "_post_to_elks") as elks:
+            row = sms.send(self.account, SmsLog.KIND_OWNER, "0701234567", "Hej")
+        elks.assert_not_called()
+        self.assertEqual(row.status, SmsLog.STATUS_NOT_CONFIGURED)
+
+    @override_settings(**ELKS)
+    def test_with_sms_send_live_it_is_configured(self):
+        self.assertTrue(sms.is_configured())
 
 
 @override_settings(**ELKS, SITE_BASE_URL="https://adx.se")

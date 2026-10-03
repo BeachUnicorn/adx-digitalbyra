@@ -1,0 +1,123 @@
+{% load flamingo_pb %}{% comment %}
+Formuläret. Varianter: short (mobil och namn, valfritt, som "ringer
+direkt"), questions (frågorna, ett meddelande när ingen fråga redan är en
+längre text, namn, telefon och e-post) och booking (dag och tid bland
+frågorna, ett meddelande, namn och telefon). Står det direkt efter Toppen
+med formulär hamnar det bredvid på en bred skärm.
+
+Frågorna är valfria (LeadForm) och märks "(valfritt)". Rutan (note_title och
+note) står under kortet; bara texten (note) står som en rad under kortet,
+och i booking under datumfältet (view.note_under). I redigeringsläget ritas
+rutan också när rubriken på den är tom, så att den går att fylla i.
+
+Kontext utöver blockets: form (public_views.LeadForm, bunden efter en POST
+med fel), questions (med fältet i bound), spec (blocks.FormSpec),
+honeypot, tracking (klick-id och utm som följer med i dolda fält), action
+och preview. Svaren sparas som Lead.answers[frågans etikett].
+{% endcomment %}<section class="rn-block rn-form rn-form--{{ b.variant }} rn-s--{{ surface }}" id="formular"{% pb_block %} aria-labelledby="formular-titel">
+  <div class="rn-wrap rn-form__in">
+    <div class="rn-form__card">
+      <h2 class="rn-h3 rn-form__title" id="formular-titel"{% pb "title" %}>{{ f.title|default:spec.title }}</h2>
+      {% if preview %}<p class="rn-preview-note">Förhandsvisning: formuläret skickar inget.</p>{% endif %}
+      <form class="rn-fields" method="post" action="{{ action }}">
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="rn-alert" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+        {% elif form.errors %}
+        <div class="rn-alert" role="alert"><p>Något behöver rättas, se nedan.</p></div>
+        {% endif %}
+
+        {% if spec.is_short %}
+        <div class="rn-row">
+          <div class="rn-field{% if form.phone.errors %} is-error{% endif %}">
+            <label class="rn-label" for="rn-phone">Mobil</label>
+            <input class="rn-input" id="rn-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" value="{{ form.phone.value|default_if_none:"" }}" required>
+            {% for error in form.phone.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+          </div>
+          <div class="rn-field{% if form.name.errors %} is-error{% endif %}">
+            <label class="rn-label" for="rn-name">Namn <span class="rn-opt">(valfritt)</span></label>
+            <input class="rn-input" id="rn-name" name="name" type="text" autocomplete="name" maxlength="120" value="{{ form.name.value|default_if_none:"" }}">
+            {% for error in form.name.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% for q in questions %}
+        <div class="rn-field{% if q.bound.errors %} is-error{% endif %}">
+          <label class="rn-label" for="rn-{{ q.field }}"><span{% pb "questions" forloop.counter0 "label" %}>{{ q.label }}</span> <span class="rn-opt">(valfritt)</span></label>
+          {% if q.kind == "textarea" %}
+          <textarea class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" rows="3" maxlength="1000">{{ q.bound.value|default_if_none:"" }}</textarea>
+          {% elif q.kind == "date" %}
+          <input class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" type="date" value="{{ q.bound.value|default_if_none:"" }}"{% if view.note_under == q.field and f.note %} aria-describedby="rn-{{ q.field }}-hjalp"{% endif %}>
+          {% else %}
+          <input class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" type="text" maxlength="1000" value="{{ q.bound.value|default_if_none:"" }}">
+          {% endif %}
+          {% if view.note_under == q.field %}{% if f.note %}<p class="rn-help" id="rn-{{ q.field }}-hjalp"{% pb "note" %}>{{ f.note|linebreaksbr }}</p>{% else %}{% pb_empty "note" "p" "rn-help" %}{% endif %}{% endif %}
+          {% for error in q.bound.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+        </div>
+        {% endfor %}
+
+        {% if spec.asks_message %}
+        <div class="rn-field{% if form.message.errors %} is-error{% endif %}">
+          <label class="rn-label" for="rn-message">{% if questions %}Något mer vi bör veta?{% else %}Vad gäller det?{% endif %} <span class="rn-opt">(valfritt)</span></label>
+          <textarea class="rn-input{% if questions %} rn-input--short{% endif %}" id="rn-message" name="message" rows="{% if questions %}2{% else %}4{% endif %}" maxlength="2000">{{ form.message.value|default_if_none:"" }}</textarea>
+          {% for error in form.message.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not spec.is_short %}
+        <div class="rn-row">
+          <div class="rn-field{% if form.name.errors %} is-error{% endif %}">
+            <label class="rn-label" for="rn-name">Namn</label>
+            <input class="rn-input" id="rn-name" name="name" type="text" autocomplete="name" maxlength="120" value="{{ form.name.value|default_if_none:"" }}" required>
+            {% for error in form.name.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+          </div>
+          <div class="rn-field{% if form.phone.errors %} is-error{% endif %}">
+            <label class="rn-label" for="rn-phone">Telefon</label>
+            <input class="rn-input" id="rn-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" value="{{ form.phone.value|default_if_none:"" }}" required>
+            {% for error in form.phone.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+          </div>
+        </div>
+        {% endif %}
+
+        {% if spec.asks_email %}
+        <div class="rn-field{% if form.email.errors %} is-error{% endif %}">
+          <label class="rn-label" for="rn-email">E-post <span class="rn-opt">(valfritt)</span></label>
+          <input class="rn-input" id="rn-email" name="email" type="email" autocomplete="email" maxlength="254" value="{{ form.email.value|default_if_none:"" }}">
+          {% for error in form.email.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="rn-hp" aria-hidden="true">
+          <label for="rn-hp">Lämna det här fältet tomt</label>
+          <input id="rn-hp" type="text" name="{{ honeypot }}" value="" tabindex="-1" autocomplete="off">
+        </div>
+        {% for key, value in tracking.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">
+        {% endfor %}
+
+        <button class="rn-btn rn-btn--primary rn-btn--lg rn-btn--block" type="submit"><span{% pb "submit" %}>{{ f.submit|default:spec.submit }}</span></button>
+        <p class="rn-small">Uppgifterna skickas till {{ site.business }}.</p>
+      </form>
+    </div>
+    {% if not spec.is_short and site.phone %}<p class="rn-form__or">Hellre att prata? <a href="{{ site.tel }}" data-fl-call>Ring <span class="rn-nowrap">{{ site.phone }}</span></a></p>{% endif %}
+    {% if f.note_title and f.note and not view.note_under %}
+    <aside class="rn-tip">
+      <svg class="rn-ic rn-tip__icon" aria-hidden="true" focusable="false"><use href="#rn-i-info"></use></svg>
+      <div class="rn-tip__body">
+        <p class="rn-tip__title"{% pb "note_title" %}>{{ f.note_title }}</p>
+        <p class="rn-tip__text"{% pb "note" %}>{{ f.note|linebreaksbr }}</p>
+      </div>
+    </aside>
+    {% elif editing and not view.note_under %}
+    <aside class="rn-tip{% if not f.note_title %} rn-tip--plain{% endif %}"{% if not f.note and not f.note_title %} data-pb-empty{% endif %}>
+      <svg class="rn-ic rn-tip__icon" aria-hidden="true" focusable="false"><use href="#rn-i-info"></use></svg>
+      <div class="rn-tip__body">
+        {% if f.note_title %}<p class="rn-tip__title"{% pb "note_title" %}>{{ f.note_title }}</p>{% else %}{% pb_empty "note_title" "p" "rn-tip__title" %}{% endif %}
+        {% if f.note %}<p class="rn-tip__text"{% pb "note" %}>{{ f.note|linebreaksbr }}</p>{% else %}{% pb_empty "note" "p" "rn-tip__text" %}{% endif %}
+      </div>
+    </aside>
+    {% elif f.note and not view.note_under %}
+    <p class="rn-form__note"{% pb "note" %}>{{ f.note|linebreaksbr }}</p>
+    {% endif %}
+  </div>
+</section>

@@ -9,10 +9,13 @@ Byråns granskning av ADX Flamingo (/manage/flamingo/...), i panelens design
                    inte med förrän byrån ber om det (?demo=1).
     review         en kampanj: förslaget bredvid kundens bekräftade uppgifter
                    och hemsida. Medan kampanjen ligger hos ADX rättar
-                   granskaren rubriker, beskrivningar, sökord, negativa
-                   sökord och sidan, och skriver varför för varje ändrad del.
+                   granskaren rubriker, beskrivningar, sökord och negativa
+                   sökord, och skriver varför för varje ändrad del.
                    "Klar, skicka till kunden" sparar diffen i Review.changes
                    och lämnar över till kunden (status needs_customer).
+                   Landningssidan ligger i sidbyggaren och rättas där
+                   ("Visa Flamingo som kunden", sidan öppnas direkt); här
+                   står en sammanfattning, kontrollerna och länkarna.
     publish        live (bara när kunden godkänt), pausa och återuppta, och
                    "Tillbaka till granskning" för en godkänd kampanj som
                    inte är publicerad (Google sa nej till innehållet)
@@ -50,14 +53,13 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.text import slugify
 from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 from apps.projects.access import staff_required
 from apps.projects.models import Customer
 
-from . import checks, exports, google_ads, google_publish
+from . import checks, exports, google_ads, google_publish, pagebuilder
 from .models import (
     DESCRIPTION_COUNT,
     DESCRIPTION_MAX,
@@ -66,7 +68,6 @@ from .models import (
     MATCH_BROAD,
     MATCH_CHOICES,
     MATCH_PHRASE,
-    PAGE_QUESTION_KINDS,
     Campaign,
     ConversionUpload,
     FlamingoAccount,
@@ -82,21 +83,15 @@ DESCRIPTION_MIN = 2
 #: Googles gränser för ett sökord.
 KEYWORD_MAX_CHARS = 80
 KEYWORD_MAX_WORDS = 10
-#: Tomma rader under de befintliga, för nya sökord och frågor.
+#: Tomma rader under de befintliga, för nya sökord.
 EXTRA_KEYWORD_ROWS = 3
-EXTRA_QUESTION_ROWS = 2
 #: Ett tak på hur många rader ett formulär får skicka (skydd mot skräp).
 MAX_ROWS = 100
 
-PAGE_TITLE_MAX = 120
-PAGE_TEXT_MAX = 600
-PAGE_LINE_MAX = 120
-PAGE_PHONE_MAX = 40
 REASON_MAX = 500
 NOTE_MAX = 1000
 
 MATCH_LABELS = {MATCH_PHRASE: "fras", "exact": "exakt", MATCH_BROAD: "bred"}
-QUESTION_KIND_LABELS = {"text": "kort svar", "textarea": "längre svar", "date": "datum"}
 
 #: Delarna granskaren kan ändra. Varje del med en ändring kräver ett skäl.
 #:   nyckel: (modellfält, rubrik i formuläret, etikett per ändring för kunden)
@@ -105,13 +100,17 @@ GROUPS = {
     "descriptions": ("descriptions", "Beskrivningar", "Beskrivning"),
     "keywords": ("keywords", "Sökord", "Sökord"),
     "negatives": ("negatives", "Negativa sökord", "Negativt sökord"),
-    "page_title": ("page", "Sidans rubrik", "Sidans rubrik"),
-    "page_lead": ("page", "Ingress", "Sidans ingress"),
-    "page_points": ("page", "Punkter", "Punkt på sidan"),
-    "page_phone": ("page", "Telefon", "Telefon på sidan"),
-    "page_form_title": ("page", "Formulärets rubrik", "Formulärets rubrik"),
-    "page_questions": ("page", "Frågor i formuläret", "Fråga i formuläret"),
-    "page_note": ("page", "Text under formuläret", "Text under formuläret"),
+}
+#: Delarna av sidan som granskaren rättade här före sidbyggaren. Rundorna
+#: från den tiden har kvar sina ändringar och visas med de här rubrikerna.
+LEGACY_PAGE_GROUPS = {
+    "page_title": "Sidans rubrik",
+    "page_lead": "Ingress",
+    "page_points": "Punkter",
+    "page_phone": "Telefon",
+    "page_form_title": "Formulärets rubrik",
+    "page_questions": "Frågor i formuläret",
+    "page_note": "Text under formuläret",
 }
 
 #: Granskarens påminnelser (kundresan steg 8). Visas, sparas inte.
@@ -312,7 +311,10 @@ def grouped_changes(changes):
         if groups and groups[-1]["part"] == part and groups[-1]["reason"] == reason:
             groups[-1]["items"].append(change)
             continue
-        label = GROUPS[part][1] if part in GROUPS else (change.get("label") or "")
+        if part in GROUPS:
+            label = GROUPS[part][1]
+        else:
+            label = LEGACY_PAGE_GROUPS.get(part) or change.get("label") or ""
         groups.append({"part": part, "label": label, "reason": reason, "items": [change]})
     return groups
 
@@ -387,15 +389,11 @@ def _negative_text(item):
     return str(item or "")
 
 
-def _question_text(label, kind):
-    return f"{label} ({QUESTION_KIND_LABELS.get(kind, kind)})" if label else ""
-
-
 def _list_changes(before, after, ordered):
     """Ändringarna mellan två textlistor som (före, efter)-par.
 
     Borttagna och tillagda rader blir egna par. En ren omflyttning räknas
-    bara när ordningen spelar roll (punkterna på sidan)."""
+    bara när ordningen spelar roll."""
     removed = Counter(before) - Counter(after)
     added = Counter(after) - Counter(before)
     pairs = []
@@ -443,11 +441,9 @@ class ReviewForm:
     descriptions: list = field(default_factory=list)
     keywords: list = field(default_factory=list)
     negatives: str = ""
-    page: dict = field(default_factory=dict)
-    questions: list = field(default_factory=list)
     reasons: dict = field(default_factory=dict)
     note: str = ""
-    #: Fältfel: {"page_title": "...", "negatives": "..."}; radfel står på raden.
+    #: Fältfel: {"negatives": "..."}; radfel står på raden.
     errors: dict = field(default_factory=dict)
     #: Fel för en hel del (för få rubriker, inga sökord).
     group_errors: dict = field(default_factory=dict)
@@ -477,7 +473,7 @@ class ReviewForm:
     def has_errors(self):
         if self.errors or self.group_errors or self.reason_errors:
             return True
-        rows = self.headlines + self.descriptions + self.keywords + self.questions
+        rows = self.headlines + self.descriptions + self.keywords
         return any(row.get("error") for row in rows)
 
     @property
@@ -519,24 +515,6 @@ class ReviewForm:
             for text, match in (_keyword_item(k) for k in c.keywords or [])
         ] + [{"text": "", "match": MATCH_PHRASE, "error": ""} for _ in range(EXTRA_KEYWORD_ROWS)]
         self.negatives = "\n".join(_negative_text(n) for n in c.negatives or [])
-        page = c.page or {}
-        self.page = {
-            "title": str(page.get("title") or ""),
-            "lead": str(page.get("lead") or ""),
-            "points": "\n".join(str(p) for p in page.get("points") or []),
-            "phone": str(page.get("phone") or ""),
-            "form_title": str(page.get("form_title") or ""),
-            "note": str(page.get("note") or ""),
-        }
-        self.questions = [
-            {
-                "label": str(q.get("label") or ""),
-                "kind": q.get("kind") or "text",
-                "error": "",
-            }
-            for q in page.get("questions") or []
-            if isinstance(q, dict)
-        ] + [{"label": "", "kind": "text", "error": ""} for _ in range(EXTRA_QUESTION_ROWS)]
 
     @staticmethod
     def _slots(prefix, values, count, limit, posted=None):
@@ -587,7 +565,6 @@ class ReviewForm:
         )
         self._parse_keywords()
         self._parse_negatives()
-        self._parse_page()
 
         self.note = _multi(data.get("note"), NOTE_MAX)
         for group in GROUPS:
@@ -704,100 +681,6 @@ class ReviewForm:
                 f"Högst {KEYWORD_MAX_CHARS} tecken per rad: {too_long[0][:40]}"
             )
 
-    def _parse_page(self):
-        data = self.data
-        old_page = dict(self.campaign.page or {})
-        page = dict(old_page)
-        posted = {
-            "title": data.get("page_title", ""),
-            "lead": data.get("page_lead", ""),
-            "points": data.get("page_points", ""),
-            "phone": data.get("page_phone", ""),
-            "form_title": data.get("page_form_title", ""),
-            "note": data.get("page_note", ""),
-        }
-        self.page = posted
-
-        scalars = (
-            ("title", "page_title", _plain, PAGE_TITLE_MAX),
-            ("phone", "page_phone", _plain, PAGE_PHONE_MAX),
-            ("form_title", "page_form_title", _plain, PAGE_TITLE_MAX),
-            ("lead", "page_lead", _multi, PAGE_TEXT_MAX),
-            ("note", "page_note", _multi, PAGE_TEXT_MAX),
-        )
-        for key, group, clean, limit in scalars:
-            before = clean(old_page.get(key) or "", 4000)
-            after = clean(posted[key], 4000)
-            if before == after:
-                continue
-            self._change(group, before, after)
-            page[key] = after
-            if len(after) > limit:
-                self.errors[group] = f"{len(after)} tecken. Håll det under {limit}."
-
-        old_points_raw = [str(p) for p in old_page.get("points") or []]
-        old_points = [_plain(p, 300) for p in old_points_raw]
-        new_points = _lines(posted["points"], 300)[:MAX_ROWS]
-        pairs = _list_changes(old_points, new_points, ordered=True)
-        for before, after in pairs:
-            self._change("page_points", before, after)
-        if pairs:
-            page["points"] = new_points
-            if any(len(p) > PAGE_LINE_MAX for p in new_points):
-                self.errors["page_points"] = f"Håll varje punkt under {PAGE_LINE_MAX} tecken."
-
-        self._parse_questions(old_page, page)
-        self.content["page"] = page
-
-    def _parse_questions(self, old_page, page):
-        data = self.data
-        old_raw = [q for q in old_page.get("questions") or [] if isinstance(q, dict)]
-        labels = data.getlist("q_label")[:MAX_ROWS]
-        kinds = data.getlist("q_kind")[:MAX_ROWS]
-        rows = []
-        for i, raw in enumerate(labels):
-            kind = kinds[i] if i < len(kinds) else "text"
-            rows.append({"label": _plain(raw, 300), "kind": kind, "error": ""})
-        while len(rows) < len(old_raw):
-            rows.append({"label": "", "kind": "text", "error": ""})
-        self.questions = rows
-
-        final, keys, changed = [], set(), False
-        for i, row in enumerate(rows):
-            label, kind = row["label"], row["kind"]
-            if label and kind not in PAGE_QUESTION_KINDS:
-                row["error"] = "Välj sorts svar."
-                kind = "text"
-            old = old_raw[i] if i < len(old_raw) else None
-            before = (
-                _question_text(_plain(old.get("label") or "", 300), old.get("kind") or "text")
-                if old
-                else ""
-            )
-            after = _question_text(label, kind)
-            if before != after:
-                changed = True
-                self._change("page_questions", before, after)
-            if not label:
-                continue
-            if len(label) > PAGE_TITLE_MAX:
-                row["error"] = f"Håll frågan under {PAGE_TITLE_MAX} tecken."
-            if before == after and old is not None:
-                item = old
-            else:
-                key = (old or {}).get("key") or slugify(label)[:40] or f"fraga-{i + 1}"
-                item = {"key": key, "label": label, "kind": kind}
-            key, n = item.get("key") or f"fraga-{i + 1}", 2
-            base = key
-            while key in keys:
-                key, n = f"{base}-{n}", n + 1
-            keys.add(key)
-            if key != item.get("key"):
-                item = {**item, "key": key}
-            final.append(item)
-        if changed:
-            page["questions"] = final
-
     # -- Resultatet ----------------------------------------------------------
 
     def proposal(self):
@@ -824,37 +707,30 @@ CHECK_FIELDS = {
     "area": "Område",
     "name": "Namn",
 }
-CHECK_PAGE_PARTS = {
-    "title": "Sidans rubrik",
-    "lead": "Ingress",
-    "points": "Punkt",
-    "phone": "Telefon på sidan",
-    "form_title": "Formulärets rubrik",
-    "questions": "Fråga",
-    "note": "Text under formuläret",
-}
 #: Listor där problemets index blir ett nummer ("Rubrik 3").
-NUMBERED = {"headlines", "descriptions", "keywords", "points", "questions"}
+NUMBERED = {"headlines", "descriptions", "keywords"}
 
 
-def _problem_where(field_name, index=None, part=""):
-    """ "Rubrik 3", "Ingress", "Sökord 2" ur checks.Problem.field/.index/.part."""
+def _problem_where(field_name, index=None, part="", where=""):
+    """ "Rubrik 3", "Sökord 2", "Sidan, hero, rubrik" ur checks.Problem
+    (.field, .index, .part och .where för sidbyggarens problem)."""
+    if field_name == "page":
+        if where:
+            return f"Sidan, {where[:1].lower()}{where[1:]}"
+        return "Sidan"
     if not field_name and not part:
         return ""
-    if field_name == "page":
-        where = CHECK_PAGE_PARTS.get(part, "Sidan")
-        numbered = part in NUMBERED
-    else:
-        where = CHECK_FIELDS.get(field_name, field_name or "")
-        numbered = field_name in NUMBERED
-    if numbered and isinstance(index, int):
-        where = f"{where} {index + 1}"
-    return where
+    label = CHECK_FIELDS.get(field_name, field_name or "")
+    if field_name in NUMBERED and isinstance(index, int):
+        label = f"{label} {index + 1}"
+    return label
 
 
 def _problem_text(problem):
     """Ett checks.Problem som en rad text: "Rubrik 3: Siffran 24 finns inte ..."."""
-    where = _problem_where(problem.field, problem.index, problem.part)
+    where = _problem_where(
+        problem.field, problem.index, problem.part, getattr(problem, "where", "")
+    )
     return f"{where}: {problem.message}" if where else problem.message
 
 
@@ -917,6 +793,31 @@ def _publish_blockers(campaign, pending):
     return blockers
 
 
+def landing_summary(campaign):
+    """Kampanjens landningssida för granskningen: sidan, blocken (utkastet),
+    läget, andra kampanjer som visar den, och länkarna: förhandsvisningen
+    av utkastet och sidan i sidbyggaren (byrån öppnar den som kunden). None
+    när kampanjen saknar sida."""
+    page = campaign.landing_page if campaign.landing_page_id else None
+    if page is None:
+        return None
+    others = [c for c in pagebuilder.campaigns_using(page) if c.pk != campaign.pk]
+    if page.has_unpublished_changes:
+        state = "Publicerad, utkastet har ändringar"
+    elif page.is_published:
+        state = "Publicerad"
+    else:
+        state = "Utkast, publiceras när kampanjen går live"
+    return {
+        "page": page,
+        "state": state,
+        "blocks": pagebuilder.block_rows(page.draft_blocks),
+        "others": others,
+        "draft_url": f"{campaign.landing_url}?utkast=1",
+        "editor_url": reverse("flamingo:app_page", args=[page.pk]),
+    }
+
+
 def _review_context(campaign, form, pending, problems, problems_need_ack=False):
     account = campaign.account
     facts = list(account.facts.all())
@@ -939,7 +840,7 @@ def _review_context(campaign, form, pending, problems, problems_need_ack=False):
         "editable": editable,
         "groups": form.groups if form else {},
         "match_choices": MATCH_CHOICES,
-        "question_kinds": [(k, QUESTION_KIND_LABELS[k].capitalize()) for k in PAGE_QUESTION_KINDS],
+        "landing": landing_summary(campaign),
         "problems": problems,
         "problems_need_ack": problems_need_ack,
         "checklist": [
@@ -957,11 +858,6 @@ def _review_context(campaign, form, pending, problems, problems_need_ack=False):
             if text
         ],
         "negative_list": [t for t in (_negative_text(n) for n in campaign.negatives or []) if t],
-        "question_list": [
-            (q.get("label"), QUESTION_KIND_LABELS.get(q.get("kind"), q.get("kind")))
-            for q in (campaign.page or {}).get("questions") or []
-            if isinstance(q, dict) and q.get("label")
-        ],
         "latest_changes": grouped_changes(latest_done.changes) if latest_done else [],
         "state_label": state[0],
         "state_badge": state[1],
@@ -1134,6 +1030,11 @@ def publish(request, pk):
             if blockers:
                 messages.error(request, "Kan inte återupptas: " + " ".join(blockers))
                 return _back_to_review(campaign.pk, "publicering")
+            try:
+                pagebuilder.publish_for_campaign(campaign, request.user)
+            except pagebuilder.PageError as exc:
+                messages.error(request, f"Kan inte återupptas. {exc.message}")
+                return _back_to_review(campaign.pk, "publicering")
             campaign.status = Campaign.STATUS_LIVE
             campaign.save(update_fields=["status", "updated_at"])
             messages.success(
@@ -1156,6 +1057,13 @@ def publish(request, pk):
         google_id = re.sub(r"[\s-]", "", request.POST.get("google_campaign_id", ""))
         if google_id and not re.fullmatch(r"\d{1,20}", google_id):
             messages.error(request, "Kampanjens id hos Google är bara siffror. Inget publicerades.")
+            return _back_to_review(campaign.pk, "publicering")
+        # Sidan publiceras när kampanjen går live, om den aldrig varit det
+        # och kontrollerna går igenom; annars går kampanjen inte live.
+        try:
+            pagebuilder.publish_for_campaign(campaign, request.user)
+        except pagebuilder.PageError as exc:
+            messages.error(request, f"Inget publicerades. {exc.message}")
             return _back_to_review(campaign.pk, "publicering")
 
         campaign.status = Campaign.STATUS_LIVE

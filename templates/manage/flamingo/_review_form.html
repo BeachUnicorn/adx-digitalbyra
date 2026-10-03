@@ -1,10 +1,11 @@
 {% comment %}
 Granskningsformuläret (manage_review.ReviewForm). Varje del (rubrikerna,
-sökorden, sidans ingress ...) har ett skäl-fält: ändras något i delen krävs
+beskrivningarna, sökorden, de negativa sökorden) har ett skäl-fält: ändras något i delen krävs
 ett skäl, och kunden ser det bredvid ändringen. manage-flamingo.js visar
 skäl-fältet först när delen ändrats; utan skript syns alla.
 Rubrikerna och beskrivningarna visar de ifyllda rutorna och två tomma; de
 övriga tomma ligger i en <details> (split_slots) och postas ändå.
+Landningssidan rättas inte här utan i sidbyggaren (_landing.html).
 {% endcomment %}
 <form method="post" class="m-form mf-review" id="granskning" data-review-form novalidate>
     {% csrf_token %}
@@ -95,31 +96,7 @@ Rubrikerna och beskrivningarna visar de ifyllda rutorna och två tomma; de
 
     <section class="m-panel m-form-panel" aria-labelledby="mf-page-title">
         <h2 class="m-form-section" id="mf-page-title">Sidan</h2>
-        <p class="m-form-hint">Landningssidan på <code>{{ campaign.landing_url }}</code>. Bara bekräftade uppgifter får stå här.</p>
-
-        {% include "manage/flamingo/_page_field.html" with key="page_title" group=groups.page_title label="Rubrik" value=form.page.title error=form.errors.page_title %}
-        {% include "manage/flamingo/_page_field.html" with key="page_lead" group=groups.page_lead label="Ingress" value=form.page.lead error=form.errors.page_lead multiline=True %}
-        {% include "manage/flamingo/_page_field.html" with key="page_points" group=groups.page_points label="Punkter, en per rad" value=form.page.points error=form.errors.page_points multiline=True %}
-        {% include "manage/flamingo/_page_field.html" with key="page_phone" group=groups.page_phone label="Telefon (ringknappen, tom = ingen)" value=form.page.phone error=form.errors.page_phone %}
-        {% include "manage/flamingo/_page_field.html" with key="page_form_title" group=groups.page_form_title label="Formulärets rubrik" value=form.page.form_title error=form.errors.page_form_title %}
-
-        <fieldset class="mf-group{% if groups.page_questions.changed or groups.page_questions.reason_error %} is-changed{% endif %}" data-review-group="page_questions">
-            <legend class="mf-legend">Frågor i formuläret <span>utöver namn och telefon</span></legend>
-            <div class="mf-rows">
-                {% for row in form.questions %}
-                <div class="m-field mf-row mf-row--q">
-                    <input name="q_label" value="{{ row.label }}" aria-label="Fråga {{ forloop.counter }}" autocomplete="off" placeholder="Ny fråga">
-                    <select name="q_kind" aria-label="Sorts svar, fråga {{ forloop.counter }}">
-                        {% for value, label in question_kinds %}<option value="{{ value }}"{% if row.kind == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
-                    </select>
-                    {% if row.error %}<div class="m-field-error mf-row__error">{{ row.error }}</div>{% endif %}
-                </div>
-                {% endfor %}
-            </div>
-            {% include "manage/flamingo/_reason.html" with key="page_questions" group=groups.page_questions %}
-        </fieldset>
-
-        {% include "manage/flamingo/_page_field.html" with key="page_note" group=groups.page_note label="Text under formuläret" value=form.page.note error=form.errors.page_note multiline=True %}
+        {% include "manage/flamingo/_landing.html" with inside_form=True %}
     </section>
 
     <section class="m-panel m-form-panel" aria-labelledby="mf-send-title">

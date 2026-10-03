@@ -1,0 +1,77 @@
+{% extends "portal/base.html" %}
+{% load sms_tags %}
+{% comment %}
+Kundens nycklar och kostnadstak. En ny nyckel visas i klartext en gång,
+direkt i svaret när den skapas (portal_views.key_create) och sparas aldrig
+någonstans; efter det finns bara början kvar. Byrån i kundvyn ser samma
+formulär, och det den gör gäller på riktigt.
+{% endcomment %}
+{% block content %}
+{% with heading="SMS" %}{% include "sms/portal/_head.html" %}{% endwith %}
+<div class="sms-keys">
+
+{% if new_key %}
+<div class="m-panel m-key-reveal sms-reveal">
+  <p class="m-section-title">Den nya nyckeln</p>
+  <p class="m-form-hint">Kopiera den nu och spara den där ert system håller hemligheter. Den sparas bara som ett kontrollvärde hos ADX och kan aldrig visas igen.</p>
+  <code class="m-key-reveal__value" id="sms-new-key">{{ new_key }}</code>
+  <button type="button" class="m-btn m-btn--small sms-copy" data-copy="#sms-new-key">Kopiera nyckeln</button>
+</div>
+{% endif %}
+
+<section class="m-panel tv-panel" aria-labelledby="sms-keys-title">
+  <h2 class="tv-sec-title" id="sms-keys-title">API-nycklar</h2>
+  <p class="tv-prop__note">En nyckel per system som skickar sms (webbshop, bokning, egen server) gör det enkelt att återkalla en utan att stoppa de andra. Nyckeln skickas i huvudet Authorization: Bearer.</p>
+  <form method="post" action="{% url 'sms:key_create' %}" class="tv-row sms-form-row">{% csrf_token %}
+    <input type="text" name="name" class="tv-input" placeholder="Namn, till exempel Webbshop" maxlength="80" required aria-label="Nyckelns namn">
+    <button type="submit" class="m-btn m-btn--small">Skapa nyckel</button>
+  </form>
+  {% if keys %}
+  <div class="m-table-wrap">
+  <table class="m-table sms-table">
+    <thead><tr><th>Namn</th><th>Nyckeln börjar</th><th>Skapad</th><th class="sms-col-low">Senast använd</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for k in keys %}
+    <tr{% if k.revoked_at %} class="is-off"{% endif %}>
+      <td><b>{{ k.name }}</b></td>
+      <td><span class="sms-mono">{{ k.prefix }}</span></td>
+      <td><div>{{ k.created_at|date:"j b Y" }}{% if k.created_by %}<div class="tv-muted tv-cell-sub">av {{ k.created_by.get_full_name|default:k.created_by.email|default:k.created_by.get_username }}</div>{% endif %}</div></td>
+      <td class="sms-col-low">{% if k.last_used_at %}{{ k.last_used_at|date:"j b Y H:i" }}{% else %}<span class="tv-muted">aldrig</span>{% endif %}</td>
+      <td><div>{% if k.revoked_at %}<span class="sms-status sms-status--rejected">Återkallad</span><div class="tv-muted tv-cell-sub">{{ k.revoked_at|date:"j b Y" }}</div>{% else %}<span class="sms-status sms-status--delivered">Aktiv</span>{% endif %}</div></td>
+      <td class="m-num">{% if not k.revoked_at %}<form method="post" action="{% url 'sms:key_revoke' k.pk %}" data-sms-confirm="Återkalla nyckeln {{ k.name }}? Anrop med den nekas direkt, och det går inte att ångra.">{% csrf_token %}<button type="submit" class="m-btn m-btn--small m-btn--danger">Återkalla</button></form>{% endif %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="tv-empty tv-empty--inline">Inga nycklar än. Skapa den första ovan.</p>
+  {% endif %}
+</section>
+
+<section class="m-panel tv-panel" id="tak" aria-labelledby="sms-cap-title">
+  <h2 class="tv-sec-title" id="sms-cap-title">Kostnadstak per månad</h2>
+  <p class="tv-prop__note">När månadens sms-kostnad når taket stoppar API:t nya sms med felet <span class="sms-mono">monthly_cap_reached</span>, tills månaden tar slut eller taket höjs. Taket 0 stoppar alla sms. Taket gäller sms-kostnaden, inte årsavgiften. Belopp utan moms.</p>
+  <div class="sms-cap-now">
+    <span class="sms-meter{% if usage.cap_reached %} is-full{% elif usage.cap_pct >= 80 %} is-high{% endif %}" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ usage.cap_pct }}" aria-label="Andel av taket"><span style="width: {{ usage.cap_pct }}%"></span></span>
+    <span>{{ usage.cap_used|sms_kr }} kr av {{ usage.cap|sms_kr:0 }} kr i {{ month }} ({{ usage.cap_pct }} %){% if usage.test_cost and usage.cap_used != usage.cost %}. Testsändningar räknas inte.{% endif %}</span>
+  </div>
+  <form method="post" action="{% url 'sms:cap_update' %}" class="tv-row sms-form-row">{% csrf_token %}
+    <label for="sms-cap" class="sms-inline-label">Tak i kronor</label>
+    <input type="number" id="sms-cap" name="monthly_cap_kr" value="{{ account.monthly_cap_kr }}" min="0" max="{{ max_cap }}" step="1" inputmode="numeric" class="tv-input sms-input-num" required>
+    <button type="submit" class="m-btn m-btn--small">Spara taket</button>
+  </form>
+  {% include "sms/_cap_changed.html" %}
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="sms-terms-title">
+  <h2 class="tv-sec-title" id="sms-terms-title">Avsändare, länder och pris</h2>
+  <table class="m-table m-table--plain sms-facts">
+    <tr><th scope="row">Avsändare</th><td><b>{{ account.sender_name }}</b>. Utelämna from i anropet, eller skicka exakt det här.</td></tr>
+    <tr><th scope="row">Länder</th><td>{% for code, name in country_names %}{{ name }} ({{ code }}){% if not forloop.last %}, {% endif %}{% endfor %}. Andra länder stoppas med <span class="sms-mono">country_not_allowed</span>.</td></tr>
+    <tr><th scope="row">Pris</th><td>Leverantörens pris per sms-del till landet, plus {{ account.markup_ore_per_part }} öre per del. Årsavgift {{ account.yearly_fee_kr }} kr. Allt utan moms, i efterhand per månad.</td></tr>
+  </table>
+  <p class="tv-prop__note">Vill ni byta avsändare eller skicka till fler länder: kontakta ADX, så ändras det på kontot.</p>
+</section>
+</div>
+{% endblock %}

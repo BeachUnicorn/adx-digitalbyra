@@ -5,8 +5,11 @@ Utan behörighet svarar grinden inte själv - den routar förfrågan genom
 config.urls_public, där /flamingo/ inte finns. Allt efter det (CSRF,
 APPEND_SLASH, X-Frame-Options, sajtens 404) blir då identiskt med en okänd
 adress; ett eget Http404 här gick att skilja från den (granskning
-2026-10-03). Med behörighet sätts request.flamingo, svaret märks noindex
-och ocachat, och byrån i kundvyn kan bara läsa.
+2026-10-03). Med behörighet sätts request.flamingo och svaret märks noindex
+och ocachat. Byrån i kundvyn gör exakt det kunden gör, och det den sparar
+gäller på riktigt (Giovanni 2026-10-03); bara utkastförhandsvisningen i
+/manage/ (access.PREVIEW, read_only) är skrivskyddad, och dit skickas en
+POST tillbaka.
 """
 
 from django.contrib import messages

@@ -61,6 +61,11 @@ class Sida:
     html: str = ""
     headers: dict = field(default_factory=dict)
     redirects: list = field(default_factory=list)
+    #: Svaret som bytes (högst max_bytes), för det som inte är text (bilderna
+    #: i ADX Flamingos mediaarkiv). html är samma bytes avkodade som UTF-8.
+    body: bytes = b""
+    #: Svaret var större än max_bytes och är avkortat.
+    truncated: bool = False
 
 
 #: IPv6-adresser som bär en IPv4-adress inuti (NAT64): prövas som IPv4.
@@ -278,7 +283,9 @@ def fetch(url, *, max_bytes=MAX_BYTES, time_limit=TIME_LIMIT):
         sida.url = current
         sida.ms = int((time.monotonic() - start) * 1000)
         sida.bytes = min(len(body), max_bytes)
-        sida.html = body[:max_bytes].decode("utf-8", "replace")
+        sida.body = body[:max_bytes]
+        sida.truncated = len(body) > max_bytes
+        sida.html = sida.body.decode("utf-8", "replace")
         return sida
     raise AnalysError("För många omdirigeringar.")
 

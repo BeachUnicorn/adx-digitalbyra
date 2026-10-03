@@ -1,0 +1,30 @@
+{% load flamingo_pb %}{% comment %}
+Före och efter: två bilder ur mediaarkivet. slider: bilderna på varandra
+med ett reglage (flamingo-lp.js flyttar gränsen; utan skript står den i
+mitten); pair: bredvid varandra. Blocket syns inte utan båda bilderna.
+{% endcomment %}<section class="rn-block rn-ba rn-ba--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}{% if view.hidden %} data-pb-empty{% endif %}>
+  <div class="rn-wrap">
+    <header class="rn-head">
+      {% if f.title %}<h2 class="rn-h2"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2" %}{% endif %}
+      {% if f.caption %}<p class="rn-lead"{% pb "caption" %}>{{ f.caption }}</p>{% else %}{% pb_empty "caption" "p" "rn-lead" %}{% endif %}
+    </header>
+    {% if b.variant == "slider" %}
+    <figure class="rn-compare" data-rn-compare>
+      <div class="rn-compare__frame">
+        <div class="rn-compare__img rn-compare__img--before"{% pb_media "before" %}>{% rn_img view.before sizes="(min-width: 1024px) 960px, 100vw" %}</div>
+        <div class="rn-compare__img rn-compare__img--after"{% pb_media "after" %}>{% rn_img view.after sizes="(min-width: 1024px) 960px, 100vw" %}</div>
+        <span class="rn-compare__tag rn-compare__tag--before">Före</span>
+        <span class="rn-compare__tag rn-compare__tag--after">Efter</span>
+        <span class="rn-compare__handle" aria-hidden="true"></span>
+        <label class="rn-sr" for="{{ b.id }}-reglage">Visa mer av före eller efter</label>
+        <input class="rn-compare__range" id="{{ b.id }}-reglage" type="range" min="0" max="100" value="50">
+      </div>
+    </figure>
+    {% else %}
+    <div class="rn-ba__pair">
+      <figure class="rn-ba__fig"{% pb_media "before" %}>{% rn_img view.before sizes="(min-width: 1024px) 580px, 100vw" cls="rn-ba__img" %}<figcaption class="rn-compare__tag">Före</figcaption></figure>
+      <figure class="rn-ba__fig"{% pb_media "after" %}>{% rn_img view.after sizes="(min-width: 1024px) 580px, 100vw" cls="rn-ba__img" %}<figcaption class="rn-compare__tag">Efter</figcaption></figure>
+    </div>
+    {% endif %}
+  </div>
+</section>

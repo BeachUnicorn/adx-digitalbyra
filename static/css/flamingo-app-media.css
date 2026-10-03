@@ -1,0 +1,156 @@
+/* ==========================================================================
+   ADX Flamingo - mediaarkivet och omdömena från Google
+   (templates/flamingo/app/media/archive.html, app/reviews/reviews.html)
+
+   Laddas ovanpå flamingo-app.css (skalet och de delade komponenterna:
+   .fl-panel, .fl-form, .fl-tabs, .fl-badge ...). Här bor bara det egna:
+     .fl-md-*   arkivet: uppladdningen, rutnätet med bilder, färgerna och
+                bilderna från hemsidan
+     .fl-rv-*   omdömena: profilen, träffarna, listan med val och ordning
+
+   Samma regler som resten av verktyget: brödtext minst 16 px, inga
+   style-attribut, inget bredare än skärmen i 375 px.
+   Googles märkning (.fl-rv-gattr): texten "Google Maps" oförändrad, inte
+   översatt (translate="no"), 400 i vikt, grå #5E5E5E, 12-16 px, på en rad
+   (developers.google.com/maps/documentation/places/web-service/policies).
+   ========================================================================== */
+
+/* ---------- Arkivet ---------- */
+.fl-md-count{display:inline-flex;align-items:center;padding:6px 12px;border:1px solid var(--fl-line);border-radius:999px;background:var(--fl-white);font-size:15px;font-variant-numeric:tabular-nums;color:var(--fl-body);white-space:nowrap}
+.fl-md-count.is-full{border-color:#F5C79A;background:#FFF3E6;color:#7A430D}
+.fl-md-tabs__n{font-family:var(--fl-mono);font-size:12px;color:var(--fl-muted)}
+.fl-md-h2{font-size:20px;font-weight:600;letter-spacing:-.02em;line-height:1.25;margin-bottom:12px}
+.fl-md-muted{color:var(--fl-muted)}
+
+/* Uppladdningen: en släpp-yta, etiketten med filfältet i sig. Med skript
+   syns fältet inte ("Choose Files / No file chosen"), men det går att nå
+   med Tab och ytan får en ring vid fokus; utan skript står det kvar under
+   texten, med knappen Ladda upp. */
+.fl-md-drop{display:flex;flex-direction:column;gap:12px;min-width:0}
+.fl-md-drop__zone{
+  position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;padding:26px 18px;
+  border:2px dashed #C9BFFF;border-radius:16px;background:var(--fl-violet-tint);
+  color:var(--fl-violet-ink);text-align:center;cursor:pointer;
+  transition:background-color .15s ease,border-color .15s ease;
+}
+.fl-md-drop__zone:hover,.fl-md-drop.is-over .fl-md-drop__zone{border-color:var(--fl-violet);background:#EDE6FF}
+.fl-md-drop__zone:focus-within{border-color:var(--fl-violet);outline:3px solid var(--fl-violet);outline-offset:3px}
+.fl-md-drop__icon{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.fl-md-drop__title{font-size:17px;font-weight:600;line-height:1.3}
+.fl-md-drop__text{font-size:16px;line-height:1.45;color:var(--fl-body)}
+.fl-md-drop__row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.fl-md-drop__input{min-width:0;max-width:100%;margin-top:6px;font-size:16px;color:var(--fl-body)}
+.fl-md-drop.is-js .fl-md-drop__input{
+  position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+  clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0;opacity:0;
+}
+.fl-md-drop.is-js .fl-md-drop__row{display:none}
+.fl-md-progress{display:flex;flex-direction:column;gap:6px}
+.fl-md-progress__bar{width:100%;height:10px;accent-color:var(--fl-violet)}
+.fl-md-progress__text{font-size:16px;color:var(--fl-body)}
+
+/* Rutnätet: två i bredd på en telefon, fler på bredare skärmar. */
+.fl-md-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(190px,100%),1fr));align-items:start;gap:12px;margin:0;padding:0;list-style:none}
+.fl-md-tile{position:relative;display:flex;flex-direction:column;min-width:0;border:1px solid var(--fl-line);border-radius:14px;overflow:hidden;background:var(--fl-white)}
+.fl-md-tile.is-logo{border-color:var(--fl-ink)}
+.fl-md-tile__img{display:grid;place-items:center;aspect-ratio:4/3;background:var(--fl-panel2);border-bottom:1px solid var(--fl-soft);overflow:hidden}
+/* Logotyper är ofta genomskinliga: rutmönster bakom, så vitt syns. */
+.fl-md-tile__img--logo{background-color:#fff;background-image:linear-gradient(45deg,#F0EEF5 25%,transparent 25%,transparent 75%,#F0EEF5 75%),linear-gradient(45deg,#F0EEF5 25%,transparent 25%,transparent 75%,#F0EEF5 75%);background-size:16px 16px;background-position:0 0,8px 8px}
+.fl-md-tile__img img{display:block;width:100%;height:100%;object-fit:contain}
+.fl-md-tile__body{display:flex;flex-direction:column;gap:6px;min-width:0;padding:10px 12px 12px}
+.fl-md-tile__alt{font-size:16px;font-weight:600;line-height:1.35;color:var(--fl-ink);overflow-wrap:break-word;hyphens:auto}
+.fl-md-tile__meta{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:15px;color:var(--fl-muted)}
+.fl-md-tile__uses{font-size:16px;line-height:1.4;color:var(--fl-body);overflow-wrap:break-word;hyphens:auto}
+.fl-md-tile__uses a{color:var(--fl-violet-ink);text-underline-offset:3px}
+.fl-md-src{display:block;font-family:var(--fl-mono);font-size:13px;line-height:1.45;color:var(--fl-muted);overflow-wrap:anywhere}
+
+/* Ändra: alt-text, logotyp, ta bort. Öppnas under bilden. */
+.fl-md-edit{min-width:0}
+.fl-md-edit > summary{list-style:none;align-self:flex-start;cursor:pointer}
+.fl-md-edit > summary::-webkit-details-marker{display:none}
+.fl-md-edit__in{display:flex;flex-direction:column;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--fl-soft)}
+.fl-md-edit__alt{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fl-md-edit__alt .fl-btn{align-self:flex-start}
+.fl-md-edit__actions{display:flex;flex-wrap:wrap;gap:6px}
+.fl-md-edit__actions form{margin:0}
+.fl-md-danger{color:#8F1F1F}
+.fl-md-danger:hover{border-color:#8F1F1F;color:#8F1F1F}
+
+/* Färgerna ur logotypen. */
+.fl-md-swatches{display:flex;flex-wrap:wrap;gap:10px 16px;margin:0;padding:0;list-style:none}
+.fl-md-swatch{display:flex;align-items:center;gap:8px;min-width:0}
+.fl-md-swatch__chip{flex:none;width:40px;height:40px}
+.fl-md-swatch__chip rect{stroke:rgba(20,18,28,.14);stroke-width:1}
+.fl-md-swatch.is-primary .fl-md-swatch__chip rect{stroke:var(--fl-ink);stroke-width:2}
+.fl-md-swatch__code{font-family:var(--fl-mono);font-size:13px;color:var(--fl-body)}
+.fl-md-swatch__role{font-size:15px;font-weight:600;color:var(--fl-ink)}
+.fl-md-palette{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 12px}
+.fl-md-palette .fl-field{flex:1 1 240px}
+
+/* Bilderna från hemsidan: kryssruta i hörnet, vald ruta får en ram. */
+.fl-md-pickset{min-width:0;margin:0;padding:0;border:0}
+.fl-md-pick__check{position:absolute;top:10px;left:10px;z-index:1;width:22px;height:22px;margin:0;accent-color:var(--fl-violet);cursor:pointer}
+.fl-md-pick__label{display:flex;flex-direction:column;min-width:0;height:100%;cursor:pointer}
+.fl-md-pick:has(.fl-md-pick__check:checked){border-color:var(--fl-violet);box-shadow:0 0 0 3px rgba(107,78,240,.18)}
+.fl-md-pick:has(.fl-md-pick__check:focus-visible){outline:2px solid var(--fl-violet);outline-offset:2px}
+.fl-md-pick .fl-badge{align-self:flex-start}
+.fl-md-rights{padding:12px 14px;border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-panel)}
+
+/* ---------- Omdömen från Google ---------- */
+.fl-rv-crumb{color:inherit;text-decoration:none}
+.fl-rv-crumb:hover{text-decoration:underline;text-underline-offset:3px}
+.fl-rv-code{font-family:var(--fl-mono);font-size:14px;overflow-wrap:anywhere}
+.fl-rv-code-input{font-family:var(--fl-mono)}
+.fl-rv-gattr{font-family:Roboto,Arial,sans-serif;font-size:14px;font-weight:400;line-height:1.3;color:#5E5E5E;white-space:nowrap}
+.fl-rv-link{font-size:16px;color:var(--fl-violet-ink);text-underline-offset:3px}
+
+.fl-rv-place{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fl-rv-place__name{font-size:20px;font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+.fl-rv-place__score{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:16px;color:var(--fl-body)}
+.fl-rv-place__id{font-size:16px;color:var(--fl-muted)}
+
+.fl-rv-stars{display:inline-flex;gap:1px;line-height:1}
+.fl-rv-star::before{content:"\2605";font-size:17px;color:#D9D6E3}
+.fl-rv-star--full::before{color:#E8A800}
+.fl-rv-star--half::before{background:linear-gradient(90deg,#E8A800 50%,#D9D6E3 50%);-webkit-background-clip:text;background-clip:text;color:transparent}
+
+.fl-rv-list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.fl-rv-item{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"toggle move" "body body";gap:10px 12px;padding:14px 16px;border:1px solid var(--fl-line);border-radius:14px;background:var(--fl-white)}
+.fl-rv-item.is-shown{border-color:var(--fl-ink)}
+.fl-rv-item__toggle{grid-area:toggle;display:flex;align-items:center;gap:10px;font-size:16px;font-weight:600;color:var(--fl-ink);cursor:pointer}
+.fl-rv-item__toggle input{flex:none;width:20px;height:20px;margin:0;accent-color:var(--fl-ink);cursor:pointer}
+.fl-rv-item__body{grid-area:body;display:flex;flex-direction:column;gap:6px;min-width:0}
+.fl-rv-item__by{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:16px;line-height:1.35}
+.fl-rv-item__by a{font-weight:600;color:var(--fl-ink);text-underline-offset:3px}
+.fl-rv-item__when{color:var(--fl-muted)}
+.fl-rv-item__text{font-size:16px;line-height:1.55;color:var(--fl-body);overflow-wrap:anywhere}
+.fl-rv-item__move{grid-area:move;display:flex;gap:6px}
+.fl-rv-item__move .fl-btn:disabled,.fl-rv-find .fl-btn:disabled,.fl-panel__actions .fl-btn:disabled{opacity:.45;cursor:default;transform:none}
+
+.fl-rv-find__row{display:flex;flex-wrap:wrap;gap:8px}
+.fl-rv-find__row .fl-input{flex:1 1 240px}
+.fl-rv-id{min-width:0}
+.fl-rv-id__summary{display:inline-block;padding:4px 0;font-size:16px;color:var(--fl-violet-ink);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.fl-rv-id[open] .fl-rv-id__summary{margin-bottom:12px}
+.fl-rv-hits .fl-list__main{gap:4px}
+
+/* ---------- Telefon ---------- */
+@media (max-width:560px){
+  /* Fyra flikar med antal ryms inte på en rad: de radbryts i stället för
+     att gömmas bakom en sidoscroll. */
+  .fl-md-tabs{flex-wrap:wrap;overflow:visible;box-shadow:none;border-bottom:1px solid var(--fl-soft)}
+  .fl-md-tabs .fl-tabs__tab{flex:0 1 auto;margin-bottom:-1px;padding:10px 10px}
+  .fl-md-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .fl-md-tile__body{padding:8px 10px 10px}
+  .fl-md-edit__actions .fl-btn,.fl-md-edit__alt .fl-btn{width:100%}
+  .fl-md-edit__actions form{flex:1 1 100%}
+  .fl-md-drop__zone{padding:20px 14px}
+  .fl-md-palette .fl-btn{width:100%}
+  .fl-rv-item{grid-template-columns:minmax(0,1fr);grid-template-areas:"toggle" "body" "move";padding:12px 14px}
+  .fl-rv-item__move .fl-btn{flex:1 1 0}
+  .fl-rv-find__row .fl-btn{flex:1 1 100%}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .fl-md-drop__zone{transition:none}
+}

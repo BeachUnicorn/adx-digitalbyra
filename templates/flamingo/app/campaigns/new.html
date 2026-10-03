@@ -1,7 +1,9 @@
 {% extends "flamingo/app/base.html" %}
 {% load flamingo_app %}
 {% comment %}
-Ny kampanj (kundresan 06): tjänst, sätt att sälja, område och budget.
+Ny kampanj (kundresan 06): tjänst, sätt att sälja, område och budget,
+och landningssidan: en egen (rekommenderas) eller en befintlig sida
+(mockupen sidbyggaren skärm 09, page_options i campaigns.campaign_new).
 Tjänsten väljs med länkar (?tjanst=<id> eller ?tjanst=ny) så att sättet att
 sälja kan förväljas efter tjänsten utan skript. Månadsbeloppet för det valda
 budgetförslaget visas med :has() i flamingo-app-campaigns.css; utan stöd
@@ -14,7 +16,7 @@ de kommer efter två veckor med riktiga siffror.
   <div class="fl-app-head__text">
     <p class="fl-kicker"><a class="fl-camp-crumb" href="{% url 'flamingo:app_campaigns' %}">Kampanjer</a></p>
     <h1 class="fl-app-title">Ny kampanj</h1>
-    <p class="fl-app-lead">Tre frågor: vilken tjänst, hur den säljs och var. Resten blir ett förslag som du kan ändra.</p>
+    <p class="fl-app-lead">Välj tjänsten, hur den säljs, området och budgeten. Resten blir ett förslag som du kan ändra.</p>
   </div>
 </header>
 
@@ -111,11 +113,44 @@ de kommer efter två veckor med riktiga siffror.
       <p class="fl-camp-month fl-camp-month--{{ b.kr }}">{{ b.kr|kr }} per dag blir ungefär <b>{{ b.monthly|kr }} i månaden</b>.</p>
       {% endfor %}
       <p class="fl-camp-month-all">Månaden räknas som 30,4 dagar, ett snitt över året. Från {{ budget_min }} till {{ budget_max|tal }} kr per dag.</p>
-      <p class="fl-camp-honest">Hur många förfrågningar budgeten ger vet vi först när annonserna gått i två veckor. Vi gissar inte innan dess.</p>
+      <p class="fl-camp-honest">Hur många förfrågningar budgeten ger syns när annonserna gått en tid. Vi gissar inte i förväg.</p>
       {% for e in form.budget_own.errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
       {% for e in form.budget.errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
     </fieldset>
   </div>
+
+  {% if page_options %}
+  <fieldset class="fl-field fl-camp-pagechoice{% if form.shared_page.errors %} is-error{% endif %}">
+    <legend class="fl-camp-label">Landningssida</legend>
+    <label class="fl-camp-opt">
+      <input type="radio" name="page_choice" value="own"{% if values.page_choice != "shared" %} checked{% endif %}>
+      <span class="fl-camp-opt__body"><b class="fl-camp-opt__title">Egen sida för den här kampanjen (rekommenderas)</b><span class="fl-camp-opt__text">Sidan kan säga exakt samma sak som annonserna, ort och tjänst. Den byggs av dina bekräftade uppgifter.</span></span>
+    </label>
+    <label class="fl-camp-opt">
+      <input type="radio" name="page_choice" value="shared"{% if values.page_choice == "shared" %} checked{% endif %}>
+      <span class="fl-camp-opt__body"><b class="fl-camp-opt__title">Använd en befintlig sida</b><span class="fl-camp-opt__text">Bra när flera kampanjer säljer samma sak. En ändring på sidan syns då i alla kampanjer som visar den.</span></span>
+    </label>
+    <div class="fl-field fl-camp-opt__pick">
+      <label class="fl-field__label" for="camp-shared-page">Befintlig sida</label>
+      <select class="fl-input" id="camp-shared-page" name="shared_page">
+        <option value="">Välj en sida</option>
+        {% for row in page_options %}<option value="{{ row.page.pk }}"{% if values.shared_page == row.page.pk|stringformat:"d" %} selected{% endif %}>{{ row.page.name }}{% if row.campaigns %} ({{ row.campaigns|length }} {% if row.campaigns|length == 1 %}kampanj{% else %}kampanjer{% endif %}){% else %} (ingen kampanj än){% endif %}</option>{% endfor %}
+      </select>
+      {% for e in form.shared_page.errors %}<p class="fl-field__error">{{ e }}</p>{% endfor %}
+    </div>
+    <div class="fl-camp-shared">
+      <span class="fl-camp-shared__dot" aria-hidden="true"></span>
+      <div>
+        <p>En ändring på en delad sida syns i alla kampanjer som visar den.</p>
+        <ul class="fl-camp-sharedlist">
+          {% for row in page_options %}{% if row.campaigns %}<li><b>{{ row.page.name }}</b> visas i {% for c in row.campaigns %}{% if forloop.last and not forloop.first %} och {% elif not forloop.first %}, {% endif %}{{ c.name }}{% endfor %}.</li>{% endif %}{% endfor %}
+        </ul>
+      </div>
+    </div>
+  </fieldset>
+  {% else %}
+  <input type="hidden" name="page_choice" value="own">
+  {% endif %}
 
   <div class="fl-form__actions">
     <p class="fl-form__note">Nästa steg: vi skriver annonser, sökord och sidan{% if confirmed_count %} från dina bekräftade uppgifter{% endif %}. Inget publiceras.</p>

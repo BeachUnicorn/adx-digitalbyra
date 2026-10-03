@@ -49,7 +49,7 @@ TRACKING_KEYS = CLICK_ID_KEYS + UTM_KEYS
 #: Sökordet kan också komma som ?keyword= (Googles {keyword} i spårningsmallen).
 KEYWORD_KEY = "keyword"
 
-_CLICK_ID_RE = re.compile(r"^[A-Za-z0-9_\-]{1,200}$")
+_CLICK_ID_RE = re.compile(r"[A-Za-z0-9_\-]{1,200}")  # fullmatch
 
 #: Statusarna inkorgen erbjuder som knappar (Ny sätts bara när förfrågan kommer in).
 INBOX_STATUSES = (
@@ -102,7 +102,7 @@ def tracking_from(*sources):
             if not raw:
                 continue
             if key in CLICK_ID_KEYS:
-                if _CLICK_ID_RE.match(raw):
+                if _CLICK_ID_RE.fullmatch(raw):
                     found[key] = raw
             else:
                 value = _plain(raw, TRACKING_MAX)

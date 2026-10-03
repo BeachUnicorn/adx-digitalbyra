@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 
 from apps.aidocs import manage_views as aidocs_views
 from apps.assistant import history_views, oauth_views
@@ -327,4 +327,6 @@ urlpatterns = [
     path("faq/items/<int:pk>/move/", faq_views.faq_item_move, name="faq_item_move"),
     # Superuser tools
     path("import/", import_views.import_view, name="import_view"),
+    # SMS-API:t (apps/sms/manage_urls.py): namnen blir manage:sms_...
+    path("", include("apps.sms.manage_urls")),
 ]

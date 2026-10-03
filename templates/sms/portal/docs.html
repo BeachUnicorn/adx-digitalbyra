@@ -1,0 +1,169 @@
+{% extends "portal/base.html" %}
+{% load sms_tags %}
+{% comment %}
+Dokumentationen för kundens utvecklare, med kundens egen avsändare och
+adress i exemplen. Felkoderna och gränserna kommer från koden
+(service.HTTP_STATUS, ratelimit.limits), så sidan kan inte glida isär från
+API:t. Inga löften om leveranstider.
+{% endcomment %}
+{% block content %}
+{% with heading="SMS-API" lead="Så skickar ert system sms via ADX. Nycklarna skapas under Nycklar och tak." %}{% include "sms/portal/_head.html" %}{% endwith %}
+
+<div class="sms-docs">
+<section class="m-panel tv-panel" aria-labelledby="d-start">
+  <h2 class="tv-sec-title" id="d-start">Kom igång</h2>
+  <ol class="sms-steps">
+    <li>Skapa en nyckel under <a class="tv-link" href="{% url 'sms:keys' %}">Nycklar och tak</a> och spara den hos er, till exempel i miljövariabeln <span class="sms-mono">ADX_SMS_KEY</span>.</li>
+    <li>Skicka ett sms med ett anrop till <span class="sms-mono">POST {{ api_base }}/messages/</span>.</li>
+    <li>Följ sms:et här i portalen, eller hämta det med <span class="sms-mono">GET {{ api_base }}/messages/&lt;id&gt;/</span>.</li>
+  </ol>
+  <p class="tv-prop__note"><b>Nyckeln hör hemma på er server.</b> Lägg den aldrig i JavaScript som körs i besökarens webbläsare eller i en app: den som har nyckeln kan skicka sms på ert konto. Har den kommit ut, återkalla den och skapa en ny.</p>
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="d-send">
+  <h2 class="tv-sec-title" id="d-send">Skicka ett sms</h2>
+  <p class="sms-endpoint"><span class="sms-method">POST</span> <span class="sms-mono">{{ api_base }}/messages/</span></p>
+  <p class="tv-prop__note">Kroppen är JSON. Huvudet <span class="sms-mono">Authorization: Bearer &lt;nyckel&gt;</span> krävs i varje anrop.</p>
+  <div class="m-table-wrap">
+  <table class="m-table sms-table">
+    <thead><tr><th>Fält</th><th>Krävs</th><th>Betydelse</th></tr></thead>
+    <tbody>
+      <tr><td class="sms-mono">to</td><td>ja</td><td>Mottagarens mobilnummer, helst i internationell form (+46701740605). Ett nummer utan landsnummer (0701740605) tolkas som svenskt.</td></tr>
+      <tr><td class="sms-mono">message</td><td>ja</td><td>Texten. Högst {{ max_parts }} sms-delar, se Tecken och delar.</td></tr>
+      <tr><td class="sms-mono">from</td><td>nej</td><td>Avsändaren. Utelämna den, eller skicka exakt <b>{{ account.sender_name }}</b>; allt annat stoppas.</td></tr>
+      <tr><td class="sms-mono">reference</td><td>nej</td><td>Er egen id för sms:et, 1-64 tecken (a-z, A-Z, 0-9 och . _ : -). Samma reference två gånger ger samma sms tillbaka i stället för ett nytt, så ett nytt försök efter ett avbrutet anrop skickar aldrig dubbelt. Rekommenderas.</td></tr>
+      <tr><td class="sms-mono">dryrun</td><td>nej</td><td><span class="sms-mono">true</span> provkör: svaret visar land, delar och pris, men inget skickas och inget kostar.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3 class="sms-h3">curl</h3>
+  <div class="sms-code-wrap"><pre class="sms-code" id="ex-curl"><code>curl -X POST {{ api_base }}/messages/ \
+  -H "Authorization: Bearer $ADX_SMS_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"to": "+46701740605", "from": "{{ account.sender_name }}", "message": "Hej! Din tid är bokad till torsdag kl 14.00.", "reference": "bokning-1042"}'</code></pre><button type="button" class="m-btn m-btn--small m-btn--ghost sms-copy" data-copy="#ex-curl">Kopiera</button></div>
+
+  <h3 class="sms-h3">JavaScript (Node 18 eller senare, på servern)</h3>
+  <div class="sms-code-wrap"><pre class="sms-code" id="ex-js"><code>const response = await fetch("{{ api_base }}/messages/", {
+  method: "POST",
+  headers: {
+    "Authorization": `Bearer ${process.env.ADX_SMS_KEY}`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    to: "+46701740605",
+    message: "Hej! Din tid är bokad till torsdag kl 14.00.",
+    reference: "bokning-1042",
+  }),
+});
+const data = await response.json();
+if (!response.ok) {
+  // Till exempel "monthly_cap_reached" eller "invalid_number"
+  throw new Error(`${data.error.code}: ${data.error.message}`);
+}
+console.log(data.id, data.status, data.price_sek);</code></pre><button type="button" class="m-btn m-btn--small m-btn--ghost sms-copy" data-copy="#ex-js">Kopiera</button></div>
+
+  <h3 class="sms-h3">Svaret</h3>
+  <p class="tv-prop__note">201 när sms:et lämnats till operatören, 200 när samma reference redan fanns (då med <span class="sms-mono">"duplicate": true</span>).</p>
+  <p class="tv-prop__note">202 med status <span class="sms-mono">unknown</span> och felkoden <span class="sms-mono">provider_unknown</span> när leverantören inte svarade säkert: sms:et kan ha skickats. Skicka det inte igen med en ny reference. Ett nytt anrop med samma reference ger samma sms tillbaka och skickar aldrig igen. ADX stämmer av läget, och sms:et får sedan status sent, delivered eller failed; hämta det med GET för att se det. Priset är en uppskattning så länge (<span class="sms-mono">price_is_estimate</span>).</p>
+  <div class="sms-code-wrap"><pre class="sms-code"><code>{
+  "id": 1234,
+  "status": "sent",
+  "to": "+46701740605",
+  "country": "SE",
+  "from": "{{ account.sender_name }}",
+  "message": "Hej! Din tid är bokad till torsdag kl 14.00.",
+  "parts": 1,
+  "encoding": "gsm7",
+  "price_sek": "0.5700",
+  "price_is_estimate": false,
+  "reference": "bokning-1042",
+  "error": null,
+  "test_mode": false,
+  "created_at": "2026-10-03T14:02:11+00:00",
+  "sent_at": "2026-10-03T14:02:11+00:00",
+  "delivered_at": null
+}</code></pre></div>
+  <p class="tv-prop__note">Belopp är kronor utan moms, som text med punkt och fyra decimaler. Tider är ISO 8601 i UTC.</p>
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="d-get">
+  <h2 class="tv-sec-title" id="d-get">Läget för ett sms och månadens förbrukning</h2>
+  <p class="sms-endpoint"><span class="sms-method sms-method--get">GET</span> <span class="sms-mono">{{ api_base }}/messages/&lt;id&gt;/</span></p>
+  <p class="tv-prop__note">Samma form som svaret ovan. Ett id från ett annat konto ger <span class="sms-mono">not_found</span>.</p>
+  <p class="sms-endpoint"><span class="sms-method sms-method--get">GET</span> <span class="sms-mono">{{ api_base }}/usage/</span></p>
+  <div class="sms-code-wrap"><pre class="sms-code"><code>{
+  "period": "2026-10",
+  "messages": 128,
+  "parts": 141,
+  "delivered": 124,
+  "failed": 2,
+  "stopped": 1,
+  "cost_sek": "80.3700",
+  "test_cost_sek": "0.0000",
+  "cap_sek": "500.0000",
+  "remaining_sek": "419.6300",
+  "cap_reached": false,
+  "from": "{{ account.sender_name }}",
+  "allowed_countries": [{% for code in account.countries %}"{{ code }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
+  "limits": {"per_second": {{ limits.per_second }}, "per_minute": {{ limits.per_minute }}, "per_day": {{ limits.per_day }}, "max_parts": {{ max_parts }}}
+}</code></pre></div>
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="d-status">
+  <h2 class="tv-sec-title" id="d-status">Statusar</h2>
+  <div class="m-table-wrap">
+  <table class="m-table sms-table">
+    <thead><tr><th>Status</th><th>Betyder</th><th>Kostar</th></tr></thead>
+    <tbody>
+      <tr><td class="sms-mono">reserved</td><td>Godkänt och på väg till operatören. Priset är en uppskattning tills operatören svarat.</td><td>uppskattat</td></tr>
+      <tr><td class="sms-mono">unknown</td><td>Leverantören svarade inte säkert, så sms:et kan ha skickats (felkod <span class="sms-mono">provider_unknown</span>). Läget avgörs i efterhand och blir sent, delivered eller failed.</td><td>uppskattat</td></tr>
+      <tr><td class="sms-mono">sent</td><td>Lämnat till operatören. Inget kvitto om leveransen än.</td><td>ja</td></tr>
+      <tr><td class="sms-mono">delivered</td><td>Operatören har rapporterat att telefonen tagit emot sms:et.</td><td>ja</td></tr>
+      <tr><td class="sms-mono">failed</td><td>Antingen tog leverantören inte emot sms:et (felkod <span class="sms-mono">provider_error</span>, kostar inget), eller så kunde operatören inte leverera det (felkod <span class="sms-mono">delivery_failed</span>, kostar som skickat).</td><td>se förklaringen</td></tr>
+      <tr><td class="sms-mono">rejected</td><td>Stoppat av ADX före sändning: numret, landet, avsändaren eller längden. Felkoden säger vilket.</td><td>nej</td></tr>
+      <tr><td class="sms-mono">blocked_cap</td><td>Stoppat för att månadens kostnadstak är nått.</td><td>nej</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p class="tv-prop__note">Leveransrapporten kommer från mobiloperatören. Hämta sms:et med GET för att se läget; status går bara framåt och ändras inte efter delivered eller failed. Alla operatörer rapporterar inte, så ett sms kan stå kvar som sent.</p>
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="d-errors">
+  <h2 class="tv-sec-title" id="d-errors">Felkoder</h2>
+  <p class="tv-prop__note">Ett fel har alltid formen nedan. Koden är stabil och det ni ska bygga på; texten är en förklaring på svenska och kan ändras. Har felet blivit ett sparat sms (stoppat eller taket nått) finns dess id med.</p>
+  <div class="sms-code-wrap"><pre class="sms-code"><code>{"error": {"code": "country_not_allowed", "message": "Kontot får inte skicka till Norge (NO).", "id": 1235}}</code></pre></div>
+  <div class="m-table-wrap">
+  <table class="m-table sms-table">
+    <thead><tr><th>Kod</th><th class="m-num">HTTP</th><th>Betyder</th></tr></thead>
+    <tbody>
+    {% for code, http, text in errors %}<tr><td class="sms-mono">{{ code }}</td><td class="m-num">{{ http }}</td><td>{{ text }}</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="d-limits">
+  <h2 class="tv-sec-title" id="d-limits">Gränser</h2>
+  <table class="m-table m-table--plain sms-facts">
+    <tr><th scope="row">Anrop</th><td>{{ limits.per_second }} per sekund och nyckel.</td></tr>
+    <tr><th scope="row">Sms</th><td>{{ limits.per_minute }} per minut och nyckel, provkörningar inräknade, och {{ limits.per_minute }} per minut för kontot med alla nycklar tillsammans. {{ limits.per_day }} per dygn (svensk tid) och nyckel.</td></tr>
+    <tr><th scope="row">Längd</th><td>Högst {{ max_parts }} sms-delar: 918 tecken med GSM-alfabetet, 402 med UCS-2.</td></tr>
+    <tr><th scope="row">Kostnad</th><td>Kostnadstaket ({{ cap }} kr i månaden nu), som ni själva ändrar under Nycklar och tak.</td></tr>
+  </table>
+  <p class="tv-prop__note">Över en gräns svarar API:t <span class="sms-mono">rate_limited</span> (HTTP 429) med huvudet <span class="sms-mono">Retry-After</span>: så många sekunder ska ni vänta. Det kan också hända när många av ADX kunder skickar samtidigt, eftersom leverantören har en gräns för ADX alla sms tillsammans.</p>
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="d-chars">
+  <h2 class="tv-sec-title" id="d-chars">Tecken och delar</h2>
+  <p class="tv-prop__note">Ett sms rymmer 160 tecken ur GSM-alfabetet (a-z, siffror, å ä ö é ü och vanliga skiljetecken). Ett längre sms delas i delar om 153 tecken, och varje del kostar som ett sms. Klammerparenteser, hakparenteser och tecknen ~ ^ \ | € tar två platser var.</p>
+  <p class="tv-prop__note">Finns ett enda tecken utanför GSM-alfabetet, till exempel en emoji eller typografiska citattecken, skickas hela texten som UCS-2: 70 tecken per sms, eller 67 per del. Svaret visar vilken kodning som användes (<span class="sms-mono">encoding</span>) och hur många delar det blev.</p>
+</section>
+
+<section class="m-panel tv-panel" aria-labelledby="d-price">
+  <h2 class="tv-sec-title" id="d-price">Pris och underlag</h2>
+  <p class="tv-prop__note">Varje sms kostar leverantörens pris per del till mottagarens land plus {{ markup }} öre per del. Till det kommer en årsavgift på {{ fee }} kr, som står på underlaget för den månad tjänsteåret börjar. Ett stoppat sms kostar inget. ADX fakturerar i efterhand per månad, utifrån <a class="tv-link" href="{% url 'sms:statements' %}">månadsunderlaget</a>. Alla belopp är utan moms.</p>
+  <p class="tv-prop__note">Kontot får skicka till: {% for code, name in country_names %}{{ name }} ({{ code }}){% if not forloop.last %}, {% endif %}{% endfor %}. Spärren mot andra länder skyddar mot sms-pumpning, där någon låter ett formulär skicka sms till dyra nummer utomlands.</p>
+</section>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{% load flamingo_pb %}{% comment %}
+Pris, bara med ett bekräftat pris bland uppgifterna (siffrorna prövas mot
+dem, pagebuilder.page_problems). Priset är rubriken: from och fixed visar
+frågan (titeln, "Vad kostar rörjour?") liten ovanför och priset stort,
+med texten och sidans huvudhandling (ring eller formuläret) bredvid; fixed
+är smalare och centrerad. examples: titeln som rubrik och upp till tre
+prisexempel.
+{% endcomment %}<section class="rn-block rn-price rn-price--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}>
+  <div class="rn-wrap">
+    {% if b.variant == "examples" %}
+    <header class="rn-head">
+      {% if f.title %}<h2 class="rn-h2"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2" %}{% endif %}
+      {% if f.text %}<p class="rn-lead"{% pb "text" %}>{{ f.text|linebreaksbr }}</p>{% else %}{% pb_empty "text" "p" "rn-lead" %}{% endif %}
+    </header>
+    <ul class="rn-price__grid">
+      {% for item in f.items %}
+      <li class="rn-price__card">
+        <p class="rn-price__label"{% pb "items" forloop.counter0 "label" %}>{{ item.label }}</p>
+        <p class="rn-price__amount"{% pb "items" forloop.counter0 "price" %}>{{ item.price }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if f.note %}<p class="rn-price__note rn-price__note--center"{% pb "note" %}>{{ f.note }}</p>{% else %}{% pb_empty "note" "p" "rn-price__note rn-price__note--center" %}{% endif %}
+    {% else %}
+    <div class="rn-price__panel">
+      <div class="rn-price__big">
+        {% if f.title %}<p class="rn-eyebrow"{% pb "title" %}>{{ f.title }}</p>{% else %}{% pb_empty "title" "p" "rn-eyebrow" %}{% endif %}
+        <h2 class="rn-price__value"{% pb "price" %}>{{ f.price }}</h2>
+      </div>
+      <div class="rn-price__copy">
+        {% if f.text %}<p class="rn-lead"{% pb "text" %}>{{ f.text|linebreaksbr }}</p>{% else %}{% pb_empty "text" "p" "rn-lead" %}{% endif %}
+        {% if f.note %}<p class="rn-price__note"{% pb "note" %}>{{ f.note }}</p>{% else %}{% pb_empty "note" "p" "rn-price__note" %}{% endif %}
+        {% if site.hero_variant != "form" and site.phone %}<a class="rn-link rn-arrowlink" href="{{ site.tel }}" data-fl-call><span>Ring <span class="rn-nowrap">{{ site.phone }}</span></span><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-arrow"></use></svg></a>{% elif site.has_form %}<a class="rn-link rn-arrowlink" href="#formular"><span>{{ site.spec.title }}</span><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-arrow"></use></svg></a>{% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</section>

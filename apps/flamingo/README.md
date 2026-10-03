@@ -35,7 +35,7 @@ De här gäller före äldre beskrivningar:
 |---|---|---|---|
 | Sidorna (marknadsföring) | `/flamingo/`, `/flamingo/<slug>/` | Flamingo | Blocksidor med `design="flamingo"`, redigeras i /manage/, seed: `seed_flamingo` |
 | Verktyget | `/flamingo/app/...` | Flamingo, appläge | `app_views/`, `templates/flamingo/app/` |
-| Kundens landningssidor | `/lp/<slug>/`, `/lp/<slug>/tack/`, `/lp/<slug>/ring/` (POST) | Neutral, kundens namn | `public_views.py`, `templates/flamingo/lp/`, `static/js/flamingo-lp.js` |
+| Kundens landningssidor | `/lp/<slug>/`, `/lp/<slug>/tack/`, `/lp/<slug>/ring/` (POST) | Ren (sidbyggaren), kundens namn | `public_views.py`, `pagebuilder/`, `templates/flamingo/lp/ren/`, `static/css/flamingo-lp-ren.css`, `static/js/flamingo-lp.js` |
 | Byråns sida | `/manage/flamingo/...` | Panelens | `manage_views.py`, `manage_review.py`, `manage_google.py`, `templates/manage/flamingo/` |
 | Google Ads API och Data Manager API | (ingen adress) | | `google_ads.py` (den enda HTTP-klienten), `google_publish.py`, `google_accounts.py`, `google_conversions.py`, `google_reports.py`, `flamingo_google_sync` |
 
@@ -47,7 +47,12 @@ Verktygets sidor:
 | `app/forslag/` | Förslaget: hemsidan läses av, kunden väljer tjänster, en exempelannons (mallarna, bara bekräftade uppgifter) och föreslagen start (formulärets förval) | 02 |
 | `app/foretaget/` | Företaget: uppgifter med källa (bekräfta, rätta, stryk) och tjänsterna | 04 |
 | `app/google/` | Google: kontots id eller "skapa ett åt mig", läget i klartext och en tidslinje | 05 |
-| `app/kampanjer/`, `ny/`, `<pk>/` | Kampanjerna, ny kampanj, förslaget i flikarna Annonser, Sökord, Sidan och Granskning, och inskicket med valet om granskning | 06-08 |
+| `app/kampanjer/`, `ny/`, `<pk>/` | Kampanjerna, ny kampanj, förslaget i flikarna Annonser, Sökord, Sidan och Granskning, och inskicket med valet om granskning. Fliken Sidan visar kampanjens sida i sidbyggaren och låter kunden välja egen eller delad sida | 06-08 |
+| `app/sidor/`, `ny/`, `<pk>/` | Sidorna i sidbyggaren: listan, en ny sida ur mallarna för en tjänst (högst 50 sidor per konto), och redigeraren (sidan i en ram, blocken, versionerna, problemlistan, "Publicera ändringarna") | Sidbyggaren 01-09 |
+| `app/sidor/<pk>/spara/`, `rita/`, `nytt-block/`, `installningar/`, `publicera/`, `kopiera/`, `ta-bort/` (POST) | Redigerarens anrop (JSON): spara med rev (409 när någon annan sparat), rita block, ett nytt block ur mallen med sidans tjänst och pris, namn och palett, publicera med rev, kopiera och ta bort (`app_views/pages.py`) | |
+| `app/sidor/<pk>/ai/bygg/`, `ai/skriv-om/`, `konverteringskoll/` | "Bygg sidan åt mig", "Skriv om" och Konverteringskollen (JSON, `app_views/page_ai.py`, `pagebuilder/ai.py`, `koll.py`). Sparar ingenting | Sidbyggaren 05-07 |
+| `app/media/`, `lista/`, `ladda-upp/` | Mediaarkivet: logotypen, uppladdade bilder och bilderna från hemsidan, färgerna ur logotypen (`app_views/media.py`, `media.py`) | Sidbyggaren 08 |
+| `app/omdomen/` | Omdömen från Google: profilen, "Det här är vi", "Profilen är vår" och valet av omdömen (`app_views/reviews.py`, `reviews.py`) | Sidbyggaren 10 |
 | `app/inkorg/`, `<pk>/` | Inkorgen och en förfrågan: varifrån, status och belopp | 10-11 |
 | `app/installningar/` | Sms till kunden och autosvaret (båda av från början) | 10 |
 | `app/kund/` (POST) | Kundväljaren för en kontakt i flera Flamingo-kunder | |
@@ -75,6 +80,94 @@ Byråns sidor:
 | `/manage/flamingo/google/tillbaka/` | Googles omdirigering efter inloggningen (OAuth) |
 | `/manage/kunder/<pk>/flamingo/google/api/` (POST) | Kundkortets knappar: kopplingsförfrågan, nytt konto, läget från Google |
 | Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering, knapparna med API:t), kampanjerna |
+
+## Sidbyggaren (`pagebuilder/`)
+
+Kundens landningssidor byggs av block (UX: `adx-marketing/sidbyggaren-mockup.html`).
+Kontrakten (blockens JSON, registret, renderaren, hjälparna) står i
+`pagebuilder/__init__.py` och modulernas docstrings. Beslut 2026-10-03:
+
+- **En design, Ren** (Google-stil: bilden först, en överrubrik med tjänsten
+  och orten över en rubrik om vad kunden får, luft efter innehållet, palettens
+  ljusa ton på varannan sektion, märken direkt efter Toppen som en smal
+  remsa), sex paletter: blå, grön, röd, orange, grafit (med mässing som
+  accent) och färgerna från logotypen. Kontrasten prövas mot WCAG AA
+  (`render.palette_vars`); en ljus logotypfärg står kvar på knapparna med
+  mörk text. Typsnittet Figtree (OFL) är självhostat; inget
+  hämtas från Googles typsnitt eller någon annan.
+- **Block med varianter och versioner**, lite fri redigering, inga A/B-test.
+  Pris, certifikat och garanti erbjuds bara med en bekräftad uppgift; mallarna
+  använder bara bekräftade uppgifter. Ett pris används bara för sin egen
+  tjänst (`pris-<tjänst>`, annars ett pris som inte hör till någon tjänst,
+  som ett timpris): sidan om badrum får aldrig rörjourens pris
+  (`generator.page_price`, `BuildContext.price`). Kontrollerna kräver samma
+  uppgift också för ett block som kommit in på annat sätt (en kopia, AI), och
+  i certifikat- och garantiblocken får kvalitetsord och behörigheter bara stå
+  när de finns bland uppgifterna (`problems.py`).
+- **Vem som skrev en version avgör servern.** Varje version som servern
+  skapar eller sparar har en signatur (HMAC med en nyckel ur `SECRET_KEY`
+  över id, källa, by, at och fälten, `blocks.sign_version`). En version som
+  servern inte känner igen (i utkastet eller det publicerade) och som saknar
+  en giltig signatur blir den inloggades, vad redigeraren än säger om
+  källan. "Ångra" efter "Använd förslaget" behåller vem som skrev vad.
+- **En sida per kampanj** (rekommenderas) **eller en delad sida**. Adressen är
+  alltid kampanjens egen (`/lp/<page_slug>/`), så förfrågningarna räknas till
+  rätt kampanj. `Campaign.landing_page` är RESTRICT: en sida som en kampanj
+  visar kan inte tas bort. Högst 50 sidor per konto (`pages.MAX_PAGES`).
+- **Ett nytt förslag rör bara sin egen orörda sida.** Sidan minns att
+  förslaget byggde den, för vilken kampanj och vid vilket rev
+  (`LandingPage.built_for`, `built_rev`). Ett nytt förslag bygger om den
+  bara för den kampanjen och bara så länge ingen sparat något på den. En
+  sida som kunden valt (en befintlig sida vid en ny kampanj eller på fliken
+  Sidan), kopierat eller ändrat byggs aldrig om.
+- **Ingen låsning.** En ändring på en sida som är live går live när
+  kontrollerna (`pagebuilder.page_problems`) är gröna, och byrån larmas
+  (`pagebuilder.alert_live_change`, `alerts.send_agency_alert`), en gång per
+  publicering (sidans rev står i ämnesraden). Samma larm när paletten byts
+  på en publicerad sida, när logotypen byts eller tas bort (sidhuvudet och
+  paletten Från logotypen), och när en live- eller pausad kampanj byter
+  sida; bytet kräver att den publicerade versionen klarar kontrollerna.
+  Kunden mejlas aldrig. Publiceringen skickar redigerarens rev och nekas
+  (409) om utkastet sparats från ett annat ställe sedan dess.
+- **Problemen på den publicerade sidan** syns där kunden rättar dem: när
+  utkastet redan är rättat står de i redigerarens problemlista och på
+  fliken Sidan, märkta "på den publicerade sidan" med "Publicera det"
+  (`pagebuilder.published_problems`). Inskicket prövar den publicerade
+  versionen, med samma märkning.
+- **När en kampanj går live** publiceras dess sida om den aldrig publicerats
+  (`publish_for_campaign`, i `google_publish.go_live` och byråns publicering
+  för hand); säger kontrollerna nej går kampanjen inte live.
+- **Mediaarkivet** (`media.py`): högst 200 bilder per konto, längsta sida
+  2400 px, WebP utan metadata, filerna under `MEDIA_ROOT/flamingo/<slump>/`.
+  Bara JPEG, PNG, WebP och GIF. Minnet på servern (2 GB, delas av flera
+  sajter) skyddas: storleken prövas i filens huvud innan något avkodas
+  (högst 24 miljoner bildpunkter för en uppladdning, 8 för en bild från
+  hemsidan, en WebP en tredjedel av det eftersom libwebp alltid avkodar
+  allt; en JPEG räknas i den skala den avkodas i), bilden skalas ner direkt,
+  en bild åt gången avkodas per process, och högst 60 uppladdningar per
+  konto och timme. Bilderna från hemsidan hämtas i trådar men avkodas en i
+  taget. Mätt med en förlustfri WebP på 2,4 kB (60 MP): 1 373 MB före, nekad
+  efter 9 MB.
+- **Google-omdömen** (`reviews.py`, `FlamingoAccount.google_*`): de valda
+  omdömena visas oförändrade med Googles märkning, författarens namn och
+  länken till profilen. Utan omdömen syns blocket inte. Profilen måste
+  vara kundens: den prövas mot hemsidans domän, namnet och telefonnumret
+  (`places.matches`). Liknar den inte kunden sparas betyget obekräftat, inget
+  från profilen syns på sidorna eller i förslagen, och byrån larmas, tills
+  kunden eller byrån intygat den ("Profilen är vår"). Länkarna till Google
+  prövas när de sparas och igen när sidan ritas (bara https till Google,
+  inga användaruppgifter). Cron (`flamingo_google_sync`) hämtar profilen
+  igen efter 7 dagar; har en hämtning inte gått på 90 dagar tas omdömena,
+  betyget och namnet bort (Giovannis beslut 2026-10-03, se villkoren i
+  `reviews.py`). Kundens val står kvar också när ett omdöme saknas i en
+  hämtning.
+- **Redigeraren** (`static/js/flamingo-pb.js`) ritar sidan i en ram med
+  srcdoc; dokumentet har `Content-Security-Policy: script-src 'none'`, så
+  inget skript i sidan körs där.
+- **De gamla kampanjsidorna** flyttades in automatiskt i Ren (migreringen
+  0011, fryst mappning). `Campaign.page` står kvar som historik och läses inte.
+  Granskningen rättar inte längre sidan: den länkar till sidbyggaren
+  ("Visa Flamingo som kunden" öppnar sidan direkt).
 
 ## Behörighet
 
@@ -142,8 +235,13 @@ formulär hämtas med `account=account`.
    `checks.validate` (teckengränser, inga siffror som inte finns bland
    uppgifterna, inga förbjudna påståenden eller löften om tider, ingen
    text eller tjänst som börjar med = + - @ (Editor-filen), sökord mot negativa,
-   budget, område) stoppar inskicket och samma kontroller
-   körs på granskarens version och före publiceringen.
+   budget, område, och landningssidan med `pagebuilder.page_problems`)
+   stoppar inskicket och samma kontroller körs på granskarens version och
+   före publiceringen. Sidans innehåll blir block i kampanjens egen
+   LandingPage (ringer direkt: Toppen med ringknapp, eller med bild när
+   kontot har bilder, och ringremsa; offert: Toppen med formulär och
+   formulär med frågor; boka tid: formuläret för att
+   boka tid).
 6. **Inskicket, med eller utan granskning** (`app_views/campaigns.campaign_submit`):
    bara från utkast och bara när kontrollerna är gröna. Kunden väljer med
    kryssrutan "Jag vill att ADX granskar kampanjen innan den publiceras"
@@ -554,8 +652,12 @@ varje sida: uppgifter från alla källor, tjänster, kampanjer i alla lägen
 (en av dem skickad utan granskning),
 granskningar med ändringar och skäl, förfrågningar i alla statusar och från
 alla källor (klick på numret, en vunnen affär med klick-id), sms-rader och
-Googles siffror per dag för 30 dagar. Kör det igen så byggs innehållet om;
-inget dubbleras. En annan kund med samma namn rörs aldrig.
+Googles siffror per dag för 30 dagar. I sidbyggaren: fem sidor som
+tillsammans har varje blocktyp och variant (de för kampanjer som är live
+eller pausade publicerade), en logotyp och bilder i mediaarkivet, och en
+påhittad Google-profil med omdömen (intygad som demots egen; den hämtas
+aldrig från Google). Kör det igen så byggs innehållet om; inget dubbleras.
+En annan kund med samma namn rörs aldrig.
 
 I produktion finns ingen användare som kan logga in på demokunden. Byrån
 öppnar den med "Visa Flamingo som kunden" på kundkortet. Lokalt finns
@@ -563,7 +665,8 @@ kontakten demo@exempelror.example, utan lösenord.
 
 Ett demokonto skickar aldrig något: `/lp/` är 404 för alla utom byrån,
 hemsidan läses aldrig av (`scan.demo_refusal`), Google Places frågas aldrig
-(`places.update_from_google`), inga sms (`sms.NOTE_DEMO`), inga anrop till
+(`places.update_from_google`, `reviews.refusal`), inga bilder hämtas från
+någon hemsida (`media.DEMO_REFUSED`), inga sms (`sms.NOTE_DEMO`), inga anrop till
 Google, inga larm till byrån, och affärerna exporteras eller laddas aldrig
 upp. Demokundens kampanjer och konverteringar är inte med i byråns kö eller
 siffror förrän byrån ber om det (`?demo=1`, "Visa demokunden" i kön);
@@ -620,6 +723,9 @@ att ett förvaltarkonto med Explorer-åtkomst får skicka. Kör
   godkännande: byrån publicerar då från kön.
 - Landningssidor på kundens egen subdomän, bilduppladdning i formuläret.
 - Sms-svaret "VANN 186000" från ägaren.
+- "Skriv om" i sidbyggaren: förslaget blir en version som redigeraren
+  skapar, så den sparas som kundens (eller byråns), inte som "AI". Att
+  behålla märkningen kräver att servern lämnar en signerad version.
 
 ## Driftsättning av den här ändringen
 
@@ -633,6 +739,17 @@ produktion:
 
 Det skriver över blocken och frågorna på Flamingos sidor, också ändringar
 som gjorts i /manage/ sedan förra seeden; publiceringen rörs inte.
+
+Sidbyggaren (migreringarna 0010-0013): `./deploy` kör migreringarna. 0010
+skapar sidorna och mediaarkivet, 0011 gör varje kampanjs sida till en
+LandingPage i Ren (publicerad för kampanjer som är live eller pausade; ett
+nummer ur telefonuppgiften, frågornas nycklar omgjorda så att de klarar
+schemat, etiketterna oförändrade), 0012 lägger till dagens räknare och
+bildernas alt-text från hemsidan, och 0013 sidans ursprung (`built_for`,
+`built_rev`) och Google-profilens intyg. Kör sedan demot igen, så att
+demokunden får sina sidor och bilder:
+
+    uv run python manage.py flamingo_demo --prod
 Migreringen 0007 stoppar (med kontonas nummer) om två Flamingo-konton har
 samma Google Ads-id: rätta det först.
 

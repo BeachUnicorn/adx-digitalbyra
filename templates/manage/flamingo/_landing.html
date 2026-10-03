@@ -1,0 +1,31 @@
+{% comment %}
+Kampanjens landningssida i sidbyggaren (manage_review.landing_summary):
+läget, blocken i utkastet, andra kampanjer som visar sidan, och länkarna.
+Sidan rättas i sidbyggaren som kunden ("Visa Flamingo som kunden" öppnar
+sidan direkt); det byrån sparar där sparas i byråns namn. En ändring på en
+sida som är live går live när kontrollerna är gröna.
+{% endcomment %}
+{% if landing %}
+<p class="m-form-hint">{{ landing.page.name }}: {{ landing.state|lower }}.{% if landing.others %} Delas med {% for c in landing.others %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %} Adressen <code>{{ campaign.landing_url }}</code> är kampanjens egen.</p>
+{% if landing.blocks %}
+<ol class="mf-read__list">
+    {% for row in landing.blocks %}<li><b>{{ row.name }}</b> <span class="m-muted">{{ row.variant }}</span>{% if row.headline %}: {{ row.headline }}{% endif %}</li>{% endfor %}
+</ol>
+{% endif %}
+<p class="mf-landing-links">
+    <a href="{{ landing.draft_url }}">Förhandsvisa utkastet</a>
+    {% if customer.is_active and account.is_enabled %}
+    {% if inside_form %}
+    {# I granskningsformuläret: knappen hör till formuläret mf-landing-view-as längst ner i review.html (formulär får inte ligga i varandra). #}
+    <button type="submit" form="mf-landing-view-as" class="m-btn m-btn--ghost m-btn--small">Öppna sidan i sidbyggaren som kunden</button>
+    {% else %}
+    <form method="post" action="{% url 'manage:flamingo_view_as' customer.pk %}" class="mf-inline-form">{% csrf_token %}
+        <input type="hidden" name="next" value="{{ landing.editor_url }}">
+        <button type="submit" class="m-btn m-btn--ghost m-btn--small">Öppna sidan i sidbyggaren som kunden</button>
+    </form>
+    {% endif %}
+    {% endif %}
+</p>
+{% else %}
+<p class="m-muted">Kampanjen har ingen landningssida än. Den får en egen när kunden öppnar kampanjen.</p>
+{% endif %}

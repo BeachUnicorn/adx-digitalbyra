@@ -28,6 +28,7 @@ from apps.projects.models import Customer
 from . import checks, google_ads, google_publish, manage_review, rules
 from .models import Campaign, Fact, FlamingoAccount, Review, Service
 from .test_google_ads import ACCESS, API, CONFIGURED, NOTHING, TOKEN_OK, FakeGoogle, google_error
+from .testing import pages_from_campaigns
 
 User = get_user_model()
 
@@ -147,6 +148,7 @@ class PublishFixture:
             reviewer=cls.staff,
             reviewed_at=timezone.now() - timedelta(hours=2),
         )
+        pages_from_campaigns(cls.campaign)
 
     def setUp(self):
         super().setUp()

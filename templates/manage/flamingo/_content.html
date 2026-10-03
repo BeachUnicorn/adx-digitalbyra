@@ -25,13 +25,6 @@
         {% if negative_list %}<p class="mf-read__inline">{{ negative_list|join:", " }}</p>{% else %}<p class="m-muted">Inga.</p>{% endif %}
 
         <h3 class="mf-read__title">Sidan</h3>
-        <dl class="mf-dl">
-            <dt>Rubrik</dt><dd>{{ campaign.page.title|default:"-" }}</dd>
-            <dt>Ingress</dt><dd>{{ campaign.page.lead|default:"-"|linebreaksbr }}</dd>
-            {% if campaign.page.points %}<dt>Punkter</dt><dd><ul class="mf-read__list mf-read__list--plain">{% for p in campaign.page.points %}<li>{{ p }}</li>{% endfor %}</ul></dd>{% endif %}
-            <dt>Telefon</dt><dd>{{ campaign.page.phone|default:"Inget nummer på sidan" }}</dd>
-            <dt>Formulär</dt><dd>{{ campaign.page.form_title|default:"-" }}{% if question_list %}<ul class="mf-read__list mf-read__list--plain">{% for label, kind in question_list %}<li>{{ label }} <span class="m-muted">{{ kind }}</span></li>{% endfor %}</ul>{% endif %}</dd>
-            {% if campaign.page.note %}<dt>Under formuläret</dt><dd>{{ campaign.page.note|linebreaksbr }}</dd>{% endif %}
-        </dl>
+        {% include "manage/flamingo/_landing.html" %}
     </div>
 </section>

@@ -60,6 +60,7 @@ from apps.common.security import normalize_typography, sanitize_plain_text
 from apps.tools import analyzer
 from apps.tools.analyzer import AnalysError, fetch, normalize_url
 
+from . import media
 from .models import Fact, FlamingoAccount, Service, is_rating_like
 
 logger = logging.getLogger(__name__)
@@ -152,6 +153,8 @@ class ScanResult:
     #: Nya tjänsteförslag.
     services: int = 0
     used_ai: bool = False
+    #: Nya bilder från hemsidan (bara miniatyrerna, media.SiteImageFetch).
+    images: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +228,9 @@ class Page:
     mailto: list = field(default_factory=list)
     json_ld: list = field(default_factory=list)
     text: str = ""
+    #: Bildadresser för mediaarkivet (media.image_ref): img, source,
+    #: og:image och hemsidans ikon. Bara adresserna; inget hämtas här.
+    images: list = field(default_factory=list)
 
     @property
     def lines(self):
@@ -266,6 +272,10 @@ class _PageParser(HTMLParser):
             return
         if self._skip:
             return
+        if tag in ("img", "source", "meta", "link") and len(self.page.images) < 200:
+            ref = media.image_ref(tag, a, self.page.url, in_nav=self._nav > 0)
+            if ref is not None:
+                self.page.images.append(ref)
         if tag == "title":
             self._title = []
         elif tag == "meta":
@@ -1187,8 +1197,13 @@ def scan_website(account, url, *, user=None, budget=TIME_BUDGET):
 
     company = account.customer.name
     executor = ThreadPoolExecutor(max_workers=MAX_SUBPAGES, thread_name_prefix="flamingo-scan")
+    # Bilderna för mediaarkivet hämtas i egna trådar medan AI-förslaget
+    # skrivs, inom läsningens tidsgräns (media.SITE_IMAGE_BUDGET).
+    images = None
+    read = False
     try:
         pages, site = read_site(url, deadline=deadline, executor=executor)
+        images = media.SiteImageFetch.start(account, pages, deadline=deadline, fetcher=fetch)
         facts = [
             (KEY_PHONE, find_phone(pages)),
             (KEY_EMAIL, find_email(pages, site)),
@@ -1198,6 +1213,7 @@ def scan_website(account, url, *, user=None, budget=TIME_BUDGET):
         proposal = ai_proposal(
             company, site, pages, user=user, deadline=deadline, executor=executor
         )
+        read = True
     except ScanError as exc:
         return _fail(account, str(exc))
     except AnalysError as exc:
@@ -1210,6 +1226,8 @@ def scan_website(account, url, *, user=None, budget=TIME_BUDGET):
         return _fail(account, "Något gick fel när hemsidan lästes. Försök igen.")
     finally:
         executor.shutdown(wait=False, cancel_futures=True)
+        if images is not None and not read:
+            images.cancel()
 
     used_ai = proposal is not None
     if used_ai:
@@ -1229,4 +1247,7 @@ def scan_website(account, url, *, user=None, budget=TIME_BUDGET):
         account.scanned_at = timezone.now()
         account.scan_error = ""
         account.save(update_fields=["scan_status", "scanned_at", "scan_error", "updated_at"])
-    return ScanResult(ok=True, pages=len(pages), facts=stored, services=created, used_ai=used_ai)
+    found = images.finish(account) if images is not None else 0
+    return ScanResult(
+        ok=True, pages=len(pages), facts=stored, services=created, used_ai=used_ai, images=found
+    )
