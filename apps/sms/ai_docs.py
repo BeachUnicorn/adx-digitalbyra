@@ -15,7 +15,7 @@ Inga löften om leveranstider.
 from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.views.decorators.cache import cache_page
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 
 from . import encoding, ratelimit, service
 
@@ -292,7 +292,7 @@ Maskinläsbart: `{_base(request)}/smsz/?format=json`
 """
 
 
-@require_GET
+@require_safe
 @cache_page(300)
 def smsz(request):
     """Öppen dokumentation för AI-assistenter. Inga hemligheter."""

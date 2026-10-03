@@ -38,5 +38,6 @@ class SmszTests(TestCase):
         for code in (0x2013, 0x2014, 0x201C, 0x201D, 0x2019, 0x2026):
             self.assertNotIn(chr(code), text)
 
-    def test_only_get(self):
+    def test_only_get_and_head(self):
+        self.assertEqual(self.client.head("/smsz/").status_code, 200)
         self.assertEqual(self.client.post("/smsz/").status_code, 405)
