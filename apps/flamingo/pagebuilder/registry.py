@@ -57,13 +57,34 @@ REQUIRES_CERTIFICATE = "certificate_fact"
 REQUIRES_GUARANTEE = "guarantee_fact"
 REQUIRES_PHONE = "phone_fact"
 REQUIRES_GOOGLE = "google_profile"
+REQUIRES_RECO = "reco_profile"
 REQUIRES_TEXT = {
     REQUIRES_PRICE: "Kräver ett bekräftat pris under Företaget.",
     REQUIRES_CERTIFICATE: "Kräver en bekräftad auktorisation, försäkring eller ett medlemskap.",
     REQUIRES_GUARANTEE: "Kräver en bekräftad garanti under Företaget.",
     REQUIRES_PHONE: "Kräver ett bekräftat telefonnummer under Företaget.",
     REQUIRES_GOOGLE: "Kräver att din Google-profil är kopplad.",
+    REQUIRES_RECO: "Kräver att er profil på Reco är kopplad och intygad.",
 }
+#: Kraven på en profil hos Google eller Reco: blocket döljs på sidan när
+#: profilen saknas (render.py), i stället för att stoppa publiceringen
+#: (problems.py), och biblioteket länkar till Omdömen (requires_url).
+PROFILE_REQUIREMENTS = (REQUIRES_GOOGLE, REQUIRES_RECO)
+
+
+def requires_url(requires):
+    """Sidan där kravet uppfylls, för bibliotekets länk, eller "". Bara
+    profilerna under Omdömen har en egen sida (Recos del har ankaret #reco)."""
+    if requires not in PROFILE_REQUIREMENTS:
+        return ""
+    from django.urls import NoReverseMatch, reverse
+
+    try:
+        url = reverse("flamingo:app_reviews")
+    except NoReverseMatch:
+        return ""
+    return url + "#reco" if requires == REQUIRES_RECO else url
+
 
 QUESTION_KIND_LABELS = {"text": "Kort svar", "textarea": "Längre text", "date": "Datum"}
 
@@ -291,6 +312,34 @@ TYPES_LIST = (
         ),
         principle="Andras omdömen",
         requires=REQUIRES_GOOGLE,
+        single=True,
+    ),
+    BlockType(
+        key="reviews_reco",
+        name="Omdömen från Reco",
+        icon="reviews",
+        group="trust",
+        # Recos egna rutor (reco.VARIANT_WIDGETS): liggande stor, medel och
+        # liten (100 % breda) och stående (300 px, passar mobilen). Medel
+        # blir den stående i mobilen.
+        variants=(
+            Variant("stor", "Liggande stor"),
+            Variant("medel", "Liggande medel"),
+            Variant("liten", "Liggande liten"),
+            Variant("staende", "Stående"),
+        ),
+        # Den liggande lilla är en rad utan rubrik (en remsa efter Toppen).
+        fields=(
+            Field(
+                "title", "Rubrik", TEXT, max_length=TITLE_MAX, variants=("stor", "medel", "staende")
+            ),
+        ),
+        why=(
+            "Andras omdömen i Recos egen ruta, med betyget från er profil på Reco. Rutan "
+            "laddas från reco.se när besökaren ser den."
+        ),
+        principle="Andras omdömen",
+        requires=REQUIRES_RECO,
         single=True,
     ),
     BlockType(
@@ -528,6 +577,8 @@ def _meets(requires, facts, account, ctx=None):
         return bool(facts.phone)
     if requires == REQUIRES_GOOGLE:
         return bool(account.google_place_id or account.selected_google_reviews())
+    if requires == REQUIRES_RECO:
+        return account.reco_trusted
     return False
 
 
@@ -764,6 +815,11 @@ def _reviews(facts, variant, ctx, context):
     return {"title": "Vad kunderna säger"}
 
 
+def _reviews_reco(facts, variant, ctx, context):
+    """Rubriken ovanför Recos ruta (den liggande lilla visar ingen rubrik)."""
+    return {"title": "Vad kunderna säger"}
+
+
 #: Certifikatblockets rubriker, bästa först. Rubriken får inte säga mer än
 #: uppgifterna ("försäkringar" bara med en bekräftad försäkring).
 CERTIFICATE_TITLES = (
@@ -892,6 +948,7 @@ BUILDERS = {
     "hero": _hero,
     "price": _price,
     "reviews_google": _reviews,
+    "reviews_reco": _reviews_reco,
     "certificates": _certificates,
     "guarantee": _guarantee,
     "person": _person,

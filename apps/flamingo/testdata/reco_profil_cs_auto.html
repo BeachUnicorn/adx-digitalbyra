@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+Testdata för apps/flamingo/test_reco.py: CS Auto AB:s sida på Reco
+(https://www.reco.se/cs-auto-ab), hämtad 2026-10-04 och nedbantad till de
+delar reco.parse_profile läser, i samma form som originalet. Företagets egna
+uppgifter står kvar (de är publika och id:t 5998572 är det Giovanni gav).
+Omdömenas författare, texter och id:n är utbytta mot påhittade.
+-->
+<html lang="sv" class="nojs">
+<head>
+  <meta charset="utf-8">
+  <meta name="recolang" content="sv" />
+  <title>Cs Auto AB, Bålsta: Läs kundernas omdömen på Reco.se</title>
+  <meta property="og:title" content="Cs Auto AB, Bålsta: Läs kundernas omdömen på Reco.se">
+  <meta property="og:site_name" content="Reco.se">
+  <meta property="og:url" content="https://www.reco.se/cs-auto-ab">
+    <link rel="canonical" href="https://www.reco.se/cs-auto-ab">
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"AutoRepair","name":"Cs Auto AB","url":"https://www.reco.se/cs-auto-ab","sameAs":"https://www.csauto.se","address":{"@type":"PostalAddress","streetAddress":"Helgövägen 7","addressLocality":"Bålsta","postalCode":"74630","addressCountry":"SE"},"telephone":"0107-07 59 92","aggregateRating":{"@type":"AggregateRating","ratingValue":4.9,"bestRating":5,"worstRating":1,"ratingCount":145},"review":[{"@type":"Review","url":"https://www.reco.se/r/1000001","author":{"@type":"Person","name":"Exempel A","url":"https://www.reco.se/user/1000001"},"publisher":{"@type":"Organization","name":"Reco.se","url":"https://www.reco.se"},"datePublished":"2026-10-02T00:00:00+0200","headline":"Påhittad rubrik","reviewBody":"Påhittad text i testdatan.","inLanguage":"sv","reviewRating":{"@type":"Rating","worstRating":1,"bestRating":5,"ratingValue":5}}]}
+    </script>
+  <script>
+    window.PaginationData = {"offset":50,"reviewCount":145,"venueId":5998572,"name":"Cs Auto AB","venueRating":4.9,"venueName":"Cs Auto AB","venueReviewCount":145,"categoryAreas":[],"personTypes":[],"filterPageType":"Venue","ratings":{"one":0,"two":0,"three":0,"four":13,"five":132}};
+
+    window.VenueData = (function() {
+      var data = {"venueName":"Cs Auto AB","venueImage":"//s3-eu-west-1.amazonaws.com/static.reco.se/logos/exempel_thumb2x.jpg","venueId":5998572,"rating":4.9,"reviewCount":145,"services":[],"isCustomer":true,"restful":"cs-auto-ab","slug":"cs-auto-ab","description":"Vi är en bilverkstad i Bålsta.\n","openingHours":["0|07:00-17:00","5|CLOSED","6|CLOSED"],"phoneNumber":"0107075992","website":"https://www.csauto.se","street":"Helgövägen 7","zipCode":"74630","city":"Bålsta","attributes":["advertiser","Badge2026"],"phone":"0107-07 59 92","phoneClean":"0107075992"};
+
+        data.markers = [{
+          lat: 59.605247497558594,
+          lng: 17.417789459228516
+        }];
+      return data;
+    })();
+  </script>
+</head>
+<body class="bg-gray">
+  <div class="venue-header-details-actions">
+    <button class="felt-btn felt-btn--primary js--show-lead-modal ga--main-cta ga4-fix"
+        data-name="Cs Auto AB"
+        data-venue-id="5998572"
+        data-organization-id="43498"
+        data-formtype="autorepair">Begär offert</button>
+    <a href="tel:0107075992" id="ga--venue-phone-link" class="felt-btn felt-btn--secondary ga4-fix"
+        data-name="Cs Auto AB" data-venue-id="5998572" data-organization-id="43498">Ring</a>
+    <a href="https://www.csauto.se" target="_blank" class="felt-btn felt-btn--secondary ga4-fix" rel="noopener"
+        data-name="Cs Auto AB" data-venue-id="5998572" data-organization-id="43498">Webbplats</a>
+  </div>
+  <div class="venue-reviews">
+    <section class="venue-section venue-reviews-write-wrapper">
+      <a href="/v/venue/5998572/spontaneous?rating=0" id="ga--venue-reviews-write-rating-link" class="felt-btn ga4-fix" rel="nofollow">Skriv ett omdöme</a>
+    </section>
+    <article id="1000001" class="review-card-v2">
+      <header class="review-card-v2-header">
+        <a class="venue-clean-link" href="/user/1000001" rel="nofollow"><b>Exempel A</b></a>
+        <small class="review-card-v2-header-time"><a class="venue-clean-link" href="https://www.reco.se/v/review/1000001" rel="nofollow"><time>2026-10-02</time></a></small>
+      </header>
+      <div class="review-card-v2-body">
+        <span class="venue-hide-mobile">Omdöme från inbjuden kund</span>
+        <p class="truncated-text">Påhittad text i testdatan.</p>
+      </div>
+    </article>
+    <button id="js--review-filter-more" class="felt-btn felt-btn--primary ga--load-more-reviews ga4-fix"
+        data-venue-id="5998572" data-venue-name="Cs Auto AB">Visa fler omdömen</button>
+  </div>
+  <section class="venue-similar">
+    <!-- Ett annat företag på samma sida: får aldrig vinna över profilens eget id. -->
+    <a class="venue-card" href="/annat-foretag-ab" data-venue-id="1234567">Annat företag AB</a>
+  </section>
+</body>
+</html>

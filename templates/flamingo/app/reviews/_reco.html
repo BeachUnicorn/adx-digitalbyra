@@ -1,0 +1,109 @@
+{% comment %}
+Omdömen från Reco (ingår i reviews.html, ankaret #reco). Kontext: reco från
+app_views/reviews._reco_context: connected, trusted, unverified, is_demo,
+can_call, venue_id, name, profile_url (prövad), rating, rating_stars, count,
+fetched_at, confirmed_at, confirmed_by, lookups_left, pending (reco.RecoLink
+eller None) och query.
+
+Sidorna visar Recos egen ruta (iframe från widget.reco.se), byggd bara av
+id:t. Inga omdömestexter hämtas: Recos villkor tillåter inte att de kopieras
+utan Recos skriftliga medgivande (apps/flamingo/reco.py). Betyget här är
+bara för att kunden ska se att profilen är rätt; det används aldrig i
+annonserna. Formulären med data-fl-once kan inte skickas två gånger i rad.
+{% endcomment %}
+<div class="fl-rc" id="reco">
+<header class="fl-rc__head">
+  <h2 class="fl-rc__title">Omdömen från Reco</h2>
+  <p class="fl-panel__text">Har ni en sida på Reco kan landningssidorna visa Recos egen ruta med betyget och omdömena. Rutan laddas från reco.se när besökaren ser den.</p>
+</header>
+
+{% if reco.is_demo %}
+<p class="fl-notice fl-notice--info"><span>Det här är ett demokonto, så Reco anropas aldrig. Profilen här är påhittad, och sidorna visar en exempelruta i stället för Recos.</span></p>
+{% endif %}
+
+{% if reco.pending %}
+<section class="fl-panel fl-panel--accent" aria-labelledby="fl-rc-pending">
+  <h3 class="fl-panel__title" id="fl-rc-pending">Är det här ni?</h3>
+  <p class="fl-panel__text">{% if reco.pending.slug %}<a class="fl-rv-link" href="{{ reco.pending.value }}" target="_blank" rel="noopener noreferrer">{{ reco.pending.shown }}<span class="fl-sr"> (ny flik)</span></a>{% else %}Recos id <code class="fl-rv-code">{{ reco.pending.venue_id }}</code>{% endif %}. {% if reco.can_call %}Vi hämtar namnet och betyget från Reco när du bekräftar, och jämför hemsidan och telefonnumret på Reco med dina uppgifter.{% else %}Demot hämtar ingenting från Reco.{% endif %}</p>
+  {% if not read_only and reco.can_call %}
+  <form method="post" class="fl-panel__actions" data-fl-once>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="reco_confirm">
+    <input type="hidden" name="reco" value="{{ reco.pending.value }}">
+    <button type="submit" class="fl-btn fl-btn--sm"{% if not reco.lookups_left %} disabled{% endif %}>Det här är vi</button>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_reviews' %}#reco">Avbryt</a>
+  </form>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if reco.connected %}
+<section class="fl-panel" aria-labelledby="fl-rc-profile">
+  <div class="fl-panel__head">
+    <h3 class="fl-panel__title" id="fl-rc-profile">Er profil på Reco</h3>
+    <span class="fl-panel__note">{% if reco.fetched_at %}Hämtad {{ reco.fetched_at|date:"j b Y" }}{% else %}Inte hämtad{% endif %}</span>
+  </div>
+  <div class="fl-rv-place">
+    <p class="fl-rv-place__name">{% if reco.name %}{{ reco.name }}{% else %}Namnet visas när profilen hämtats igen{% endif %}</p>
+    {% if reco.rating %}
+    <p class="fl-rv-place__score"><span class="fl-rv-stars" aria-hidden="true">{% for s in reco.rating_stars %}<span class="fl-rv-star fl-rv-star--{{ s }}"></span>{% endfor %}</span><b>{{ reco.rating }}</b> av 5{% if reco.count %}, {{ reco.count }} omdömen{% endif %} på Reco</p>
+    {% endif %}
+    <p class="fl-rv-place__id">Recos id <code class="fl-rv-code">{{ reco.venue_id }}</code></p>
+    {% if reco.profile_url %}<p><a class="fl-rv-link" href="{{ reco.profile_url }}" target="_blank" rel="noopener noreferrer">Öppna profilen på Reco<span class="fl-sr"> (ny flik)</span></a></p>{% endif %}
+  </div>
+  {% if reco.unverified %}
+  <div class="fl-rv-owner" role="note">
+    <p class="fl-panel__text"><b>Profilen liknar inte företaget.</b> Varken hemsidan eller telefonnumret på Reco stämmer med dina uppgifter, så Recos ruta syns inte på sidorna. ADX har fått veta det. Är profilen er kan du intyga det här.</p>
+    {% if not read_only %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reco_own">
+      <button type="submit" class="fl-btn fl-btn--primary fl-btn--sm">Profilen är vår</button>
+    </form>
+    {% endif %}
+  </div>
+  {% elif reco.trusted %}
+  <p class="fl-panel__text">{% if reco.confirmed_at %}Intygad som er{% if reco.confirmed_by %} av {{ reco.confirmed_by }}{% endif %} {{ reco.confirmed_at|date:"j b Y" }}.{% else %}Profilen har samma hemsida eller telefonnummer som era uppgifter.{% endif %} Lägg till blocket Omdömen från Reco i sidbyggaren, så visar sidan Recos ruta.</p>
+  {% endif %}
+  {% if not read_only %}
+  <div class="fl-panel__actions">
+    {% if reco.can_call %}
+    <form method="post" data-fl-once>
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reco_refresh">
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm"{% if not reco.lookups_left %} disabled{% endif %}>Hämta profilen igen</button>
+    </form>
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="reco_disconnect">
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Koppla bort profilen</button>
+    </form>
+  </div>
+  {% endif %}
+  <p class="fl-field__help">Sidorna visar Recos egen ruta med betyget och de omdömen Reco väljer. Betyget här används aldrig i annonserna. Rutan laddas från reco.se, så Reco ser besökarens IP-adress, som när någon besöker reco.se.</p>
+</section>
+{% endif %}
+
+{% if not read_only %}
+<section class="fl-panel{% if reco.connected %} fl-panel--soft{% endif %}" aria-labelledby="fl-rc-find">
+  <h3 class="fl-panel__title" id="fl-rc-find">{% if reco.connected %}Byt profil på Reco{% else %}Koppla er profil på Reco{% endif %}</h3>
+  <form method="post" class="fl-form fl-rv-find" data-fl-once>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="reco_find">
+    <div class="fl-field">
+      <label class="fl-field__label" for="fl-rc-q">Länken till er sida på Reco, eller Recos id</label>
+      <div class="fl-rv-find__row">
+        <input class="fl-input" id="fl-rc-q" type="text" name="reco" value="{{ reco.query }}" maxlength="500" autocomplete="off" spellcheck="false" inputmode="url" placeholder="reco.se/ert-foretag">
+        <button type="submit" class="fl-btn fl-btn--sm">Fortsätt</button>
+      </div>
+      {% if reco.is_demo %}
+      <p class="fl-field__help">Demot hämtar aldrig något från Reco.</p>
+      {% else %}
+      <p class="fl-field__help">Öppna er sida på Reco och kopiera adressen, till exempel reco.se/cs-auto-ab. Id:t är siffrorna i adressen till Recos widget. {% if reco.lookups_left %}Profilen kan hämtas {{ reco.lookups_left }} gång{% if reco.lookups_left != 1 %}er{% endif %} till i dag.{% else %}Profilen har hämtats så många gånger som går i dag.{% endif %}</p>
+      {% endif %}
+    </div>
+  </form>
+</section>
+{% endif %}
+</div>

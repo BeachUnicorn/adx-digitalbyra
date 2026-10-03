@@ -80,6 +80,8 @@ Typerna och varianterna (registry.py):
     hero            Toppen                call, form, image, text
     price           Pris                  from, examples, fixed      kräver ett bekräftat pris
     reviews_google  Omdömen från Google   cards, quote, line         kräver Google-profilen
+    reviews_reco    Omdömen från Reco     stor, medel, liten,        kräver en intygad profil
+                                          staende                    på Reco (Recos egen ruta)
     certificates    Certifikat            badges, icons              kräver en bekräftad uppgift
     guarantee       Garanti               short, terms               kräver en bekräftad garanti
     person          Personen bakom        image, noimage

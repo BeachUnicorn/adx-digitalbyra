@@ -52,7 +52,7 @@ Verktygets sidor:
 | `app/sidor/<pk>/spara/`, `rita/`, `nytt-block/`, `installningar/`, `publicera/`, `kopiera/`, `ta-bort/` (POST) | Redigerarens anrop (JSON): spara med rev (409 när någon annan sparat), rita block, ett nytt block ur mallen med sidans tjänst och pris, namn och palett, publicera med rev, kopiera och ta bort (`app_views/pages.py`) | |
 | `app/sidor/<pk>/ai/bygg/`, `ai/skriv-om/`, `konverteringskoll/` | "Bygg sidan åt mig", "Skriv om" och Konverteringskollen (JSON, `app_views/page_ai.py`, `pagebuilder/ai.py`, `koll.py`). Sparar ingenting | Sidbyggaren 05-07 |
 | `app/media/`, `lista/`, `ladda-upp/` | Mediaarkivet: logotypen, uppladdade bilder och bilderna från hemsidan, färgerna ur logotypen (`app_views/media.py`, `media.py`) | Sidbyggaren 08 |
-| `app/omdomen/` | Omdömen från Google: profilen, "Det här är vi", "Profilen är vår" och valet av omdömen (`app_views/reviews.py`, `reviews.py`) | Sidbyggaren 10 |
+| `app/omdomen/` | Omdömen från Google: profilen, "Det här är vi", "Profilen är vår" och valet av omdömen (`app_views/reviews.py`, `reviews.py`). Under dem profilen på Reco (`#reco`): länken eller id:t, "Det här är vi", "Profilen är vår", "Hämta profilen igen" och "Koppla bort profilen" (`reco.py`) | Sidbyggaren 10 |
 | `app/inkorg/`, `<pk>/` | Inkorgen och en förfrågan: varifrån, status och belopp | 10-11 |
 | `app/installningar/` | Sms till kunden och autosvaret (båda av från början) | 10 |
 | `app/kund/` (POST) | Kundväljaren för en kontakt i flera Flamingo-kunder | |
@@ -161,6 +161,8 @@ Kontrakten (blockens JSON, registret, renderaren, hjälparna) står i
   betyget och namnet bort (Giovannis beslut 2026-10-03, se villkoren i
   `reviews.py`). Kundens val står kvar också när ett omdöme saknas i en
   hämtning.
+- **Omdömen från Reco** (`reco.py`, `FlamingoAccount.reco_*`, Giovannis
+  beslut 2026-10-04): se avsnittet Omdömen från Reco nedan.
 - **Redigeraren** (`static/js/flamingo-pb.js`) ritar sidan i en ram med
   srcdoc; dokumentet har `Content-Security-Policy: script-src 'none'`, så
   inget skript i sidan körs där.
@@ -168,6 +170,74 @@ Kontrakten (blockens JSON, registret, renderaren, hjälparna) står i
   0011, fryst mappning). `Campaign.page` står kvar som historik och läses inte.
   Granskningen rättar inte längre sidan: den länkar till sidbyggaren
   ("Visa Flamingo som kunden" öppnar sidan direkt).
+
+## Omdömen från Reco
+
+Kunden klistrar in länken till sin sida på Reco (`reco.se/cs-auto-ab`, med
+eller utan www, med en sökväg eller frågor efter, en delningslänk, adressen
+till Recos widget eller hela inbäddningskoden), eller Recos id (siffror).
+`reco.parse_link` läser det utan anrop, och sidan frågar "Är det här ni?".
+"Det här är vi" hämtar profilsidan (`https://www.reco.se/<slug>`; med bara
+ett id först widgeten, som har adressen) med SSRF-skyddet i
+`apps/tools/analyzer.fetch`, bara till `www.reco.se` och `widget.reco.se`
+(också efter en omdirigering), högst 512 kB och 10 sekunder, och högst fem
+hämtningar per konto och dag. Ett demokonto anropar aldrig Reco.
+
+- **Id:t** står på profilsidan i `window.VenueData` (med namnet, betyget,
+  antalet, hemsidan och telefonnumret), i `window.PaginationData` och i
+  `data-venue-id`; JSON-LD har namnet, hemsidan, numret och betyget men
+  inte id:t. `reco.parse_profile` läser dem i den ordningen och ger inget id
+  när källorna säger olika. CS Auto AB har 5998572 (testdatan i
+  `testdata/` är byggd ur deras riktiga sidor, omdömena utbytta).
+- **Ägaren.** Profilen prövas mot kunden: samma domän som hemsidan (inte en
+  delad värd som facebook.com) eller samma telefonnummer som en bekräftad
+  uppgift. Namnet räcker inte. Liknar den inte kunden sparas den med
+  `reco_unverified`, inget från Reco syns på sidorna, och byrån larmas, tills
+  kunden eller byrån intygat den ("Profilen är vår"; byrån larmas med vem).
+  En profil som ett annat riktigt konto redan har tas aldrig emot (och
+  databasen har regeln `flamingo_reco_id_unique`); byrån larmas. En
+  konkurrents profil kan alltså aldrig bli kundens av sig själv.
+- **Blocket "Omdömen från Reco"** (`reviews_reco`, kräver en intygad profil)
+  visar Recos egen ruta, en iframe från `widget.reco.se` som `reco.frames`
+  bygger bara av siffrorna i id:t och Giovannis storlekar: Liggande stor
+  (horizontal/xlarge, 225 px, alla skärmar, förvalet), Liggande medel
+  (horizontal/large, 60 px, från 720 px; i mobilen vertical/medium, 300 x 150
+  px), Liggande liten (horizontal/small, 27 px, utan rubrik, en smal remsa
+  direkt efter Toppen) och Stående (vertical/medium, 300 x 150 px). Titeln är
+  "Omdömen på Reco", `loading="lazy"` (CSS döljer den ruta som inte gäller
+  skärmen, och en dold ruta laddas aldrig), `referrerpolicy` som bara skickar
+  sidans domän (aldrig adressen med klick-id:t) och `sandbox` utan
+  `allow-top-navigation` (rutan kan inte byta sidan besökaren står på).
+  Utan en intygad profil syns blocket inte, och det stoppar inte
+  publiceringen. Konverteringskollen räknar blocket som omdömen, och
+  biblioteket i redigeraren länkar till Omdömen när profilen saknas.
+- **Integriteten.** Rutan laddas från reco.se när besökaren ser den: Reco
+  får besökarens IP-adress och räknar visningen (`widget/loaded`); inga
+  kakor sattes 2026-10-04. Blockets "varför" och omdömessidan säger det.
+- **Betyget** från Reco sparas bara för verktyget (kunden ser att profilen
+  är rätt), blir aldrig en uppgift och används aldrig i annonserna eller
+  förslagen (`RATING_SOURCES` är Google och ADX; "Reco" med en siffra är ett
+  betyg för `is_rating_like`). Namnet, betyget och antalet tas bort efter 90
+  dagar utan en ny hämtning (`reco.expire` i `flamingo_google_sync`); id:t och
+  rutan står kvar. Cron hämtar ingenting från Reco.
+- **Ingen egen ruta med utvalda omdömen.** Recos villkor (Medlemsvillkor för
+  webbsöktjänsten reco.se, https://www.reco.se/info/terms, uppdaterade
+  2026-09-22, avsnitt 7) säger att Reco äger rättigheterna till omdömena
+  och att materialet inte får kopieras eller göras tillgängligt för andra i
+  kommersiella sammanhang utan Recos skriftliga medgivande. Widgetarna är
+  Recos sätt att visa omdömena på en annan sajt, och ett API finns bara som
+  en skräddarsydd lösning. Därför hämtas och sparas inga omdömestexter.
+  Med Recos skriftliga medgivande (eller deras API) kan en egen ruta byggas:
+  profilsidans JSON-LD har de fem senaste omdömena med text, författarens
+  förnamn och initial, datum, betyg och länk (`https://www.reco.se/r/<id>`),
+  sidan har 50 till som HTML (`article.review-card-v2`, märkta "Omdöme från
+  inbjuden kund" när företaget bjudit in), och widgeten har texterna
+  avkortade. Märkningen "inbjuden" och att företaget valt ut omdömena måste
+  då synas.
+- **Vakten** i `apps/website/tests.py` (VvsLegacyGuardTests) fäller ordet
+  reco i koden, eftersom det var ett arv från systersajten. Reco-mönstret
+  lyfts bara i filerna i `RECO_ALLOWED_IN`; en ny fil som nämner Reco läggs
+  till där med namn.
 
 ## Behörighet
 
@@ -656,7 +726,10 @@ Googles siffror per dag för 30 dagar. I sidbyggaren: fem sidor som
 tillsammans har varje blocktyp och variant (de för kampanjer som är live
 eller pausade publicerade), en logotyp och bilder i mediaarkivet, och en
 påhittad Google-profil med omdömen (intygad som demots egen; den hämtas
-aldrig från Google). Kör det igen så byggs innehållet om; inget dubbleras.
+aldrig från Google), och en påhittad profil på Reco (id:t 0000000, ingen
+länk till reco.se): blocket Omdömen från Reco ritar en exempelruta i stället
+för Recos och laddar ingenting från Reco. Kör det igen så byggs innehållet
+om; inget dubbleras.
 En annan kund med samma namn rörs aldrig.
 
 I produktion finns ingen användare som kan logga in på demokunden. Byrån
@@ -665,7 +738,8 @@ kontakten demo@exempelror.example, utan lösenord.
 
 Ett demokonto skickar aldrig något: `/lp/` är 404 för alla utom byrån,
 hemsidan läses aldrig av (`scan.demo_refusal`), Google Places frågas aldrig
-(`places.update_from_google`, `reviews.refusal`), inga bilder hämtas från
+(`places.update_from_google`, `reviews.refusal`), Reco anropas aldrig
+(`reco.refusal`) och ingen ruta laddas från Reco, inga bilder hämtas från
 någon hemsida (`media.DEMO_REFUSED`), inga sms (`sms.NOTE_DEMO`), inga anrop till
 Google, inga larm till byrån, och affärerna exporteras eller laddas aldrig
 upp. Demokundens kampanjer och konverteringar är inte med i byråns kö eller
@@ -682,6 +756,7 @@ finns i `.env.example`.
 |---|---|---|---|
 | AI-texter och läsningen av hemsidan | samma som assistenten (`ASSISTANT_PROVIDER`, Bedrock) | Byggt, går i produktion | Mallar och regler |
 | Google Places | `GOOGLE_PLACES_API_KEY` | Byggt, slås på av nyckeln | Uppgifter från hemsidan och kunden |
+| Reco (omdömen) | Ingen nyckel: profilsidan och Recos widget är publika | Byggt: länken eller id:t, ägaren, Recos ruta i blocket | Recos egen ruta är det enda som visas; utvalda omdömen kräver Recos medgivande |
 | 46elks sms | `ELKS_API_USERNAME`, `ELKS_API_PASSWORD`, `ELKS_SENDER` (alla tre) | Byggt, slås på av nycklarna | Inget sms, loggat som "inte inkopplat" |
 | Google Ads API | `GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, och inloggningen i panelen (eller `GOOGLE_ADS_REFRESH_TOKEN`); projektet behöver Explorer (Basic för nya konton) | Byggt: koppling, kundens konto, publicering direkt efter kundens godkännande, paus, konverteringsåtgärder och rapporter. Inte prövat mot ett riktigt konto | Editor-CSV och "Markera som live", koppling och "betalning klar" bockas av i panelen, konverteringar som CSV |
 | Data Manager API (konverteringarna) | Samma inloggning; API:t påslaget i samma Cloud-projekt och behörigheten `datamanager` (koppla om en gång) | Byggt, standardvägen. Inte prövat mot ett riktigt konto | CSV-exporten |
@@ -723,6 +798,10 @@ att ett förvaltarkonto med Explorer-åtkomst får skicka. Kör
   godkännande: byrån publicerar då från kön.
 - Landningssidor på kundens egen subdomän, bilduppladdning i formuläret.
 - Sms-svaret "VANN 186000" från ägaren.
+- En egen ruta med utvalda omdömen från Reco: kräver Recos skriftliga
+  medgivande eller deras API (se Omdömen från Reco). "Bygg sidan åt mig"
+  lägger aldrig till blocket Omdömen från Reco själv; ett som redan står på
+  sidan följer med oförändrat.
 - "Skriv om" i sidbyggaren: förslaget blir en version som redigeraren
   skapar, så den sparas som kundens (eller byråns), inte som "AI". Att
   behålla märkningen kräver att servern lämnar en signerad version.
@@ -740,14 +819,15 @@ produktion:
 Det skriver över blocken och frågorna på Flamingos sidor, också ändringar
 som gjorts i /manage/ sedan förra seeden; publiceringen rörs inte.
 
-Sidbyggaren (migreringarna 0010-0013): `./deploy` kör migreringarna. 0010
+Sidbyggaren (migreringarna 0010-0014): `./deploy` kör migreringarna. 0010
 skapar sidorna och mediaarkivet, 0011 gör varje kampanjs sida till en
 LandingPage i Ren (publicerad för kampanjer som är live eller pausade; ett
 nummer ur telefonuppgiften, frågornas nycklar omgjorda så att de klarar
 schemat, etiketterna oförändrade), 0012 lägger till dagens räknare och
 bildernas alt-text från hemsidan, och 0013 sidans ursprung (`built_for`,
-`built_rev`) och Google-profilens intyg. Kör sedan demot igen, så att
-demokunden får sina sidor och bilder:
+`built_rev`) och Google-profilens intyg, och 0014 profilen på Reco
+(`reco_*`, regeln `flamingo_reco_id_unique`). Kör sedan demot igen, så att
+demokunden får sina sidor, bilder och sin påhittade profil på Reco:
 
     uv run python manage.py flamingo_demo --prod
 Migreringen 0007 stoppar (med kontonas nummer) om två Flamingo-konton har

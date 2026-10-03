@@ -29,7 +29,9 @@ Landningssidorna byggs i sidbyggaren (pagebuilder/): en sida per kampanj,
 utom Rörjour som delas av två kampanjer, och tillsammans har sidorna varje
 blocktyp och variant. Bilderna i mediaarkivet ritas här med Pillow och är
 tydligt påhittade ("Exempelbild"). Google-profilen och omdömena är också
-påhittade och hämtas aldrig från Google.
+påhittade och hämtas aldrig från Google. Profilen på Reco är påhittad (id:t
+0000000, ingen länk till reco.se): blocket Omdömen från Reco ritar en
+exempelruta i stället för Recos, och Reco anropas aldrig.
 
 Idempotent: demokunden hittas på namnet OCH is_demo och uppdateras, och
 innehållet (uppgifter, tjänster, kampanjer, sidor, bilder, granskningar,
@@ -38,7 +40,7 @@ Inget dubbleras.
 En annan kund med samma namn, som inte är demokontot, rörs aldrig:
 kommandot avbryts i stället.
 
-Ingenting skickas: inga mejl, inga sms, inget till Google.
+Ingenting skickas: inga mejl, inga sms, inget till Google eller Reco.
 """
 
 import io
@@ -95,6 +97,8 @@ CUSTOMER_NOTES = (
 #: Google (google_ads.ensure_not_demo).
 GOOGLE_ID = "000-000-0000"
 GOOGLE_DIGITS = GOOGLE_ID.replace("-", "")
+#: Demots påhittade id på Reco (reco.clean_venue_id tar aldrig emot det).
+RECO_ID = "0000000"
 
 AUTOREPLY = (
     "Hej {namn}! Tack för din förfrågan till Exempelrör. Vi har tagit emot den "
@@ -378,6 +382,20 @@ class Command(BaseCommand):
         # Den påhittade profilen är demots egen (reviews.store_details prövar
         # riktiga profiler mot kunden; demot hämtar aldrig från Google).
         account.google_place_unverified = False
+
+        # En påhittad profil på Reco: id:t är bara nollor, som Google Ads-id:t,
+        # och klarar inte reco.VENUE_ID_RE, så ingen iframe kan byggas av det.
+        # Ingen länk till reco.se. Blocket ritar en exempelruta i demot
+        # (render._reco_demo), och Reco anropas aldrig (reco.refusal).
+        account.reco_venue_id = RECO_ID
+        account.reco_url = ""
+        account.reco_name = "Exempelrör (demo)"
+        account.reco_rating = Decimal("4.7")
+        account.reco_review_count = 23
+        account.reco_fetched_at = now - timedelta(days=1)
+        account.reco_unverified = False
+        account.reco_confirmed_at = None
+        account.reco_confirmed_by = None
 
         account.notify_phone = OWNER_MOBILE
         account.notify_sms = True
@@ -1162,6 +1180,7 @@ class Command(BaseCommand):
             ),
             b(account, "reviews_google", "line", spol_ctx),
             b(account, "steps", "four", spol_ctx),
+            b(account, "reviews_reco", "liten", spol_ctx),
             b(
                 account,
                 "guarantee",
@@ -1187,6 +1206,7 @@ class Command(BaseCommand):
             ),
             b(account, "reviews_google", "cards", vvb_ctx),
             b(account, "price", "examples", vvb_ctx),
+            b(account, "reviews_reco", "staende", vvb_ctx),
             b(
                 account,
                 "person",
@@ -1244,6 +1264,7 @@ class Command(BaseCommand):
                 after=media["bad_efter"].pk,
             ),
             b(account, "reviews_google", "quote", bad_ctx),
+            b(account, "reviews_reco", "medel", bad_ctx),
             b(account, "certificates", "icons", bad_ctx),
             b(account, "guarantee", "short", bad_ctx),
             b(
@@ -1296,6 +1317,7 @@ class Command(BaseCommand):
                 before=media["rör_fore"].pk,
                 after=media["rör_efter"].pk,
             ),
+            b(account, "reviews_reco", "stor", film_ctx),
             b(account, "steps", "three", film_ctx),
             b(account, "callbar", "call_write", film_ctx, title="Frågor om filmningen? Ring oss."),
         ]

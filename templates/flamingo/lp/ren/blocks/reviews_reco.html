@@ -1,0 +1,40 @@
+{% load flamingo_pb %}{% comment %}
+Omdömen från Reco: Recos egen ruta, en iframe från widget.reco.se som
+reco.frames bygger bara av siffrorna i kundens id och en av Giovannis
+storlekar (view.frames, render.py). Inga omdömestexter hämtas eller visas
+av oss: Recos villkor tillåter inte att innehållet kopieras (apps/flamingo/
+reco.py). Blocket syns inte utan en profil som är intygad som kundens.
+
+Rutan laddas från reco.se när besökaren ser den (loading="lazy"): Reco får
+besökarens IP-adress och räknar visningen, men bara sidans domän som
+hänvisning (referrerpolicy), aldrig adressen med klick-id:t. sandbox låter
+rutan köra Recos skript och öppna Reco i en ny flik, men aldrig byta sidan
+besökaren står på eller skicka formulär.
+
+stor: den liggande stora (225 px hög) på alla skärmar; medel: den liggande
+(60 px) från 720 px och den stående (300 x 150 px) i mobilen, där CSS döljer
+den andra (en dold iframe med loading="lazy" laddas inte); liten: den
+liggande lilla (27 px), utan rubrik, en smal remsa direkt efter Toppen;
+staende: den stående på alla skärmar.
+
+Demot (view.demo) visar en påhittad ruta och laddar aldrig något från Reco.
+{% endcomment %}<section class="rn-block rn-reco rn-reco--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}{% if view.hidden %} data-pb-empty{% endif %}>
+  <div class="rn-wrap">
+    {% if b.variant != "liten" %}
+    <header class="rn-head rn-reco__head">
+      <p class="rn-eyebrow rn-gmark">Omdömen från Reco</p>
+      {% if f.title %}<h2 class="rn-h2"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2" %}{% endif %}
+    </header>
+    {% endif %}
+    <div class="rn-reco__box">
+      {% for frame in view.frames %}<iframe class="rn-reco__frame rn-reco__frame--{{ frame.orientation }} rn-reco__frame--{{ frame.screen }}" src="{{ frame.src }}" title="{{ frame.title }}" loading="lazy" height="{{ frame.height }}"{% if frame.width %} width="{{ frame.width }}"{% endif %} referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>{% endfor %}
+      {% if view.demo %}
+      <div class="rn-reco__demo" role="note">
+        <p class="rn-reco__demo-score"><b class="rn-reco__demo-big">{{ view.demo.rating }}</b> av 5<span class="rn-starrow" aria-hidden="true">{% for s in view.demo.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}"><use href="#rn-i-{% if s == 'half' %}star-half{% else %}star{% endif %}"></use></svg>{% endfor %}</span>{% if view.demo.count %}<span class="rn-reviews__count">{{ view.demo.count }} omdömen</span>{% endif %}</p>
+        <p class="rn-small">Exempel: här visar sidan Recos egen ruta med betyget och omdömena. Demot hämtar ingenting från Reco, och siffrorna är påhittade.</p>
+      </div>
+      {% endif %}
+    </div>
+    {% if view.profile_url and b.variant != "liten" %}<p class="rn-reco__more"><a class="rn-link" href="{{ view.profile_url }}" rel="noopener nofollow" target="_blank">Se alla omdömen på Reco<span class="rn-sr"> (ny flik)</span></a></p>{% endif %}
+  </div>
+</section>

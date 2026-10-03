@@ -548,7 +548,7 @@ class Planned:
     variant: str
     fields: dict
     #: Ett block från sidan som följer med oförändrat (före och efter med
-    #: kundens egna bilder).
+    #: kundens egna bilder, Recos ruta).
     keep: dict | None = None
     ai_fields: dict = field(default_factory=dict)
     block_id: str = ""
@@ -678,6 +678,16 @@ def plan(base):
         else:
             variant = "quote"
         out.append(Planned("reviews_google", variant, {"title": "Vad kunderna säger"}))
+    kept_reviews = _kept_profile_reviews(base)
+    if kept_reviews is not None:
+        out.append(
+            Planned(
+                "reviews_reco",
+                kept_reviews["variant"],
+                active_fields(kept_reviews),
+                keep=kept_reviews,
+            )
+        )
 
     steps = _template(base, "steps", "three")
     if steps:
@@ -732,6 +742,17 @@ def _faq(base):
         return None
     faq["items"] = items
     return faq
+
+
+def _kept_profile_reviews(base):
+    """Recos ruta (reviews_reco) från sidan följer med oförändrad så länge
+    profilen får synas: det finns inget i den för AI att skriva, och
+    förslaget lägger aldrig till den själv."""
+    for block in base.page.draft_blocks:
+        if block.get("type") == "reviews_reco":
+            ok = registry._meets(registry.REQUIRES_RECO, base.facts, base.account)
+            return block if ok else None
+    return None
 
 
 def _kept_before_after(base):

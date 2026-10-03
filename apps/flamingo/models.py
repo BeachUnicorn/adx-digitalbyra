@@ -77,6 +77,9 @@ RATING_SITES = frozenset(
         "servicefinder",
         "offerta",
         "mittanbud",
+        # Recos betyg visas bara i Recos egen ruta (reco.py), aldrig som en
+        # uppgift i annonserna eller förslagen.
+        "reco",
     )
 )
 #: "4,9 av 5", "4.8/5", "9 av 10", "5 stjärnor", eller bara "4,9".
@@ -493,6 +496,45 @@ class FlamingoAccount(models.Model):
     google_reviews_selected = models.JSONField("Valda omdömen", default=list, blank=True)
     google_reviews_fetched_at = models.DateTimeField("Omdömena hämtade", null=True, blank=True)
 
+    # Kundens profil på Reco (reco.se), för blocket "Omdömen från Reco" i
+    # sidbyggaren (Giovannis beslut 2026-10-04, reco.py). Kunden klistrar in
+    # länken till sin sida på Reco eller Recos id; profilsidan hämtas (aldrig
+    # för ett demokonto) och prövas mot kundens hemsida och telefonnummer.
+    # Sidan visar Recos egen ruta (en iframe från widget.reco.se) byggd bara
+    # av siffrorna i reco_venue_id. Inga omdömestexter sparas här: Recos
+    # villkor tillåter inte att innehållet kopieras utan Recos skriftliga
+    # medgivande (se reco.py).
+    #
+    # Betyget och antalet visas bara i verktyget, så att kunden ser att det
+    # är rätt profil. De är aldrig en uppgift (Fact) och används aldrig i
+    # annonserna eller förslagen (RATING_SOURCES).
+    #
+    # Liknar profilen inte kunden sätts reco_unverified, inget från Reco syns
+    # på sidorna, och byrån larmas, tills kunden eller byrån intygat att
+    # profilen är deras (reco.confirm_owner, reco_confirmed_at och _by).
+    reco_venue_id = models.CharField("Recos id för företaget", max_length=12, blank=True)
+    reco_url = models.URLField("Profilen på Reco", max_length=300, blank=True)
+    reco_name = models.CharField("Namnet på Reco", max_length=200, blank=True)
+    reco_rating = models.DecimalField(
+        "Betyg på Reco", max_digits=2, decimal_places=1, null=True, blank=True
+    )
+    reco_review_count = models.PositiveIntegerField("Antal omdömen på Reco", null=True, blank=True)
+    reco_fetched_at = models.DateTimeField("Reco-profilen hämtad", null=True, blank=True)
+    reco_unverified = models.BooleanField(
+        "Reco-profilen liknar inte företaget",
+        default=False,
+        help_text="Inget från Reco syns på sidorna förrän någon intygat att profilen är kundens.",
+    )
+    reco_confirmed_at = models.DateTimeField("Reco-profilen intygad", null=True, blank=True)
+    reco_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Reco-profilen intygad av",
+    )
+
     #: Dagens räknare för spärrarna som kostar pengar eller bandbredd
     #: (limits.reserve_daily): {"day": "2026-10-03", "places_search": 2,
     #: "places_details": 1, "site_import": 6}. Nollställs när dagen byts.
@@ -511,7 +553,15 @@ class FlamingoAccount(models.Model):
                 fields=["google_ads_customer_id"],
                 condition=~models.Q(google_ads_customer_id="") & models.Q(is_demo=False),
                 name="flamingo_google_id_unique",
-            )
+            ),
+            # En profil på Reco hör till en kund: en konkurrents profil kan
+            # aldrig bli kundens (reco.store nekar ett id som ett annat konto
+            # har). Demots påhittade id räknas inte.
+            models.UniqueConstraint(
+                fields=["reco_venue_id"],
+                condition=~models.Q(reco_venue_id="") & models.Q(is_demo=False),
+                name="flamingo_reco_id_unique",
+            ),
         ]
 
     def __str__(self):
@@ -607,6 +657,13 @@ class FlamingoAccount(models.Model):
             if review is not None:
                 chosen.append(review)
         return chosen
+
+    @property
+    def reco_trusted(self):
+        """Får sidorna visa Recos ruta? Bara med ett id och när profilen
+        liknar företaget eller någon intygat att den är kundens
+        (reco_unverified)."""
+        return bool(self.reco_venue_id) and not self.reco_unverified
 
 
 def google_id_taken(google_id, exclude_pk=None):

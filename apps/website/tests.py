@@ -539,17 +539,26 @@ class VvsLegacyGuardTests(TestCase):
     ADX Flamingo (apps/flamingo/) är vitlistad för branschorden: tjänstens
     kunder är hantverkare, och rörmokare och ROT-avdrag är där kundernas
     ord, inte arv. Systersajtens namn och markörer fäller bygget även där.
+
+    Reco (RECO_ALLOWED_IN): Giovanni beslutade 2026-10-04 att ADX Flamingos
+    landningssidor får visa kundens omdömen från Reco (reco.se) i blocket
+    "Omdömen från Reco". Det är en ny funktion för Flamingos kunder, inte
+    VVS-arvet, så reco-mönstret lyfts i exakt de filer som bygger den, och
+    bara det mönstret: systersajtens namn och de andra markörerna fäller
+    bygget även där. Varje annan fil fälls för reco som förut, och en ny fil
+    som vill nämna Reco måste läggas till här med namn.
     """
 
     #: Markörer för skandivvs-arvet. `reco` matchas bara som eget ord eller
     #: följt av skiljetecken (reco.se, reco_widget, Reco-widget) - annars
     #: träffar den oskyldiga ord som "record" och "recognizes".
+    RECO_PATTERN = re.compile(r"\breco\b|reco[._-]", re.IGNORECASE)
     IDENTITY_PATTERNS = [
         re.compile(r"skandivvs", re.IGNORECASE),
         re.compile(r"skanditiptap", re.IGNORECASE),
         re.compile(r"skvvs", re.IGNORECASE),
         re.compile(r"jungfru", re.IGNORECASE),
-        re.compile(r"\breco\b|reco[._-]", re.IGNORECASE),
+        RECO_PATTERN,
     ]
     #: Branschord: arv i ADX:s egen kod, men vardag i Flamingo
     #: (TRADE_WORDS_ALLOWED_IN).
@@ -560,6 +569,33 @@ class VvsLegacyGuardTests(TestCase):
     ]
     PATTERNS = IDENTITY_PATTERNS + TRADE_PATTERNS
     TRADE_WORDS_ALLOWED_IN = ("apps/flamingo/",)
+    #: Reco-markören (RECO_PATTERN), bara den, i exakt de här filerna
+    #: (Giovannis beslut 2026-10-04, se klassens docstring). Inga mappar och
+    #: inga mönster.
+    RECO_ALLOWED_IN = frozenset(
+        {
+            # Funktionens egna filer.
+            "apps/flamingo/reco.py",
+            "apps/flamingo/test_reco.py",
+            "apps/flamingo/testdata/reco_profil_cs_auto.html",
+            "apps/flamingo/testdata/reco_widget_cs_auto.html",
+            "templates/flamingo/app/reviews/_reco.html",
+            "templates/flamingo/lp/ren/blocks/reviews_reco.html",
+            # Där funktionen kopplas in: fälten, blocket, renderaren,
+            # Konverteringskollen, omdömessidan, demot, cron och dokumentationen.
+            "apps/flamingo/models.py",
+            "apps/flamingo/pagebuilder/__init__.py",
+            "apps/flamingo/pagebuilder/registry.py",
+            "apps/flamingo/pagebuilder/render.py",
+            "apps/flamingo/pagebuilder/koll.py",
+            "apps/flamingo/app_views/reviews.py",
+            "apps/flamingo/management/commands/flamingo_demo.py",
+            "apps/flamingo/management/commands/flamingo_google_sync.py",
+            "apps/flamingo/test_pagebuilder.py",
+            "apps/flamingo/README.md",
+            "templates/flamingo/app/reviews/reviews.html",
+        }
+    )
 
     SCAN_ROOTS = ["apps", "config", "templates", "src", "static/js"]
     EXTRA_FILES = ["package.json", "esbuild.config.mjs"]
@@ -588,9 +624,12 @@ class VvsLegacyGuardTests(TestCase):
             yield Path(name), base / name
 
     def _patterns_for(self, rel):
+        patterns = self.PATTERNS
         if rel.as_posix().startswith(self.TRADE_WORDS_ALLOWED_IN):
-            return self.IDENTITY_PATTERNS
-        return self.PATTERNS
+            patterns = self.IDENTITY_PATTERNS
+        if rel.as_posix() in self.RECO_ALLOWED_IN:
+            patterns = [p for p in patterns if p is not self.RECO_PATTERN]
+        return patterns
 
     def test_no_vvs_legacy_markers_in_code_templates_or_build(self):
         hits = []
@@ -619,6 +658,40 @@ class VvsLegacyGuardTests(TestCase):
         self.assertFalse(any(p.search("ROT-avdrag och rörmokare") for p in patterns))
         self.assertTrue(any(p.search("skandivvs.se") for p in patterns))
         self.assertEqual(self._patterns_for(PurePosixPath("apps/website/views.py")), self.PATTERNS)
+
+    def test_reco_is_allowed_only_in_the_listed_files_and_only_reco(self):
+        """Reco-undantaget (Giovannis beslut 2026-10-04) är smalt: bara de
+        uppräknade filerna, bara reco-mönstret, och listan pekar bara på
+        filer som finns."""
+        from pathlib import PurePosixPath
+
+        base = Path(django_settings.BASE_DIR)
+        for name in sorted(self.RECO_ALLOWED_IN):
+            with self.subTest(file=name):
+                self.assertTrue(
+                    (base / name).is_file(), f"{name} finns inte; ta bort den ur listan"
+                )
+                patterns = self._patterns_for(PurePosixPath(name))
+                self.assertFalse(any(p.search("reco.se och reco_venue_id") for p in patterns))
+                # Systersajten och de andra markörerna fälls även där.
+                for marker in ("skandivvs.se", "skanditiptap", "skvvs", "jungfru"):
+                    self.assertTrue(any(p.search(marker) for p in patterns), marker)
+        self.assertTrue(self.RECO_PATTERN.search("reco_widget"))
+        for name in (
+            "apps/website/views.py",
+            "apps/flamingo/scan.py",
+            "apps/flamingo/reviews.py",
+            "apps/flamingo/testdata/annan.html",
+            "templates/flamingo/lp/ren/blocks/reviews_google.html",
+            "static/js/flamingo-pb.js",
+            "apps/flamingo/reco_ny.py",
+        ):
+            with self.subTest(file=name):
+                patterns = self._patterns_for(PurePosixPath(name))
+                for text in ("reco.se", "Omdömen från Reco", "reco_widget", "Reco-widget"):
+                    self.assertTrue(any(p.search(text) for p in patterns), f"{name}: {text}")
+        # Mönstret är detsamma som förut: oskyldiga ord fälls inte.
+        self.assertFalse(self.RECO_PATTERN.search("record och recognizes"))
 
 
 class SitemapTests(TestCase):

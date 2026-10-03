@@ -7,6 +7,7 @@
      .fl-md-*   arkivet: uppladdningen, rutnätet med bilder, färgerna och
                 bilderna från hemsidan
      .fl-rv-*   omdömena: profilen, träffarna, listan med val och ordning
+     .fl-rc-*   Recos del av omdömena (profilen på Reco)
 
    Samma regler som resten av verktyget: brödtext minst 16 px, inga
    style-attribut, inget bredare än skärmen i 375 px.
@@ -133,6 +134,11 @@
 .fl-rv-id__summary{display:inline-block;padding:4px 0;font-size:16px;color:var(--fl-violet-ink);text-decoration:underline;text-underline-offset:3px;cursor:pointer}
 .fl-rv-id[open] .fl-rv-id__summary{margin-bottom:12px}
 .fl-rv-hits .fl-list__main{gap:4px}
+
+/* ---------- Reco (reviews/_reco.html, ankaret #reco) ---------- */
+.fl-rc{display:flex;flex-direction:column;gap:20px;min-width:0;padding-top:8px;scroll-margin-top:24px}
+.fl-rc__head{display:flex;flex-direction:column;gap:6px;padding-top:20px;border-top:1px solid var(--fl-line)}
+.fl-rc__title{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.2;color:var(--fl-ink)}
 
 /* ---------- Telefon ---------- */
 @media (max-width:560px){

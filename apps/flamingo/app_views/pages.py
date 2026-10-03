@@ -560,7 +560,14 @@ def editor_config(request, account, page, campaigns, problems):
         "problems": _problem_dicts(problems),
         "schema": pagebuilder.schema(),
         "groups": [{"key": k, "name": n} for k, n in pagebuilder.GROUPS],
-        "available": {k: {"ok": ok, "reason": reason} for k, (ok, reason) in available.items()},
+        "available": {
+            k: {
+                "ok": ok,
+                "reason": reason,
+                "link": "" if ok else registry.requires_url(registry.TYPES[k].requires),
+            }
+            for k, (ok, reason) in available.items()
+        },
         "palettes": _palettes(page),
         "campaigns": [
             {"name": c.name, "live": c.status == Campaign.STATUS_LIVE, "id": c.pk}
@@ -614,7 +621,8 @@ def page_detail(request, account, pk):
 
 def _library(account, page):
     """Biblioteket i grupper: ikon, namn, varianter och om blocket går att
-    lägga till (registry.available, med sidans tjänst och pris)."""
+    lägga till (registry.available, med sidans tjänst och pris). Ett
+    omdömesblock utan profil får en länk till Omdömen (registry.requires_url)."""
     available = registry.available(account, ctx=_build_ctx(page, account))
     groups = []
     for key, name in pagebuilder.GROUPS:
@@ -623,7 +631,8 @@ def _library(account, page):
             if block_type.group != key:
                 continue
             ok, reason = available.get(block_type.key, (True, ""))
-            items.append({"type": block_type, "ok": ok, "reason": reason})
+            link = "" if ok else registry.requires_url(block_type.requires)
+            items.append({"type": block_type, "ok": ok, "reason": reason, "link": link})
         if items:
             groups.append({"key": key, "name": name, "items": items})
     return groups

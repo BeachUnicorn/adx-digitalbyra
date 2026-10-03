@@ -49,6 +49,10 @@ inte hämtats på en vecka hämtas igen, och innehåll som inte gått att hämta
 på reviews.MAX_AGE tas bort (Googles villkor). Aldrig demot. Kommandot
 skriver en rad bara när något hämtades, misslyckades eller togs bort.
 --prova hoppar över steget.
+
+Sedan Reco (reco.expire): namnet, betyget och antalet från en profil på
+Reco som inte hämtats på reco.MAX_AGE tas bort (id:t står kvar, och Recos
+ruta på sidorna påverkas inte). Inget hämtas från Reco här. Aldrig demot.
 """
 
 import importlib
@@ -56,7 +60,7 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from apps.flamingo import google_ads, google_conversions, google_reports, reviews
+from apps.flamingo import google_ads, google_conversions, google_reports, reco, reviews
 from apps.flamingo.google_ads import GoogleAdsError
 from apps.flamingo.models import FlamingoAccount
 
@@ -97,6 +101,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if not options.get("prova"):
             self._reviews(options.get("konto"), options.get("verbosity", 1))
+            self._reco(options.get("konto"), options.get("verbosity", 1))
         if not google_ads.is_configured():
             self.stdout.write("Google Ads API är inte inkopplat, inget synkades.")
             return
@@ -247,6 +252,18 @@ class Command(BaseCommand):
                 f"{summary.expired} rensade (för gamla)."
                 + (f" Inget hämtades: {summary.skipped}." if summary.skipped else "")
             )
+
+    def _reco(self, account_pk, verbosity):
+        """Reco: det som blivit för gammalt tas bort, ett eget steg som aldrig
+        stoppar resten."""
+        try:
+            expired = reco.expire(account_pk=account_pk)
+        except Exception:  # noqa: BLE001 - Reco stoppar aldrig resten
+            logger.exception("Omdömen från Reco: rensningen misslyckades")
+            self.stdout.write("Omdömen från Reco: oväntat fel, se loggen.")
+            return
+        if expired or verbosity >= 2:
+            self.stdout.write(f"Omdömen från Reco: {expired} rensade (för gamla).")
 
     @staticmethod
     def _record(account, message):

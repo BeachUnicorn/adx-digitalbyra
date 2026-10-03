@@ -18,8 +18,9 @@ Reglerna är fasta (inget AI) och tas bara med när de gäller sidan:
     forsta_blocket  Ringknapp i första blocket, eller Toppen med formulär och
                     formuläret direkt efter (blocks[1])
     pris            Från-pris tidigt, när ett pris är bekräftat
-    omdomen         Omdömen eller betyg från Google på sidan (utan
-                    Google-profil: länken till omdömena)
+    omdomen         Omdömen eller betyg från Google på sidan, eller Recos
+                    ruta (blocket Omdömen från Reco) med en profil som är
+                    intygad som kundens (utan profil: länken till omdömena)
     formular        Formuläret har högst FORM_MAX_FIELDS fält, räknat som
                     besökaren ser det (FormSpec.fields: frågorna, namn och
                     telefon, meddelandet och e-posten)
@@ -300,6 +301,9 @@ def koll(page, account=None, *, which="draft", blocks=None):
     reviews = account.selected_google_reviews()
     rating = account.trusted_google_rating  # bara en profil som är intygad
     reviews_block = _first(blocks, "reviews_google")
+    # Recos ruta räknas när profilen är intygad som kundens (reco.py).
+    reco_block = _first(blocks, "reviews_reco")
+    reco_trusted = account.reco_trusted
     if rating is not None:
         rating_text = f"{rating:.1f}".replace(".", ",")
         count = f", {account.google_review_count} omdömen" if account.google_review_count else ""
@@ -314,7 +318,54 @@ def koll(page, account=None, *, which="draft", blocks=None):
         if reviews_url
         else None
     )
-    if not have:
+    google_visible = reviews_block is not None and (
+        bool(reviews) or (reviews_block.get("variant") == "line" and rating is not None)
+    )
+    if google_visible:
+        items.append(_item("omdomen", True, "Omdömen från Google", f"{have}.", "socialt_bevis"))
+    elif reco_block is not None and reco_trusted:
+        items.append(
+            _item(
+                "omdomen",
+                True,
+                "Omdömen från Reco",
+                "Recos ruta visar betyget och omdömena från er profil på Reco.",
+                "socialt_bevis",
+            )
+        )
+    elif reco_block is not None:
+        items.append(
+            _item(
+                "omdomen",
+                False,
+                "Recos ruta syns inte",
+                "Er profil på Reco är inte kopplad eller inte intygad som er, så blocket "
+                "Omdömen från Reco syns inte på sidan.",
+                "socialt_bevis",
+                {"kind": "link", "url": reviews_url + "#reco", "label": "Öppna Omdömen"}
+                if reviews_url
+                else _select(reco_block, "Visa blocket"),
+            )
+        )
+    elif not have and reco_trusted:
+        after = _first(blocks, "price") or hero
+        items.append(
+            _item(
+                "omdomen",
+                False,
+                "Inga omdömen på sidan",
+                "Er profil på Reco är kopplad. Recos ruta nära knappen ger förtroende.",
+                "socialt_bevis",
+                {
+                    "kind": "add_block",
+                    "type": "reviews_reco",
+                    "variant": "stor",
+                    "after_id": after.get("id") if after else "",
+                    "label": "Lägg till Recos ruta",
+                },
+            )
+        )
+    elif not have:
         items.append(
             _item(
                 "omdomen",
@@ -345,20 +396,16 @@ def koll(page, account=None, *, which="draft", blocks=None):
             )
         )
     else:
-        visible = bool(reviews) or (reviews_block.get("variant") == "line" and rating is not None)
-        if visible:
-            items.append(_item("omdomen", True, "Omdömen från Google", f"{have}.", "socialt_bevis"))
-        else:
-            items.append(
-                _item(
-                    "omdomen",
-                    False,
-                    "Omdömena syns inte",
-                    "Välj omdömen i din Google-profil, eller byt blocket till Betyg i en rad.",
-                    "socialt_bevis",
-                    reviews_link or _select(reviews_block, "Visa omdömesblocket"),
-                )
+        items.append(
+            _item(
+                "omdomen",
+                False,
+                "Omdömena syns inte",
+                "Välj omdömen i din Google-profil, eller byt blocket till Betyg i en rad.",
+                "socialt_bevis",
+                reviews_link or _select(reviews_block, "Visa omdömesblocket"),
             )
+        )
 
     # Formulärets fält -----------------------------------------------------
     if form is not None:

@@ -55,7 +55,7 @@ from .registry import (
     LINES,
     MEDIA,
     PHONE,
-    REQUIRES_GOOGLE,
+    PROFILE_REQUIREMENTS,
     REQUIRES_TEXT,
     TEXT,
     TEXTAREA,
@@ -175,7 +175,8 @@ def page_problems(page, context=None, *, blocks=None):
         variant = block.get("variant")
         fields = active_fields(block)
         requires = block_type.requires
-        if requires and requires != REQUIRES_GOOGLE:
+        # Ett omdömesblock utan profil döljs på sidan i stället (render.py).
+        if requires and requires not in PROFILE_REQUIREMENTS:
             # Vilket pris sidan får visa avgörs när blocket skapas (sidans
             # tjänst); här räcker ett bekräftat pris, och siffrorna prövas
             # mot uppgifterna nedan.

@@ -34,6 +34,12 @@ ritar det i en ram med srcdoc, och inget skript i sidan får köras där.
 Länkarna till Google (profilen, omdömet, författaren) prövas igen här med
 reviews.google_link, och betyg och omdömen från en Google-profil som inte
 är intygad som kundens visas aldrig (FlamingoAccount.google_profile_trusted).
+
+Blocket "Omdömen från Reco" ritar Recos egen ruta: iframe-adressen byggs här
+med reco.frames, bara av siffrorna i kundens id, och bara när profilen är
+intygad som kundens (FlamingoAccount.reco_trusted). Länken till profilen
+prövas igen med reco.profile_link. Demot ritar en påhittad ruta och laddar
+aldrig något från Reco.
 """
 
 import logging
@@ -45,7 +51,7 @@ from decimal import Decimal
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 
-from .. import sms
+from .. import reco, sms
 from ..models import RATING_SOURCES, Fact, LandingPage, MediaAsset
 from ..reviews import google_link
 from .blocks import FormSpec, active_fields, active_version, form_spec, visible_items
@@ -240,6 +246,12 @@ class Site:
     hero_variant: str = ""
     spec: FormSpec | None = None
     reviews: list = field(default_factory=list)
+    #: Kundens id och länk på Reco, bara när profilen är intygad
+    #: (reco_trusted) och kontot inte är demot; annars "".
+    reco_venue_id: str = ""
+    reco_url: str = ""
+    #: Demots påhittade ruta ({"rating", "count", "stars"}), annars None.
+    reco_demo: dict | None = None
 
 
 def site_info(page, account, blocks, media=None):
@@ -263,6 +275,7 @@ def site_info(page, account, blocks, media=None):
         logo = MediaAsset.objects.filter(account=account, is_logo=True).order_by("-pk").first()
     google_rating = account.trusted_google_rating
     rating = _decimal_text(google_rating)
+    reco_live = account.reco_trusted and not account.is_demo
     return Site(
         business=facts.company,
         phone=phone,
@@ -280,7 +293,22 @@ def site_info(page, account, blocks, media=None):
         hero_variant=hero_variant,
         spec=form_spec(blocks),
         reviews=account.selected_google_reviews(),
+        reco_venue_id=reco.clean_venue_id(account.reco_venue_id) if reco_live else "",
+        reco_url=reco.profile_link(account.reco_url) if reco_live else "",
+        reco_demo=_reco_demo(account),
     )
+
+
+def _reco_demo(account):
+    """Demots ruta i stället för Recos: det påhittade betyget, aldrig en
+    iframe eller en länk till Reco."""
+    if not (account.is_demo and account.reco_trusted):
+        return None
+    return {
+        "rating": _decimal_text(account.reco_rating) or "4,7",
+        "count": account.reco_review_count,
+        "stars": _stars(account.reco_rating or 0),
+    }
 
 
 def _media_map(account, blocks):
@@ -300,7 +328,7 @@ def _media_map(account, blocks):
 
 #: Block som blir en smal remsa direkt efter Toppen (förtroende i en rad)
 #: i stället för en egen sektion.
-STRIP_BLOCKS = {("certificates", "badges"), ("reviews_google", "line")}
+STRIP_BLOCKS = {("certificates", "badges"), ("reviews_google", "line"), ("reviews_reco", "liten")}
 
 
 def _surfaces(blocks):
@@ -444,6 +472,13 @@ def _prepare(block, fields, site, media):
         view["stars"] = _stars(site.rating_value)
         has_line = bool(site.rating)
         view["hidden"] = not site.reviews and not (block.get("variant") == "line" and has_line)
+    elif kind == "reviews_reco":
+        # Recos ruta, byggd bara av id:t (reco.frames); utan en intygad
+        # profil syns blocket inte.
+        view["frames"] = reco.frames(block.get("variant"), site.reco_venue_id)
+        view["profile_url"] = site.reco_url
+        view["demo"] = site.reco_demo
+        view["hidden"] = not view["frames"] and view["demo"] is None
     elif kind == "area":
         view["map"] = _area_map(fields.get("places") or [])
     elif kind == "form":

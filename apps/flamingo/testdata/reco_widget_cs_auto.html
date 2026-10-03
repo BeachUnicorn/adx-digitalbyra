@@ -1,0 +1,39 @@
+<!doctype html>
+<!--
+Testdata för apps/flamingo/test_reco.py: Recos widget för CS Auto AB
+(https://widget.reco.se/v2/venues/5998572/vertical/small?lang=sv), hämtad
+2026-10-04 och nedbantad. Widgeten är en SvelteKit-sida som ritas på Recos
+server, och datan står i kit.start(...) som ett JavaScript-objekt (inte
+JSON). Omdömena är utbytta mot ett påhittat.
+-->
+<html lang="sv">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+	</head>
+	<body data-sveltekit-preload-data="hover">
+		<div style="display: contents">
+			<script>
+				{
+					__sveltekit_84q3jz = {
+						base: new URL("../../..", location).pathname.slice(0, -1)
+					};
+
+					const element = document.currentScript.parentElement;
+
+					Promise.all([
+						import("../../../_app/immutable/entry/start.G6iLg7Qh.js"),
+						import("../../../_app/immutable/entry/app.DvET-Eq1.js")
+					]).then(([kit, app]) => {
+						kit.start(app, element, {
+							node_ids: [0, 2, 3, 12],
+							data: [{type:"data",data:{lang:"sv"},uses:{search_params:["lang"]}},{type:"data",data:{entityId:"5998572",entityType:"Venue",name:"Cs Auto AB",reviewCount:145,rating:4.910344827586207,allOrgsReviewCount:null,allOrgsRating:null,slug:"cs-auto-ab",entityParentId:null,recoRelation:"Customer",transparencyRating:"Good",reviews:[{id:1000001,text:"Påhittad text i testdatan.",lang:"sv",screenName:"Exempel A",grade:5,created:"2026-10-02T16:31:14.429676+02:00",trustState:"Invited",isTrustedReview:false,venueMeta:{venueId:5998572,venueName:"Cs Auto AB",venueIdentifier:"cs-auto-ab"},profileMeta:null,translations:[]}]},uses:{params:["id"]}}],
+							form: null,
+							error: null
+						});
+					});
+				}
+			</script>
+		</div>
+	</body>
+</html>

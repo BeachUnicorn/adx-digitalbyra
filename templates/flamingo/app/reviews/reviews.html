@@ -1,7 +1,7 @@
 {% extends "flamingo/app/base.html" %}
 {% load static %}
 {% comment %}
-Omdömen från Google (sidbyggaren, skärm 10 i adx-marketing/sidbyggaren-mockup.html).
+Omdömen från Google och Reco (sidbyggaren, skärm 10 i adx-marketing/sidbyggaren-mockup.html).
 Kontext från app_views/reviews.reviews_view: configured (GOOGLE_PLACES_API_KEY),
 is_demo, can_call, connected, fetched, unverified (profilen liknar inte
 företaget: inget syns på sidorna förrän den är intygad), maps_uri (prövad
@@ -14,15 +14,17 @@ författarens namn och länk, och en länk till omdömet på Google Maps
 (Googles villkor för Places API). Formulären med data-fl-once kan inte
 skickas två gånger i rad (static/js/flamingo-media.js): varje sökning och
 hämtning kostar.
+
+Recos del står sist (_reco.html, ankaret #reco), med kontexten reco.
 {% endcomment %}
-{% block app_title %}Omdömen från Google{% endblock %}
+{% block app_title %}Omdömen{% endblock %}
 {% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-media.css' %}?v={{ static_version }}">{% endblock %}
 {% block app_content %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
     <p class="fl-kicker"><a class="fl-rv-crumb" href="{% url 'flamingo:app_business' %}">Företaget</a></p>
-    <h1 class="fl-app-title">Omdömen från Google</h1>
-    <p class="fl-app-lead">Peka ut din Google-profil, så kan sidorna visa betyget och de omdömen du väljer. Texten ändras aldrig.</p>
+    <h1 class="fl-app-title">Omdömen</h1>
+    <p class="fl-app-lead">Peka ut din Google-profil, så kan sidorna visa betyget och de omdömen du väljer. Texten ändras aldrig. Har ni en sida på Reco kan sidorna också visa <a class="fl-rv-link" href="#reco">Recos ruta</a>.</p>
   </div>
 </header>
 
@@ -214,5 +216,7 @@ hämtning kostar.
   </details>
 </section>
 {% endif %}
+
+{% include "flamingo/app/reviews/_reco.html" %}
 {% endblock %}
 {% block extra_js %}{{ block.super }}<script src="{% static 'js/flamingo-media.js' %}?v={{ static_version }}" defer></script>{% endblock %}

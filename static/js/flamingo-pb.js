@@ -130,6 +130,7 @@
     hero: { call: "h l b", form: "row:h l|l l b", image: "img h b", text: "h l l" },
     price: { from: "row:h l|big", examples: "h cards", fixed: "card" },
     reviews_google: { cards: "h cards", quote: "quote", line: "stars" },
+    reviews_reco: { stor: "h quote", medel: "h stars", liten: "stars", staende: "h card" },
     certificates: { badges: "h chips", icons: "h cards" },
     guarantee: { short: "icon h l", terms: "icon h checks" },
     person: { image: "row:img|h l", noimage: "row:circle|h l" },
@@ -3334,6 +3335,20 @@
         content.appendChild(
           h("p", { class: "pb-surface__note", text: isMobile() ? "Tryck för att lägga till, eller håll och dra till rätt plats." : "Klicka för att lägga till." })
         );
+        /* Ett omdömesblock utan profil: länken till Omdömen, där profilerna
+           kopplas (config.available[typ].link). */
+        var profileLink = "";
+        Object.keys(AVAILABLE).forEach(function (key) {
+          var base = AVAILABLE[key];
+          if (!profileLink && base && !base.ok && base.link) {
+            profileLink = base.link.split("#")[0];
+          }
+        });
+        if (profileLink && !readOnly) {
+          content.appendChild(
+            h("p", { class: "pb-surface__note" }, "Profilerna för omdömena kopplas under ", h("a", { href: profileLink, text: "Omdömen" }), ".")
+          );
+        }
         var first = tiles.querySelector(".pb-tile:not([disabled])");
         if (first) {
           first.setAttribute("data-pb-autofocus", "");

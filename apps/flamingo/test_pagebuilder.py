@@ -47,6 +47,7 @@ CSS = {
     "hero": "rn-hero",
     "price": "rn-price",
     "reviews_google": "rn-reviews",
+    "reviews_reco": "rn-reco",
     "certificates": "rn-certs",
     "guarantee": "rn-guarantee",
     "person": "rn-person",
@@ -108,6 +109,10 @@ class PageFixture:
                 },
             ],
             google_reviews_selected=["places/x/reviews/2", "places/x/reviews/1"],
+            # En intygad profil på Reco (blocket Omdömen från Reco, reco.py).
+            reco_venue_id="5998572",
+            reco_url="https://www.reco.se/lindqvist-ror-ab",
+            reco_name="Lindqvist Rör AB",
         )
         for key, label, value in (
             ("telefon", "Telefon", PHONE),
@@ -257,6 +262,7 @@ class BlockSchemaTests(PageFixture, TestCase):
             "hero": ["call", "form", "image", "text"],
             "price": ["from", "examples", "fixed"],
             "reviews_google": ["cards", "quote", "line"],
+            "reviews_reco": ["stor", "medel", "liten", "staende"],
             "certificates": ["badges", "icons"],
             "guarantee": ["short", "terms"],
             "person": ["image", "noimage"],
@@ -274,7 +280,7 @@ class BlockSchemaTests(PageFixture, TestCase):
                 self.assertTrue(block_type.name and block_type.why and block_type.principle)
                 self.assertIn(f'id="pb-i-{block_type.icon}"', icons)
                 self.assertTrue(all(v.name for v in block_type.variants))
-        self.assertEqual(len(pagebuilder.schema()), 12)
+        self.assertEqual(len(pagebuilder.schema()), 13)
 
     def test_templates_use_only_confirmed_facts(self):
         bare = FlamingoAccount.objects.create(customer=Customer.objects.create(name="Tom AB"))

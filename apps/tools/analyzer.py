@@ -169,6 +169,16 @@ def _target(url):
     return _Target(url, parts.scheme, host, port, path, _assert_public(host))
 
 
+def _assert_host(url, hosts):
+    """Går url till ett av värdnamnen i hosts? Annars AnalysError."""
+    try:
+        host = (urlsplit(url).hostname or "").rstrip(".").lower()
+    except ValueError:
+        host = ""
+    if host not in hosts:
+        raise AnalysError("Adressen går till en annan webbplats än den som får hämtas.")
+
+
 def _pinned_connection(target, timeout):
     """En HTTP(S)-anslutning som går till target.ip. Host-huvudet,
     TLS-namnet (SNI) och certifikatkontrollen gäller fortfarande värdnamnet:
@@ -257,17 +267,21 @@ def _request(target, deadline, max_bytes):
         conn.close()
 
 
-def fetch(url, *, max_bytes=MAX_BYTES, time_limit=TIME_LIMIT):
+def fetch(url, *, max_bytes=MAX_BYTES, time_limit=TIME_LIMIT, hosts=None):
     """Hämta en sida med SSRF-skydd och manuell redirect-följning.
 
     Varje hopp kontrolleras (schema, port, publik IP) innan något anrop görs
     och ansluts till den IP som kontrollerades. Hela hämtningen, alla hopp
     och hela svaret, får ta högst time_limit sekunder; svaret avkortas vid
-    max_bytes."""
+    max_bytes. Med hosts får bara de värdnamnen (exakt) anropas, också
+    efter en omdirigering: ett annat ger AnalysError innan det slås upp
+    eller anropas (för en hämtning som bara får gå till en känd sajt)."""
     deadline = time.monotonic() + time_limit
     sida = Sida()
     current = url
     for _ in range(MAX_REDIRECTS + 1):
+        if hosts is not None:
+            _assert_host(current, hosts)
         target = _target(current)
         start = time.monotonic()
         status, headers, body = _request(target, deadline, max_bytes)

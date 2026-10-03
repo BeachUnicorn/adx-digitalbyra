@@ -175,6 +175,8 @@ body.fl{
 .pb-lib__text{display:flex;flex-direction:column;gap:1px;min-width:0}
 .pb-lib__reason{font-size:14px;line-height:1.35;color:var(--fl-muted)}
 .pb-lib__reason:empty{display:none}
+/* Ett omdömesblock utan profil: länken till Omdömen under knappen. */
+.pb-lib__link{display:inline-block;margin:0 8px 6px 54px;font-size:16px;line-height:1.4;color:var(--pb-violet);text-underline-offset:3px}
 .pb-lib__none{margin:12px 6px;font-size:16px;color:var(--fl-muted)}
 .pb-lib__hint{margin:8px 4px 0;font-size:16px;line-height:1.5;color:var(--fl-body)}
 

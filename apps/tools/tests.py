@@ -353,6 +353,26 @@ class FetchRedirectTests(SimpleTestCase):
             [("/", f"{PUBLIC_HOST}:{site.port}"), ("/ny-sida/", f"{PUBLIC_HOST}:{site.port}")],
         )
 
+    def test_with_hosts_a_redirect_to_another_host_is_never_looked_up_or_requested(self):
+        site = self.serve(
+            {
+                "/": redirect_route("https://annan.example.se/sida"),
+                "/egen/": redirect_route("/sida/"),
+                "/sida/": html_route(),
+            }
+        )
+        with as_public(site) as checked, self.assertRaises(AnalysError) as caught:
+            fetch(site.base + "/", hosts=(PUBLIC_HOST,))
+        self.assertEqual(site.paths, ["/"])
+        self.assertEqual(checked, [PUBLIC_HOST], "den andra värden slås aldrig upp")
+        self.assertIn("annan webbplats", str(caught.exception))
+        # Samma värd går bra, också efter en omdirigering.
+        with as_public(site):
+            sida = fetch(site.base + "/egen/", hosts=(PUBLIC_HOST,))
+        self.assertEqual(sida.status, 200)
+        with as_public(site), self.assertRaises(AnalysError):
+            fetch(site.base + "/sida/", hosts=("annan.example.se",))
+
     def test_too_many_redirects(self):
         site = self.serve({"/": redirect_route("/")})
         with as_public(site), self.assertRaises(AnalysError) as caught:

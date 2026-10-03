@@ -1,7 +1,8 @@
 """
-Omdömen från Google i verktyget (/flamingo/app/omdomen/): kunden pekar ut
-sin Google-profil, bekräftar "Det här är vi" och väljer vilka omdömen som
-syns på sidorna, och i vilken ordning (reviews.py).
+Omdömen i verktyget (/flamingo/app/omdomen/): kunden pekar ut sin
+Google-profil, bekräftar "Det här är vi" och väljer vilka omdömen som syns
+på sidorna, och i vilken ordning (reviews.py). Under Google står kundens
+profil på Reco (reco.py, ankaret #reco): sidorna visar Recos egen ruta.
 
     reviews_view    GET: profilen, omdömena och vägarna in
                     POST action=find      sök (namn och ort) eller en länk
@@ -16,14 +17,25 @@ syns på sidorna, och i vilken ordning (reviews.py).
                                           företaget är dess (reviews.confirm_owner)
                     POST action=disconnect  "Koppla bort profilen"
 
+                    Reco (reco.py):
+                    POST action=reco_find        länken eller id:t läses (inget
+                                                 anrop); "Är det här ni?" ritas
+                    POST action=reco_confirm     "Det här är vi": profilsidan
+                                                 hämtas, prövas och sparas
+                    POST action=reco_refresh     hämta profilen igen
+                    POST action=reco_own         "Profilen är vår"
+                    POST action=reco_disconnect  "Koppla bort profilen"
+
 En profil som inte liknar företaget (reviews.store_details) visar inga
 omdömen och inget betyg på sidorna förrän den är intygad; sidan säger det,
 och byrån har larmats. Länkarna till Google prövas igen här innan de ritas
 (reviews.google_link).
 
-Ett demokonto anropar aldrig Google, och utan GOOGLE_PLACES_API_KEY görs
-inget anrop: kunden kan ändå spara sitt Place ID. Sökningar och hämtningar
-har en gräns per dag (reviews.SEARCH_DAILY_MAX, DETAILS_DAILY_MAX).
+Ett demokonto anropar aldrig Google eller Reco, och utan
+GOOGLE_PLACES_API_KEY görs inget anrop till Google: kunden kan ändå spara
+sitt Place ID. Sökningar och hämtningar har en gräns per dag
+(reviews.SEARCH_DAILY_MAX, DETAILS_DAILY_MAX, reco.LOOKUP_DAILY_MAX).
+Recos svar och Googles fel visas aldrig, bara en svensk text.
 Sidomenyn visar Företaget (sidan hör dit).
 """
 
@@ -31,13 +43,14 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.urls import reverse
 
-from .. import limits, reviews
+from .. import limits, reco, reviews
 from ..pagebuilder.render import _stars
 from . import app_view, render_app
 
 
-def _back():
-    return redirect(reverse("flamingo:app_reviews"))
+def _back(anchor=""):
+    url = reverse("flamingo:app_reviews")
+    return redirect(f"{url}#{anchor}" if anchor else url)
 
 
 def _rows(account):
@@ -94,9 +107,38 @@ def _context(request, account, **extra):
         "hits": None,
         "pending": "",
         "query": "",
+        "reco": _reco_context(account),
     }
     context.update(extra)
     return context
+
+
+def _reco_context(account, pending=None, query=""):
+    """Recos del av sidan (templates/flamingo/app/reviews/_reco.html)."""
+    rating = account.reco_rating
+    who = account.reco_confirmed_by
+    return {
+        "connected": bool(account.reco_venue_id),
+        "trusted": account.reco_trusted,
+        "unverified": account.reco_unverified,
+        "is_demo": account.is_demo,
+        "can_call": not reco.refusal(account),
+        "venue_id": account.reco_venue_id,
+        "name": account.reco_name,
+        # Prövas igen här innan den ritas (den sparas prövad).
+        "profile_url": reco.profile_link(account.reco_url),
+        "rating": f"{rating:.1f}".replace(".", ",") if rating is not None else "",
+        "rating_stars": _stars(rating or 0),
+        "count": account.reco_review_count,
+        "fetched_at": account.reco_fetched_at,
+        "confirmed_at": account.reco_confirmed_at,
+        "confirmed_by": (who.get_full_name() or who.get_username()) if who else "",
+        "lookups_left": max(
+            0, reco.LOOKUP_DAILY_MAX - limits.daily_used(account, reco.USAGE_LOOKUP)
+        ),
+        "pending": pending,
+        "query": query,
+    }
 
 
 def _render(request, account, **extra):
@@ -129,6 +171,8 @@ def reviews_view(request, account):
         reviews.disconnect(account)
         messages.success(request, "Profilen är bortkopplad. Omdömena syns inte längre på sidorna.")
         return _back()
+    if action.startswith("reco_"):
+        return _reco_action(request, account, action)
     messages.error(request, "Okänd åtgärd.")
     return _back()
 
@@ -264,3 +308,102 @@ def _select(request, account):
         else:
             messages.info(request, "Inga omdömen är valda, så blocket syns inte på sidorna.")
     return _back()
+
+
+# ---------------------------------------------------------------------------
+# Reco
+# ---------------------------------------------------------------------------
+
+
+def _reco_render(request, account, pending=None, query=""):
+    return _render(request, account, reco=_reco_context(account, pending, query))
+
+
+def _reco_action(request, account, action):
+    if action == "reco_find":
+        return _reco_find(request, account)
+    if action == "reco_confirm":
+        return _reco_confirm(request, account)
+    if action == "reco_refresh":
+        return _reco_refresh(request, account)
+    if action == "reco_own":
+        try:
+            reco.confirm_owner(account, request.user)
+        except reco.RecoError as exc:
+            messages.error(request, exc.message)
+        else:
+            messages.success(
+                request, "Tack. Profilen är intygad, och Recos ruta kan synas på sidorna."
+            )
+        return _back("reco")
+    if action == "reco_disconnect":
+        reco.disconnect(account)
+        messages.success(
+            request, "Profilen på Reco är bortkopplad. Recos ruta syns inte längre på sidorna."
+        )
+        return _back("reco")
+    messages.error(request, "Okänd åtgärd.")
+    return _back("reco")
+
+
+def _reco_find(request, account):
+    """Länken eller id:t läses utan anrop; kunden bekräftar sedan."""
+    text = " ".join(request.POST.get("reco", "").split())[:500]
+    link = reco.parse_link(text)
+    if link.error:
+        messages.error(request, link.error)
+        return _reco_render(request, account, query=text)
+    return _reco_render(request, account, pending=link, query=text)
+
+
+def _reco_confirm(request, account):
+    link = reco.parse_link(request.POST.get("reco", ""))
+    if link.error:
+        messages.error(request, link.error)
+        return _back("reco")
+    refused = reco.refusal(account)
+    if refused:
+        messages.info(request, refused)
+        return _back("reco")
+    try:
+        match = reco.connect(account, link)
+    except reco.RecoError as exc:
+        messages.error(request, exc.message)
+        return _back("reco")
+    _reco_connected_message(request, account, match)
+    return _back("reco")
+
+
+def _reco_connected_message(request, account, match):
+    name = account.reco_name or "Profilen"
+    if account.reco_unverified:
+        messages.warning(
+            request,
+            f"{name} är kopplad, men den liknar inte företaget: varken hemsidan eller "
+            "telefonnumret på Reco stämmer med dina uppgifter. Recos ruta syns inte på "
+            "sidorna förrän du intygat att profilen är er. ADX har fått veta det.",
+        )
+    elif match:
+        messages.success(
+            request,
+            f"{name} är kopplad. Profilen har samma {match} som ni, så Recos ruta kan synas "
+            "på sidorna: lägg till blocket Omdömen från Reco i sidbyggaren.",
+        )
+    else:
+        messages.success(request, f"{name} är kopplad och intygad som er.")
+
+
+def _reco_refresh(request, account):
+    if not account.reco_venue_id:
+        return _back("reco")
+    refused = reco.refusal(account)
+    if refused:
+        messages.info(request, refused)
+        return _back("reco")
+    try:
+        reco.connect(account, reco.stored_link(account))
+    except reco.RecoError as exc:
+        messages.error(request, exc.message)
+    else:
+        messages.success(request, "Profilen är hämtad från Reco igen.")
+    return _back("reco")

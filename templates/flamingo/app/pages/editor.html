@@ -96,7 +96,7 @@ skriptet).
             <li class="pb-lib__li"><button type="button" class="pb-lib__item" data-pb-add="{{ item.type.key }}" data-pb-search="{{ item.type.name|lower }} {{ item.type.principle|lower }}" title="{{ item.type.why }}"{% if not item.ok or read_only %} disabled{% endif %}>
               <span class="pb-lib__icon" aria-hidden="true"><svg class="pb-ic"><use href="#pb-i-{{ item.type.icon }}"></use></svg></span>
               <span class="pb-lib__text"><span class="pb-lib__name">{{ item.type.name }}</span><span class="pb-lib__reason" data-pb-reason>{% if not item.ok %}{{ item.reason }}{% endif %}</span></span>
-            </button></li>
+            </button>{% if item.link and not read_only %}<a class="pb-lib__link" href="{{ item.link }}">Koppla profilen under Omdömen</a>{% endif %}</li>
             {% endfor %}
           </ul>
         </section>

@@ -173,6 +173,7 @@ BLOCK_PRINCIPLE = {
     "hero": "samma_budskap",
     "price": "pris_tidigt",
     "reviews_google": "socialt_bevis",
+    "reviews_reco": "socialt_bevis",
     "certificates": "auktoritet",
     "guarantee": "riskomvandning",
     "person": "ansikte_namn",
