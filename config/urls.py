@@ -10,6 +10,7 @@ from apps.core import views as core_views
 from apps.core.sitemap import sitemaps
 from apps.inquiries import views as inquiry_views
 from apps.monitor.status_endpoint import status_view
+from apps.sms import ai_docs as sms_ai_docs
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -47,6 +48,8 @@ urlpatterns = [
     path("api/v1/", include("apps.projects.api_urls")),
     # SMS-API:t för kunderna och 46elks leveransrapporter (apps/sms/api.py).
     path("api/sms/", include("apps.sms.api_urls")),
+    # Öppen dokumentation av SMS-API:t för AI-assistenter i andra projekt.
+    path("smsz/", sms_ai_docs.smsz, name="smsz"),
     # Offertlänkarna till kund. Före sajtens slug-catchall.
     path("", include("apps.offers.urls")),
     # Integrationsguider för andra AI-assistenter (apps/aidocs) på /aiz/, kodskyddade.
