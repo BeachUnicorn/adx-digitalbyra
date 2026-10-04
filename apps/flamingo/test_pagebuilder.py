@@ -109,10 +109,25 @@ class PageFixture:
                 },
             ],
             google_reviews_selected=["places/x/reviews/2", "places/x/reviews/1"],
-            # En intygad profil på Reco (blocket Omdömen från Reco, reco.py).
+            # En intygad profil på Reco (blocket Omdömen från Reco, reco.py),
+            # med ett valt omdöme för varianterna Utvalda.
             reco_venue_id="5998572",
             reco_url="https://www.reco.se/lindqvist-ror-ab",
             reco_name="Lindqvist Rör AB",
+            reco_rating=Decimal("4.9"),
+            reco_review_count=145,
+            reco_reviews=[
+                {
+                    "id": "1000001",
+                    "author": "Exempel A",
+                    "date": "2026-10-02",
+                    "rating": 5,
+                    "text": "Påhittad text.",
+                    "uri": "https://www.reco.se/r/1000001",
+                    "invited": True,
+                }
+            ],
+            reco_reviews_selected=["1000001"],
         )
         for key, label, value in (
             ("telefon", "Telefon", PHONE),
@@ -262,7 +277,15 @@ class BlockSchemaTests(PageFixture, TestCase):
             "hero": ["call", "form", "image", "text"],
             "price": ["from", "examples", "fixed"],
             "reviews_google": ["cards", "quote", "line"],
-            "reviews_reco": ["stor", "medel", "liten", "staende"],
+            "reviews_reco": [
+                "stor",
+                "medel",
+                "liten",
+                "staende",
+                "utvalda_kort",
+                "utvalda_citat",
+                "utvalda_rad",
+            ],
             "certificates": ["badges", "icons"],
             "guarantee": ["short", "terms"],
             "person": ["image", "noimage"],

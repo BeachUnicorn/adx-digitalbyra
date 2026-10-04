@@ -38,14 +38,18 @@ reviews.google_link, och betyg och omdömen från en Google-profil som inte
 Blocket "Omdömen från Reco" ritar Recos egen ruta: iframe-adressen byggs här
 med reco.frames, bara av siffrorna i kundens id, och bara när profilen är
 intygad som kundens (FlamingoAccount.reco_trusted). Länken till profilen
-prövas igen med reco.profile_link. Demot ritar en påhittad ruta och laddar
-aldrig något från Reco.
+prövas igen med reco.profile_link. Varianterna Utvalda ritar de omdömen
+kunden valt (reco.selected_reviews, länkarna byggda av omdömenas id), och
+blir Recos egen ruta (Liggande stor) när Utvalda är av (reco.selected_enabled,
+läst en gång per rendering). Demot ritar en påhittad ruta och laddar aldrig
+något från Reco.
 """
 
 import logging
 import math
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from decimal import Decimal
 
 from django.template.loader import render_to_string
@@ -252,6 +256,14 @@ class Site:
     reco_url: str = ""
     #: Demots påhittade ruta ({"rating", "count", "stars"}), annars None.
     reco_demo: dict | None = None
+    #: Utvalda: på eller av (reco.selected_enabled), de valda omdömena, och
+    #: betyget och antalet från profilen ("4,9"), bara för en intygad profil
+    #: när Utvalda är på.
+    reco_enabled: bool = True
+    reco_reviews: list = field(default_factory=list)
+    reco_rating: str = ""
+    reco_rating_value: float = 0.0
+    reco_count: int | None = None
 
 
 def site_info(page, account, blocks, media=None):
@@ -276,6 +288,9 @@ def site_info(page, account, blocks, media=None):
     google_rating = account.trusted_google_rating
     rating = _decimal_text(google_rating)
     reco_live = account.reco_trusted and not account.is_demo
+    has_reco = any(b.get("type") == "reviews_reco" for b in blocks)
+    reco_enabled = reco.selected_enabled() if has_reco else True
+    reco_rating = account.reco_rating if reco_live and reco_enabled else None
     return Site(
         business=facts.company,
         phone=phone,
@@ -296,6 +311,11 @@ def site_info(page, account, blocks, media=None):
         reco_venue_id=reco.clean_venue_id(account.reco_venue_id) if reco_live else "",
         reco_url=reco.profile_link(account.reco_url) if reco_live else "",
         reco_demo=_reco_demo(account),
+        reco_enabled=reco_enabled,
+        reco_reviews=reco.selected_reviews(account, reco_enabled) if has_reco else [],
+        reco_rating=_decimal_text(reco_rating),
+        reco_rating_value=float(reco_rating or 0),
+        reco_count=account.reco_review_count if reco_rating is not None else None,
     )
 
 
@@ -328,10 +348,24 @@ def _media_map(account, blocks):
 
 #: Block som blir en smal remsa direkt efter Toppen (förtroende i en rad)
 #: i stället för en egen sektion.
-STRIP_BLOCKS = {("certificates", "badges"), ("reviews_google", "line"), ("reviews_reco", "liten")}
+STRIP_BLOCKS = {
+    ("certificates", "badges"),
+    ("reviews_google", "line"),
+    ("reviews_reco", "liten"),
+    ("reviews_reco", "utvalda_rad"),
+}
 
 
-def _surfaces(blocks):
+def _drawn_variant(block, reco_enabled=True):
+    """Varianten som ritas: en Utvalda-variant blir Recos egen ruta när
+    Utvalda är av (reco.effective_variant)."""
+    variant = block.get("variant")
+    if block.get("type") == "reviews_reco":
+        return reco.effective_variant(variant, reco_enabled)
+    return variant
+
+
+def _surfaces(blocks, reco_enabled=True):
     """{block-id: "plain" | "soft" | "strip" | "band"}: Toppen är vit, sedan
     växlar sektionerna mellan vitt och palettens ljusa ton. Märken eller
     betyget i en rad direkt efter Toppen blir en smal remsa ("strip") som
@@ -350,7 +384,7 @@ def _surfaces(blocks):
         elif (
             previous is not None
             and previous.get("type") == "hero"
-            and (kind, block.get("variant")) in STRIP_BLOCKS
+            and (kind, _drawn_variant(block, reco_enabled)) in STRIP_BLOCKS
         ):
             out[block.get("id")] = "strip"
         else:
@@ -414,6 +448,28 @@ def _review_view(review):
     }
 
 
+def _reco_review_view(review):
+    """Ett valt omdöme från Reco (reco.selected_reviews, redan prövat):
+    namnet som Reco visar det, dagen, betyget, texten oförändrad, länken till
+    omdömet på Reco (byggd av id:t och prövad igen) och märkningen
+    "Omdöme från inbjuden kund"."""
+    try:
+        day = date.fromisoformat(str(review.get("date") or ""))
+    except ValueError:
+        day = None
+    author = str(review.get("author") or "")
+    return {
+        "author": author,
+        "initials": _initials(author),
+        "rating": review.get("rating"),
+        "stars": _stars(review.get("rating")),
+        "text": str(review.get("text") or ""),
+        "date": day,
+        "uri": reco.safe_review_link(reco.review_link(review.get("id"))),
+        "invited": review.get("invited") is True,
+    }
+
+
 def _num(value):
     """Ett tal för SVG: punkt som decimaltecken (mallarna skulle skriva
     "320,0" med svensk lokal)."""
@@ -473,12 +529,25 @@ def _prepare(block, fields, site, media):
         has_line = bool(site.rating)
         view["hidden"] = not site.reviews and not (block.get("variant") == "line" and has_line)
     elif kind == "reviews_reco":
-        # Recos ruta, byggd bara av id:t (reco.frames); utan en intygad
-        # profil syns blocket inte.
-        view["frames"] = reco.frames(block.get("variant"), site.reco_venue_id)
+        # Recos ruta, byggd bara av id:t (reco.frames), eller (Utvalda) de
+        # omdömen kunden valt. Utan en intygad profil syns blocket inte, och
+        # Utvalda av ritar Recos ruta (reco.effective_variant).
+        variant = reco.effective_variant(block.get("variant"), site.reco_enabled)
+        view["variant"] = variant
         view["profile_url"] = site.reco_url
         view["demo"] = site.reco_demo
-        view["hidden"] = not view["frames"] and view["demo"] is None
+        if variant in reco.SELECTED_VARIANTS:
+            view["layout"] = "utvalda"
+            view["frames"] = []
+            items = visible_items(block, "reviews", site.reco_reviews)
+            view["reviews"] = [_reco_review_view(r) for r in items]
+            view["stars"] = _stars(site.reco_rating_value)
+            shows = bool(site.reco_reviews) or (variant == "utvalda_rad" and bool(site.reco_rating))
+        else:
+            view["layout"] = "widget"
+            view["frames"] = reco.frames(variant, site.reco_venue_id)
+            shows = bool(view["frames"])
+        view["hidden"] = not shows and view["demo"] is None
     elif kind == "area":
         view["map"] = _area_map(fields.get("places") or [])
     elif kind == "form":
@@ -534,13 +603,14 @@ class RenderState:
 
 def _state(page, account, blocks, *, editing=False, request=None, form=None, extra=None):
     media = _media_map(account, blocks)
+    site = site_info(page, account, blocks, media)
     return RenderState(
         page=page,
         account=account,
         blocks=blocks,
-        site=site_info(page, account, blocks, media),
+        site=site,
         media=media,
-        surfaces=_surfaces(blocks),
+        surfaces=_surfaces(blocks, site.reco_enabled),
         editing=editing,
         request=request,
         form=form,

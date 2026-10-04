@@ -321,22 +321,32 @@ TYPES_LIST = (
         group="trust",
         # Recos egna rutor (reco.VARIANT_WIDGETS): liggande stor, medel och
         # liten (100 % breda) och stående (300 px, passar mobilen). Medel
-        # blir den stående i mobilen.
+        # blir den stående i mobilen. Utvalda (reco.SELECTED_VARIANTS): de
+        # omdömen kunden valt, ritade som Googles block (kort, citat, betyg i
+        # en rad); när Utvalda är av ritas Liggande stor i stället.
         variants=(
             Variant("stor", "Liggande stor"),
             Variant("medel", "Liggande medel"),
             Variant("liten", "Liggande liten"),
             Variant("staende", "Stående"),
+            Variant("utvalda_kort", "Utvalda: tre kort", limits={"reviews": 3}),
+            Variant("utvalda_citat", "Utvalda: ett stort citat", limits={"reviews": 1}),
+            Variant("utvalda_rad", "Utvalda: betyg i en rad", limits={"reviews": 0}),
         ),
-        # Den liggande lilla är en rad utan rubrik (en remsa efter Toppen).
+        # Den liggande lilla och betyget i en rad är en rad utan rubrik (en
+        # remsa efter Toppen).
         fields=(
             Field(
-                "title", "Rubrik", TEXT, max_length=TITLE_MAX, variants=("stor", "medel", "staende")
+                "title",
+                "Rubrik",
+                TEXT,
+                max_length=TITLE_MAX,
+                variants=("stor", "medel", "staende", "utvalda_kort", "utvalda_citat"),
             ),
         ),
         why=(
-            "Andras omdömen i Recos egen ruta, med betyget från er profil på Reco. Rutan "
-            "laddas från reco.se när besökaren ser den."
+            "Andras omdömen från er profil på Reco: Recos egen ruta, som laddas från reco.se "
+            "när besökaren ser den, eller de omdömen du valt under Omdömen."
         ),
         principle="Andras omdömen",
         requires=REQUIRES_RECO,

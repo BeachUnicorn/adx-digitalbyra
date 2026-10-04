@@ -297,6 +297,11 @@ ELKS_SENDER = env.str("ELKS_SENDER", default="")
 # affär"). Se apps/flamingo/exports.py.
 FLAMINGO_LANDING_BASE_URL = env.str("FLAMINGO_LANDING_BASE_URL", default="")
 FLAMINGO_CONVERSION_NAME = env.str("FLAMINGO_CONVERSION_NAME", default="")
+# Utvalda omdömen från Reco (apps/flamingo/reco.py): kundens valda omdömen
+# från profilsidan på Reco, ritade på landningssidorna. false stänger av det
+# för alla direkt, som byråns brytare på /manage/flamingo/: sidorna visar
+# Recos egen ruta och inget hämtas.
+FLAMINGO_RECO_SELECTED_ENABLED = env.bool("FLAMINGO_RECO_SELECTED_ENABLED", default=True)
 
 # SMS-API:t för kunderna (apps/sms/README.md), via 46elks med uppgifterna ovan.
 SMS_PROVIDER = env.str("SMS_PROVIDER", default="46elks")

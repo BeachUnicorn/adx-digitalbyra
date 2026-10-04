@@ -50,9 +50,12 @@ på reviews.MAX_AGE tas bort (Googles villkor). Aldrig demot. Kommandot
 skriver en rad bara när något hämtades, misslyckades eller togs bort.
 --prova hoppar över steget.
 
-Sedan Reco (reco.expire): namnet, betyget och antalet från en profil på
-Reco som inte hämtats på reco.MAX_AGE tas bort (id:t står kvar, och Recos
-ruta på sidorna påverkas inte). Inget hämtas från Reco här. Aldrig demot.
+Sedan Reco (reco.refresh_due): intygade profiler som används av Utvalda
+(kundens valda omdömen) hämtas igen när de är en vecka gamla, högst ett
+försök per konto och dag, och bara när Utvalda är påslaget. Sedan tas
+namnet, betyget, antalet och omdömenas texter bort från profiler som inte
+hämtats på reco.MAX_AGE (id:t och kundens val står kvar). Aldrig demot.
+--prova hoppar över steget.
 """
 
 import importlib
@@ -254,16 +257,22 @@ class Command(BaseCommand):
             )
 
     def _reco(self, account_pk, verbosity):
-        """Reco: det som blivit för gammalt tas bort, ett eget steg som aldrig
-        stoppar resten."""
+        """Reco: Utvalda hämtas igen när det är dags, och det som blivit för
+        gammalt tas bort. Ett eget steg som aldrig stoppar resten."""
         try:
-            expired = reco.expire(account_pk=account_pk)
+            summary = reco.refresh_due(account_pk=account_pk)
         except Exception:  # noqa: BLE001 - Reco stoppar aldrig resten
-            logger.exception("Omdömen från Reco: rensningen misslyckades")
+            logger.exception("Omdömen från Reco: körningen misslyckades")
             self.stdout.write("Omdömen från Reco: oväntat fel, se loggen.")
             return
-        if expired or verbosity >= 2:
-            self.stdout.write(f"Omdömen från Reco: {expired} rensade (för gamla).")
+        for error in summary.errors:
+            self.stdout.write(f"  Omdömen från Reco, {error}")
+        if summary.fetched or summary.failed or summary.expired or verbosity >= 2:
+            self.stdout.write(
+                f"Omdömen från Reco: {summary.fetched} hämtade, {summary.failed} med fel, "
+                f"{summary.expired} rensade (för gamla)."
+                + (f" Inget hämtades: {summary.skipped}." if summary.skipped else "")
+            )
 
     @staticmethod
     def _record(account, message):

@@ -4,7 +4,13 @@ Testdata för apps/flamingo/test_reco.py: CS Auto AB:s sida på Reco
 (https://www.reco.se/cs-auto-ab), hämtad 2026-10-04 och nedbantad till de
 delar reco.parse_profile läser, i samma form som originalet. Företagets egna
 uppgifter står kvar (de är publika och id:t 5998572 är det Giovanni gav).
-Omdömenas författare, texter och id:n är utbytta mot påhittade.
+Omdömenas författare, texter och id:n är utbytta mot påhittade, men
+korten har samma form som på sidan: <article id="..." class="review-card-v2">,
+namnet i <b>, dagen i <time>, betyget som <span></span> (fylld) och <em></em>
+(tom), texten i <p class="truncated-text"> (med radbrytningar och entiteter),
+märkningen "Omdöme från inbjuden kund" och företagets svar efter kortet,
+utanför <article>. Ett kort utan märkning, ett där betyget bara står i
+JSON-LD, ett utan namn och ett utan id är tillagda för testerna.
 -->
 <html lang="sv" class="nojs">
 <head>
@@ -16,7 +22,7 @@ Omdömenas författare, texter och id:n är utbytta mot påhittade.
   <meta property="og:url" content="https://www.reco.se/cs-auto-ab">
     <link rel="canonical" href="https://www.reco.se/cs-auto-ab">
     <script type="application/ld+json">
-      {"@context":"https://schema.org","@type":"AutoRepair","name":"Cs Auto AB","url":"https://www.reco.se/cs-auto-ab","sameAs":"https://www.csauto.se","address":{"@type":"PostalAddress","streetAddress":"Helgövägen 7","addressLocality":"Bålsta","postalCode":"74630","addressCountry":"SE"},"telephone":"0107-07 59 92","aggregateRating":{"@type":"AggregateRating","ratingValue":4.9,"bestRating":5,"worstRating":1,"ratingCount":145},"review":[{"@type":"Review","url":"https://www.reco.se/r/1000001","author":{"@type":"Person","name":"Exempel A","url":"https://www.reco.se/user/1000001"},"publisher":{"@type":"Organization","name":"Reco.se","url":"https://www.reco.se"},"datePublished":"2026-10-02T00:00:00+0200","headline":"Påhittad rubrik","reviewBody":"Påhittad text i testdatan.","inLanguage":"sv","reviewRating":{"@type":"Rating","worstRating":1,"bestRating":5,"ratingValue":5}}]}
+      {"@context":"https://schema.org","@type":"AutoRepair","name":"Cs Auto AB","url":"https://www.reco.se/cs-auto-ab","sameAs":"https://www.csauto.se","address":{"@type":"PostalAddress","streetAddress":"Helgövägen 7","addressLocality":"Bålsta","postalCode":"74630","addressCountry":"SE"},"telephone":"0107-07 59 92","aggregateRating":{"@type":"AggregateRating","ratingValue":4.9,"bestRating":5,"worstRating":1,"ratingCount":145},"review":[{"@type":"Review","url":"https://www.reco.se/r/1000001","author":{"@type":"Person","name":"Exempel A","url":"https://www.reco.se/user/1000001"},"publisher":{"@type":"Organization","name":"Reco.se","url":"https://www.reco.se"},"datePublished":"2026-10-02T00:00:00+0200","headline":"Påhittad rubrik","reviewBody":"Påhittad text i testdatan.","inLanguage":"sv","reviewRating":{"@type":"Rating","worstRating":1,"bestRating":5,"ratingValue":5}},{"@type":"Review","url":"https://www.reco.se/r/1000004","author":{"@type":"Person","name":"Exempel D","url":"https://www.reco.se/user/1000004"},"datePublished":"2026-09-25T00:00:00+0200","reviewBody":"Betyget står bara här i testdatan.","inLanguage":"sv","reviewRating":{"@type":"Rating","worstRating":1,"bestRating":5,"ratingValue":5}}]}
     </script>
   <script>
     window.PaginationData = {"offset":50,"reviewCount":145,"venueId":5998572,"name":"Cs Auto AB","venueRating":4.9,"venueName":"Cs Auto AB","venueReviewCount":145,"categoryAreas":[],"personTypes":[],"filterPageType":"Venue","ratings":{"one":0,"two":0,"three":0,"four":13,"five":132}};
@@ -50,13 +56,74 @@ Omdömenas författare, texter och id:n är utbytta mot påhittade.
     </section>
     <article id="1000001" class="review-card-v2">
       <header class="review-card-v2-header">
+        <img class="review-card-v2-header-avatar" src="/assets/images/avatar.svg" width="32" height="32" alt="Exempel A" />
         <a class="venue-clean-link" href="/user/1000001" rel="nofollow"><b>Exempel A</b></a>
         <small class="review-card-v2-header-time"><a class="venue-clean-link" href="https://www.reco.se/v/review/1000001" rel="nofollow"><time>2026-10-02</time></a></small>
       </header>
       <div class="review-card-v2-body">
-        <span class="venue-hide-mobile">Omdöme från inbjuden kund</span>
-        <p class="truncated-text">Påhittad text i testdatan.</p>
+        <div class="review-card-v2-body-top">
+          <div class="venue-ratings" style="--rating-size: 1rem;">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <button class="cooltip-wrapper clean-button">
+            <span class="venue-hide-mobile" style="color: var(--color-grey-600);">Omdöme från inbjuden kund</span>
+            <span class="venue-show-mobile" style="color: var(--color-grey-600);">Inbjuden av företaget</span>
+            <div class="cooltip"><p>Detta omdöme kommer från en person som företaget aktivt bjudit in för att tycka till om dem.</p></div>
+          </button>
+        </div>
+        <p class="truncated-text">Påhittad text i testdatan. </p>
       </div>
+    </article>
+    <div class="review-response-wrapper">
+      <div class="review-card-v2">
+        <header class="review-card-v2-header"><b>Svar från Cs Auto AB</b><small class="review-card-v2-header-time"><time>2026-10-02</time></small></header>
+        <div class="review-card-v2-body"><p class="truncated-text">Påhittat svar från företaget, som aldrig är ett omdöme.</p></div>
+      </div>
+    </div>
+    <article id="1000002" class="review-card-v2">
+      <header class="review-card-v2-header">
+        <a class="venue-clean-link" href="/user/1000002" rel="nofollow"><b>Exempel B</b></a>
+        <small class="review-card-v2-header-time"><a class="venue-clean-link" href="https://www.reco.se/v/review/1000002" rel="nofollow"><time>2026-09-30</time></a></small>
+      </header>
+      <div class="review-card-v2-body">
+        <div class="venue-ratings" style="--rating-size: 1rem;">
+          <span></span><span></span><span></span><span></span><em></em>
+        </div>
+        <button class="cooltip-wrapper clean-button"><span class="venue-hide-mobile">Omdöme från inbjuden kund</span></button>
+        <p class="truncated-text">Bra bemötande, inte för &quot;på&quot;.
+Bytte bromsar &amp; olja.</p>
+      </div>
+    </article>
+    <article id="1000003" class="review-card-v2">
+      <header class="review-card-v2-header">
+        <a class="venue-clean-link" href="/user/1000003" rel="nofollow"><b>Exempel C</b></a>
+        <small class="review-card-v2-header-time"><time>2026-09-28</time></small>
+      </header>
+      <div class="review-card-v2-body">
+        <div class="venue-ratings" style="--rating-size: 1rem;"><span></span><span></span><span></span><span></span><span></span></div>
+        <p class="truncated-text">Ett påhittat omdöme utan Recos märkning.</p>
+      </div>
+    </article>
+    <article id="1000004" class="review-card-v2">
+      <header class="review-card-v2-header">
+        <a class="venue-clean-link" href="/user/1000004" rel="nofollow"><b>Exempel D</b></a>
+        <small class="review-card-v2-header-time"><time>2026-09-25</time></small>
+      </header>
+      <div class="review-card-v2-body">
+        <button class="cooltip-wrapper clean-button"><span class="venue-hide-mobile">Omdöme från inbjuden kund</span></button>
+        <p class="truncated-text">Betyget står bara här i testdatan.</p>
+      </div>
+    </article>
+    <article id="1000005" class="review-card-v2">
+      <div class="review-card-v2-body">
+        <div class="venue-ratings"><span></span><span></span><span></span><span></span><span></span></div>
+        <p class="truncated-text">Ett kort utan namn hoppas över.</p>
+      </div>
+    </article>
+    <article class="review-card-v2">
+      <header><b>Utan id</b><time>2026-09-20</time></header>
+      <div class="venue-ratings"><span></span><span></span><span></span><span></span><span></span></div>
+      <p class="truncated-text">Ett kort utan id hoppas över.</p>
     </article>
     <button id="js--review-filter-more" class="felt-btn felt-btn--primary ga--load-more-reviews ga4-fix"
         data-venue-id="5998572" data-venue-name="Cs Auto AB">Visa fler omdömen</button>

@@ -30,8 +30,9 @@ utom Rörjour som delas av två kampanjer, och tillsammans har sidorna varje
 blocktyp och variant. Bilderna i mediaarkivet ritas här med Pillow och är
 tydligt påhittade ("Exempelbild"). Google-profilen och omdömena är också
 påhittade och hämtas aldrig från Google. Profilen på Reco är påhittad (id:t
-0000000, ingen länk till reco.se): blocket Omdömen från Reco ritar en
-exempelruta i stället för Recos, och Reco anropas aldrig.
+0000000, ingen länk till reco.se, inga omdömen): blocket Omdömen från Reco
+ritar en exempelruta i stället för Recos ruta och i stället för utvalda
+omdömen, och Reco anropas aldrig.
 
 Idempotent: demokunden hittas på namnet OCH is_demo och uppdateras, och
 innehållet (uppgifter, tjänster, kampanjer, sidor, bilder, granskningar,
@@ -396,6 +397,9 @@ class Command(BaseCommand):
         account.reco_unverified = False
         account.reco_confirmed_at = None
         account.reco_confirmed_by = None
+        # Inga omdömen från Reco i demot, inte ens påhittade (reco.py).
+        account.reco_reviews = []
+        account.reco_reviews_selected = []
 
         account.notify_phone = OWNER_MOBILE
         account.notify_sms = True
@@ -1140,6 +1144,7 @@ class Command(BaseCommand):
                 ),
             ),
             b(account, "reviews_google", "cards", jour_ctx),
+            b(account, "reviews_reco", "utvalda_kort", jour_ctx),
             b(account, "steps", "three", jour_ctx),
             b(account, "faq", "three", jour_ctx),
             b(

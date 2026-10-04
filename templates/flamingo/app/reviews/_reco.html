@@ -3,18 +3,20 @@ Omdömen från Reco (ingår i reviews.html, ankaret #reco). Kontext: reco från
 app_views/reviews._reco_context: connected, trusted, unverified, is_demo,
 can_call, venue_id, name, profile_url (prövad), rating, rating_stars, count,
 fetched_at, confirmed_at, confirmed_by, lookups_left, pending (reco.RecoLink
-eller None) och query.
+eller None), query, och för Utvalda selected_enabled, off_by_setting, rows
+och rows_more [{id, review, shown, number, stars, can_up, can_down}],
+has_reviews, selected_count och max_selected.
 
 Sidorna visar Recos egen ruta (iframe från widget.reco.se), byggd bara av
-id:t. Inga omdömestexter hämtas: Recos villkor tillåter inte att de kopieras
-utan Recos skriftliga medgivande (apps/flamingo/reco.py). Betyget här är
-bara för att kunden ska se att profilen är rätt; det används aldrig i
-annonserna. Formulären med data-fl-once kan inte skickas två gånger i rad.
+id:t, eller (Utvalda, Giovannis beslut 2026-10-04, apps/flamingo/reco.py) de
+omdömen kunden väljer här. Utvalda kan stängas av för alla av ADX; då göms
+valet med en rad om det. Betyget används aldrig i annonserna. Formulären med
+data-fl-once kan inte skickas två gånger i rad.
 {% endcomment %}
 <div class="fl-rc" id="reco">
 <header class="fl-rc__head">
   <h2 class="fl-rc__title">Omdömen från Reco</h2>
-  <p class="fl-panel__text">Har ni en sida på Reco kan landningssidorna visa Recos egen ruta med betyget och omdömena. Rutan laddas från reco.se när besökaren ser den.</p>
+  <p class="fl-panel__text">Har ni en sida på Reco kan landningssidorna visa Recos egen ruta med betyget och omdömena, som laddas från reco.se när besökaren ser den{% if reco.selected_enabled %}, eller de omdömen från er profil som du väljer här{% endif %}.</p>
 </header>
 
 {% if reco.is_demo %}
@@ -41,7 +43,7 @@ annonserna. Formulären med data-fl-once kan inte skickas två gånger i rad.
 <section class="fl-panel" aria-labelledby="fl-rc-profile">
   <div class="fl-panel__head">
     <h3 class="fl-panel__title" id="fl-rc-profile">Er profil på Reco</h3>
-    <span class="fl-panel__note">{% if reco.fetched_at %}Hämtad {{ reco.fetched_at|date:"j b Y" }}{% else %}Inte hämtad{% endif %}</span>
+    <span class="fl-panel__note">{% if reco.fetched_at %}Hämtad {{ reco.fetched_at|date:"j b Y H:i" }}{% else %}Inte hämtad{% endif %}</span>
   </div>
   <div class="fl-rv-place">
     <p class="fl-rv-place__name">{% if reco.name %}{{ reco.name }}{% else %}Namnet visas när profilen hämtats igen{% endif %}</p>
@@ -71,7 +73,7 @@ annonserna. Formulären med data-fl-once kan inte skickas två gånger i rad.
     <form method="post" data-fl-once>
       {% csrf_token %}
       <input type="hidden" name="action" value="reco_refresh">
-      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm"{% if not reco.lookups_left %} disabled{% endif %}>Hämta profilen igen</button>
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm"{% if not reco.lookups_left %} disabled{% endif %}>Hämta igen</button>
     </form>
     {% endif %}
     <form method="post">
@@ -81,8 +83,45 @@ annonserna. Formulären med data-fl-once kan inte skickas två gånger i rad.
     </form>
   </div>
   {% endif %}
-  <p class="fl-field__help">Sidorna visar Recos egen ruta med betyget och de omdömen Reco väljer. Betyget här används aldrig i annonserna. Rutan laddas från reco.se, så Reco ser besökarens IP-adress, som när någon besöker reco.se.</p>
+  <p class="fl-field__help">{% if reco.can_call %}{% if reco.lookups_left %}Profilen kan hämtas {{ reco.lookups_left }} gång{% if reco.lookups_left != 1 %}er{% endif %} till i dag.{% else %}Profilen har hämtats så många gånger som går i dag.{% endif %}{% if reco.selected_enabled and reco.trusted %} Omdömena hämtas också igen av sig själva med jämna mellanrum när du valt några.{% endif %} {% endif %}Recos egen ruta laddas från reco.se, så Reco ser besökarens IP-adress, som när någon besöker reco.se. Betyget här används aldrig i annonserna.</p>
 </section>
+
+{% if reco.trusted and not reco.is_demo %}
+<section class="fl-panel" aria-labelledby="fl-rc-list">
+  <div class="fl-panel__head">
+    <h3 class="fl-panel__title" id="fl-rc-list">Utvalda omdömen från Reco</h3>
+    {% if reco.selected_enabled and reco.has_reviews %}<span class="fl-panel__note">{{ reco.selected_count }} av högst {{ reco.max_selected }} valda</span>{% endif %}
+  </div>
+  {% if not reco.selected_enabled %}
+  <p class="fl-notice fl-notice--info"><span>Utvalda omdömen från Reco är avstängda av ADX just nu. Sidorna visar Recos egen ruta i stället, och inga omdömen hämtas.</span></p>
+  {% elif reco.has_reviews %}
+  <p class="fl-panel__text">Kryssa i de omdömen som ska synas med blockets varianter Utvalda. Upp och Ner ändrar ordningen bland de valda. Texten ändras aldrig.</p>
+  <form method="post" class="fl-form">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="reco_select">
+    <ol class="fl-rv-list">
+      {% for row in reco.rows %}{% include "flamingo/app/reviews/_reco_row.html" %}{% endfor %}
+    </ol>
+    {% if reco.rows_more %}
+    <details class="fl-rv-id">
+      <summary class="fl-rv-id__summary">Visa {{ reco.rows_more|length }} omdömen till</summary>
+      <ol class="fl-rv-list">
+        {% for row in reco.rows_more %}{% include "flamingo/app/reviews/_reco_row.html" %}{% endfor %}
+      </ol>
+    </details>
+    {% endif %}
+    {% if not read_only %}
+    <div class="fl-form__actions">
+      <p class="fl-form__note">Sidan visar omdömena oförändrade under rubriken Omdömen från Reco, med namnet som Reco visar det, dagen, betyget och en länk till omdömet på Reco, märkningen Omdöme från inbjuden kund när Reco har den, och en rad om att du valt vilka som visas och i vilken ordning.</p>
+      <button type="submit" class="fl-btn fl-btn--sm">Spara urvalet</button>
+    </div>
+    {% endif %}
+  </form>
+  {% elif reco.fetched_at %}
+  <p class="fl-panel__text">Inga omdömen från Reco är hämtade än. Tryck Hämta igen, så hämtas de omdömen som står på er sida på Reco.</p>
+  {% endif %}
+</section>
+{% endif %}
 {% endif %}
 
 {% if not read_only %}
@@ -100,7 +139,7 @@ annonserna. Formulären med data-fl-once kan inte skickas två gånger i rad.
       {% if reco.is_demo %}
       <p class="fl-field__help">Demot hämtar aldrig något från Reco.</p>
       {% else %}
-      <p class="fl-field__help">Öppna er sida på Reco och kopiera adressen, till exempel reco.se/cs-auto-ab. Id:t är siffrorna i adressen till Recos widget. {% if reco.lookups_left %}Profilen kan hämtas {{ reco.lookups_left }} gång{% if reco.lookups_left != 1 %}er{% endif %} till i dag.{% else %}Profilen har hämtats så många gånger som går i dag.{% endif %}</p>
+      <p class="fl-field__help">Öppna er sida på Reco och kopiera adressen, till exempel reco.se/cs-auto-ab. Id:t är siffrorna i adressen till Recos widget.{% if not reco.connected %} {% if reco.lookups_left %}Profilen kan hämtas {{ reco.lookups_left }} gång{% if reco.lookups_left != 1 %}er{% endif %} till i dag.{% else %}Profilen har hämtats så många gånger som går i dag.{% endif %}{% endif %}</p>
       {% endif %}
     </div>
   </form>

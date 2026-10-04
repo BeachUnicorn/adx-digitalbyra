@@ -1,7 +1,10 @@
 """ADX Flamingo: omdömena från Reco (reco.py, Recos del av
 app_views/reviews.py och blocket "Omdömen från Reco"): länken och id:t,
 profilsidan, ägaren, gränserna, demot, blocket i varje variant, 90 dagar och
-Konverteringskollen.
+Konverteringskollen. Sist Utvalda (Giovannis beslut 2026-10-04): omdömena
+ur profilsidan, valet och ordningen, blocket, brytaren (inställningen och
+byråns knapp), cronens takt och att inget syns för en profil som inte är
+intygad, är bortkopplad eller hör till demot.
 
 Reco anropas aldrig: reco.fetch är utbytt mot FakeReco i varje test som kan
 nå Reco, och analyzer._request (själva anslutningen) fäller testet om något
@@ -93,6 +96,11 @@ class RecoFixture:
 
     def post(self, data):
         return self.client.post(reverse("flamingo:app_reviews"), data)
+
+    def new_day(self):
+        """Dagens gräns för hämtningar nollställd (som ett nytt dygn)."""
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(daily_usage={})
+        self.account.refresh_from_db()
 
     def messages_of(self, response):
         if response.status_code == 302:
@@ -235,7 +243,8 @@ class LinkTests(TestCase):
         self.assertEqual(shape("staende"), [("vertical", "medium", 150, 300, "all")])
         self.assertEqual(shape("okand"), shape(reco.DEFAULT_VARIANT))
         self.assertEqual(
-            set(reco.VARIANT_WIDGETS), set(registry.TYPES["reviews_reco"].variant_keys)
+            set(reco.VARIANT_WIDGETS) | set(reco.SELECTED_VARIANTS),
+            set(registry.TYPES["reviews_reco"].variant_keys),
         )
         # Giovannis storlekar och höjder.
         self.assertEqual(
@@ -335,7 +344,7 @@ class ConnectTests(RecoFixture, TestCase):
         self.assertEqual(self.reco.urls, [CS_AUTO])
         _url, kwargs = self.reco.calls[0]
         # SSRF-skyddet med Recos värdar, ett tak för storleken och tiden.
-        self.assertEqual(kwargs["hosts"], ("www.reco.se", "widget.reco.se"))
+        self.assertEqual(kwargs["hosts"], ("www.reco.se",))
         self.assertEqual(kwargs["max_bytes"], reco.MAX_BYTES)
         self.assertEqual(kwargs["time_limit"], reco.TIME_LIMIT)
         self.account.refresh_from_db()
@@ -354,6 +363,10 @@ class ConnectTests(RecoFixture, TestCase):
     def test_an_id_looks_up_the_address_in_the_widget_first(self):
         reco.connect(self.account, CS_AUTO_ID)
         self.assertEqual(self.reco.urls, [WIDGET_FOR_ID, CS_AUTO])
+        self.assertEqual(
+            [kwargs["hosts"] for _url, kwargs in self.reco.calls],
+            [("widget.reco.se",), ("www.reco.se",)],
+        )
         self.account.refresh_from_db()
         self.assertEqual((self.account.reco_venue_id, self.account.reco_url), (CS_AUTO_ID, CS_AUTO))
 
@@ -463,6 +476,7 @@ class ConnectTests(RecoFixture, TestCase):
         with self.assertRaises(reco.RecoError) as caught:
             reco.connect(self.account, "https://www.reco.se/finns-inte-ab")
         self.assertEqual(caught.exception.message, reco.NOT_FOUND)
+        self.new_day()
         with self.assertRaises(reco.RecoError) as caught:
             reco.connect(self.account, "7777777")
         self.assertEqual(caught.exception.message, reco.ID_NOT_FOUND)
@@ -551,7 +565,8 @@ class DemoTests(RecoFixture, TestCase):
         variants = {
             b["variant"] for p in pages for b in p.draft_blocks if b["type"] == "reviews_reco"
         }
-        self.assertEqual(variants, {"stor", "medel", "liten", "staende"})
+        self.assertEqual(variants, {"stor", "medel", "liten", "staende", "utvalda_kort"})
+        self.assertEqual((demo.reco_reviews, demo.reco_reviews_selected), ([], []))
         for page in pages:
             html = pagebuilder.render_page_html(page, demo, which="draft")
             with self.subTest(page=page.name):
@@ -752,7 +767,9 @@ class ViewTests(RecoFixture, TestCase):
         self.assertIn("Intygad som er av chabbe@csauto.se", html)
         calls = len(self.reco.calls)
         response = self.post({"action": "reco_refresh"})
-        self.assertIn("Profilen är hämtad från Reco igen.", self.messages_of(response))
+        self.assertIn(
+            "Profilen och omdömena är hämtade från Reco igen.", self.messages_of(response)
+        )
         # Den sparade adressen används: ett anrop, inte widgeten först.
         self.assertEqual(self.reco.urls[calls:], [CS_AUTO])
         response = self.post({"action": "reco_disconnect"})
@@ -811,7 +828,9 @@ class ExpiryTests(RecoFixture, TestCase):
         )
         out = StringIO()
         call_command("flamingo_google_sync", stdout=out)
-        self.assertIn("Omdömen från Reco: 1 rensade (för gamla).", out.getvalue())
+        self.assertIn(
+            "Omdömen från Reco: 0 hämtade, 0 med fel, 1 rensade (för gamla).", out.getvalue()
+        )
         self.account.refresh_from_db()
         self.assertEqual(
             (self.account.reco_name, self.account.reco_rating, self.account.reco_review_count),
@@ -889,3 +908,518 @@ class AiBuildTests(RecoFixture, TestCase):
             bare = self.page_with(pagebuilder.new_block("hero", "text", self.account))
             result = ai.build(bare, self.account, goal="call")
             self.assertNotIn("reviews_reco", [b["type"] for b in result["blocks"]])
+
+
+# ---------------------------------------------------------------------------
+# Utvalda: kundens valda omdömen (Giovannis beslut 2026-10-04)
+# ---------------------------------------------------------------------------
+
+REVIEW_IDS = ["1000001", "1000002", "1000003", "1000004"]
+
+
+def article(review_id, author, day, stars=5, text="Text.", invited=True):
+    """Ett omdömeskort i samma form som på Recos profilsida."""
+    rating = "<span></span>" * stars + "<em></em>" * (5 - stars)
+    label = '<span class="venue-hide-mobile">Omdöme från inbjuden kund</span>' if invited else ""
+    return (
+        f'<article id="{review_id}" class="review-card-v2"><header>'
+        f'<a class="venue-clean-link" href="/user/1"><b>{author}</b></a><time>{day}</time>'
+        f'</header><div class="venue-ratings">{rating}</div>{label}'
+        f'<p class="truncated-text">{text}</p></article>'
+    )
+
+
+class ReviewParseTests(TestCase):
+    def test_the_reviews_on_the_cs_auto_page(self):
+        reviews = reco.parse_reviews(PROFILE_HTML)
+        self.assertEqual([r["id"] for r in reviews], REVIEW_IDS)
+        first, second, third, fourth = reviews
+        self.assertEqual(
+            first,
+            {
+                "id": "1000001",
+                "author": "Exempel A",
+                "date": "2026-10-02",
+                "rating": 5,
+                "text": "Påhittad text i testdatan.",
+                "uri": "https://www.reco.se/r/1000001",
+                "invited": True,
+            },
+        )
+        # Fyra stjärnor (<em> är tom), entiteterna avkodade, radbrytningen kvar.
+        self.assertEqual(second["rating"], 4)
+        self.assertEqual(second["text"], 'Bra bemötande, inte för "på".\nBytte bromsar & olja.')
+        # Utan Recos märkning: inte inbjuden.
+        self.assertFalse(third["invited"])
+        # Betyget fanns bara i JSON-LD.
+        self.assertEqual((fourth["rating"], fourth["invited"]), (5, True))
+        # Företagets svar, ett kort utan namn och ett utan id är inga omdömen.
+        texts = " ".join(r["text"] for r in reviews)
+        self.assertNotIn("svar från företaget", texts)
+        self.assertNotIn("hoppas över", texts)
+        self.assertEqual(reco.parse_profile(PROFILE_HTML).reviews, reviews)
+
+    def test_newest_first_capped_and_broken_cards_skipped(self):
+        cards = [
+            article(str(2000000 + n), f"Namn {n}", f"2026-0{1 + n % 9}-1{n % 10}")
+            for n in range(60)
+        ]
+        cards.append(article("../../x", "Trasig", "2026-09-01"))
+        cards.append(article("3000001", "", "2026-09-01"))
+        cards.append(article("3000002", "Utan betyg", "2026-09-01", stars=0))
+        reviews = reco.parse_reviews("".join(cards))
+        self.assertEqual(len(reviews), reco.MAX_STORED)
+        days = [r["date"] for r in reviews]
+        self.assertEqual(days, sorted(days, reverse=True))
+        self.assertNotIn("3000001", [r["id"] for r in reviews])
+        self.assertNotIn("3000002", [r["id"] for r in reviews])
+        self.assertEqual(reco.parse_reviews(""), [])
+        self.assertEqual(reco.parse_reviews(None), [])
+
+    def test_links_are_only_reviews_on_reco(self):
+        self.assertEqual(reco.review_link("3361469"), "https://www.reco.se/r/3361469")
+        self.assertEqual(reco.review_link(3361469), "https://www.reco.se/r/3361469")
+        for bad in ("../x", "0123", "", None, "1/../../evil", "12345678901234"):
+            self.assertEqual(reco.review_link(bad), "")
+        self.assertEqual(
+            reco.safe_review_link("https://www.reco.se/r/1"), "https://www.reco.se/r/1"
+        )
+        for bad in (
+            "http://www.reco.se/r/1",
+            "https://reco.se/r/1",
+            "https://www.reco.se/r/1?x=1",
+            "https://www.reco.se.evil.example/r/1",
+            "javascript:alert(1)",
+            "https://www.reco.se/user/1",
+        ):
+            self.assertEqual(reco.safe_review_link(bad), "")
+        # Den sparade länken läses aldrig: den byggs om av id:t.
+        stored = reco._stored_review(
+            {"id": "5", "author": "A", "rating": 5, "uri": "javascript:alert(1)", "invited": "ja"}
+        )
+        self.assertEqual(stored["uri"], "https://www.reco.se/r/5")
+        self.assertFalse(stored["invited"])
+        for broken in (
+            {"id": "x", "author": "A", "rating": 5},
+            {"id": "5", "author": "", "rating": 5},
+            {"id": "5", "author": "A", "rating": 9},
+            {"id": "5", "author": "A", "rating": True},
+            "inte ett omdöme",
+        ):
+            self.assertIsNone(reco._stored_review(broken))
+
+
+@override_settings(**ALERTS)
+class SelectionTests(RecoFixture, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.connected()
+
+    def test_a_verified_profile_stores_the_reviews_and_the_customer_chooses(self):
+        self.assertEqual([r["id"] for r in self.account.reco_reviews], REVIEW_IDS)
+        self.assertEqual(self.account.reco_reviews_selected, [])
+        self.assertEqual(reco.selected_reviews(self.account), [])
+        response = self.post(
+            {
+                "action": "reco_select",
+                "order": REVIEW_IDS + ["9999999", "<script>"],
+                "show": ["1000003", "1000001", "9999999"],
+            }
+        )
+        self.assertIn("2 omdömen från Reco syns på sidorna.", self.messages_of(response))
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.reco_reviews_selected, ["1000001", "1000003"])
+        # Ner och Upp flyttar bland de valda.
+        self.post(
+            {
+                "action": "reco_select",
+                "order": REVIEW_IDS,
+                "show": ["1000001", "1000003"],
+                "move": "1000001:down",
+            }
+        )
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.reco_reviews_selected, ["1000003", "1000001"])
+        self.assertEqual(
+            [r["id"] for r in reco.selected_reviews(self.account)], ["1000003", "1000001"]
+        )
+        html = self.client.get(reverse("flamingo:app_reviews")).content.decode()
+        self.assertIn("Utvalda omdömen från Reco", html)
+        self.assertIn("Syns som nummer 1", html)
+        self.assertIn("Omdöme från inbjuden kund", html)
+        self.assertIn('href="https://www.reco.se/r/1000003"', html)
+        self.assertIn("2 av högst 5 valda", html)
+        self.assertIn("Hämtad ", html)
+        self.assertIn("Hämta igen", html)
+
+    def test_at_most_five_are_chosen(self):
+        cards = "".join(
+            article(str(2000000 + n), f"Namn {n}", f"2026-09-{10 + n}") for n in range(8)
+        )
+        page = PROFILE_HTML.replace("</body>", cards + "</body>")
+        self.reco.pages[CS_AUTO] = page
+        reco.connect(self.account, CS_AUTO)
+        ids = [r["id"] for r in reco.stored_reviews(self.account)]
+        response = self.post({"action": "reco_select", "order": ids, "show": ids})
+        self.assertTrue(any("Högst 5 omdömen" in m for m in self.messages_of(response)))
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.reco_reviews_selected, ids[: reco.MAX_SELECTED])
+
+    def test_a_refresh_keeps_the_choice_and_skips_what_is_gone(self):
+        reco.select(self.account, ["1000002", "1000001"])
+        self.reco.pages[CS_AUTO] = PROFILE_HTML.replace(
+            '<article id="1000002"', '<article id="1999999"'
+        )
+        reco.connect(self.account, CS_AUTO)
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.reco_reviews_selected, ["1000002", "1000001"])
+        self.assertEqual([r["id"] for r in reco.selected_reviews(self.account)], ["1000001"])
+
+    def test_a_new_profile_resets_the_choice(self):
+        reco.select(self.account, ["1000001"])
+        other = PROFILE_HTML.replace("5998572", "7777777").replace("cs-auto-ab", "annat-ab")
+        self.reco.pages["https://www.reco.se/annat-ab"] = other
+        reco.connect(self.account, "https://www.reco.se/annat-ab")
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.reco_venue_id, "7777777")
+        self.assertEqual(self.account.reco_reviews_selected, [])
+
+    def test_unverified_disconnected_and_demo_show_nothing(self):
+        reco.select(self.account, ["1000001"])
+        # Inte intygad: texterna sparas inte, och inget visas.
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(website_url="")
+        self.account.refresh_from_db()
+        reco.connect(self.account, CS_AUTO)
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.reco_unverified)
+        self.assertEqual(self.account.reco_reviews, [])
+        self.assertEqual(reco.selected_reviews(self.account), [])
+        response = self.post({"action": "reco_select", "order": REVIEW_IDS, "show": REVIEW_IDS})
+        self.assertTrue(any("intygad" in m for m in self.messages_of(response)))
+        self.assertNotIn(
+            "Utvalda omdömen från Reco",
+            self.client.get(reverse("flamingo:app_reviews")).content.decode(),
+        )
+        # Intygad och hämtad igen: valet står kvar och syns.
+        reco.confirm_owner(self.account, self.owner)
+        self.new_day()
+        reco.connect(self.account, CS_AUTO)
+        self.account.refresh_from_db()
+        self.assertEqual([r["id"] for r in reco.selected_reviews(self.account)], ["1000001"])
+        # Demot visar aldrig omdömen, inte ens sparade.
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(is_demo=True)
+        self.account.refresh_from_db()
+        self.assertEqual(reco.selected_reviews(self.account), [])
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(is_demo=False)
+        self.account.refresh_from_db()
+        # Bortkopplad: texterna och valet bort.
+        reco.disconnect(self.account)
+        self.account.refresh_from_db()
+        self.assertEqual((self.account.reco_reviews, self.account.reco_reviews_selected), ([], []))
+        self.assertEqual(reco.selected_reviews(self.account), [])
+
+
+class UtvaldaBlockTests(RecoFixture, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.connected()
+        reco.select(self.account, ["1000002", "1000001", "1000003", "1000004"])
+
+    def render(self, variant, editing=False):
+        block = self.block(variant)
+        return pagebuilder.render_block_html(
+            self.page_with(block), block, self.account, editing=editing
+        )
+
+    def test_every_utvalda_variant_in_ren(self):
+        cards = self.render("utvalda_kort")
+        self.assertIn('class="rn-block rn-reco rn-reco--utvalda_kort ', cards)
+        self.assertNotIn("<iframe", cards)
+        self.assertIn("Omdömen från Reco", cards)
+        self.assertEqual(cards.count('class="rn-review"'), 3)
+        # Kundens ordning: Exempel B först, och det fjärde visas inte.
+        self.assertLess(cards.index("Exempel B"), cards.index("Exempel A"))
+        self.assertNotIn("Exempel D", cards)
+        self.assertIn("30 sep 2026", cards)
+        self.assertIn('aria-label="4 av 5"', cards)
+        self.assertIn('href="https://www.reco.se/r/1000002"', cards)
+        self.assertEqual(cards.count("Omdöme från inbjuden kund"), 2)
+        self.assertIn("CS Auto har valt vilka omdömen som visas här, och i vilken ordning.", cards)
+        self.assertIn(f'href="{CS_AUTO}"', cards)
+        self.assertIn('<b class="rn-reviews__big">4,9</b> av 5', cards)
+        self.assertIn("145 omdömen på Reco", cards)
+        quote = self.render("utvalda_citat")
+        self.assertEqual(quote.count('class="rn-quote"'), 1)
+        self.assertIn("Bra bemötande, inte för &quot;på&quot;.<br>Bytte bromsar &amp; olja.", quote)
+        line = self.render("utvalda_rad")
+        self.assertIn("<b>4,9</b> av 5", line)
+        self.assertIn("145 omdömen", line)
+        self.assertNotIn("rn-review__text", line)
+        self.assertIn(f'href="{CS_AUTO}"', line)
+        # Varje länk på blocket går till Reco.
+        import re
+
+        for html in (cards, quote, line):
+            for href in re.findall(r'href="(https?://[^"]+)"', html):
+                self.assertTrue(href.startswith("https://www.reco.se/"), href)
+
+    def test_without_a_choice_the_reviews_are_hidden_but_the_line_shows_the_rating(self):
+        reco.select(self.account, [])
+        self.assertEqual(self.render("utvalda_kort"), "")
+        self.assertIn("data-pb-empty", self.render("utvalda_kort", editing=True))
+        self.assertIn("<b>4,9</b> av 5", self.render("utvalda_rad"))
+
+    def test_unverified_disconnected_and_demo_show_no_reviews(self):
+        # Blocken skapades medan profilen var intygad.
+        blocks = [self.block(variant) for variant in reco.SELECTED_VARIANTS]
+        for fields in ({"reco_unverified": True}, {"reco_venue_id": "", "reco_url": ""}):
+            with self.subTest(fields=fields):
+                FlamingoAccount.objects.filter(pk=self.account.pk).update(**fields)
+                self.account.refresh_from_db()
+                for block in blocks:
+                    html = pagebuilder.render_block_html(self.page_with(block), block, self.account)
+                    self.assertEqual(html, "")
+            FlamingoAccount.objects.filter(pk=self.account.pk).update(
+                reco_unverified=False, reco_venue_id=CS_AUTO_ID, reco_url=CS_AUTO
+            )
+            self.account.refresh_from_db()
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(is_demo=True)
+        self.account.refresh_from_db()
+        html = self.render("utvalda_kort")
+        self.assertIn("Demot hämtar ingenting från Reco och visar inga omdömen", html)
+        self.assertNotIn("Exempel A", html)
+        self.assertNotIn("www.reco.se", html)
+
+    def test_names_and_texts_are_escaped(self):
+        evil = [
+            {
+                "id": "1000001",
+                "author": '<img src=x onerror="alert(1)">',
+                "date": "2026-10-02",
+                "rating": 5,
+                "text": "<script>alert(2)</script>\nrad två",
+                "uri": "javascript:alert(3)",
+                "invited": True,
+            }
+        ]
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(
+            reco_reviews=evil, reco_reviews_selected=["1000001"]
+        )
+        self.account.refresh_from_db()
+        for variant in ("utvalda_kort", "utvalda_citat"):
+            html = self.render(variant)
+            self.assertNotIn("<img src=x", html)
+            self.assertNotIn("<script>alert(2)", html)
+            self.assertNotIn("javascript:", html)
+            self.assertIn("&lt;script&gt;alert(2)&lt;/script&gt;<br>rad två", html)
+            self.assertIn('href="https://www.reco.se/r/1000001"', html)
+        page = self.client.get(reverse("flamingo:app_reviews")).content.decode()
+        self.assertNotIn("<img src=x", page)
+        self.assertNotIn("<script>alert(2)", page)
+        self.assertNotIn("javascript:alert(3)", page)
+        self.assertIn("&lt;img src=x onerror=", page)
+
+    def test_the_conversion_check_counts_chosen_reviews(self):
+        hero = pagebuilder.new_block("hero", "text", self.account)
+        page = self.page_with(hero, self.block("utvalda_kort"))
+        item = next(i for i in koll.koll(page, self.account)["items"] if i["key"] == "omdomen")
+        self.assertTrue(item["ok"])
+        reco.select(self.account, [])
+        item = next(i for i in koll.koll(page, self.account)["items"] if i["key"] == "omdomen")
+        self.assertFalse(item["ok"])
+        self.assertEqual(item["title"], "Omdömena från Reco syns inte")
+        self.assertEqual(item["action"]["url"], reverse("flamingo:app_reviews") + "#reco")
+
+
+@override_settings(**NOTHING)
+class KillSwitchTests(RecoFixture, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.connected()
+        reco.select(self.account, ["1000001"])
+        self.staff_client = Client()
+        self.staff_client.force_login(self.staff)
+
+    def switch(self, client, enabled):
+        return client.post(
+            reverse("manage:flamingo_selected_reviews"), {"enabled": "1" if enabled else "0"}
+        )
+
+    def assert_off_everywhere(self):
+        self.assertFalse(reco.selected_enabled())
+        # Blocket ritar Recos egen ruta (Liggande stor) i stället.
+        block = self.block("utvalda_kort")
+        html = pagebuilder.render_block_html(self.page_with(block), block, self.account)
+        self.assertIn("widget.reco.se/v2/venues/5998572/horizontal/xlarge", html)
+        self.assertIn("rn-reco--stor", html)
+        self.assertNotIn("Exempel A", html)
+        hero = pagebuilder.new_block("hero", "text", self.account)
+        page = self.page_with(hero, dict(self.block("utvalda_rad")))
+        self.assertNotIn("rn-s--strip", pagebuilder.render_page_html(page, self.account))
+        self.assertEqual(reco.selected_reviews(self.account), [])
+        # Valet göms med en rad, och går inte att spara.
+        html = self.client.get(reverse("flamingo:app_reviews")).content.decode()
+        self.assertIn("Utvalda omdömen från Reco är avstängda av ADX just nu.", html)
+        self.assertNotIn('value="reco_select"', html)
+        response = self.post({"action": "reco_select", "order": REVIEW_IDS, "show": REVIEW_IDS})
+        self.assertIn(reco.SELECTED_OFF, self.messages_of(response))
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.reco_reviews_selected, ["1000001"])
+        # Inget hämtas av cron, och en ny hämtning sparar inga nya texter.
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(
+            reco_fetched_at=timezone.now() - timedelta(days=30)
+        )
+        calls = len(self.reco.calls)
+        summary = reco.refresh_due()
+        self.assertEqual(
+            (summary.fetched, summary.skipped), (0, "Utvalda omdömen från Reco är avstängda")
+        )
+        self.assertEqual(len(self.reco.calls), calls)
+        self.reco.pages[CS_AUTO] = PROFILE_HTML.replace(
+            '<article id="1000003"', '<article id="1888888"'
+        )
+        self.new_day()
+        reco.connect(self.account, CS_AUTO)
+        self.account.refresh_from_db()
+        self.assertIn("1000003", [r["id"] for r in self.account.reco_reviews])
+        # Konverteringskollen räknar Recos ruta.
+        item = next(
+            i
+            for i in koll.koll(self.page_with(hero, block), self.account)["items"]
+            if i["key"] == "omdomen"
+        )
+        self.assertTrue(item["ok"])
+
+    def test_the_setting_turns_it_off(self):
+        with override_settings(FLAMINGO_RECO_SELECTED_ENABLED=False):
+            self.assert_off_everywhere()
+            html = self.staff_client.get(reverse("manage:flamingo_overview")).content.decode()
+            self.assertIn("Avstängt i miljön (FLAMINGO_RECO_SELECTED_ENABLED)", html)
+        self.assertTrue(reco.selected_enabled())
+
+    def test_staffs_switch_turns_it_off_for_everyone_at_once(self):
+        html = self.staff_client.get(reverse("manage:flamingo_overview")).content.decode()
+        self.assertIn("Utvalda omdömen från Reco: på.", html)
+        self.assertIn("1 kund har valt omdömen.", html)
+        # Kunden når inte knappen.
+        self.switch(self.client, enabled=False)
+        self.assertTrue(reco.selected_enabled())
+        self.assertEqual(
+            self.staff_client.get(reverse("manage:flamingo_selected_reviews")).status_code, 405
+        )
+        response = self.switch(self.staff_client, enabled=False)
+        self.assertRedirects(
+            response, reverse("manage:flamingo_overview") + "#reco", fetch_redirect_response=False
+        )
+        settings_row = reco.FlamingoSettings.get_solo()
+        self.assertFalse(settings_row.reco_selected_enabled)
+        self.assertEqual(settings_row.reco_selected_changed_by, self.staff)
+        self.assert_off_everywhere()
+        html = self.staff_client.get(reverse("manage:flamingo_overview")).content.decode()
+        self.assertIn("Utvalda omdömen från Reco: av.", html)
+        self.assertIn("Slå på utvalda omdömen från Reco igen", html)
+        self.assertEqual(mail.outbox, [])
+        self.switch(self.staff_client, enabled=True)
+        self.assertTrue(reco.selected_enabled())
+        self.assertEqual([r["id"] for r in reco.selected_reviews(self.account)], ["1000001"])
+
+
+@override_settings(**NOTHING)
+class RefreshCadenceTests(RecoFixture, TestCase):
+    def setUp(self):
+        super().setUp()
+        self.connected()
+        self.calls = len(self.reco.calls)
+
+    def age(self, days, **fields):
+        FlamingoAccount.objects.filter(pk=self.account.pk).update(
+            reco_fetched_at=timezone.now() - timedelta(days=days), **fields
+        )
+        self.account.refresh_from_db()
+
+    def fetched(self):
+        return len(self.reco.calls) - self.calls
+
+    def test_once_a_week_and_only_when_utvalda_is_used(self):
+        # Ingen har valt något och inget block använder Utvalda: inget hämtas.
+        self.age(8)
+        self.assertEqual(reco.refresh_due().fetched, 0)
+        # Ett block med Utvalda i ett utkast räcker.
+        self.page_with(self.block("utvalda_citat"))
+        summary = reco.refresh_due()
+        self.assertEqual((summary.fetched, self.fetched()), (1, 1))
+        self.assertEqual(self.reco.calls[-1][1]["hosts"], ("www.reco.se",))
+        # Hämtad nyss: inget mer den här veckan.
+        self.assertEqual(reco.refresh_due().fetched, 0)
+        self.age(6, reco_reviews_selected=["1000001"])
+        self.assertEqual(reco.refresh_due().fetched, 0)
+        self.age(7, reco_reviews_selected=["1000001"], daily_usage={})
+        self.assertEqual(reco.refresh_due().fetched, 1)
+        self.assertEqual(self.fetched(), 2)
+
+    def test_a_failure_is_tried_once_a_day(self):
+        self.age(8, reco_reviews_selected=["1000001"])
+        self.reco.pages[CS_AUTO] = AnalysError("Kunde inte hämta x: HTTP 503")
+        out = StringIO()
+        call_command("flamingo_google_sync", stdout=out)
+        self.assertIn("Omdömen från Reco: 0 hämtade, 1 med fel", out.getvalue())
+        self.assertIn(reco.RECO_DOWN, out.getvalue())
+        call_command("flamingo_google_sync", stdout=StringIO())
+        self.assertEqual(self.fetched(), 1)
+        tomorrow = timezone.now() + timedelta(days=1)
+        reco.refresh_due(now=tomorrow)
+        self.assertEqual(self.fetched(), 2)
+
+    def test_never_an_unverified_demo_or_disabled_account(self):
+        for fields in ({"reco_unverified": True}, {"is_demo": True}, {"is_enabled": False}):
+            with self.subTest(fields=fields):
+                self.age(8, reco_reviews_selected=["1000001"], daily_usage={}, **fields)
+                reco.refresh_due()
+                self.assertEqual(self.fetched(), 0)
+                FlamingoAccount.objects.filter(pk=self.account.pk).update(
+                    reco_unverified=False, is_demo=False, is_enabled=True
+                )
+
+    def test_a_capped_number_per_run(self):
+        other = FlamingoAccount.objects.create(
+            customer=Customer.objects.create(name="Annan AB"),
+            is_enabled=True,
+            reco_venue_id="1234567",
+            reco_url=CS_AUTO,
+            reco_reviews_selected=["1"],
+        )
+        self.age(8, reco_reviews_selected=["1000001"])
+        FlamingoAccount.objects.filter(pk=other.pk).update(
+            reco_fetched_at=timezone.now() - timedelta(days=9)
+        )
+        with mock.patch.object(reco, "REFRESH_PER_RUN", 1):
+            summary = reco.refresh_due()
+        self.assertEqual(summary.fetched + summary.failed, 1)
+        self.assertEqual(self.fetched(), 1)
+
+    def test_hamta_igen_is_limited_per_day(self):
+        self.new_day()
+        for _ in range(reco.LOOKUP_DAILY_MAX):
+            self.post({"action": "reco_refresh"})
+        before = len(self.reco.calls)
+        response = self.post({"action": "reco_refresh"})
+        self.assertIn(reco.LOOKUP_LIMIT, self.messages_of(response))
+        self.assertEqual(len(self.reco.calls), before)
+        html = self.client.get(reverse("flamingo:app_reviews")).content.decode()
+        self.assertIn("Profilen har hämtats så många gånger som går i dag.", html)
+
+    def test_the_texts_go_after_ninety_days_the_choice_stays(self):
+        reco.select(self.account, ["1000001"])
+        self.age(91, daily_usage={})
+        with mock.patch.object(reco, "REFRESH_PER_RUN", 0):
+            summary = reco.refresh_due()
+        self.assertEqual(summary.expired, 1)
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.reco_reviews, [])
+        self.assertEqual(self.account.reco_reviews_selected, ["1000001"])
+        self.assertEqual(self.account.reco_venue_id, CS_AUTO_ID)
+        self.assertEqual(reco.selected_reviews(self.account), [])
+        # Nästa lyckade hämtning ger tillbaka valet.
+        reco.refresh_due()
+        self.account.refresh_from_db()
+        self.assertEqual([r["id"] for r in reco.selected_reviews(self.account)], ["1000001"])

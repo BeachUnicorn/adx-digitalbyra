@@ -2,7 +2,9 @@
 Omdömen i verktyget (/flamingo/app/omdomen/): kunden pekar ut sin
 Google-profil, bekräftar "Det här är vi" och väljer vilka omdömen som syns
 på sidorna, och i vilken ordning (reviews.py). Under Google står kundens
-profil på Reco (reco.py, ankaret #reco): sidorna visar Recos egen ruta.
+profil på Reco (reco.py, ankaret #reco): sidorna visar Recos egen ruta, eller
+(Utvalda) de omdömen från profilen som kunden valt här. När Utvalda är
+avstängt (reco.selected_enabled) göms valet, med en rad om varför.
 
     reviews_view    GET: profilen, omdömena och vägarna in
                     POST action=find      sök (namn och ort) eller en länk
@@ -22,7 +24,10 @@ profil på Reco (reco.py, ankaret #reco): sidorna visar Recos egen ruta.
                                                  anrop); "Är det här ni?" ritas
                     POST action=reco_confirm     "Det här är vi": profilsidan
                                                  hämtas, prövas och sparas
-                    POST action=reco_refresh     hämta profilen igen
+                    POST action=reco_refresh     "Hämta igen": profilen och
+                                                 omdömena (inom gränsen per dag)
+                    POST action=reco_select      Utvalda: valet och ordningen
+                                                 (move=<id>:up/down)
                     POST action=reco_own         "Profilen är vår"
                     POST action=reco_disconnect  "Koppla bort profilen"
 
@@ -38,6 +43,8 @@ sitt Place ID. Sökningar och hämtningar har en gräns per dag
 Recos svar och Googles fel visas aldrig, bara en svensk text.
 Sidomenyn visar Företaget (sidan hör dit).
 """
+
+from datetime import date
 
 from django.contrib import messages
 from django.shortcuts import redirect
@@ -138,6 +145,50 @@ def _reco_context(account, pending=None, query=""):
         ),
         "pending": pending,
         "query": query,
+        **_reco_selection(account),
+    }
+
+
+#: Så många omdömen som inte är valda syns direkt; resten under "Visa alla".
+RECO_ROWS_SHOWN = 10
+
+
+def _reco_selection(account):
+    """Utvalda: på eller av, och omdömena i kundens ordning (de valda först,
+    sedan resten nyast först)."""
+    enabled = reco.selected_enabled()
+    reviews = reco.stored_reviews(account) if enabled and account.reco_trusted else []
+    by_id = {r["id"]: r for r in reviews}
+    chosen = [str(i) for i in account.reco_reviews_selected or [] if str(i) in by_id]
+    order = chosen + [r["id"] for r in reviews if r["id"] not in chosen]
+    rows = []
+    for review_id in order:
+        review = dict(by_id[review_id])
+        try:
+            review["day"] = date.fromisoformat(review["date"])
+        except ValueError:
+            review["day"] = None
+        position = chosen.index(review_id) if review_id in chosen else -1
+        rows.append(
+            {
+                "id": review_id,
+                "review": review,
+                "shown": position >= 0,
+                "number": position + 1,
+                "stars": _stars(review["rating"]),
+                "can_up": position > 0,
+                "can_down": 0 <= position < len(chosen) - 1,
+            }
+        )
+    cut = len(chosen) + RECO_ROWS_SHOWN
+    return {
+        "selected_enabled": enabled,
+        "off_by_setting": reco.off_by_setting(),
+        "rows": rows[:cut],
+        "rows_more": rows[cut:],
+        "has_reviews": bool(rows),
+        "selected_count": len(chosen),
+        "max_selected": reco.MAX_SELECTED,
     }
 
 
@@ -326,15 +377,18 @@ def _reco_action(request, account, action):
         return _reco_confirm(request, account)
     if action == "reco_refresh":
         return _reco_refresh(request, account)
+    if action == "reco_select":
+        return _reco_select(request, account)
     if action == "reco_own":
         try:
             reco.confirm_owner(account, request.user)
         except reco.RecoError as exc:
             messages.error(request, exc.message)
         else:
-            messages.success(
-                request, "Tack. Profilen är intygad, och Recos ruta kan synas på sidorna."
-            )
+            text = "Tack. Profilen är intygad, och Recos ruta kan synas på sidorna."
+            if reco.selected_enabled() and not account.reco_reviews:
+                text += " Hämta omdömena med Hämta igen, så kan du välja vilka som visas."
+            messages.success(request, text)
         return _back("reco")
     if action == "reco_disconnect":
         reco.disconnect(account)
@@ -405,5 +459,50 @@ def _reco_refresh(request, account):
     except reco.RecoError as exc:
         messages.error(request, exc.message)
     else:
-        messages.success(request, "Profilen är hämtad från Reco igen.")
+        if reco.selected_enabled() and account.reco_trusted:
+            messages.success(request, "Profilen och omdömena är hämtade från Reco igen.")
+        else:
+            messages.success(request, "Profilen är hämtad från Reco igen.")
+    return _back("reco")
+
+
+def _reco_select(request, account):
+    """Utvalda: kundens val och ordning, som Googles (_select)."""
+    if not reco.selected_enabled():
+        messages.info(request, reco.SELECTED_OFF)
+        return _back("reco")
+    if not account.reco_trusted:
+        messages.error(request, "Omdömena kan väljas när profilen på Reco är intygad som er.")
+        return _back("reco")
+    known = [r["id"] for r in reco.stored_reviews(account)]
+    selected = [str(i) for i in account.reco_reviews_selected or [] if str(i) in known]
+    order = [i for i in request.POST.getlist("order") if i in known]
+    order += [i for i in selected if i not in order]
+    order += [i for i in known if i not in order]
+    shown = set(request.POST.getlist("show"))
+    chosen = [i for i in order if i in shown]
+    move = request.POST.get("move", "")
+    if ":" in move:
+        review_id, direction = move.rsplit(":", 1)
+        if review_id in chosen:
+            index = chosen.index(review_id)
+            target = index - 1 if direction == "up" else index + 1
+            if 0 <= target < len(chosen):
+                chosen[index], chosen[target] = chosen[target], chosen[index]
+    too_many = len(chosen) > reco.MAX_SELECTED
+    chosen = reco.select(account, chosen)
+    if too_many:
+        messages.warning(
+            request,
+            f"Högst {reco.MAX_SELECTED} omdömen kan visas. De {reco.MAX_SELECTED} första "
+            "i ordningen är valda.",
+        )
+    elif not move:
+        if chosen:
+            word = "omdöme" if len(chosen) == 1 else "omdömen"
+            messages.success(request, f"{len(chosen)} {word} från Reco syns på sidorna.")
+        else:
+            messages.info(
+                request, "Inga omdömen från Reco är valda, så Utvalda syns inte på sidorna."
+            )
     return _back("reco")

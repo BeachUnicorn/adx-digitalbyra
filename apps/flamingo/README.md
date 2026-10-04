@@ -52,7 +52,7 @@ Verktygets sidor:
 | `app/sidor/<pk>/spara/`, `rita/`, `nytt-block/`, `installningar/`, `publicera/`, `kopiera/`, `ta-bort/` (POST) | Redigerarens anrop (JSON): spara med rev (409 när någon annan sparat), rita block, ett nytt block ur mallen med sidans tjänst och pris, namn och palett, publicera med rev, kopiera och ta bort (`app_views/pages.py`) | |
 | `app/sidor/<pk>/ai/bygg/`, `ai/skriv-om/`, `konverteringskoll/` | "Bygg sidan åt mig", "Skriv om" och Konverteringskollen (JSON, `app_views/page_ai.py`, `pagebuilder/ai.py`, `koll.py`). Sparar ingenting | Sidbyggaren 05-07 |
 | `app/media/`, `lista/`, `ladda-upp/` | Mediaarkivet: logotypen, uppladdade bilder och bilderna från hemsidan, färgerna ur logotypen (`app_views/media.py`, `media.py`) | Sidbyggaren 08 |
-| `app/omdomen/` | Omdömen från Google: profilen, "Det här är vi", "Profilen är vår" och valet av omdömen (`app_views/reviews.py`, `reviews.py`). Under dem profilen på Reco (`#reco`): länken eller id:t, "Det här är vi", "Profilen är vår", "Hämta profilen igen" och "Koppla bort profilen" (`reco.py`) | Sidbyggaren 10 |
+| `app/omdomen/` | Omdömen från Google: profilen, "Det här är vi", "Profilen är vår" och valet av omdömen (`app_views/reviews.py`, `reviews.py`). Under dem profilen på Reco (`#reco`): länken eller id:t, "Det här är vi", "Profilen är vår", "Hämta igen", "Koppla bort profilen" och valet av omdömen för Utvalda (gömt när Utvalda är av) (`reco.py`) | Sidbyggaren 10 |
 | `app/inkorg/`, `<pk>/` | Inkorgen och en förfrågan: varifrån, status och belopp | 10-11 |
 | `app/installningar/` | Sms till kunden och autosvaret (båda av från början) | 10 |
 | `app/kund/` (POST) | Kundväljaren för en kontakt i flera Flamingo-kunder | |
@@ -71,7 +71,7 @@ Byråns sidor:
 
 | Adress | Vad |
 |---|---|
-| `/manage/flamingo/` | Kunderna med Flamingo (demokunden sist, med etikett, utanför siffrorna), köns siffror, sidorna, läget för Google Ads API |
+| `/manage/flamingo/` | Kunderna med Flamingo (demokunden sist, med etikett, utanför siffrorna), köns siffror, sidorna, läget för Google Ads API, brytaren för utvalda omdömen från Reco (`#reco`, POST till `/manage/flamingo/utvalda-omdomen/`) |
 | `/manage/flamingo/granska/` | Kön: att granska (bara de där kunden bad om granskning), godkända som inte är publicerade (med orsaken), hos kunden, live, konverteringar. Demokunden bara med `?demo=1` ("Visa demokunden") |
 | `/manage/flamingo/granska/<pk>/` | En kampanj: granska (rätta och skriv varför), "Kunden bad om granskning", publicera (API, eller för hand också med API:t), pausa, återuppta, "Tillbaka till granskning" för en godkänd kampanj som Google sagt nej till |
 | `/manage/flamingo/kampanj/<pk>/editor.csv` | Kampanjen som Google Ads Editor-fil |
@@ -180,8 +180,10 @@ till Recos widget eller hela inbäddningskoden), eller Recos id (siffror).
 "Det här är vi" hämtar profilsidan (`https://www.reco.se/<slug>`; med bara
 ett id först widgeten, som har adressen) med SSRF-skyddet i
 `apps/tools/analyzer.fetch`, bara till `www.reco.se` och `widget.reco.se`
-(också efter en omdirigering), högst 512 kB och 10 sekunder, och högst fem
-hämtningar per konto och dag. Ett demokonto anropar aldrig Reco.
+(profilsidan bara från `www.reco.se`, widgeten bara från `widget.reco.se`,
+också efter en omdirigering), högst 512 kB och 10 sekunder, och högst tre
+hämtningar per konto och dag ("Det här är vi" och "Hämta igen"). Ett
+demokonto anropar aldrig Reco.
 
 - **Id:t** står på profilsidan i `window.VenueData` (med namnet, betyget,
   antalet, hemsidan och telefonnumret), i `window.PaginationData` och i
@@ -211,29 +213,75 @@ hämtningar per konto och dag. Ett demokonto anropar aldrig Reco.
   Utan en intygad profil syns blocket inte, och det stoppar inte
   publiceringen. Konverteringskollen räknar blocket som omdömen, och
   biblioteket i redigeraren länkar till Omdömen när profilen saknas.
+  Blocket har också varianterna Utvalda (se nedan).
 - **Integriteten.** Rutan laddas från reco.se när besökaren ser den: Reco
   får besökarens IP-adress och räknar visningen (`widget/loaded`); inga
   kakor sattes 2026-10-04. Blockets "varför" och omdömessidan säger det.
 - **Betyget** från Reco sparas bara för verktyget (kunden ser att profilen
   är rätt), blir aldrig en uppgift och används aldrig i annonserna eller
   förslagen (`RATING_SOURCES` är Google och ADX; "Reco" med en siffra är ett
-  betyg för `is_rating_like`). Namnet, betyget och antalet tas bort efter 90
-  dagar utan en ny hämtning (`reco.expire` i `flamingo_google_sync`); id:t och
-  rutan står kvar. Cron hämtar ingenting från Reco.
-- **Ingen egen ruta med utvalda omdömen.** Recos villkor (Medlemsvillkor för
-  webbsöktjänsten reco.se, https://www.reco.se/info/terms, uppdaterade
-  2026-09-22, avsnitt 7) säger att Reco äger rättigheterna till omdömena
-  och att materialet inte får kopieras eller göras tillgängligt för andra i
-  kommersiella sammanhang utan Recos skriftliga medgivande. Widgetarna är
-  Recos sätt att visa omdömena på en annan sajt, och ett API finns bara som
-  en skräddarsydd lösning. Därför hämtas och sparas inga omdömestexter.
-  Med Recos skriftliga medgivande (eller deras API) kan en egen ruta byggas:
-  profilsidans JSON-LD har de fem senaste omdömena med text, författarens
-  förnamn och initial, datum, betyg och länk (`https://www.reco.se/r/<id>`),
-  sidan har 50 till som HTML (`article.review-card-v2`, märkta "Omdöme från
-  inbjuden kund" när företaget bjudit in), och widgeten har texterna
-  avkortade. Märkningen "inbjuden" och att företaget valt ut omdömena måste
-  då synas.
+  betyg för `is_rating_like`); på sidorna syns det bara i blocket Omdömen
+  från Reco. Namnet, betyget, antalet och omdömenas texter tas bort efter 90
+  dagar utan en ny hämtning (`reco.expire` i `flamingo_google_sync`); id:t,
+  kundens val och Recos ruta står kvar.
+- **Vakten** i `apps/website/tests.py` (VvsLegacyGuardTests) fäller ordet
+  reco i koden, eftersom det var ett arv från systersajten. Reco-mönstret
+  lyfts bara i filerna i `RECO_ALLOWED_IN`; en ny fil som nämner Reco läggs
+  till där med namn.
+
+### Utvalda: kundens valda omdömen från Reco
+
+**Beslut (Giovanni 2026-10-04).** Blocket får visa de omdömen från profilen
+på Reco som kunden valt, ritade i Ren. Giovannis motivering, ordagrant:
+"Reco kan inte äga omdömena, finns inte ens något upphovsrättsligts verk.
+Det är kunden som äger sitt omdöme." Recos villkor säger motsatsen
+(Medlemsvillkor för webbsöktjänsten reco.se, https://www.reco.se/info/terms,
+uppdaterade 2026-09-22, avsnitt 7: den som skriver ett omdöme överlåter
+rättigheterna till Reco Sverige AB, och materialet får inte kopieras eller
+göras tillgängligt för andra i kommersiella sammanhang utan Recos skriftliga
+medgivande). Recos widgetar är Recos eget sätt att visa omdömena på en annan
+sajt, och ett API finns bara som en skräddarsydd lösning. Byrån bygger
+Utvalda ändå, med de här skyddsräckena:
+
+- **Bara kundens egen, intygade profil** (`reco_trusted`, samma prövning som
+  ovan). En profil som inte är intygad, en bortkopplad profil och demot
+  visar aldrig några omdömen, och för en profil som inte är intygad sparas
+  inga texter (`reco.store`).
+- **Hämtningen.** Bara profilsidan, bara första sidan (ungefär 50 omdömen,
+  "Visa fler omdömen" hämtas aldrig), genom `analyzer.fetch` med bara
+  `www.reco.se` som värd och samma tak för storlek och tid. `reco.parse_reviews`
+  läser omdömeskorten (`<article class="review-card-v2">`: namnet som Reco
+  visar det, dagen, betyget som fem stjärnor, texten och märkningen "Omdöme
+  från inbjuden kund"); JSON-LD fyller bara i det som saknas i ett kort.
+  Företagets svar står utanför kortet och läses aldrig. Sparas i
+  `reco_reviews` (id, namnet, dagen, betyget, texten, länken
+  `https://www.reco.se/r/<id>`, inbjuden), högst 50, och kundens val i
+  `reco_reviews_selected` (högst fem, i ordning).
+- **Sällan.** Cron (`reco.refresh_due` i `flamingo_google_sync`, varje
+  timme) hämtar en profil igen först när den är en vecka gammal, bara när
+  kunden valt omdömen eller en sida har blocket med Utvalda, högst ett
+  försök per konto och dag (också när det misslyckas) och högst 20 profiler
+  per körning. "Hämta igen" i verktyget delar gränsen med "Det här är vi"
+  (tre per dag). Texterna tas bort efter 90 dagar utan en lyckad hämtning,
+  samma regel som för Google; id:t och valet står kvar.
+- **På sidan** (varianterna "Utvalda: tre kort", "Utvalda: ett stort
+  citat" och "Utvalda: betyg i en rad", som Googles block): rubriken
+  "Omdömen från Reco", namnet som Reco visar det, dagen, betyget och en
+  länk till varje omdöme på Reco, "Omdöme från inbjuden kund" när Reco
+  märker det (att dölja det kunde vilseleda), betyget och antalet från
+  profilen, en länk till företagets sida på Reco och raden "<företaget> har
+  valt vilka omdömen som visas här, och i vilken ordning. Källa: Reco."
+  Texten ändras aldrig och escapas; varje länk byggs av siffror och går
+  bara till `https://www.reco.se/`. Utan valda omdömen syns korten och
+  citatet inte (betyget i en rad syns med betyget). Konverteringskollen
+  räknar blocket när det visar något.
+- **Brytaren.** `FLAMINGO_RECO_SELECTED_ENABLED` i miljön (på från början)
+  och byråns knapp på `/manage/flamingo/` ("Stäng av utvalda omdömen från
+  Reco för alla", `FlamingoSettings.reco_selected_enabled`, med vem och när).
+  Av gäller direkt för alla: inget hämtas, blocken med Utvalda ritar Recos
+  egen ruta (Liggande stor), och valet i verktyget göms med en rad om det.
+  De sparade texterna står kvar tills de blir för gamla, så att allt kommer
+  tillbaka när det slås på igen. Kunderna mejlas aldrig.
 - **Vakten** i `apps/website/tests.py` (VvsLegacyGuardTests) fäller ordet
   reco i koden, eftersom det var ett arv från systersajten. Reco-mönstret
   lyfts bara i filerna i `RECO_ALLOWED_IN`; en ny fil som nämner Reco läggs
@@ -727,8 +775,9 @@ tillsammans har varje blocktyp och variant (de för kampanjer som är live
 eller pausade publicerade), en logotyp och bilder i mediaarkivet, och en
 påhittad Google-profil med omdömen (intygad som demots egen; den hämtas
 aldrig från Google), och en påhittad profil på Reco (id:t 0000000, ingen
-länk till reco.se): blocket Omdömen från Reco ritar en exempelruta i stället
-för Recos och laddar ingenting från Reco. Kör det igen så byggs innehållet
+länk till reco.se, inga omdömen): blocket Omdömen från Reco ritar en
+exempelruta i stället för Recos ruta och för utvalda omdömen, och laddar
+ingenting från Reco. Kör det igen så byggs innehållet
 om; inget dubbleras.
 En annan kund med samma namn rörs aldrig.
 
@@ -756,7 +805,8 @@ finns i `.env.example`.
 |---|---|---|---|
 | AI-texter och läsningen av hemsidan | samma som assistenten (`ASSISTANT_PROVIDER`, Bedrock) | Byggt, går i produktion | Mallar och regler |
 | Google Places | `GOOGLE_PLACES_API_KEY` | Byggt, slås på av nyckeln | Uppgifter från hemsidan och kunden |
-| Reco (omdömen) | Ingen nyckel: profilsidan och Recos widget är publika | Byggt: länken eller id:t, ägaren, Recos ruta i blocket | Recos egen ruta är det enda som visas; utvalda omdömen kräver Recos medgivande |
+| Reco (omdömen) | Ingen nyckel: profilsidan och Recos widget är publika | Byggt: länken eller id:t, ägaren, Recos ruta i blocket och Utvalda | - |
+| Utvalda omdömen från Reco | `FLAMINGO_RECO_SELECTED_ENABLED` och knappen på `/manage/flamingo/` | Byggt, på | Av: Recos egen ruta, inget hämtas |
 | 46elks sms | `ELKS_API_USERNAME`, `ELKS_API_PASSWORD`, `ELKS_SENDER` (alla tre) | Byggt, slås på av nycklarna | Inget sms, loggat som "inte inkopplat" |
 | Google Ads API | `GOOGLE_ADS_LOGIN_CUSTOMER_ID`, `GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, och inloggningen i panelen (eller `GOOGLE_ADS_REFRESH_TOKEN`); projektet behöver Explorer (Basic för nya konton) | Byggt: koppling, kundens konto, publicering direkt efter kundens godkännande, paus, konverteringsåtgärder och rapporter. Inte prövat mot ett riktigt konto | Editor-CSV och "Markera som live", koppling och "betalning klar" bockas av i panelen, konverteringar som CSV |
 | Data Manager API (konverteringarna) | Samma inloggning; API:t påslaget i samma Cloud-projekt och behörigheten `datamanager` (koppla om en gång) | Byggt, standardvägen. Inte prövat mot ett riktigt konto | CSV-exporten |
@@ -798,10 +848,8 @@ att ett förvaltarkonto med Explorer-åtkomst får skicka. Kör
   godkännande: byrån publicerar då från kön.
 - Landningssidor på kundens egen subdomän, bilduppladdning i formuläret.
 - Sms-svaret "VANN 186000" från ägaren.
-- En egen ruta med utvalda omdömen från Reco: kräver Recos skriftliga
-  medgivande eller deras API (se Omdömen från Reco). "Bygg sidan åt mig"
-  lägger aldrig till blocket Omdömen från Reco själv; ett som redan står på
-  sidan följer med oförändrat.
+- "Bygg sidan åt mig" lägger aldrig till blocket Omdömen från Reco själv;
+  ett som redan står på sidan följer med oförändrat.
 - "Skriv om" i sidbyggaren: förslaget blir en version som redigeraren
   skapar, så den sparas som kundens (eller byråns), inte som "AI". Att
   behålla märkningen kräver att servern lämnar en signerad version.
@@ -819,14 +867,18 @@ produktion:
 Det skriver över blocken och frågorna på Flamingos sidor, också ändringar
 som gjorts i /manage/ sedan förra seeden; publiceringen rörs inte.
 
-Sidbyggaren (migreringarna 0010-0014): `./deploy` kör migreringarna. 0010
+Sidbyggaren (migreringarna 0010-0015): `./deploy` kör migreringarna. 0010
 skapar sidorna och mediaarkivet, 0011 gör varje kampanjs sida till en
 LandingPage i Ren (publicerad för kampanjer som är live eller pausade; ett
 nummer ur telefonuppgiften, frågornas nycklar omgjorda så att de klarar
 schemat, etiketterna oförändrade), 0012 lägger till dagens räknare och
 bildernas alt-text från hemsidan, och 0013 sidans ursprung (`built_for`,
-`built_rev`) och Google-profilens intyg, och 0014 profilen på Reco
-(`reco_*`, regeln `flamingo_reco_id_unique`). Kör sedan demot igen, så att
+`built_rev`) och Google-profilens intyg, 0014 profilen på Reco
+(`reco_*`, regeln `flamingo_reco_id_unique`), och 0015 Utvalda
+(`reco_reviews`, `reco_reviews_selected` och `FlamingoSettings`, brytaren,
+som står på). Inget behöver läggas till i `../.env` eller i cron: Utvalda
+är på utan `FLAMINGO_RECO_SELECTED_ENABLED`, och `flamingo_google_sync`
+hämtar redan varje timme. Kör sedan demot igen, så att
 demokunden får sina sidor, bilder och sin påhittade profil på Reco:
 
     uv run python manage.py flamingo_demo --prod

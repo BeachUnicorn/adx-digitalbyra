@@ -501,9 +501,10 @@ class FlamingoAccount(models.Model):
     # länken till sin sida på Reco eller Recos id; profilsidan hämtas (aldrig
     # för ett demokonto) och prövas mot kundens hemsida och telefonnummer.
     # Sidan visar Recos egen ruta (en iframe från widget.reco.se) byggd bara
-    # av siffrorna i reco_venue_id. Inga omdömestexter sparas här: Recos
-    # villkor tillåter inte att innehållet kopieras utan Recos skriftliga
-    # medgivande (se reco.py).
+    # av siffrorna i reco_venue_id, eller (varianterna Utvalda) de omdömen
+    # kunden valt ur reco_reviews, ritade i Ren. Utvalda är Giovannis beslut
+    # 2026-10-04 trots att Recos villkor säger annat (se reco.py), och kan
+    # stängas av för alla (FlamingoSettings, FLAMINGO_RECO_SELECTED_ENABLED).
     #
     # Betyget och antalet visas bara i verktyget, så att kunden ser att det
     # är rätt profil. De är aldrig en uppgift (Fact) och används aldrig i
@@ -534,6 +535,20 @@ class FlamingoAccount(models.Model):
         related_name="+",
         verbose_name="Reco-profilen intygad av",
     )
+    #: Omdömena från profilsidan på Reco (reco.parse_reviews), nyast först,
+    #: högst reco.MAX_STORED. Hämtas bara för en intygad profil och bara när
+    #: Utvalda är påslaget; texterna tas bort efter reco.MAX_AGE utan en ny
+    #: hämtning (id:t och valet står kvar):
+    #:   [{"id": "3361469",                      Recos id för omdömet (siffror)
+    #:     "author": "Anna L",                   namnet som Reco visar det
+    #:     "date": "2026-10-02",                 dagen (ISO 8601)
+    #:     "rating": 5,                          1-5
+    #:     "text": "Snabbt svar ...",            omdömet, oförändrat (aldrig HTML)
+    #:     "uri": "https://www.reco.se/r/3361469",
+    #:     "invited": true}]                     Reco märker "Omdöme från inbjuden kund"
+    reco_reviews = models.JSONField("Omdömen från Reco", default=list, blank=True)
+    #: Id:n (reco_reviews[i]["id"]) som kunden valt att visa, i visningsordning.
+    reco_reviews_selected = models.JSONField("Valda omdömen från Reco", default=list, blank=True)
 
     #: Dagens räknare för spärrarna som kostar pengar eller bandbredd
     #: (limits.reserve_daily): {"day": "2026-10-03", "places_search": 2,
@@ -664,6 +679,45 @@ class FlamingoAccount(models.Model):
         liknar företaget eller någon intygat att den är kundens
         (reco_unverified)."""
         return bool(self.reco_venue_id) and not self.reco_unverified
+
+
+class FlamingoSettings(models.Model):
+    """Byråns brytare för hela Flamingo. En enda rad: get_solo().
+
+    reco_selected_enabled: blocket Omdömen från Reco får visa de omdömen
+    kunden valt (varianterna Utvalda) och omdömena hämtas från Reco. Av
+    gäller direkt för alla: sidorna visar Recos egen ruta (Liggande stor),
+    inget hämtas, och valet i verktyget göms (reco.selected_enabled, som
+    också läser FLAMINGO_RECO_SELECTED_ENABLED)."""
+
+    SOLO_PK = 1
+
+    reco_selected_enabled = models.BooleanField("Utvalda omdömen från Reco", default=True)
+    reco_selected_changed_at = models.DateTimeField(
+        "Utvalda omdömen från Reco ändrades", null=True, blank=True
+    )
+    reco_selected_changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Utvalda omdömen från Reco ändrades av",
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Flamingos inställningar"
+        verbose_name_plural = "Flamingos inställningar"
+
+    def __str__(self):
+        return "Flamingos inställningar"
+
+    @classmethod
+    def get_solo(cls):
+        """Den enda raden, skapad vid första behovet."""
+        row, _ = cls.objects.get_or_create(pk=cls.SOLO_PK)
+        return row
 
 
 def google_id_taken(google_id, exclude_pk=None):

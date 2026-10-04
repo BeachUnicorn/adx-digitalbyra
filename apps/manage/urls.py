@@ -91,6 +91,11 @@ urlpatterns = [
     # ADX Flamingo (apps/flamingo)
     path("flamingo/", flamingo_views.overview, name="flamingo_overview"),
     path(
+        "flamingo/utvalda-omdomen/",
+        flamingo_views.selected_reviews_switch,
+        name="flamingo_selected_reviews",
+    ),
+    path(
         "kunder/<int:pk>/flamingo/",
         flamingo_views.customer_update,
         name="flamingo_customer_update",

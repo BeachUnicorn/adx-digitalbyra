@@ -1,40 +1,94 @@
 {% load flamingo_pb %}{% comment %}
-Omdömen från Reco: Recos egen ruta, en iframe från widget.reco.se som
-reco.frames bygger bara av siffrorna i kundens id och en av Giovannis
-storlekar (view.frames, render.py). Inga omdömestexter hämtas eller visas
-av oss: Recos villkor tillåter inte att innehållet kopieras (apps/flamingo/
-reco.py). Blocket syns inte utan en profil som är intygad som kundens.
+Omdömen från Reco, i två former (view.layout, render.py):
 
-Rutan laddas från reco.se när besökaren ser den (loading="lazy"): Reco får
-besökarens IP-adress och räknar visningen, men bara sidans domän som
-hänvisning (referrerpolicy), aldrig adressen med klick-id:t. sandbox låter
-rutan köra Recos skript och öppna Reco i en ny flik, men aldrig byta sidan
-besökaren står på eller skicka formulär.
-
+widget: Recos egen ruta, en iframe från widget.reco.se som reco.frames
+bygger bara av siffrorna i kundens id och en av Giovannis storlekar
+(view.frames). Rutan laddas från reco.se när besökaren ser den
+(loading="lazy"): Reco får besökarens IP-adress och räknar visningen, men
+bara sidans domän som hänvisning (referrerpolicy), aldrig adressen med
+klick-id:t. sandbox låter rutan köra Recos skript och öppna Reco i en ny
+flik, men aldrig byta sidan besökaren står på eller skicka formulär.
 stor: den liggande stora (225 px hög) på alla skärmar; medel: den liggande
 (60 px) från 720 px och den stående (300 x 150 px) i mobilen, där CSS döljer
 den andra (en dold iframe med loading="lazy" laddas inte); liten: den
 liggande lilla (27 px), utan rubrik, en smal remsa direkt efter Toppen;
 staende: den stående på alla skärmar.
 
-Demot (view.demo) visar en påhittad ruta och laddar aldrig något från Reco.
-{% endcomment %}<section class="rn-block rn-reco rn-reco--{{ b.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}{% if view.hidden %} data-pb-empty{% endif %}>
+utvalda (Giovannis beslut 2026-10-04, apps/flamingo/reco.py): de omdömen
+kunden valt (view.reviews), oförändrade, i Ren som Googles block:
+utvalda_kort tre kort, utvalda_citat ett stort citat, utvalda_rad betyget i
+en rad. Varje omdöme har namnet som Reco visar det, dagen, betyget, en länk
+till omdömet på Reco (https://www.reco.se/r/<id>, byggd av id:t) och
+"Omdöme från inbjuden kund" när Reco märker det. Rubriken "Omdömen från
+Reco", en länk till företagets sida på Reco och en rad om att företaget valt
+vilka omdömen som visas och i vilken ordning. När Utvalda är av ritas
+Liggande stor i stället (view.variant).
+
+Blocket syns inte utan en profil som är intygad som kundens. Demot
+(view.demo) visar en påhittad ruta och laddar aldrig något från Reco.
+{% endcomment %}<section class="rn-block rn-reco rn-reco--{{ view.variant }} rn-s--{{ surface }}" id="{{ b.id }}"{% pb_block %}{% if view.hidden %} data-pb-empty{% endif %}>
   <div class="rn-wrap">
-    {% if b.variant != "liten" %}
+    {% if view.variant == "utvalda_rad" and not view.demo %}
+    <div class="rn-reviews__line">
+      <span class="rn-gmark">Omdömen från Reco</span>
+      {% if site.reco_rating %}
+      <span class="rn-reviews__score"><b>{{ site.reco_rating }}</b> av 5</span>
+      <span class="rn-starrow" aria-hidden="true">{% for s in view.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}"><use href="#rn-i-{% if s == 'half' %}star-half{% else %}star{% endif %}"></use></svg>{% endfor %}</span>
+      {% if site.reco_count %}<span class="rn-reviews__count">{{ site.reco_count }} omdömen</span>{% endif %}
+      {% endif %}
+      {% if view.profile_url %}<a class="rn-link" href="{{ view.profile_url }}" rel="noopener nofollow" target="_blank">Se omdömena på Reco<span class="rn-sr"> (ny flik)</span></a>{% endif %}
+    </div>
+    {% else %}
+    {% if view.variant != "liten" and view.variant != "utvalda_rad" %}
     <header class="rn-head rn-reco__head">
       <p class="rn-eyebrow rn-gmark">Omdömen från Reco</p>
       {% if f.title %}<h2 class="rn-h2"{% pb "title" %}>{{ f.title }}</h2>{% else %}{% pb_empty "title" "h2" "rn-h2" %}{% endif %}
+      {% if view.layout == "utvalda" and not view.demo %}
+      {% if site.reco_rating %}<p class="rn-reviews__summary"><span class="rn-reviews__score"><b class="rn-reviews__big">{{ site.reco_rating }}</b> av 5</span><span class="rn-starrow" aria-hidden="true">{% for s in view.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}"><use href="#rn-i-{% if s == 'half' %}star-half{% else %}star{% endif %}"></use></svg>{% endfor %}</span><span class="rn-reviews__count">{% if site.reco_count %}{{ site.reco_count }} omdömen på Reco{% else %}på Reco{% endif %}</span></p>{% endif %}
+      {% if view.reviews %}<p class="rn-small rn-reviews__note">{% if site.business %}{{ site.business }}{% else %}Företaget{% endif %} har valt vilka omdömen som visas här, och i vilken ordning. Källa: Reco.</p>{% endif %}
+      {% endif %}
     </header>
     {% endif %}
+    {% if view.demo %}
     <div class="rn-reco__box">
-      {% for frame in view.frames %}<iframe class="rn-reco__frame rn-reco__frame--{{ frame.orientation }} rn-reco__frame--{{ frame.screen }}" src="{{ frame.src }}" title="{{ frame.title }}" loading="lazy" height="{{ frame.height }}"{% if frame.width %} width="{{ frame.width }}"{% endif %} referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>{% endfor %}
-      {% if view.demo %}
       <div class="rn-reco__demo" role="note">
         <p class="rn-reco__demo-score"><b class="rn-reco__demo-big">{{ view.demo.rating }}</b> av 5<span class="rn-starrow" aria-hidden="true">{% for s in view.demo.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}"><use href="#rn-i-{% if s == 'half' %}star-half{% else %}star{% endif %}"></use></svg>{% endfor %}</span>{% if view.demo.count %}<span class="rn-reviews__count">{{ view.demo.count }} omdömen</span>{% endif %}</p>
-        <p class="rn-small">Exempel: här visar sidan Recos egen ruta med betyget och omdömena. Demot hämtar ingenting från Reco, och siffrorna är påhittade.</p>
+        <p class="rn-small">{% if view.layout == "utvalda" %}Exempel: här visar sidan de omdömen från Reco som företaget valt. Demot hämtar ingenting från Reco och visar inga omdömen, och siffrorna är påhittade.{% else %}Exempel: här visar sidan Recos egen ruta med betyget och omdömena. Demot hämtar ingenting från Reco, och siffrorna är påhittade.{% endif %}</p>
       </div>
-      {% endif %}
     </div>
-    {% if view.profile_url and b.variant != "liten" %}<p class="rn-reco__more"><a class="rn-link" href="{{ view.profile_url }}" rel="noopener nofollow" target="_blank">Se alla omdömen på Reco<span class="rn-sr"> (ny flik)</span></a></p>{% endif %}
+    {% elif view.layout == "utvalda" %}
+    {% if view.variant == "utvalda_citat" %}
+    {% for review in view.reviews %}
+    <figure class="rn-quote">
+      <svg class="rn-ic rn-quote__mark" aria-hidden="true" focusable="false"><use href="#rn-i-quote"></use></svg>
+      <blockquote class="rn-quote__text"><p>{{ review.text|linebreaksbr }}</p></blockquote>
+      <figcaption class="rn-review__by">
+        <span class="rn-avatar" aria-hidden="true">{{ review.initials }}</span>
+        <span class="rn-review__who">{{ review.author }}<span class="rn-review__meta"><span class="rn-starrow rn-starrow--sm" role="img" aria-label="{{ review.rating }} av 5">{% for s in review.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}" aria-hidden="true"><use href="#rn-i-star"></use></svg>{% endfor %}</span>{% if review.date %} {{ review.date|date:"j b Y" }}{% endif %} {% if review.uri %}<a href="{{ review.uri }}" rel="noopener nofollow" target="_blank">på Reco<span class="rn-sr"> (ny flik)</span></a>{% else %}på Reco{% endif %}</span>{% if review.invited %}<span class="rn-reco__invited">Omdöme från inbjuden kund</span>{% endif %}</span>
+      </figcaption>
+    </figure>
+    {% endfor %}
+    {% else %}
+    <ul class="rn-reviews__grid">
+      {% for review in view.reviews %}
+      <li class="rn-review">
+        <span class="rn-starrow" role="img" aria-label="{{ review.rating }} av 5">{% for s in review.stars %}<svg class="rn-ic rn-star rn-star--{{ s }}" aria-hidden="true"><use href="#rn-i-star"></use></svg>{% endfor %}</span>
+        {% if review.text %}<p class="rn-review__text">{{ review.text|linebreaksbr }}</p>{% endif %}
+        {% if review.invited %}<p class="rn-reco__invited">Omdöme från inbjuden kund</p>{% endif %}
+        <p class="rn-review__by">
+          <span class="rn-avatar" aria-hidden="true">{{ review.initials }}</span>
+          <span class="rn-review__who">{{ review.author }}<span class="rn-review__meta">{% if review.date %}{{ review.date|date:"j b Y" }} {% endif %}{% if review.uri %}<a href="{{ review.uri }}" rel="noopener nofollow" target="_blank">på Reco<span class="rn-sr"> (ny flik)</span></a>{% else %}på Reco{% endif %}</span></span>
+        </p>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% else %}
+    <div class="rn-reco__box">
+      {% for frame in view.frames %}<iframe class="rn-reco__frame rn-reco__frame--{{ frame.orientation }} rn-reco__frame--{{ frame.screen }}" src="{{ frame.src }}" title="{{ frame.title }}" loading="lazy" height="{{ frame.height }}"{% if frame.width %} width="{{ frame.width }}"{% endif %} referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"></iframe>{% endfor %}
+    </div>
+    {% endif %}
+    {% if view.profile_url and view.variant != "liten" %}{% if view.layout == "utvalda" %}<p class="rn-reviews__more"><a class="rn-btn rn-btn--outline" href="{{ view.profile_url }}" rel="noopener nofollow" target="_blank">Se alla omdömen på Reco<span class="rn-sr"> (ny flik)</span></a></p>{% else %}<p class="rn-reco__more"><a class="rn-link" href="{{ view.profile_url }}" rel="noopener nofollow" target="_blank">Se alla omdömen på Reco<span class="rn-sr"> (ny flik)</span></a></p>{% endif %}{% endif %}
+    {% endif %}
   </div>
 </section>

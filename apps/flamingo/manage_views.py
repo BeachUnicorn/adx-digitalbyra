@@ -1,7 +1,7 @@
 """
-Byråns sida av ADX Flamingo, i panelens design: aktivering per kund, kundvyn
-och översikten. Granskningskön, publiceringen, filerna och Google-kopplingen
-finns i manage_review.py.
+Byråns sida av ADX Flamingo, i panelens design: aktivering per kund, kundvyn,
+översikten och brytaren för utvalda omdömen från Reco. Granskningskön,
+publiceringen, filerna och Google-kopplingen finns i manage_review.py.
 
 Aktivering mejlar aldrig kunden (webapp/CLAUDE.md: inga automatiska
 kundmejl). Vill byrån berätta det görs det manuellt.
@@ -18,8 +18,9 @@ from apps.projects.access import VIEW_AS_KEY, staff_required
 from apps.projects.models import Customer
 from apps.website.models import BlockPage
 
+from . import reco
 from .access import PREFIX
-from .models import FlamingoAccount, account_for
+from .models import FlamingoAccount, FlamingoSettings, account_for
 
 
 def _back(customer_id):
@@ -94,6 +95,7 @@ def overview(request):
         .order_by("is_demo", "customer__name")
     )
     pages = BlockPage.objects.filter(design=BlockPage.DESIGN_FLAMINGO).order_by("order", "title")
+    switch = FlamingoSettings.get_solo()
     return render(
         request,
         "manage/flamingo/overview.html",
@@ -107,5 +109,42 @@ def overview(request):
             "candidates": Customer.objects.filter(is_active=True)
             .exclude(flamingo__is_enabled=True)
             .order_by("name"),
+            "reco_switch": switch,
+            "reco_selected_on": reco.selected_enabled(),
+            "reco_off_by_setting": reco.off_by_setting(),
+            "reco_selected_accounts": FlamingoAccount.objects.filter(is_demo=False)
+            .exclude(reco_reviews_selected=[])
+            .count(),
         },
     )
+
+
+@staff_required
+@require_POST
+def selected_reviews_switch(request):
+    """Brytaren för utvalda omdömen från Reco (FlamingoSettings,
+    reco.selected_enabled): av gäller direkt för alla kunder. Sidorna visar
+    då Recos egen ruta, inget hämtas från Reco, och valet i verktyget göms.
+    Kunderna mejlas inte."""
+    switch = FlamingoSettings.get_solo()
+    turn_on = request.POST.get("enabled") == "1"
+    if switch.reco_selected_enabled != turn_on:
+        switch.reco_selected_enabled = turn_on
+        switch.reco_selected_changed_at = timezone.now()
+        switch.reco_selected_changed_by = request.user
+        switch.save()
+    if turn_on and reco.off_by_setting():
+        messages.warning(
+            request,
+            "Knappen står på, men FLAMINGO_RECO_SELECTED_ENABLED är false i miljön, så "
+            "utvalda omdömen från Reco är fortfarande av.",
+        )
+    elif turn_on:
+        messages.success(request, "Utvalda omdömen från Reco är på igen.")
+    else:
+        messages.success(
+            request,
+            "Utvalda omdömen från Reco är avstängda för alla. Sidorna visar Recos egen ruta, "
+            "och inget hämtas. Kunderna har inte mejlats.",
+        )
+    return redirect(reverse("manage:flamingo_overview") + "#reco")

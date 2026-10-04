@@ -580,9 +580,13 @@ class VvsLegacyGuardTests(TestCase):
             "apps/flamingo/testdata/reco_profil_cs_auto.html",
             "apps/flamingo/testdata/reco_widget_cs_auto.html",
             "templates/flamingo/app/reviews/_reco.html",
+            "templates/flamingo/app/reviews/_reco_row.html",
             "templates/flamingo/lp/ren/blocks/reviews_reco.html",
             # Där funktionen kopplas in: fälten, blocket, renderaren,
-            # Konverteringskollen, omdömessidan, demot, cron och dokumentationen.
+            # Konverteringskollen, omdömessidan, demot, cron, byråns brytare
+            # för Utvalda och dokumentationen.
+            "apps/flamingo/manage_views.py",
+            "templates/manage/flamingo/overview.html",
             "apps/flamingo/models.py",
             "apps/flamingo/pagebuilder/__init__.py",
             "apps/flamingo/pagebuilder/registry.py",

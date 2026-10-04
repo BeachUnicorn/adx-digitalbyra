@@ -31,6 +31,13 @@
 {% flamingo_google_api as gapi %}
 <p class="mf-note" id="google-ads">Google Ads API: {% if gapi.configured %}inkopplat{% if gapi.env_token %} med nyckeln i miljön{% elif gapi.connection.google_email %}, kopplat som {{ gapi.connection.google_email }}{% endif %}.{% if gapi.connection.last_error %} Senaste fel: {{ gapi.connection.last_error }}{% endif %}{% else %}inte inkopplat, {{ gapi.missing|length }} inställning{{ gapi.missing|length|pluralize:"ar" }} saknas. Koppling och betalning bockas av för hand på kundkortet.{% endif %} <a class="mf-strong" href="{% url 'manage:flamingo_google' %}">Till Google-sidan</a></p>
 
+<div class="mf-note mf-switch" id="reco">
+    <p><b>Utvalda omdömen från Reco: {% if reco_selected_on %}på{% else %}av{% endif %}.</b> {% if reco_selected_on %}Kunderna kan välja omdömen från sin intygade profil på Reco, och sidorna visar dem. {{ reco_selected_accounts }} kund{{ reco_selected_accounts|pluralize:"er" }} har valt omdömen.{% else %}Sidorna visar Recos egen ruta i stället, inget hämtas från Reco, och valet i verktyget är gömt.{% endif %}{% if reco_off_by_setting %} Avstängt i miljön (FLAMINGO_RECO_SELECTED_ENABLED).{% endif %}{% if reco_switch.reco_selected_changed_at %} Ändrat {{ reco_switch.reco_selected_changed_at|date:"j b Y H:i" }}{% if reco_switch.reco_selected_changed_by %} av {{ reco_switch.reco_selected_changed_by.first_name|default:reco_switch.reco_selected_changed_by.get_username }}{% endif %}.{% endif %}</p>
+    <form method="post" action="{% url 'manage:flamingo_selected_reviews' %}" class="mf-switch__form">{% csrf_token %}
+        {% if reco_switch.reco_selected_enabled %}<input type="hidden" name="enabled" value="0"><button type="submit" class="m-btn m-btn--small">Stäng av utvalda omdömen från Reco för alla</button>{% else %}<input type="hidden" name="enabled" value="1"><button type="submit" class="m-btn m-btn--ghost m-btn--small">Slå på utvalda omdömen från Reco igen</button>{% endif %}
+    </form>
+</div>
+
 <p class="m-section-title" id="kunder">Kunder med Flamingo</p>
 <div class="m-panel">
     {% for a in accounts %}

@@ -40,6 +40,7 @@ window.FlamingoPB.
 
 import logging
 
+from .. import reco
 from ..models import MediaAsset
 from . import principles
 from .ai import _price_for, default_service, has_place, has_service, safe_reverse
@@ -301,9 +302,11 @@ def koll(page, account=None, *, which="draft", blocks=None):
     reviews = account.selected_google_reviews()
     rating = account.trusted_google_rating  # bara en profil som är intygad
     reviews_block = _first(blocks, "reviews_google")
-    # Recos ruta räknas när profilen är intygad som kundens (reco.py).
+    # Recos ruta, eller de valda omdömena från Reco (Utvalda), räknas när
+    # profilen är intygad som kundens och blocket ritar något (reco.py).
     reco_block = _first(blocks, "reviews_reco")
     reco_trusted = account.reco_trusted
+    reco_shows = reco_block is not None and reco.block_shows(account, reco_block.get("variant"))
     if rating is not None:
         rating_text = f"{rating:.1f}".replace(".", ",")
         count = f", {account.google_review_count} omdömen" if account.google_review_count else ""
@@ -323,14 +326,28 @@ def koll(page, account=None, *, which="draft", blocks=None):
     )
     if google_visible:
         items.append(_item("omdomen", True, "Omdömen från Google", f"{have}.", "socialt_bevis"))
-    elif reco_block is not None and reco_trusted:
+    elif reco_shows:
         items.append(
             _item(
                 "omdomen",
                 True,
                 "Omdömen från Reco",
-                "Recos ruta visar betyget och omdömena från er profil på Reco.",
+                "Blocket visar betyget och omdömena från er profil på Reco.",
                 "socialt_bevis",
+            )
+        )
+    elif reco_block is not None and reco_trusted:
+        # Utvalda utan valda omdömen (och utan betyg i en rad).
+        items.append(
+            _item(
+                "omdomen",
+                False,
+                "Omdömena från Reco syns inte",
+                "Välj omdömen från er profil på Reco, eller byt blocket till Recos egen ruta.",
+                "socialt_bevis",
+                {"kind": "link", "url": reviews_url + "#reco", "label": "Välj omdömen"}
+                if reviews_url
+                else _select(reco_block, "Visa blocket"),
             )
         )
     elif reco_block is not None:

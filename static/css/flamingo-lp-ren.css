@@ -342,6 +342,11 @@ textarea.rn-input--short{min-height:84px}
 .rn-reco__demo{display:flex;flex-direction:column;align-items:center;gap:8px;width:100%;max-width:560px;padding:24px;border:1px dashed var(--rn-line);border-radius:var(--rn-r);background:var(--rn-white);text-align:center}
 .rn-reco__demo-score{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 12px;color:var(--rn-body);font-size:17px}
 .rn-reco__demo-big{color:var(--rn-ink);font-size:32px;font-weight:600;line-height:1}
+/* Utvalda: kundens valda omdömen i Googles former (.rn-review, .rn-quote,
+   .rn-reviews__line), med Recos märkning för ett inbjudet omdöme. */
+.rn-reco--utvalda_rad{padding-block:var(--rn-space-sm)}
+.rn-reco__invited{display:inline-flex;align-self:flex-start;width:fit-content;max-width:100%;padding:2px 12px;border:1px solid var(--rn-line);border-radius:var(--rn-pill);background:var(--rn-white);color:var(--rn-muted);font-size:16px;font-weight:500;line-height:1.5}
+.rn-review__who .rn-reco__invited{margin-top:6px}
 @media (min-width:720px){
   .rn-reco__frame--wide{display:block}
   .rn-reco__frame--narrow{display:none}

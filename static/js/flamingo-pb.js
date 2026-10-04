@@ -130,7 +130,7 @@
     hero: { call: "h l b", form: "row:h l|l l b", image: "img h b", text: "h l l" },
     price: { from: "row:h l|big", examples: "h cards", fixed: "card" },
     reviews_google: { cards: "h cards", quote: "quote", line: "stars" },
-    reviews_reco: { stor: "h quote", medel: "h stars", liten: "stars", staende: "h card" },
+    reviews_reco: { stor: "h quote", medel: "h stars", liten: "stars", staende: "h card", utvalda_kort: "h cards", utvalda_citat: "quote", utvalda_rad: "stars" },
     certificates: { badges: "h chips", icons: "h cards" },
     guarantee: { short: "icon h l", terms: "icon h checks" },
     person: { image: "row:img|h l", noimage: "row:circle|h l" },

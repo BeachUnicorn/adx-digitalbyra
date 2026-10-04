@@ -1,0 +1,26 @@
+{% comment %}
+Ett omdöme från Reco i valet (_reco.html, Utvalda): row från
+app_views/reviews._reco_selection. Texten visas oförändrad och escapad.
+{% endcomment %}<li class="fl-rv-item{% if row.shown %} is-shown{% endif %}">
+  <input type="hidden" name="order" value="{{ row.id }}">
+  <label class="fl-rv-item__toggle">
+    <input type="checkbox" name="show" value="{{ row.id }}"{% if row.shown %} checked{% endif %}{% if read_only %} disabled{% endif %}>
+    <span>{% if row.shown %}Syns som nummer {{ row.number }}{% else %}Visa på sidorna{% endif %}<span class="fl-sr">: omdömet från {{ row.review.author }}</span></span>
+  </label>
+  <div class="fl-rv-item__body">
+    <p class="fl-rv-item__by">
+      <b>{{ row.review.author }}</b>
+      <span class="fl-rv-stars" role="img" aria-label="{{ row.review.rating }} av 5">{% for s in row.stars %}<span class="fl-rv-star fl-rv-star--{{ s }}"></span>{% endfor %}</span>
+      {% if row.review.day %}<span class="fl-rv-item__when">{{ row.review.day|date:"j b Y" }}</span>{% endif %}
+    </p>
+    {% if row.review.invited %}<p class="fl-rc-invited">Omdöme från inbjuden kund</p>{% endif %}
+    {% if row.review.text %}<p class="fl-rv-item__text">{{ row.review.text|linebreaksbr }}</p>{% else %}<p class="fl-rv-item__text fl-md-muted">Bara betyg, ingen text.</p>{% endif %}
+    {% if row.review.uri %}<a class="fl-rv-link" href="{{ row.review.uri }}" target="_blank" rel="noopener noreferrer">Visa omdömet på Reco<span class="fl-sr"> (ny flik)</span></a>{% endif %}
+  </div>
+  {% if row.shown and not read_only %}
+  <div class="fl-rv-item__move">
+    <button type="submit" name="move" value="{{ row.id }}:up" class="fl-btn fl-btn--ghost fl-btn--sm"{% if not row.can_up %} disabled{% endif %}>Upp<span class="fl-sr">: {{ row.review.author }}</span></button>
+    <button type="submit" name="move" value="{{ row.id }}:down" class="fl-btn fl-btn--ghost fl-btn--sm"{% if not row.can_down %} disabled{% endif %}>Ner<span class="fl-sr">: {{ row.review.author }}</span></button>
+  </div>
+  {% endif %}
+</li>
