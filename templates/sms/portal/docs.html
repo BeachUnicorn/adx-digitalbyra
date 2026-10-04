@@ -162,7 +162,7 @@ console.log(data.id, data.status, data.price_sek);</code></pre><button type="but
 
 <section class="m-panel tv-panel" aria-labelledby="d-price">
   <h2 class="tv-sec-title" id="d-price">Pris och underlag</h2>
-  <p class="tv-prop__note">Varje sms kostar leverantörens pris per del till mottagarens land plus {{ markup }} öre per del. Till det kommer en årsavgift på {{ fee }} kr, som står på underlaget för den månad tjänsteåret börjar. Ett stoppat sms kostar inget. ADX fakturerar i efterhand per månad, utifrån <a class="tv-link" href="{% url 'sms:statements' %}">månadsunderlaget</a>. Alla belopp är utan moms.</p>
+  <p class="tv-prop__note">Varje sms kostar ett pris per sms-del som beror på mottagarens land. Till det kommer en årsavgift på {{ fee }} kr, som står på underlaget för den månad tjänsteåret börjar. Ett stoppat sms kostar inget. ADX fakturerar i efterhand per månad, utifrån <a class="tv-link" href="{% url 'sms:statements' %}">månadsunderlaget</a>. Alla belopp är utan moms.</p>
   <p class="tv-prop__note">Kontot får skicka till: {% for code, name in country_names %}{{ name }} ({{ code }}){% if not forloop.last %}, {% endif %}{% endfor %}. Spärren mot andra länder skyddar mot sms-pumpning, där någon låter ett formulär skicka sms till dyra nummer utomlands.</p>
 </section>
 </div>

@@ -24,6 +24,7 @@ så kundkortets vy behöver inte känna till SMS.
 
   <form method="post" action="{% url 'manage:sms_customer_update' customer.pk %}" class="tv-toggles">{% csrf_token %}
     <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="is_enabled"{% if sms.account.is_enabled %} checked{% endif %}> Aktiverat: API:t och kundens nycklar fungerar</label>
+    <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="customer_manages_api"{% if sms.account.customer_manages_api %} checked{% endif %}> Kunden sköter nycklar, tak och dokumentation själv i portalen (annars sköter ADX det härifrån)</label>
     <div class="tv-form__pair">
       <div class="m-field"><label for="sms-sender">Avsändare (3-11 tecken, a-z och 0-9, börjar med bokstav)</label><input id="sms-sender" name="sender_name" value="{{ sms.form.sender_name }}" maxlength="11" pattern="[A-Za-z][A-Za-z0-9]{2,10}" class="tv-input" autocomplete="off"></div>
       <div class="m-field"><label for="sms-countries">Tillåtna länder (landskoder)</label><input id="sms-countries" name="allowed_countries" value="{{ sms.form.countries|join:' ' }}" class="tv-input" placeholder="SE NO DK" autocomplete="off"></div>
@@ -33,12 +34,13 @@ så kundkortets vy behöver inte känna till SMS.
       <div class="m-field"><label for="sms-fee">Årsavgift (kr)</label><input id="sms-fee" type="number" name="yearly_fee_kr" min="0" max="100000" value="{{ sms.form.yearly_fee_kr }}" class="tv-input"></div>
     </div>
     <div class="tv-form__pair">
-      <div class="m-field"><label for="sms-cap-m">Kostnadstak per månad (kr, kunden ändrar själv, 0 stoppar allt)</label><input id="sms-cap-m" type="number" name="monthly_cap_kr" min="0" max="1000000" value="{{ sms.form.monthly_cap_kr }}" class="tv-input">{% include "sms/_cap_changed.html" with account=sms.account %}</div>
+      <div class="m-field"><label for="sms-cap-m">Kostnadstak per månad (kr{% if sms.account.customer_manages_api %}, kunden kan ändra själv{% endif %}, 0 stoppar allt)</label><input id="sms-cap-m" type="number" name="monthly_cap_kr" min="0" max="1000000" value="{{ sms.form.monthly_cap_kr }}" class="tv-input">{% include "sms/_cap_changed.html" with account=sms.account %}</div>
       <div class="m-field"><label for="sms-year">Tjänsteåret börjar (årsavgiftens månad)</label><input id="sms-year" type="date" name="service_year_start" value="{{ sms.form.service_year_start|date:'Y-m-d' }}" class="tv-input"></div>
     </div>
     <p class="tv-prop__note">Bara länder kunden behöver: spärren skyddar mot sms-pumpning till dyra nummer utomlands. Tjänsteåret sätts till dagens datum vid första aktiveringen om fältet är tomt.</p>
     <div class="tv-logfoot">
       <button type="submit" class="m-btn m-btn--small">Spara SMS</button>
+      {% if sms.account %}<a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:sms_keys' customer.pk %}">Nycklar och dokumentation</a>{% endif %}
       <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:sms_overview' %}">Alla SMS-kunder och underlag</a>
     </div>
   </form>

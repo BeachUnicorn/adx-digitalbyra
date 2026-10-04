@@ -18,4 +18,10 @@ urlpatterns = [
     ),
     path("kunder/<int:pk>/sms/", v.customer_update, name="sms_customer_update"),
     path("kunder/<int:pk>/sms/visa/", v.view_as, name="sms_view_as"),
+    path("kunder/<int:pk>/sms/nycklar/", v.keys, name="sms_keys"),
+    path(
+        "kunder/<int:pk>/sms/nycklar/<int:key_pk>/aterkalla/",
+        v.key_revoke,
+        name="sms_key_revoke",
+    ),
 ]

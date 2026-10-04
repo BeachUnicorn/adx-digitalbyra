@@ -129,9 +129,10 @@ om den så här:
 1. SMS måste vara aktiverat för kunden hos ADX. Vet användaren inte om det
    är det, be hen fråga Giovanni på ADX. Utan aktivering svarar API:t
    `sms_not_enabled`.
-2. Användaren skapar nyckeln i kundportalen: {s["key_from"]}
-   (Nycklar och tak, "Skapa nyckel"). Nyckeln börjar med `adxsms_` och visas
-   bara en gång.
+2. Nyckeln skapas av en människa. Sköter kunden SMS själv skapar kunden den
+   i kundportalen: {s["key_from"]} (Nycklar och tak, "Skapa nyckel"). Annars
+   skapar Giovanni på ADX den åt kunden. Nyckeln börjar med `adxsms_` och
+   visas bara en gång.
 3. Användaren lägger nyckeln i projektets miljö som `{KEY_ENV}` (till exempel
    i `.env` på servern). Be aldrig användaren klistra in nyckeln i chatten,
    skriv aldrig ut den, lägg den aldrig i koden och committa den aldrig.

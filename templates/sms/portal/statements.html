@@ -9,21 +9,20 @@ rad per månad. Den pågående månaden (och en avslutad som ADX inte stängt
 {% with heading="SMS" %}{% include "sms/portal/_head.html" %}{% endwith %}
 
 <div class="pt-narrow sms-statements">
-  <p class="tv-prop__note">Underlaget för ADX faktura, månad för månad i efterhand. SMS-kostnad är leverantörens pris för de sms som skickats; påslaget är {{ account.markup_ore_per_part }} öre per sms-del; årsavgiften står på den månad tjänsteåret börjar{% if next_fee %} (nästa gång: {{ next_fee|date:"F Y" }}){% endif %}. Belopp utan moms. Stoppade sms kostar inget och syns inte här.</p>
+  <p class="tv-prop__note">Underlaget för ADX faktura, månad för månad i efterhand. SMS-kostnad är priset för de sms som skickats, per sms-del och mottagarens land; årsavgiften står på den månad tjänsteåret börjar{% if next_fee %} (nästa gång: {{ next_fee|date:"F Y" }}){% endif %}. Belopp utan moms. Stoppade sms kostar inget och syns inte här.</p>
   {% for group in years %}
   <section class="m-panel tv-panel" aria-labelledby="y-{{ group.year }}">
     <h2 class="tv-sec-title" id="y-{{ group.year }}">{{ group.year }}</h2>
     <div class="m-table-wrap">
     <table class="m-table sms-table">
-      <thead><tr><th>Period</th><th class="m-num">Sms</th><th class="m-num sms-col-low">Delar</th><th class="m-num">SMS-kostnad</th><th class="m-num sms-col-low">Påslag</th><th class="m-num">Årsavgift</th><th class="m-num">Summa</th><th>Läge</th></tr></thead>
+      <thead><tr><th>Period</th><th class="m-num">Sms</th><th class="m-num sms-col-low">Delar</th><th class="m-num">SMS-kostnad</th><th class="m-num">Årsavgift</th><th class="m-num">Summa</th><th>Läge</th></tr></thead>
       <tbody>
       {% for s in group.statements %}
       <tr>
         <td>{{ s.period|date:"Y-m" }}</td>
         <td class="m-num">{{ s.sms_count }}</td>
         <td class="m-num sms-col-low">{{ s.parts }}</td>
-        <td class="m-num">{{ s.provider_cost|sms_kr }}</td>
-        <td class="m-num sms-col-low">{{ s.markup|sms_kr }}</td>
+        <td class="m-num">{{ s.sms_cost|sms_kr }}</td>
         <td class="m-num">{% if s.fee %}{{ s.fee|sms_kr }}{% else %}<span class="tv-muted">-</span>{% endif %}</td>
         <td class="m-num"><b>{{ s.total|sms_kr }} kr</b></td>
         <td><div>{% if s.closed_at %}<span class="sms-status sms-status--delivered">Stängt</span><div class="tv-muted tv-cell-sub">{{ s.closed_at|date:"j b Y" }}</div>{% elif s.period == current_period %}<span class="sms-status sms-status--sent">Pågår</span>{% else %}<span class="sms-status sms-status--sent">Preliminärt</span>{% endif %}</div></td>
@@ -37,8 +36,8 @@ rad per månad. Den pågående månaden (och en avslutad som ADX inte stängt
       <summary>Per land {{ s.period|date:"Y-m" }}</summary>
       <div class="m-table-wrap">
       <table class="m-table sms-table">
-        <thead><tr><th>Land</th><th class="m-num">Sms</th><th class="m-num sms-col-low">Delar</th><th class="m-num">SMS-kostnad</th><th class="m-num sms-col-low">Påslag</th><th class="m-num">Summa</th></tr></thead>
-        <tbody>{% for line in s.country_lines %}<tr><td>{{ line.name }} <span class="tv-muted">{{ line.country }}</span></td><td class="m-num">{{ line.sms }}</td><td class="m-num sms-col-low">{{ line.parts }}</td><td class="m-num">{{ line.provider_cost|sms_kr }}</td><td class="m-num sms-col-low">{{ line.markup|sms_kr }}</td><td class="m-num">{{ line.total|sms_kr }} kr</td></tr>{% endfor %}</tbody>
+        <thead><tr><th>Land</th><th class="m-num">Sms</th><th class="m-num sms-col-low">Delar</th><th class="m-num">SMS-kostnad</th></tr></thead>
+        <tbody>{% for line in s.country_lines %}<tr><td>{{ line.name }} <span class="tv-muted">{{ line.country }}</span></td><td class="m-num">{{ line.sms }}</td><td class="m-num sms-col-low">{{ line.parts }}</td><td class="m-num">{{ line.cost|sms_kr }} kr</td></tr>{% endfor %}</tbody>
       </table>
       </div>
     </details>

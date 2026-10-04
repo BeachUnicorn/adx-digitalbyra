@@ -145,6 +145,9 @@ class SmsTestCase(TestCase):
             enabled_at=datetime(2026, 10, 3, 9, 0, tzinfo=pricing.STOCKHOLM),
             sender_name="AcmeBygg",
             service_year_start=date(2026, 10, 3),
+            # De flesta portaltesterna gäller kunden som sköter API:t själv;
+            # SelfServiceTests prövar standardläget där ADX sköter det.
+            customer_manages_api=True,
         )
         cls.other_account = SmsAccount.objects.create(
             customer=cls.other, is_enabled=True, enabled_at=timezone.now(), sender_name="Annan"
@@ -1908,7 +1911,7 @@ class LayoutGuardTests(SimpleTestCase):
         self.assertIn(".sms-statements.pt-narrow{max-width:1000px}", css)
         marked = {
             "manage/sms/overview.html": ("Senaste sms", "Varav årsavgifter"),
-            "sms/portal/statements.html": ("Delar", "Påslag"),
+            "sms/portal/statements.html": ("Delar",),
             "sms/portal/keys.html": ("Senast använd",),
             "sms/portal/dashboard.html": ("Delar",),
         }
@@ -2064,3 +2067,89 @@ class LowFindingTests(SmsTestCase):
         SmsMessage.objects.filter(test_mode=False).delete()
         self.fake()
         self.assertEqual(self.api_post({"to": FICTIONAL, "message": "Hej"}).status_code, 201)
+
+
+class SelfServiceTests(SmsTestCase):
+    """Giovanni 2026-10-04: nycklar, tak och dokumentation syns bara för en
+    kund som sköter dem själv. Annars sköter ADX dem från kundkortet, och
+    påslaget redovisas aldrig för sig på kundens underlag."""
+
+    def setUp(self):
+        SmsAccount.objects.filter(pk=self.account.pk).update(customer_manages_api=False)
+        self.account.refresh_from_db()
+
+    def test_tabs_and_pages_are_gone_for_the_customer(self):
+        self.client.force_login(self.contact)
+        dashboard = self.client.get("/kund/sms/")
+        self.assertEqual(dashboard.status_code, 200)
+        self.assertNotContains(dashboard, 'href="/kund/sms/nycklar/"')
+        self.assertNotContains(dashboard, 'href="/kund/sms/dokumentation/"')
+        self.assertContains(dashboard, 'href="/kund/sms/underlag/"')
+        for path in ("/kund/sms/nycklar/", "/kund/sms/dokumentation/"):
+            self.assertEqual(self.client.get(path).status_code, 404, path)
+        self.assertEqual(self.client.post("/kund/sms/nycklar/ny/", {"name": "X"}).status_code, 404)
+        self.assertEqual(
+            self.client.post("/kund/sms/tak/", {"monthly_cap_kr": "9"}).status_code, 404
+        )
+        self.assertFalse(self.account.api_keys.exists())
+
+    def test_staff_in_view_as_sees_the_same(self):
+        client = self.client
+        client.force_login(self.staff)
+        session = client.session
+        session[VIEW_AS_KEY] = self.acme.pk
+        session.save()
+        self.assertEqual(client.get("/kund/sms/nycklar/").status_code, 404)
+        self.assertNotContains(client.get("/kund/sms/"), 'href="/kund/sms/nycklar/"')
+
+    def test_statements_show_no_markup(self):
+        self.message(provider_cost=5200, customer_price=5700)
+        self.client.force_login(self.contact)
+        page = self.client.get("/kund/sms/underlag/")
+        self.assertEqual(page.status_code, 200)
+        self.assertNotContains(page, "Påslag")
+        self.assertNotContains(page, "påslag")
+
+    def test_staff_manages_keys_from_the_customer_card(self):
+        client = self.client
+        client.force_login(self.staff)
+        url = reverse("manage:sms_keys", args=[self.acme.pk])
+        page = client.post(url, {"name": "Webbshop"})
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("no-store", page.get("Cache-Control", ""))
+        key = self.account.api_keys.get()
+        self.assertContains(page, key.prefix)
+        self.assertEqual(len(mail.outbox), 0)
+        listing = client.get(url)
+        self.assertContains(listing, "Webbshop")
+        self.assertNotContains(listing, "Den nya nyckeln")
+        client.post(reverse("manage:sms_key_revoke", args=[self.acme.pk, key.pk]))
+        key.refresh_from_db()
+        self.assertIsNotNone(key.revoked_at)
+
+    def test_key_page_is_staff_only(self):
+        self.client.force_login(self.contact)
+        url = reverse("manage:sms_keys", args=[self.acme.pk])
+        self.assertNotEqual(self.client.get(url).status_code, 200)
+        self.assertNotEqual(self.client.post(url, {"name": "X"}).status_code, 200)
+        self.assertFalse(self.account.api_keys.exists())
+
+    def test_customer_card_checkbox_turns_self_service_on(self):
+        client = self.client
+        client.force_login(self.staff)
+        form = {
+            "is_enabled": "on",
+            "customer_manages_api": "on",
+            "sender_name": "AcmeBygg",
+            "markup_ore_per_part": "5",
+            "yearly_fee_kr": "999",
+            "monthly_cap_kr": "500",
+            "allowed_countries": "SE",
+        }
+        client.post(reverse("manage:sms_customer_update", args=[self.acme.pk]), form)
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.customer_manages_api)
+        del form["customer_manages_api"]
+        client.post(reverse("manage:sms_customer_update", args=[self.acme.pk]), form)
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.customer_manages_api)

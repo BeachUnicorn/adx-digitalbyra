@@ -13,8 +13,8 @@ egen plats för dem, och de behövs bara på de här sidorna.
 </div>
 <nav class="m-filter sms-tabs" aria-label="SMS">
   <a href="{% url 'sms:dashboard' %}" class="m-filter__item{% if tab == 'dashboard' %} is-active{% endif %}"{% if tab == 'dashboard' %} aria-current="page"{% endif %}>Översikt</a>
-  <a href="{% url 'sms:keys' %}" class="m-filter__item{% if tab == 'keys' %} is-active{% endif %}"{% if tab == 'keys' %} aria-current="page"{% endif %}>Nycklar och tak</a>
-  <a href="{% url 'sms:docs' %}" class="m-filter__item{% if tab == 'docs' %} is-active{% endif %}"{% if tab == 'docs' %} aria-current="page"{% endif %}>Dokumentation</a>
+  {% if account.customer_manages_api %}<a href="{% url 'sms:keys' %}" class="m-filter__item{% if tab == 'keys' %} is-active{% endif %}"{% if tab == 'keys' %} aria-current="page"{% endif %}>Nycklar och tak</a>
+  <a href="{% url 'sms:docs' %}" class="m-filter__item{% if tab == 'docs' %} is-active{% endif %}"{% if tab == 'docs' %} aria-current="page"{% endif %}>Dokumentation</a>{% endif %}
   <a href="{% url 'sms:statements' %}" class="m-filter__item{% if tab == 'statements' %} is-active{% endif %}"{% if tab == 'statements' %} aria-current="page"{% endif %}>Månadsunderlag</a>
 </nav>
 {% if request.viewing_as %}

@@ -93,6 +93,12 @@ class SmsAccount(models.Model):
         related_name="+",
     )
     allowed_countries = models.JSONField("Tillåtna länder", default=default_countries)
+    #: Sköter kunden själv nycklar, tak och dokumentation i portalen? Av från
+    #: början: då sköter ADX det från kundkortet och kunden ser bara
+    #: översikten och underlagen (Giovanni 2026-10-04).
+    customer_manages_api = models.BooleanField(
+        "Kunden sköter nycklar, tak och dokumentation själv", default=False
+    )
     #: Tjänsteårets första dag. Årsavgiften hamnar på underlaget för den
     #: månaden och för samma månad varje år därefter (pricing.fee_due).
     service_year_start = models.DateField("Tjänsteåret börjar", null=True, blank=True)

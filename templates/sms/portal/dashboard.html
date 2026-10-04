@@ -65,7 +65,7 @@ fokuserar eller trycker, och finns också som tabell under diagrammet.
     </div>
   </details>
   {% else %}
-  <p class="tv-empty tv-empty--inline">Inga sms de senaste 30 dagarna. Skicka det första med en nyckel från <a class="tv-link" href="{% url 'sms:keys' %}">Nycklar och tak</a>; <a class="tv-link" href="{% url 'sms:docs' %}">dokumentationen</a> visar hur.</p>
+  <p class="tv-empty tv-empty--inline">Inga sms de senaste 30 dagarna.{% if account.customer_manages_api %} Skicka det första med en nyckel från <a class="tv-link" href="{% url 'sms:keys' %}">Nycklar och tak</a>; <a class="tv-link" href="{% url 'sms:docs' %}">dokumentationen</a> visar hur.{% else %} ADX sköter nycklarna och kopplingen till era system.{% endif %}</p>
   {% endif %}
 </section>
 

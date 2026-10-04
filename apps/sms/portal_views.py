@@ -106,6 +106,21 @@ def sms_portal(view):
     return wrapped
 
 
+def self_service(view):
+    """Nycklar, tak och dokumentation finns bara för en kund som sköter dem
+    själv (SmsAccount.customer_manages_api). Annars sköter ADX dem från
+    kundkortet, och sidorna finns inte i portalen: samma 404 för kunden och
+    för byrån i kundvyn, som ser det kunden ser."""
+
+    @wraps(view)
+    def wrapped(request, *args, **kwargs):
+        if not request.sms_account.customer_manages_api:
+            raise Http404
+        return view(request, *args, **kwargs)
+
+    return wrapped
+
+
 def _base(request, active_tab, title, **extra):
     account = request.sms_account
     return {
@@ -269,6 +284,7 @@ def _keys_page(request, new_key=None):
 
 
 @sms_portal
+@self_service
 def keys(request):
     return _keys_page(request)
 
@@ -279,6 +295,7 @@ def _acting_note(request):
 
 @require_POST
 @sms_portal
+@self_service
 def key_create(request):
     account = request.sms_account
     name = (request.POST.get("name") or "").strip()[:80]
@@ -300,6 +317,7 @@ def key_create(request):
 
 @require_POST
 @sms_portal
+@self_service
 def key_revoke(request, pk):
     key = get_object_or_404(SmsApiKey, pk=pk, account=request.sms_account)
     if key.revoked_at is None:
@@ -313,6 +331,7 @@ def key_revoke(request, pk):
 
 @require_POST
 @sms_portal
+@self_service
 def cap_update(request):
     account = request.sms_account
     raw = (request.POST.get("monthly_cap_kr") or "").strip().replace(" ", "")
@@ -349,6 +368,7 @@ def _api_base(request):
 
 
 @sms_portal
+@self_service
 def docs(request):
     account = request.sms_account
     errors = [
@@ -383,7 +403,6 @@ def docs(request):
             max_parts=service.MAX_PARTS,
             statuses=SmsMessage.Status.choices,
             country_names=[(c, numbers.country_name(c)) for c in account.countries],
-            markup=account.markup_ore_per_part,
             fee=account.yearly_fee_kr,
             cap=account.monthly_cap_kr,
         ),
@@ -412,8 +431,17 @@ def statements(request):
         month = pricing.previous_month(month)
     rows = sorted([current, *open_months, *closed], key=lambda s: s.period, reverse=True)
     for row in rows:
+        # Kunden ser sms-kostnaden som ett belopp: leverantörens pris och
+        # påslaget redovisas inte var för sig (Giovanni 2026-10-04). Byrån
+        # ser uppdelningen på /manage/sms/ och i CSV:n.
+        row.sms_cost = (row.provider_cost or 0) + (row.markup or 0)
         row.country_lines = [
-            {**line, "name": numbers.country_name(line["country"])} for line in row.lines
+            {
+                **line,
+                "name": numbers.country_name(line["country"]),
+                "cost": (line.get("provider_cost") or 0) + (line.get("markup") or 0),
+            }
+            for line in row.lines
         ]
     years = [
         {"year": year, "statements": list(items)}

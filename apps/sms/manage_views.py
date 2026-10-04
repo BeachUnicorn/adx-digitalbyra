@@ -19,6 +19,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.cache import add_never_cache_headers
 from django.views.decorators.http import require_POST
 
 from apps.projects.access import VIEW_AS_KEY, staff_required
@@ -29,6 +30,7 @@ from .models import (
     MAX_MONTHLY_CAP_KR,
     MonthlyStatement,
     SmsAccount,
+    SmsApiKey,
     SmsMessage,
     validate_sender,
 )
@@ -136,6 +138,7 @@ def customer_update(request, pk):
         return _back(pk)
 
     account.sender_name = sender
+    account.customer_manages_api = "customer_manages_api" in request.POST
     account.markup_ore_per_part = markup
     account.yearly_fee_kr = fee
     if is_new or cap != account.monthly_cap_kr:
@@ -398,3 +401,67 @@ def statements_csv(request, year, month):
         ]
         writer.writerow([_cell(value) for value in row])
     return response
+
+
+# ---------------------------------------------------------------- nycklarna åt kunden
+
+
+def _keys_page(request, customer, account, new_key=None):
+    response = render(
+        request,
+        "manage/sms/keys.html",
+        {
+            "title": f"SMS-nycklar: {customer.name}",
+            "customer": customer,
+            "account": account,
+            "keys": list(account.api_keys.select_related("created_by", "revoked_by")),
+            "new_key": new_key,
+            "smsz_url": request.build_absolute_uri(reverse("smsz")),
+        },
+    )
+    if new_key:
+        # Sidan med klartexten får aldrig sparas i en cache.
+        add_never_cache_headers(response)
+    return response
+
+
+def _sms_account_or_404(pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    account = SmsAccount.objects.filter(customer=customer).first()
+    if account is None:
+        raise Http404
+    return customer, account
+
+
+@staff_required
+def keys(request, pk):
+    """Byrån sköter kundens nycklar (när kunden inte gör det själv, men sidan
+    finns alltid för byrån). En ny nyckel visas en gång, direkt i svaret."""
+    customer, account = _sms_account_or_404(pk)
+    if request.method == "POST":
+        name = (request.POST.get("name") or "").strip()[:80]
+        if not name:
+            messages.error(request, "Ge nyckeln ett namn, till exempel Webbshop eller Bokning.")
+            return redirect("manage:sms_keys", pk=pk)
+        if account.api_keys.filter(revoked_at__isnull=True).count() >= 20:
+            messages.error(request, "Kontot har redan 20 aktiva nycklar. Återkalla någon först.")
+            return redirect("manage:sms_keys", pk=pk)
+        _key, raw = SmsApiKey.issue(account, name, request.user)
+        messages.success(
+            request,
+            f"Nyckeln {name} är skapad åt {customer.name}. Kopiera den nu: den visas bara "
+            "en gång. Kunden har inte mejlats.",
+        )
+        return _keys_page(request, customer, account, new_key=raw)
+    return _keys_page(request, customer, account)
+
+
+@staff_required
+@require_POST
+def key_revoke(request, pk, key_pk):
+    customer, account = _sms_account_or_404(pk)
+    key = get_object_or_404(SmsApiKey, pk=key_pk, account=account)
+    if key.revoked_at is None:
+        key.revoke(request.user)
+        messages.success(request, f"Nyckeln {key.name} är återkallad. Anrop med den nekas nu.")
+    return redirect("manage:sms_keys", pk=pk)
