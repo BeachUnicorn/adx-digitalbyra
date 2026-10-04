@@ -378,9 +378,12 @@ class OAuthTests(GoogleAdsBase):
                 "client_id": CONFIGURED["GOOGLE_ADS_CLIENT_ID"],
                 "redirect_uri": "https://adx.se/manage/google/klar/",
                 "response_type": "code",
-                # Data Manager API (konverteringarna) bredvid Google Ads.
+                # Data Manager API (konverteringarna) bredvid Google Ads, och
+                # övervakningens läsbehörigheter (Search Console, Business Profile).
                 "scope": "https://www.googleapis.com/auth/adwords "
-                "https://www.googleapis.com/auth/datamanager openid email",
+                "https://www.googleapis.com/auth/datamanager "
+                "https://www.googleapis.com/auth/webmasters.readonly "
+                "https://www.googleapis.com/auth/business.manage openid email",
                 "access_type": "offline",
                 "prompt": "consent",
                 "state": "slumpad-state",

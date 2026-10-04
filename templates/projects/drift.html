@@ -10,7 +10,7 @@
     <tbody>
     {% for r in rows %}
     <tr>
-      <td><a class="tv-link" href="https://{{ r.domain.name }}/" target="_blank" rel="noopener"><b>{{ r.domain.name }}</b></a>{% for p in r.problems %} <span class="m-badge m-badge--alert">{{ p }}</span>{% endfor %}</td>
+      <td><a class="tv-link" href="https://{{ r.domain.name }}/" target="_blank" rel="noopener"><b>{{ r.domain.name }}</b></a>{% for p in r.problems %} <span class="m-badge m-badge--alert">{{ p }}</span>{% endfor %} <a class="tv-link" href="{% url 'manage:monitor_domain_google' r.domain.pk %}">Google</a></td>
       <td><a class="tv-link" href="{% url 'manage:customer_detail' r.domain.customer_id %}#overvakning">{{ r.domain.customer.name }}</a></td>
       <td>{% if r.incident %}<span class="m-badge m-badge--alert">nere</span>{% elif r.uptime and r.uptime.ok %}<span class="m-badge m-badge--published">online</span>{% elif r.uptime %}<span class="m-badge m-badge--in_progress">fel</span>{% else %}<span class="tv-muted">-</span>{% endif %}</td>
       <td class="m-num">{% if r.uptime and r.uptime.ms is not None %}{{ r.uptime.ms }} ms{% else %}-{% endif %}</td>

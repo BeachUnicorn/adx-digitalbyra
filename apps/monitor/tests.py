@@ -23,6 +23,10 @@ EMAIL = {
     "EMAIL_HOST_USER": "x",
     "EMAIL_HOST_PASSWORD": "y",
     "INQUIRY_NOTIFICATION_EMAIL": "staff@example.com",
+    # Ingen nyckel: dygnskontrollen hämtar då inte Chrome UX Report, och
+    # testerna anropar aldrig Google även om .env har en nyckel.
+    "PAGESPEED_API_KEY": "",
+    "CRUX_API_KEY": "",
 }
 
 UP = {"ok": True, "ms": 120, "status": 200, "final_url": "https://nordan.se/", "error": ""}

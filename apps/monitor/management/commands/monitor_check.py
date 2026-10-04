@@ -2,7 +2,8 @@
 Övervakningens cron-ingång.
 
     manage.py monitor_check            # snabbkontroll var 5:e minut: drifttid, svarstid, endpoint
-    manage.py monitor_check --daily    # dygnskontroll: cert, domän, e-post, säkerhet, Sentry
+    manage.py monitor_check --daily    # dygnskontroll: cert, domän, e-post, säkerhet, Sentry,
+                                       # PageSpeed och Googles data (CrUX, Search Console, GBP)
     manage.py monitor_check --domain nordanbygg.se [--daily] [--skip-slow]
 """
 

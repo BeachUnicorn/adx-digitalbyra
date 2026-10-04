@@ -55,6 +55,7 @@
         <div class="tv-domainrow{% if not d.is_active %} is-off{% endif %}">
           <span class="tv-domainrow__name"><b>{{ d.name }}</b>{% if d.is_primary %} <span class="m-badge">primär</span>{% endif %}{% if d.status_url %} <span class="m-badge m-badge--ai" title="{{ d.status_url }}">plattform</span>{% endif %}{% if not d.is_active %} <span class="m-badge">pausad</span>{% endif %}</span>
           <form method="post" action="{% url 'manage:monitor_domain_update' d.pk %}" class="tv-domainrow__acts">{% csrf_token %}
+            <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:monitor_domain_google' d.pk %}">Google-data</a>
             {% if not d.is_primary %}<button type="submit" name="action" value="primary" class="m-btn m-btn--small m-btn--ghost">Primär</button>{% endif %}
             <button type="submit" name="action" value="toggle" class="m-btn m-btn--small m-btn--ghost">{% if d.is_active %}Pausa{% else %}Återuppta{% endif %}</button>
             <button type="submit" name="action" value="delete" class="m-btn m-btn--small m-btn--danger" data-confirm="Sluta övervaka {{ d.name }}? Historiken tas bort.">Ta bort</button>

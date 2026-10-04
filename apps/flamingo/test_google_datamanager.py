@@ -336,7 +336,17 @@ class ScopeTests(DataManagerBase):
     def test_the_data_manager_scope_is_requested_next_to_adwords(self):
         response = self.staff_client().post(reverse("manage:flamingo_google_connect"))
         scope = parse_qs(urlsplit(response["Location"]).query)["scope"][0]
-        self.assertEqual(set(scope.split()), {ADWORDS, DATAMANAGER, "openid", "email"})
+        self.assertEqual(
+            set(scope.split()),
+            {
+                ADWORDS,
+                DATAMANAGER,
+                google_ads.WEBMASTERS_SCOPE,
+                google_ads.BUSINESS_SCOPE,
+                "openid",
+                "email",
+            },
+        )
 
     def test_connecting_records_the_granted_scopes(self):
         client, response = self.connect(FULL_SCOPE)

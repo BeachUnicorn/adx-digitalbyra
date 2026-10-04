@@ -1,17 +1,23 @@
-"""Övervakningen i /manage/: kundkortets panel och driftöversikten."""
+"""Övervakningen i /manage/: kundkortets panel, driftöversikten och
+Google-sidan per domän (domain_google)."""
 
 import re
 
 from django.contrib import messages
+from django.core.cache import cache
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.projects.access import staff_required
 from apps.projects.models import Customer
 
+from . import google_present
+from .google_api import GoogleApiError
+from .google_checks import fetch_locations, fetch_sites
 from .models import (
+    GOOGLE_KINDS,
     Incident,
     Kind,
     MonitoredDomain,
@@ -19,7 +25,7 @@ from .models import (
     settings_for,
     status_key_configured,
 )
-from .runner import active_domains, run_daily, run_quick
+from .runner import GoogleRun, active_domains, run_daily, run_google, run_quick
 
 
 def _back(customer_id):
@@ -165,6 +171,13 @@ def drift(request):
             disk = snapshot.data.get("server", {}).get("disk", {}).get("used_pct")
             if isinstance(disk, (int, float)) and disk >= 85:
                 problems.append(f"disk {disk:.0f} %")
+        google = sum(
+            len((check.data or {}).get("alert_texts") or [])
+            for check in (domain.latest(kind) for kind in GOOGLE_KINDS)
+            if check
+        )
+        if google:
+            problems.append(f"Google {google}")
         rows.append(
             {
                 "domain": domain,
@@ -188,5 +201,145 @@ def drift(request):
             "now": timezone.now(),
             "title": "Drift",
             "aws_accounts": _aws_rows(),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# Google per domän: allt PageSpeed, riktiga besökare, Search Console och
+# Business Profile har sagt, och valet av egendom och plats.
+# ---------------------------------------------------------------------------
+
+#: Listorna att välja egendom och plats ur hämtas på knapptryck och sparas en timme.
+CHOICES_CACHE = "monitor:google:choices"
+CHOICES_SECONDS = 3600
+
+
+def _google_back(domain):
+    return redirect(reverse("manage:monitor_domain_google", args=[domain.pk]))
+
+
+def _fetch_choices():
+    """Egendomarna och platserna ADX:s Google-konto når, med eventuella fel."""
+    choices = {"sites": [], "locations": [], "errors": []}
+    for key, fetch in (("sites", fetch_sites), ("locations", fetch_locations)):
+        try:
+            choices[key] = fetch()
+        except GoogleApiError as error:
+            choices["errors"].append(error.message)
+    cache.set(CHOICES_CACHE, choices, CHOICES_SECONDS)
+    return choices
+
+
+def _google_post(request, domain):
+    action = request.POST.get("action", "")
+    if action == "run":
+        enabled = settings_for(domain.customer).enabled_kinds()
+        try:
+            notes = run_google(domain, enabled, GoogleRun())
+        except Exception as exc:  # noqa: BLE001 - visa felet, krascha inte sidan
+            messages.error(request, f"Hämtningen misslyckades ({type(exc).__name__}).")
+            return
+        text = "Googles data är hämtad."
+        if notes:
+            text += " Att titta på: " + "; ".join(notes)
+        messages.success(request, text)
+    elif action == "choices":
+        choices = _fetch_choices()
+        if choices["errors"]:
+            messages.warning(request, " ".join(dict.fromkeys(choices["errors"])))
+        else:
+            messages.success(
+                request,
+                f"{len(choices['sites'])} egendomar och {len(choices['locations'])} platser "
+                "hämtade.",
+            )
+    elif action == "property":
+        value = request.POST.get("search_property", "").strip()[:300]
+        if value and not re.fullmatch(r"sc-domain:[a-z0-9.-]+|https?://[^\s]+/", value):
+            messages.error(
+                request, "Egendomen skrivs sc-domain:exempel.se eller https://exempel.se/."
+            )
+            return
+        domain.search_property = value
+        domain.save(update_fields=["search_property"])
+        messages.success(
+            request,
+            f"Search Console-egendomen är {value}." if value else "Egendomen hittas automatiskt.",
+        )
+    elif action == "location":
+        value = request.POST.get("gbp", "").strip()
+        account, _sep, location = value.partition("|")
+        if value and not (
+            re.fullmatch(r"accounts/\d+", account) and re.fullmatch(r"locations/\d+", location)
+        ):
+            messages.error(request, "Välj en plats i listan.")
+            return
+        title = ""
+        for loc in (cache.get(CHOICES_CACHE) or {}).get("locations") or []:
+            if loc.get("name") == location:
+                title = loc.get("title", "")
+        domain.gbp_account = account if value else ""
+        domain.gbp_location = location if value else ""
+        domain.gbp_title = title[:200] if value else ""
+        domain.save(update_fields=["gbp_account", "gbp_location", "gbp_title"])
+        messages.success(
+            request,
+            f"Profilen är kopplad: {title or location}."
+            if value
+            else "Profilen matchas automatiskt på webbadress.",
+        )
+    else:
+        messages.error(request, "Okänd åtgärd. Inget ändrades.")
+
+
+def _google_email():
+    """Google-kontot som övervakningen läser som (det som kopplats på Google-sidan)."""
+    from apps.flamingo.models import GoogleAdsConnection
+
+    connection = GoogleAdsConnection.objects.filter(pk=GoogleAdsConnection.SOLO_PK).first()
+    return (connection.google_email if connection else "") or "ADX:s Google-konto"
+
+
+@staff_required
+@require_http_methods(["GET", "POST"])
+def domain_google(request, pk):
+    domain = get_object_or_404(MonitoredDomain.objects.select_related("customer"), pk=pk)
+    if request.method == "POST":
+        _google_post(request, domain)
+        return _google_back(domain)
+    monitor = settings_for(domain.customer)
+    performance = domain.latest(Kind.PERFORMANCE)
+    crux = domain.latest(Kind.CRUX)
+    search = domain.latest(Kind.SEARCH)
+    gbp = domain.latest(Kind.GBP)
+    choices = cache.get(CHOICES_CACHE) or {}
+    from apps.flamingo.manage_google import monitor_scope_states
+
+    return render(
+        request,
+        "projects/monitor_google.html",
+        {
+            "active": "drift",
+            "title": f"Google: {domain.name}",
+            "domain": domain,
+            "monitor": monitor,
+            "performance": performance,
+            "psi_categories": google_present.psi_categories(
+                performance.data if performance else None
+            ),
+            "psi_lab": google_present.psi_lab(performance.data if performance else None),
+            "psi_field": google_present.psi_field(performance.data if performance else None),
+            "crux": crux,
+            "crux_trends": google_present.crux_trends(crux.data if crux else None),
+            "search": search,
+            "search_view": google_present.search_view(search.data if search else None),
+            "gbp": gbp,
+            "gbp_view": google_present.gbp_view(gbp.data if gbp else None),
+            "sites": choices.get("sites") or [],
+            "locations": choices.get("locations") or [],
+            "scopes": monitor_scope_states(),
+            "no_traffic": google_present.NO_TRAFFIC,
+            "google_email": _google_email(),
         },
     )

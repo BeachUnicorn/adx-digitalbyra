@@ -24,6 +24,12 @@ och samma skydd. Behörigheterna Google gav sparas när byrån kopplar och när
 nyckeln förnyas (GoogleAdsConnection.granted_scopes), så att
 datamanager_scope_state() vet om konverteringarna får skickas den vägen.
 
+Samma inloggning ber också om läsbehörighet för Search Console
+(WEBMASTERS_SCOPE) och Google Business Profile (BUSINESS_SCOPE), som
+övervakningen använder (apps/monitor/google_api.py, med access_token() och
+scope_state()). De anropen har sina egna värdar och går inte genom _http()
+här; Flamingo påverkas inte av dem.
+
 Säkerhet:
 
 - Bara fasta adresser hos Google (ALLOWED_HOSTS), alltid https, en
@@ -76,7 +82,11 @@ REVOKE_URL = f"https://{OAUTH_HOST}/revoke"
 ADWORDS_SCOPE = "https://www.googleapis.com/auth/adwords"
 #: Behörigheten för Data Manager API (Authorization scopes på events.ingest).
 DATAMANAGER_SCOPE = "https://www.googleapis.com/auth/datamanager"
-SCOPE = f"{ADWORDS_SCOPE} {DATAMANAGER_SCOPE} openid email"
+#: Search Console, bara läsning (övervakningen, apps/monitor/google_checks.py).
+WEBMASTERS_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly"
+#: Google Business Profile (övervakningen läser profil, statistik och omdömen).
+BUSINESS_SCOPE = "https://www.googleapis.com/auth/business.manage"
+SCOPE = f"{ADWORDS_SCOPE} {DATAMANAGER_SCOPE} {WEBMASTERS_SCOPE} {BUSINESS_SCOPE} openid email"
 
 #: datamanager_scope_state(): har nyckeln som används behörigheten för Data
 #: Manager API? Okänt när Google inte sagt det för just den nyckeln.
@@ -943,24 +953,36 @@ def granted_scopes():
     return set(connection.granted_scopes.split())
 
 
-def datamanager_scope_state():
-    """SCOPE_GRANTED när nyckeln har behörigheten för Data Manager API,
-    SCOPE_MISSING när Google sagt att den saknas, annars SCOPE_UNKNOWN."""
+def scope_state(scope):
+    """SCOPE_GRANTED när nyckeln har behörigheten scope, SCOPE_MISSING när
+    Google sagt att den saknas, annars SCOPE_UNKNOWN."""
     scopes = granted_scopes()
     if scopes is None:
         return SCOPE_UNKNOWN
-    return SCOPE_GRANTED if DATAMANAGER_SCOPE in scopes else SCOPE_MISSING
+    return SCOPE_GRANTED if scope in scopes else SCOPE_MISSING
+
+
+def datamanager_scope_state():
+    """SCOPE_GRANTED när nyckeln har behörigheten för Data Manager API,
+    SCOPE_MISSING när Google sagt att den saknas, annars SCOPE_UNKNOWN."""
+    return scope_state(DATAMANAGER_SCOPE)
 
 
 def forget_datamanager_scope():
     """Google sa att nyckeln saknar behörigheten för Data Manager API
     (ACCESS_TOKEN_SCOPE_INSUFFICIENT): spara det, så att Google-sidan ber
     byrån koppla om och inget mer skickas den vägen."""
+    forget_scope(DATAMANAGER_SCOPE)
+
+
+def forget_scope(scope):
+    """Google sa att nyckeln saknar behörigheten scope: spara det, så att
+    Google-sidan ber byrån koppla om."""
     token = _current_refresh_token()
     if not token:
         return
     scopes = granted_scopes() or set()
-    scopes.discard(DATAMANAGER_SCOPE)
+    scopes.discard(scope)
     GoogleAdsConnection.objects.get_or_create(pk=GoogleAdsConnection.SOLO_PK)
     GoogleAdsConnection.objects.filter(pk=GoogleAdsConnection.SOLO_PK).update(
         granted_scopes=normalize_scopes(" ".join(scopes)), scopes_for=token_fingerprint(token)

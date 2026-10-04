@@ -268,31 +268,104 @@ def check_security(host):
     }
 
 
+#: Lighthouse-kategorierna PageSpeed får köra. Samma anrop, samma nyckel.
+PSI_CATEGORIES = ("performance", "accessibility", "best-practices", "seo")
+
+#: Fältdatans mätvärden i PSI:s loadingExperience, och vårt korta namn.
+#: Percentilen är p75; CLS skickas gånger 100 (5 betyder 0,05).
+FIELD_METRICS = {
+    "LARGEST_CONTENTFUL_PAINT_MS": "lcp",
+    "INTERACTION_TO_NEXT_PAINT": "inp",
+    "CUMULATIVE_LAYOUT_SHIFT_SCORE": "cls",
+    "FIRST_CONTENTFUL_PAINT_MS": "fcp",
+    "EXPERIMENTAL_TIME_TO_FIRST_BYTE": "ttfb",
+}
+FIELD_CATEGORIES = ("FAST", "AVERAGE", "SLOW")
+
+
+def _scrub_key(text):
+    """Felet utan API-nyckeln (den står i adressen till PageSpeed)."""
+    return re.sub(r"(?i)(key=)[^&\s\"']+|AIza[\w\-]{20,}", r"\1***", str(text or ""))
+
+
+def parse_field_data(experience):
+    """PSI:s loadingExperience (eller originLoadingExperience) som
+    {"id", "overall", "origin_fallback", "metrics": {"lcp": {"p75", "category"}}},
+    eller None när Google inte har riktiga besökares data för sidan."""
+    if not isinstance(experience, dict):
+        return None
+    metrics = {}
+    for name, short in FIELD_METRICS.items():
+        raw = (experience.get("metrics") or {}).get(name)
+        if not isinstance(raw, dict) or not isinstance(raw.get("percentile"), (int, float)):
+            continue
+        p75 = raw["percentile"]
+        if short == "cls":
+            p75 = round(p75 / 100, 2)
+        category = str(raw.get("category") or "")
+        metrics[short] = {
+            "p75": p75,
+            "category": category if category in FIELD_CATEGORIES else "",
+        }
+    if not metrics:
+        return None
+    overall = str(experience.get("overall_category") or "")
+    return {
+        "id": str(experience.get("id") or "")[:300],
+        "overall": overall if overall in FIELD_CATEGORIES else "",
+        "origin_fallback": bool(experience.get("origin_fallback")),
+        "metrics": metrics,
+    }
+
+
+def parse_pagespeed(data):
+    """Ett PSI-svar som det vi sparar per strategi: labbet (Lighthouse,
+    en simulerad laddning) och fältet (riktiga besökare, 28 dagar)."""
+    lh = data["lighthouseResult"]
+    audits = lh.get("audits", {})
+    categories = {}
+    for name in PSI_CATEGORIES:
+        score = (lh.get("categories", {}).get(name) or {}).get("score")
+        if isinstance(score, (int, float)):
+            categories[name] = int(round(score * 100))
+    out = {
+        "score": categories.get("performance"),
+        "categories": categories,
+        "lcp": audits.get("largest-contentful-paint", {}).get("displayValue", ""),
+        "cls": audits.get("cumulative-layout-shift", {}).get("displayValue", ""),
+        "tbt": audits.get("total-blocking-time", {}).get("displayValue", ""),
+        "fcp": audits.get("first-contentful-paint", {}).get("displayValue", ""),
+        "si": audits.get("speed-index", {}).get("displayValue", ""),
+        "bytes_kb": int(audits.get("total-byte-weight", {}).get("numericValue", 0) // 1024),
+        "field": parse_field_data(data.get("loadingExperience")),
+        "origin_field": parse_field_data(data.get("originLoadingExperience")),
+    }
+    if out["score"] is None:
+        raise ValueError("Ingen prestandapoäng i svaret.")
+    return out
+
+
 def check_performance(host):
-    """Google PageSpeed Insights, mobil och desktop. Långsamt (20-40 s) - körs en gång per dygn."""
+    """Google PageSpeed Insights, mobil och desktop, alla fyra kategorierna
+    och fältdatan. Långsamt (20-40 s) - körs en gång per dygn."""
     out = {"ok": True, "strategies": {}}
     key = getattr(settings, "PAGESPEED_API_KEY", "")
+    categories = "".join(f"&category={c}" for c in PSI_CATEGORIES)
     for strategy in ("mobile", "desktop"):
         url = (
             "https://www.googleapis.com/pagespeedonline/v5/runPagespeed"
-            f"?url={quote(f'https://{host}/', safe='')}&strategy={strategy}&category=performance"
+            f"?url={quote(f'https://{host}/', safe='')}&strategy={strategy}{categories}"
             + (f"&key={key}" if key else "")
         )
         try:
             request = Request(url, headers={"User-Agent": USER_AGENT})  # noqa: S310
+            url = None
             with urlopen(request, timeout=60) as response:  # noqa: S310
-                data = json.loads(response.read(4 * 1024 * 1024).decode("utf-8", "replace"))
-            lh = data["lighthouseResult"]
-            audits = lh.get("audits", {})
-            out["strategies"][strategy] = {
-                "score": int(round(lh["categories"]["performance"]["score"] * 100)),
-                "lcp": audits.get("largest-contentful-paint", {}).get("displayValue", ""),
-                "cls": audits.get("cumulative-layout-shift", {}).get("displayValue", ""),
-                "tbt": audits.get("total-blocking-time", {}).get("displayValue", ""),
-                "bytes_kb": int(audits.get("total-byte-weight", {}).get("numericValue", 0) // 1024),
-            }
+                data = json.loads(response.read(8 * 1024 * 1024).decode("utf-8", "replace"))
+            out["strategies"][strategy] = parse_pagespeed(data)
         except Exception as exc:  # noqa: BLE001
-            out["strategies"][strategy] = {"error": f"{type(exc).__name__}: {exc}"[:200]}
+            text = _scrub_key(f"{type(exc).__name__}: {exc}")
+            out["strategies"][strategy] = {"error": text[:200]}
             out["ok"] = False
     return out
 

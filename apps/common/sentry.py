@@ -38,7 +38,7 @@ from pathlib import Path
 FILTERED = "[Filtered]"
 
 #: Headers som bär hemligheter, utöver Sentrys egen lista.
-SECRET_HEADERS = ["X-ADX-Key", "X-ADX-Code", "developer-token"]
+SECRET_HEADERS = ["X-ADX-Key", "X-ADX-Code", "developer-token", "X-goog-api-key"]
 
 #: Formulärfält och variabelnamn som bär hemligheter, utöver Sentrys lista
 #: (som redan har password, token, secret, session, csrf ...).
@@ -53,6 +53,10 @@ SECRET_NAMES = [
     "id_token",
     "client_secret",
     "refresh_token_encrypted",
+    # Googles API-nycklar (PageSpeed, Chrome UX Report i apps/monitor).
+    "api_key",
+    "pagespeed_api_key",
+    "crux_api_key",
     # SMS-API:t (apps/sms): mottagare, text och anropets kropp, och
     # leveransadressens signatur.
     "to",
@@ -77,6 +81,8 @@ _PATTERNS = [
     # Googles nycklar var de än står (apps/flamingo/google_ads.py): access
     # token, refresh token, OAuth-klientens hemlighet och urlkodade fält.
     (re.compile(r"ya29\.[\w.\-]+|1//[\w.\-]{10,}|GOCSPX-[\w\-]+"), FILTERED),
+    # Googles API-nycklar (PAGESPEED_API_KEY, CRUX_API_KEY): AIza...
+    (re.compile(r"AIza[\w\-]{20,}"), FILTERED),
     (
         re.compile(r"(?i)\b((?:refresh_token|access_token|client_secret|id_token)=)[^&\s\"']+"),
         r"\1" + FILTERED,

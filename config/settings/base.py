@@ -241,6 +241,10 @@ ADX_STATUS_KEY = env("ADX_STATUS_KEY", default="")
 SENTRY_ORG_SLUG = env("SENTRY_ORG_SLUG", default="")
 SENTRY_API_TOKEN = env("SENTRY_API_TOKEN", default="")
 PAGESPEED_API_KEY = env("PAGESPEED_API_KEY", default="")
+# Chrome UX Report History API (riktiga besökare, apps/monitor/google_checks.py).
+# Tomt = PAGESPEED_API_KEY. Chrome UX Report API måste vara påslaget i
+# nyckelns Google Cloud-projekt. Tomt i båda = CrUX hämtas inte.
+CRUX_API_KEY = env("CRUX_API_KEY", default="")
 # Optional blind-copy recipients for the staff notification (comma-separated).
 INQUIRY_NOTIFICATION_BCC = env("INQUIRY_NOTIFICATION_BCC", default="")
 

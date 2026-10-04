@@ -64,6 +64,31 @@ saknas visas, aldrig värdena, och den sparade nyckeln visas aldrig.
     {% endif %}
 </section>
 
+<h2 class="m-section-title mf-section" id="overvakning">Övervakningen</h2>
+<section class="m-panel m-form-panel" aria-labelledby="mf-g-monitor">
+    <h3 class="m-form-section" id="mf-g-monitor">Search Console och Business Profile</h3>
+    {% comment %}
+    Samma inloggning läser kundernas Search Console och Business Profile åt
+    övervakningen (apps/monitor/google_api.py). Bara läsning.
+    {% endcomment %}
+    <dl class="mf-dl">
+        {% for row in monitor_scopes.rows %}
+        <dt>{{ row.label }}</dt><dd>{% if row.state == "granted" %}Inloggningen får läsa{% elif row.state == "missing" %}Behörigheten saknas. Koppla om för att {{ row.action }}.{% elif env_token %}Okänd för nyckeln i miljön tills den används{% elif connection.is_connected %}Okänd: inloggningen gjordes innan behörigheten sparades{% else %}Ingen inloggning än{% endif %}</dd>
+        {% endfor %}
+    </dl>
+    {% if monitor_scopes.missing %}
+    {% for row in monitor_scopes.missing %}<p class="mf-note">Koppla om för att {{ row.action }}.</p>{% endfor %}
+    {% if not env_token and oauth_configured %}
+    <div class="mf-actions">
+        <form method="post" action="{% url 'manage:flamingo_google_connect' %}">{% csrf_token %}
+            <button type="submit" class="m-btn m-btn--small">Koppla om med Google</button>
+        </form>
+    </div>
+    {% endif %}
+    {% endif %}
+    <p class="m-field-help">Search Console: Google-kontot som kopplats måste vara användare på kundens egendom. Business Profile: Google kräver en godkänd ansökan om API-åtkomst innan något går att läsa. Se apps/monitor/README.md.</p>
+</section>
+
 <h2 class="m-section-title mf-section" id="konverteringar">Konverteringarna</h2>
 <section class="m-panel m-form-panel" aria-labelledby="mf-g-conv">
     <h3 class="m-form-section" id="mf-g-conv">Uppladdningen till Google</h3>
@@ -116,6 +141,7 @@ saknas visas, aldrig värdena, och den sparade nyckeln visas aldrig.
         <li>Lägg klientens id och hemlighet i miljön som GOOGLE_ADS_CLIENT_ID och GOOGLE_ADS_CLIENT_SECRET. Utvecklartoken behövs inte: Google bortser från den sedan 2026-09-09.</li>
         <li>På samtyckesskärmen (OAuth consent screen) ska behörigheterna för Google Ads API och Data Manager API finnas med. Data Manager-behörigheten är känslig: med användartypen Extern ska appen verifieras av Google innan den används i produktion. Med Intern, inom en Google Workspace-organisation, behövs ingen verifiering.</li>
         <li>Koppla med Google här, med ett Google-konto som har åtkomst till förvaltarkontot, och låt rutorna för Google Ads och Data Manager vara ikryssade. En koppling från innan Data Manager API kopplas om en gång.</li>
+        <li>För övervakningen: slå på Google Search Console API, Chrome UX Report API, My Business Account Management API, My Business Business Information API, Business Profile Performance API och Google My Business API i samma projekt, och lägg till behörigheterna för Search Console (webmasters.readonly) och Business Profile (business.manage) på samtyckesskärmen. Koppla sedan om en gång.</li>
     </ol>
     <p class="m-field-help">Omdirigeringen att registrera:</p>
     <p class="mf-note"><code>{{ redirect_uri }}</code></p>

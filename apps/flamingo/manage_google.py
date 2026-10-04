@@ -22,6 +22,9 @@ kundkortets knappar mot Google Ads API:
 Google-sidan visar också konverteringarnas väg (FLAMINGO_CONVERSIONS_UPLOAD),
 om API:t laddar upp dem nu och, när inloggningen saknar behörigheten för
 Data Manager API, "Koppla om med Google för att skicka konverteringar".
+Saknas behörigheten för Search Console eller Business Profile (som
+övervakningen läser med samma inloggning) står "Koppla om för att läsa
+Search Console" respektive "... Business Profile".
 
 Alla vyer kräver byrån (staff_required). Nyckeln visas aldrig, inte heller
 i ett felmeddelande. ADX mejlar aldrig kunden härifrån; Google mejlar
@@ -140,14 +143,34 @@ def google_page(request):
             "conversions": google_conversions.upload_status(),
             "scopes": scope_labels(connection),
             "invite_allowed": google_accounts.invite_allowed(),
+            "monitor_scopes": monitor_scope_states(),
         },
     )
+
+
+def monitor_scope_states():
+    """Övervakningens behörigheter (Search Console, Business Profile): läget
+    för var och en, och om byrån behöver koppla om. Okänt räknas inte som
+    saknat: nyckeln i miljön eller en koppling från innan behörigheterna
+    sparades prövas först av anropen."""
+    rows = []
+    for scope, label, action in (
+        (google_ads.WEBMASTERS_SCOPE, "Search Console", "läsa Search Console"),
+        (google_ads.BUSINESS_SCOPE, "Business Profile", "läsa Business Profile"),
+    ):
+        rows.append({"label": label, "state": google_ads.scope_state(scope), "action": action})
+    return {
+        "rows": rows,
+        "missing": [r for r in rows if r["state"] == google_ads.SCOPE_MISSING],
+    }
 
 
 #: Behörigheterna som Google-sidan visar, i klartext.
 SCOPE_LABELS = {
     google_ads.ADWORDS_SCOPE: "Google Ads",
     google_ads.DATAMANAGER_SCOPE: "Data Manager",
+    google_ads.WEBMASTERS_SCOPE: "Search Console",
+    google_ads.BUSINESS_SCOPE: "Business Profile",
 }
 
 
@@ -260,6 +283,20 @@ def google_callback(request):
             text += (
                 " Behörigheten för Data Manager API kryssades inte i, så konverteringarna går "
                 "som CSV. Koppla om med Google för att skicka konverteringar."
+            )
+        granted = scopes.split()
+        skipped = [
+            label
+            for scope, label in (
+                (google_ads.WEBMASTERS_SCOPE, "Search Console"),
+                (google_ads.BUSINESS_SCOPE, "Business Profile"),
+            )
+            if granted and scope not in granted
+        ]
+        if skipped:
+            text += (
+                f" Behörigheten för {' och '.join(skipped)} kryssades inte i, så övervakningen "
+                "kan inte läsa den. Koppla om för att läsa den."
             )
     messages.success(request, text)
     return _page()

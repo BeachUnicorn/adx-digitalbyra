@@ -67,10 +67,11 @@ Raderna byggs i apps/monitor/status_areas.py.
             <span class="st-row__dot" aria-hidden="true"></span>
             <span class="st-row__text"><b>{{ a.title }}</b><span>{{ a.headline }}</span></span>
             {% if a.value %}<span class="st-row__value">{{ a.value }}</span>{% endif %}
-            {% if a.details or a.note %}<span class="st-row__chev" aria-hidden="true"></span>{% endif %}
+            {% if a.details or a.note or a.spark|length > 1 %}<span class="st-row__chev" aria-hidden="true"></span>{% endif %}
           </summary>
-          {% if a.details or a.note %}
+          {% if a.details or a.note or a.spark|length > 1 %}
           <div class="st-row__body">
+            {% if a.spark|length > 1 %}<div class="st-row__spark">{% sparkline a.spark 600 44 %}</div>{% endif %}
             {% if a.details %}
             <ul class="st-facts">
               {% for label, text, state in a.details %}

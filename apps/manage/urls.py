@@ -156,6 +156,11 @@ urlpatterns = [
     path("kunder/<int:pk>/overvakning/doman/", monitor_views.domain_add, name="monitor_domain_add"),
     path("kunder/<int:pk>/overvakning/kor/", monitor_views.monitor_run, name="monitor_run"),
     path("overvakning/doman/<int:pk>/", monitor_views.domain_update, name="monitor_domain_update"),
+    path(
+        "overvakning/doman/<int:pk>/google/",
+        monitor_views.domain_google,
+        name="monitor_domain_google",
+    ),
     # Offertbyggaren (apps/offers)
     path("offerter/", offer_views.offer_list, name="offer_list"),
     path("offerter/ny/", offer_views.offer_create, name="offer_create"),

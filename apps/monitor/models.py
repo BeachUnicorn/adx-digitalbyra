@@ -10,7 +10,9 @@ Tre saker att hålla isär:
   statusendpoint (/status/adx/) som ger serverdata, backup, besök.
 - Check: VAD vi såg, tidsstämplat. Snabbkontrollen (var 5:e minut) ger
   drifttid och svarstid; dygnskontrollen ger certifikat, registrar,
-  e-posthälsa, prestanda, säkerhet och fel i Sentry.
+  e-posthälsa, prestanda, säkerhet, fel i Sentry och Googles data:
+  riktiga besökares upplevelse (Chrome UX Report), Search Console och
+  Google Business Profile (google_checks.py).
 
 Larm går BARA till byrån (emails.py). Kunden ser läget i portalen och får
 aldrig automatiska mejl härifrån.
@@ -32,11 +34,26 @@ class Kind(models.TextChoices):
     SECURITY = "security", "Säkerhet"
     SNAPSHOT = "snapshot", "Server (statusendpoint)"
     ERRORS = "errors", "Fel i Sentry"
+    CRUX = "crux", "Riktiga besökare (Chrome UX Report)"
+    SEARCH = "search", "Google-sök (Search Console)"
+    GBP = "gbp", "Google Business Profile"
 
 
 #: Vilka kontroller som körs var 5:e minut respektive en gång per dygn.
 QUICK_KINDS = (Kind.UPTIME, Kind.SNAPSHOT)
-DAILY_KINDS = (Kind.SSL, Kind.DOMAIN, Kind.EMAIL, Kind.SECURITY, Kind.PERFORMANCE, Kind.ERRORS)
+DAILY_KINDS = (
+    Kind.SSL,
+    Kind.DOMAIN,
+    Kind.EMAIL,
+    Kind.SECURITY,
+    Kind.PERFORMANCE,
+    Kind.ERRORS,
+    Kind.CRUX,
+    Kind.SEARCH,
+    Kind.GBP,
+)
+#: Googles data (apps/monitor/google_checks.py): hämtas i dygnskontrollen.
+GOOGLE_KINDS = (Kind.CRUX, Kind.SEARCH, Kind.GBP)
 
 
 class MonitorSettings(models.Model):
@@ -68,18 +85,21 @@ class MonitorSettings(models.Model):
     def __str__(self):
         return f"Övervakning: {self.customer}"
 
-    #: Vilken kontroll som ger data till vilken panel.
+    #: Vilken kontroll (eller vilka) som ger data till vilken panel.
+    #: Prestanda är både labbmätningen (PageSpeed) och riktiga besökare (CrUX).
     KIND_FOR = {
         "show_uptime": Kind.UPTIME,
         "show_response": Kind.UPTIME,
         "show_ssl": Kind.SSL,
         "show_domain": Kind.DOMAIN,
         "show_email": Kind.EMAIL,
-        "show_performance": Kind.PERFORMANCE,
+        "show_performance": (Kind.PERFORMANCE, Kind.CRUX),
         "show_security": Kind.SECURITY,
         "show_visits": Kind.SNAPSHOT,
         "show_server": Kind.SNAPSHOT,
         "show_errors": Kind.ERRORS,
+        "show_search": Kind.SEARCH,
+        "show_gbp": Kind.GBP,
     }
 
     @classmethod
@@ -91,7 +111,7 @@ class MonitorSettings(models.Model):
         kinds = set()
         for field, kind in self.KIND_FOR.items():
             if getattr(self, field):
-                kinds.add(kind)
+                kinds.update(kind if isinstance(kind, tuple) else (kind,))
         return kinds
 
     @property
@@ -107,6 +127,14 @@ class MonitoredDomain(models.Model):
     # Pluskund: vår plattform på egen server exponerar /status/adx/ med den
     # delade nyckeln (ADX_STATUS_KEY). Tomt = ingen serverdata.
     status_url = models.URLField("Statusendpoint", blank=True)
+    # Search Console-egendomen ("sc-domain:nordanbygg.se" eller
+    # "https://nordanbygg.se/"). Tomt = hittas automatiskt i sites.list.
+    search_property = models.CharField("Search Console-egendom", max_length=300, blank=True)
+    # Google Business Profile: platsen ("locations/123") och kontot den ligger
+    # under ("accounts/456", behövs för omdömena). Tomt = matchas på webbadress.
+    gbp_location = models.CharField("Business Profile-plats", max_length=100, blank=True)
+    gbp_account = models.CharField("Business Profile-konto", max_length=100, blank=True)
+    gbp_title = models.CharField("Business Profile-namn", max_length=200, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

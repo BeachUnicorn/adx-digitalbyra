@@ -1,0 +1,249 @@
+{% extends "projects/base_board.html" %}
+{% load monitor_tags %}
+{% comment %}
+Googles data för EN domän, för byrån (apps/monitor/manage_views.domain_google):
+PageSpeed (labbet och fältet), riktiga besökare över tid (Chrome UX Report),
+Search Console och Business Profile. Raderna byggs i google_present.py.
+Kunden ser en kort sammanfattning på /kund/status/ (status_areas.py).
+{% endcomment %}
+{% block board %}
+<div class="tv-head">
+  <div>
+    <div class="tv-kicker"><a class="tv-link" href="{% url 'manage:customer_detail' domain.customer_id %}#overvakning">{{ domain.customer.name }}</a></div>
+    <h1 class="tv-h1 tv-h1--plain gm-h1">{{ domain.name }}</h1>
+    <div class="tv-sub">Googles bild av sajten. Hämtas i dygnskontrollen; larm går bara till ADX.</div>
+  </div>
+  <div class="tv-head__actions">
+    <form method="post">{% csrf_token %}<input type="hidden" name="action" value="run"><button type="submit" class="m-btn">Hämta Google-data nu</button></form>
+    <a class="m-btn m-btn--ghost" href="{% url 'manage:drift' %}">Driftöversikten</a>
+  </div>
+</div>
+
+{% if scopes.missing %}
+<div class="m-panel tv-panel gm-alert">
+  {% for row in scopes.missing %}<p>Koppla om för att {{ row.action }}: <a class="tv-link" href="{% url 'manage:flamingo_google' %}#overvakning">Google-sidan</a>.</p>{% endfor %}
+</div>
+{% endif %}
+
+<div class="gm">
+
+{# --- Prestanda ------------------------------------------------------------ #}
+<section class="m-panel tv-panel" id="prestanda">
+  <div class="tv-sec-title">Prestanda{% if not monitor.show_performance %} <span>avstängd för kunden</span>{% endif %}</div>
+  <p class="gm-text"><b>Labbet</b> är Googles simulerade laddning av startsidan i dag (PageSpeed). <b>Riktiga besökare</b> är vad Chrome-användare faktiskt upplevt de senaste 28 dagarna; värdet är det som tre av fyra besök klarade (p75).</p>
+  {% if performance %}
+  <p class="gm-muted">PageSpeed mätt {{ performance.checked_at|date:"j M Y H:i" }}.</p>
+  {% if psi_categories %}
+  <h3 class="gm-h3">Poäng i labbet (0 till 100)</h3>
+  <div class="m-table-wrap">
+    <table class="m-table">
+      <thead><tr><th>Kategori</th><th class="m-num">Mobil</th><th class="m-num">Dator</th></tr></thead>
+      <tbody>
+      {% for row in psi_categories %}
+      <tr><td>{{ row.label }}</td>{% for v in row.values %}<td class="m-num">{% if v.value is not None %}<span class="m-badge {{ v.state|state_badge }}">{{ v.value }}</span>{% else %}-{% endif %}</td>{% endfor %}</tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if psi_lab %}
+  <h3 class="gm-h3">Mätvärden i labbet</h3>
+  <div class="m-table-wrap">
+    <table class="m-table">
+      <thead><tr><th>Mätvärde</th><th class="m-num">Mobil</th><th class="m-num">Dator</th></tr></thead>
+      <tbody>{% for row in psi_lab %}<tr><td>{{ row.label }}</td>{% for v in row.values %}<td class="m-num">{{ v }}</td>{% endfor %}</tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% endif %}
+  <h3 class="gm-h3">Riktiga besökare enligt PageSpeed (28 dagar)</h3>
+  <div class="gm-grid">
+    {% for s in psi_field %}
+    <div class="gm-card">
+      <div class="gm-card__title">{{ s.label }}{% if s.overall %} <span class="m-badge {{ s.overall|state_badge }}">{{ s.overall_label }}</span>{% endif %}</div>
+      {% if s.error %}<p class="gm-text">Mätningen misslyckades: {{ s.error }}</p>
+      {% elif not s.page and not s.origin %}<p class="gm-text">{{ no_traffic }}.</p>
+      {% else %}
+      {% if s.page %}<p class="gm-muted">Startsidan</p>
+      <ul class="st-facts gm-facts">{% for r in s.page %}<li><span>{{ r.label }}</span><span>{{ r.value }} <span class="m-badge {{ r.state|state_badge }}">{{ r.state_label }}</span></span></li>{% endfor %}</ul>{% endif %}
+      {% if s.origin %}<p class="gm-muted">Hela sajten</p>
+      <ul class="st-facts gm-facts">{% for r in s.origin %}<li><span>{{ r.label }}</span><span>{{ r.value }} <span class="m-badge {{ r.state|state_badge }}">{{ r.state_label }}</span></span></li>{% endfor %}</ul>{% endif %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="gm-text">Ingen PageSpeed-mätning än. Kör "Kör allt inkl. PageSpeed" på kundkortet, eller vänta på dygnskontrollen.</p>
+  {% endif %}
+</section>
+
+{# --- Chrome UX Report ------------------------------------------------------ #}
+<section class="m-panel tv-panel" id="besokare">
+  <div class="tv-sec-title">Riktiga besökare över tid</div>
+  <p class="gm-text">Chrome UX Report, vecka för vecka (varje punkt är 28 dagar). Larm när ett värde går från bra till sämre och ligger kvar två veckor i rad.</p>
+  {% if not crux %}
+  <p class="gm-text">Ingen hämtning än. Kräver CRUX_API_KEY eller PAGESPEED_API_KEY, och att Prestanda är påslaget.</p>
+  {% elif crux.data.setup or crux.data.error %}
+  <p class="gm-text gm-warn">{{ crux.data.error }}</p>
+  {% else %}
+  <p class="gm-muted">{{ crux.data.origin }}, hämtat {{ crux.checked_at|date:"j M Y" }}.</p>
+  {% if crux.data.alert_texts %}<ul class="gm-alerts">{% for t in crux.data.alert_texts %}<li>{{ t|capfirst }}</li>{% endfor %}</ul>{% endif %}
+  {% for ff in crux_trends %}
+  <h3 class="gm-h3">{{ ff.label }}</h3>
+  {% if ff.no_data %}<p class="gm-text">{{ no_traffic }}. Google visar bara sajter med tillräckligt många Chrome-besök.</p>
+  {% elif ff.error %}<p class="gm-text gm-warn">{{ ff.error }}</p>
+  {% else %}
+  <div class="gm-grid gm-grid--3">
+    {% for m in ff.metrics %}
+    <div class="gm-card">
+      <div class="gm-card__title">{{ m.label }}</div>
+      <div class="gm-big">{{ m.latest }} <span class="m-badge {{ m.state|state_badge }}">{{ m.state_label }}</span></div>
+      <div class="st-spark gm-spark">{% sparkline m.values 300 48 %}</div>
+      <div class="st-days__axis"><span>{{ ff.first }}</span><span>{{ ff.last }}</span></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+</section>
+
+{# --- Search Console ---------------------------------------------------------- #}
+<section class="m-panel tv-panel" id="search-console">
+  <div class="tv-sec-title">Search Console{% if not monitor.show_search %} <span>avstängd: slå på Sökpositioner på kundkortet</span>{% endif %}</div>
+  {% with s=search_view %}
+  {% if not search %}
+  <p class="gm-text">Ingen hämtning än.</p>
+  {% elif s.setup %}
+  <p class="gm-text gm-warn">{{ s.error }}</p>
+  {% elif not s.access %}
+  <p class="gm-text"><b>Ingen åtkomst i Search Console.</b> ADX:s Google-konto ({{ google_email }}) är inte användare på någon egendom för {{ domain.name }}{% if s.chosen %} (vald: {{ s.chosen }}){% endif %}.</p>
+  <ol class="gm-steps">
+    <li>Kunden (eller den som äger egendomen) öppnar Search Console, väljer egendomen och går till Inställningar, Användare och behörigheter.</li>
+    <li>Lägg till användare: {{ google_email }}, behörighet Begränsad räcker (bara läsning).</li>
+    <li>Finns ingen egendom: skapa en domänegendom (sc-domain:{{ domain.name }}) och verifiera den med en TXT-post i DNS.</li>
+    <li>Hämta Google-data igen här.</li>
+  </ol>
+  {% else %}
+  <p class="gm-muted">Egendom {{ s.property }} ({% if s.matched == "chosen" %}vald av ADX{% else %}hittad automatiskt{% endif %}), {{ s.period }}, hämtat {{ search.checked_at|date:"j M Y" }}.</p>
+  {% if search.data.alert_texts %}<ul class="gm-alerts">{% for t in search.data.alert_texts %}<li>{{ t|capfirst }}</li>{% endfor %}</ul>{% endif %}
+  {% if s.errors %}{% for key, text in s.errors.items %}<p class="gm-text gm-warn">{{ text }}</p>{% endfor %}{% endif %}
+  {% if s.totals %}
+  <div class="m-table-wrap">
+    <table class="m-table">
+      <thead><tr><th>Google-sök</th><th class="m-num">Senaste 28 d</th><th class="m-num">28 d före</th><th class="m-num">Förändring</th></tr></thead>
+      <tbody>{% for t in s.totals %}<tr><td>{{ t.label }}</td><td class="m-num">{{ t.current }}</td><td class="m-num">{{ t.previous }}</td><td class="m-num">{{ t.change|signed_pct|default:"-" }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% if s.spark|length > 1 %}<div class="gm-card gm-card--flat"><div class="gm-card__title">Klick per dag</div><div class="st-spark gm-spark">{% sparkline s.spark 600 48 %}</div><div class="st-days__axis"><span>28 dagar</span><span>{{ s.window.end }}</span></div></div>{% endif %}
+  {% endif %}
+  <div class="gm-grid">
+    <div>
+      <h3 class="gm-h3">Toppfrågor</h3>
+      {% if s.top_queries %}
+      <div class="m-table-wrap"><table class="m-table">
+        <thead><tr><th>Fråga</th><th class="m-num">Klick</th><th class="m-num">Visningar</th><th class="m-num">Position</th></tr></thead>
+        <tbody>{% for r in s.top_queries %}<tr><td class="gm-break">{{ r.key }}</td><td class="m-num">{{ r.clicks }}</td><td class="m-num">{{ r.impressions }}</td><td class="m-num">{{ r.position }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}<p class="gm-text">Inga frågor med klick eller visningar.</p>{% endif %}
+    </div>
+    <div>
+      <h3 class="gm-h3">Toppsidor</h3>
+      {% if s.top_pages %}
+      <div class="m-table-wrap"><table class="m-table">
+        <thead><tr><th>Sida</th><th class="m-num">Klick</th><th class="m-num">Visningar</th><th class="m-num">Position</th></tr></thead>
+        <tbody>{% for r in s.top_pages %}<tr><td class="gm-break">{{ r.key }}</td><td class="m-num">{{ r.clicks }}</td><td class="m-num">{{ r.impressions }}</td><td class="m-num">{{ r.position }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+      {% else %}<p class="gm-text">Inga sidor med klick eller visningar.</p>{% endif %}
+    </div>
+  </div>
+  <h3 class="gm-h3">Sitemaps</h3>
+  {% if s.sitemaps_view %}
+  <div class="m-table-wrap"><table class="m-table">
+    <thead><tr><th>Sitemap</th><th class="m-num">Fel</th><th class="m-num">Varningar</th><th>Senast hämtad</th><th>Inskickad</th></tr></thead>
+    <tbody>{% for m in s.sitemaps_view %}<tr><td class="gm-break">{{ m.path }}{% if m.is_pending %} <span class="m-badge">väntar</span>{% endif %}</td><td class="m-num">{% if m.errors %}<span class="m-badge m-badge--alert">{{ m.errors }}</span>{% else %}0{% endif %}</td><td class="m-num">{{ m.warnings }}</td><td>{{ m.downloaded }}</td><td>{{ m.submitted }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% elif not s.errors.sitemaps %}<p class="gm-text">Ingen sitemap är inskickad i Search Console.</p>{% endif %}
+  <h3 class="gm-h3">Indexering (URL Inspection, högst 10 per dygn)</h3>
+  {% if s.inspections_view %}
+  <div class="m-table-wrap"><table class="m-table">
+    <thead><tr><th>Sida</th><th>Status</th><th>Täckning</th><th>Senast genomsökt</th><th>robots.txt</th><th>Indexering</th></tr></thead>
+    <tbody>{% for i in s.inspections_view %}<tr><td class="gm-break">{% if i.link %}<a class="tv-link" href="{{ i.link }}" target="_blank" rel="noopener">{{ i.url }}</a>{% else %}{{ i.url }}{% endif %}</td><td><span class="m-badge {% if i.indexed %}m-badge--published{% else %}m-badge--alert{% endif %}">{{ i.verdict_label }}</span></td><td>{{ i.coverage|default:"-" }}</td><td>{{ i.crawl }}</td><td>{{ i.robots_label }}</td><td>{{ i.indexing_label }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="gm-text">Inga sidor inspekterade i den här hämtningen (dygnets kvot kan vara använd).</p>{% endif %}
+  {% endif %}
+  {% endwith %}
+
+  <form method="post" class="gm-form">{% csrf_token %}<input type="hidden" name="action" value="property">
+    <div class="m-field"><label for="gm-prop">Egendom (tomt = hittas automatiskt)</label>
+      {% if sites %}
+      <select id="gm-prop" name="search_property" class="tv-input">
+        <option value="">Automatiskt</option>
+        {% for site in sites %}<option value="{{ site.site_url }}"{% if site.site_url == domain.search_property %} selected{% endif %}>{{ site.site_url }} ({{ site.permission }})</option>{% endfor %}
+      </select>
+      {% else %}
+      <input id="gm-prop" name="search_property" value="{{ domain.search_property }}" class="tv-input" placeholder="sc-domain:{{ domain.name }}">
+      {% endif %}
+    </div>
+    <button type="submit" class="m-btn m-btn--small">Spara egendom</button>
+  </form>
+</section>
+
+{# --- Business Profile --------------------------------------------------------- #}
+<section class="m-panel tv-panel" id="business-profile">
+  <div class="tv-sec-title">Google Business Profile{% if not monitor.show_gbp %} <span>avstängd: slå på på kundkortet</span>{% endif %}</div>
+  {% with g=gbp_view %}
+  {% if not gbp %}
+  <p class="gm-text">Ingen hämtning än.</p>
+  {% elif g.setup or g.error %}
+  <p class="gm-text gm-warn">{{ g.error }}</p>
+  {% elif not g.linked %}
+  <p class="gm-text">Ingen profil kopplad. Ingen plats som ADX:s Google-konto når har {{ domain.name }} som webbadress. Välj platsen nedan, eller be kunden lägga till {{ google_email }} som ansvarig för profilen i Business Profile.</p>
+  {% else %}
+  <p class="gm-muted">{{ g.location }} ({% if g.matched == "chosen" %}vald av ADX{% else %}matchad på webbadress{% endif %}), hämtat {{ gbp.checked_at|date:"j M Y" }}.</p>
+  {% if gbp.data.alert_texts %}<ul class="gm-alerts">{% for t in gbp.data.alert_texts %}<li>{{ t|capfirst }}</li>{% endfor %}</ul>{% endif %}
+  <div class="gm-grid">
+    <div>
+      <ul class="st-facts gm-facts">
+        <li><span>Namn</span><span>{{ g.title|default:"-" }}</span></li>
+        <li><span>Läge</span><span>{{ g.open_label }}{% if g.verified is False %} <span class="m-badge m-badge--alert">inte verifierad</span>{% elif g.verified %} <span class="m-badge m-badge--published">verifierad</span>{% endif %}</span></li>
+        <li><span>Adress</span><span>{{ g.address|default:"-" }}</span></li>
+        <li><span>Telefon</span><span>{{ g.phone|default:"-" }}</span></li>
+        <li><span>Webbadress</span><span class="gm-break">{{ g.website|default:"saknas" }}</span></li>
+        <li><span>Kategorier</span><span>{{ g.categories|join:", "|default:"-" }}</span></li>
+        {% if g.rating_text %}<li><span>Betyg</span><span>{{ g.rating_text }}</span></li>{% endif %}
+        {% if g.maps_uri %}<li><span>Google Maps</span><span><a class="tv-link" href="{{ g.maps_uri }}" target="_blank" rel="noopener">Öppna profilen</a></span></li>{% endif %}
+      </ul>
+    </div>
+    <div>
+      {% if g.hours %}<ul class="st-facts gm-facts">{% for day, text in g.hours %}<li><span>{{ day }}</span><span>{{ text }}</span></li>{% endfor %}</ul>{% else %}<p class="gm-text">Inga öppettider angivna.</p>{% endif %}
+    </div>
+  </div>
+  {% if g.metrics_view %}
+  <h3 class="gm-h3">Statistik</h3>
+  <div class="m-table-wrap"><table class="m-table">
+    <thead><tr><th>Profilen</th><th class="m-num">Senaste 28 d</th><th class="m-num">28 d före</th><th class="m-num">Förändring</th></tr></thead>
+    <tbody>{% for m in g.metrics_view %}<tr><td>{{ m.label }}</td><td class="m-num">{{ m.current }}</td><td class="m-num">{{ m.previous }}</td><td class="m-num">{{ m.change|signed_pct|default:"-" }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% endif %}
+  {% for key, text in g.errors.items %}<p class="gm-text gm-warn">{% if key == "reviews" %}Betyget: {% elif key == "metrics" %}Statistiken: {% endif %}{{ text }}</p>{% endfor %}
+  {% endif %}
+  {% endwith %}
+
+  <form method="post" class="gm-form">{% csrf_token %}<input type="hidden" name="action" value="location">
+    <div class="m-field"><label for="gm-gbp">Plats (tomt = matchas på webbadress)</label>
+      <select id="gm-gbp" name="gbp" class="tv-input">
+        <option value="">Automatiskt</option>
+        {% if domain.gbp_location %}<option value="{{ domain.gbp_account }}|{{ domain.gbp_location }}" selected>{{ domain.gbp_title|default:domain.gbp_location }}</option>{% endif %}
+        {% for loc in locations %}{% if loc.name != domain.gbp_location %}<option value="{{ loc.account }}|{{ loc.name }}">{{ loc.title }}{% if loc.website %} ({{ loc.website }}){% endif %}</option>{% endif %}{% endfor %}
+      </select>
+    </div>
+    <button type="submit" class="m-btn m-btn--small">Spara plats</button>
+  </form>
+  <form method="post" class="gm-form">{% csrf_token %}<input type="hidden" name="action" value="choices">
+    <button type="submit" class="m-btn m-btn--small m-btn--ghost">Hämta egendomar och platser från Google</button>
+    <span class="gm-muted">Listorna ovan fylls i och sparas en timme.</span>
+  </form>
+</section>
+
+</div>
+{% endblock %}

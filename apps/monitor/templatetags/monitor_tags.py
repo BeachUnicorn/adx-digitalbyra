@@ -50,3 +50,24 @@ def get(mapping, key):
         return (mapping or {}).get(key)
     except AttributeError:
         return None
+
+
+#: Betygen från google_checks (good, needs, poor) som panelens märken.
+_STATE_BADGE = {
+    "good": "m-badge--published",
+    "needs": "m-badge--in_progress",
+    "poor": "m-badge--alert",
+}
+
+
+@register.filter
+def state_badge(state):
+    return _STATE_BADGE.get(state or "", "")
+
+
+@register.filter
+def signed_pct(value):
+    """+12 % eller -40 %, tomt utan värde."""
+    if not isinstance(value, int):
+        return ""
+    return f"+{value} %" if value > 0 else f"{value} %"

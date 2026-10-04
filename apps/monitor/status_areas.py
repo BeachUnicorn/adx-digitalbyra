@@ -13,6 +13,9 @@ from datetime import date, timedelta
 from django.utils import timezone
 from django.utils.formats import date_format
 
+from . import google_present
+from .google_checks import GOOD, NEEDS, POOR
+
 OK, WARN, BAD = "ok", "warn", "bad"
 
 
@@ -32,7 +35,7 @@ def _rows_status(rows):
     return OK
 
 
-def _area(key, title, status, headline, value="", details=None, note=""):
+def _area(key, title, status, headline, value="", details=None, note="", spark=None):
     return {
         "key": key,
         "title": title,
@@ -41,6 +44,7 @@ def _area(key, title, status, headline, value="", details=None, note=""):
         "value": value,
         "details": details or [],
         "note": note,
+        "spark": [v for v in (spark or []) if isinstance(v, (int, float))],
     }
 
 
@@ -154,14 +158,172 @@ def _performance(check):
         if s.get("score") is not None:
             extra = f", största element {s['lcp']}" if s.get("lcp") else ""
             details.append((label, f"{s['score']} av 100{extra}", None))
+    for row in google_present.psi_categories(check.data):
+        if row["label"] == "Prestanda":
+            continue
+        mobile_value, desktop_value = (v["value"] for v in row["values"])
+        parts = [
+            f"{label} {v}"
+            for label, v in (("mobil", mobile_value), ("dator", desktop_value))
+            if v is not None
+        ]
+        details.append((row["label"], ", ".join(parts) + " av 100", None))
     return _area(
         "performance",
         "Prestanda",
         status,
-        "Googles mätning av hur snabbt sidan laddar.",
+        "Googles provladdning av startsidan: hur snabb, tillgänglig och sökvänlig den är.",
         value,
         details,
-        f"Google PageSpeed, mätt {date_format(timezone.localtime(check.checked_at), 'j M')}.",
+        f"Google PageSpeed, mätt {date_format(timezone.localtime(check.checked_at), 'j M')}. "
+        "Det är en provladdning; hur riktiga besökare upplever sidan står under Riktiga besökare.",
+    )
+
+
+_STATE_TO_STATUS = {GOOD: OK, NEEDS: WARN, POOR: BAD}
+
+
+def _field(crux, performance):
+    """Riktiga besökare: Chrome UX Report (telefon) om det finns, annars
+    PageSpeeds fältdata. För lite trafik är ett lugnt besked, inget fel."""
+    summary = google_present.crux_summary(crux.data) if crux else None
+    spark, note = [], ""
+    if summary:
+        ff = (crux.data.get("form_factors") or {}).get("phone") or {}
+        spark = [v for v in (ff.get("metrics") or {}).get("lcp") or [] if v is not None]
+        note = (
+            "Från Googles Chrome-mätning (Chrome UX Report), besök från telefon, vecka för vecka."
+        )
+    elif performance:
+        strategies = (performance.data or {}).get("strategies") or {}
+        mobile = strategies.get("mobile") or {}
+        if mobile.get("error") or not strategies:
+            return None
+        field = mobile.get("origin_field") or mobile.get("field")
+        rows = google_present.field_rows(field)
+        if rows:
+            order = [GOOD, NEEDS, POOR]
+            worst = max((r["state"] for r in rows if r["state"]), key=order.index, default=GOOD)
+            summary = {
+                "state": worst,
+                "text": google_present.RATING_LABELS[worst],
+                "rows": [(r["label"], r["value"], r["state"]) for r in rows[:3]],
+            }
+        else:
+            summary = {"state": "", "text": google_present.NO_TRAFFIC, "rows": []}
+        note = "Från Google PageSpeed: besök från telefon de senaste 28 dagarna."
+    if not summary:
+        return None
+    if not summary["rows"]:
+        return _area(
+            "field",
+            "Riktiga besökare",
+            OK,
+            f"{google_present.NO_TRAFFIC}. Det är vanligt för mindre sajter och inget fel.",
+        )
+    status = _STATE_TO_STATUS.get(summary["state"], OK)
+    headline = {
+        OK: "Besökarna upplever sidan som snabb och stabil.",
+        WARN: "Sidan kan upplevas som lite långsam för en del besökare.",
+        BAD: "Sidan upplevs som långsam för många besökare.",
+    }[status]
+    details = [
+        (label, f"{value} ({google_present.RATING_LABELS.get(state, '').lower()})", None)
+        for label, value, state in summary["rows"]
+    ]
+    return _area(
+        "field",
+        "Riktiga besökare",
+        status,
+        headline,
+        summary["text"],
+        details,
+        note + " Värdet är det tre av fyra besök klarade.",
+        spark,
+    )
+
+
+def _search(check):
+    """Google-sök: klicken senaste 28 dagarna och trenden. Ingen åtkomst
+    eller fel i kopplingen är byråns sak och visas inte."""
+    data = (check.data or {}) if check else {}
+    if not data.get("access") or data.get("setup") or "current" not in data:
+        return None
+    view = google_present.search_view(data)
+    cur, prev = data["current"], data.get("previous") or {}
+    change = view["clicks_change"]
+    alerts = {key for key in (data.get("alerts") or {})}
+    status = OK
+    if view["home"] and not view["home_indexed"]:
+        status = BAD
+    elif "search:drop" in alerts:
+        status = WARN
+    value = ""
+    if change is not None:
+        value = f"+{change} %" if change > 0 else f"{change} %"
+    details = [
+        ("Klick", f"{cur['clicks']} (förra perioden {prev.get('clicks', 0)})", None),
+        ("Visningar i sökresultaten", f"{cur['impressions']}", None),
+    ]
+    if cur.get("position"):
+        details.append(("Snittposition", str(cur["position"]).replace(".", ","), None))
+    if view["home"]:
+        details.append(
+            (
+                "Startsidan i Googles index",
+                "Ja" if view["home_indexed"] else "Nej, vi tittar på det",
+                None if view["home_indexed"] else "fel",
+            )
+        )
+    queries = [q["key"] for q in data.get("top_queries") or []][:3]
+    if queries:
+        details.append(("Vanligaste sökningarna", ", ".join(queries), None))
+    return _area(
+        "search",
+        "Google-sök",
+        status,
+        f"{cur['clicks']} besök från Googles sökresultat de senaste 28 dagarna.",
+        value,
+        details,
+        f"Från Google Search Console, {view['period']}. Kurvan visar klick per dag.",
+        view["spark"],
+    )
+
+
+def _gbp(check):
+    """Företagsprofilen på Google: öppen, verifierad och vad den ger."""
+    data = (check.data or {}) if check else {}
+    if not data.get("ok") or not data.get("linked"):
+        return None
+    view = google_present.gbp_view(data)
+    alerts = set(data.get("alerts") or {})
+    status = OK
+    if data.get("open_status") == "CLOSED_PERMANENTLY":
+        status = BAD
+    elif alerts & {"gbp:website", "gbp:closed", "gbp:unverified"}:
+        status = WARN
+    if data.get("open_status") in ("CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"):
+        headline = f"Profilen visas som {view['open_label'].lower()} på Google."
+    elif data.get("verified") is False:
+        headline = "Profilen är inte verifierad hos Google. Vi tittar på det."
+    else:
+        headline = "Profilen är öppen och syns på Google Sök och Maps."
+    details = []
+    if data.get("title"):
+        details.append(("Namn", data["title"], None))
+    for m in view["metrics_view"]:
+        details.append((m["label"], f"{m['current']} (förra perioden {m['previous']})", None))
+    if "gbp:website" in alerts:
+        details.append(("Webbadress", "Pekar inte på sajten, vi rättar det", "varning"))
+    return _area(
+        "gbp",
+        "Företagsprofil på Google",
+        status,
+        headline,
+        view["rating_text"].split(" (")[0] if view["rating_text"] else "",
+        details,
+        "Från Google Business Profile, senaste 28 dagarna mot de 28 före."
+        + (f" Betyg {view['rating_text']}." if view["rating_text"] else ""),
     )
 
 
@@ -253,11 +415,12 @@ _AREAS = (
     ("show_email", "E-post", lambda b: _email(b["email"])),
     ("show_security", "Säkerhet", lambda b: _security(b["security"])),
     ("show_performance", "Prestanda", lambda b: _performance(b["performance"])),
+    ("show_performance", "Riktiga besökare", lambda b: _field(b["crux"], b["performance"])),
     ("show_server", "Server", lambda b: _server(b["snapshot"])),
     ("show_visits", "Besök", lambda b: _visits(b["snapshot"])),
     ("show_errors", "Fel i sajten", lambda b: _errors(b["errors"])),
-    ("show_gbp", "Google Business Profile", lambda b: None),
-    ("show_search", "Sökpositioner", lambda b: None),
+    ("show_search", "Google-sök", lambda b: _search(b["search"])),
+    ("show_gbp", "Företagsprofil på Google", lambda b: _gbp(b["gbp"])),
 )
 
 

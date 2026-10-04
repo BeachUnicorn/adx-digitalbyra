@@ -581,7 +581,7 @@ body.is-dragging-any{cursor:grabbing}
 .st-row.is-bad .st-row__dot{background:var(--s-danger)}
 .st-row__text{display:flex;flex-direction:column;gap:2px;min-width:0}
 .st-row__text b{font-size:16px;font-weight:600}
-.st-row__text span{font-size:15px;color:var(--m-text);overflow-wrap:anywhere}
+.st-row__text span{font-size:16px;color:var(--m-text);overflow-wrap:anywhere}
 .st-row__value{font-family:var(--s-mono);font-size:15px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
 .st-row.is-warn .st-row__value{color:var(--s-warn)}
 .st-row.is-bad .st-row__value{color:var(--s-danger)}
@@ -589,19 +589,19 @@ body.is-dragging-any{cursor:grabbing}
 .st-row[open] .st-row__chev{transform:rotate(-135deg) translate(-2px,-2px)}
 .st-row__body{padding:0 22px 18px 50px}
 .st-facts{list-style:none;margin:0;padding:0;border-top:1px solid var(--m-border)}
-.st-facts li{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr);gap:14px;padding:9px 0;border-bottom:1px solid var(--m-border);font-size:15px}
+.st-facts li{display:grid;grid-template-columns:minmax(120px,190px) minmax(0,1fr);gap:14px;padding:9px 0;border-bottom:1px solid var(--m-border);font-size:16px}
 .st-facts li span:first-child{font-weight:600}
 .st-facts li span:last-child{overflow-wrap:anywhere}
 .st-facts li.is-varning span:first-child::before,.st-facts li.is-fel span:first-child::before,.st-facts li.is-ok span:first-child::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:var(--s-ok);vertical-align:1px}
 .st-facts li.is-varning span:first-child::before{background:var(--s-gold)}
 .st-facts li.is-fel span:first-child::before{background:var(--s-danger)}
-.st-note{font-size:14.5px;margin:10px 0 0;color:var(--m-text)}
+.st-note{font-size:16px;margin:10px 0 0;color:var(--m-text)}
 .st-note a{text-decoration:underline;text-underline-offset:3px}
-.st-pending{font-size:15px;margin:14px 4px 0;color:var(--m-text)}
+.st-pending{font-size:16px;margin:14px 4px 0;color:var(--m-text)}
 
 .st-card{background:var(--s-solid);border:1px solid var(--m-border);border-radius:var(--m-radius);padding:18px 20px}
 .st-card__title{font-family:var(--s-mono);font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin-bottom:10px}
-.st-card p{margin:0;font-size:15.5px;line-height:1.55}
+.st-card p{margin:0;font-size:16px;line-height:1.55}
 .st-card--note{border-color:var(--m-text);border-width:1.5px}
 .st-spark{color:var(--m-text);height:64px}
 .st-spark .pt-spark{width:100%;height:64px;display:block}
@@ -632,6 +632,39 @@ body.is-dragging-any{cursor:grabbing}
 
 
 
+
+/* ===========================================================================
+   Googles data per domän i panelen (templates/projects/monitor_google.html)
+   och kundens rader för riktiga besökare, Google-sök och profilen
+   (portal/status.html). Löptext 16 px.
+   =========================================================================== */
+.gm{display:flex;flex-direction:column;gap:18px}
+.gm-h1{overflow-wrap:anywhere}
+.gm-h3{font-family:var(--s-mono);font-size:13px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;margin:22px 0 10px}
+.gm-text{font-size:16px;line-height:1.55;margin:0 0 12px;max-width:72ch}
+.gm-muted{font-size:16px;color:var(--m-text);opacity:.8;margin:0 0 10px;overflow-wrap:anywhere}
+.gm-warn{color:var(--s-warn);font-weight:500}
+.gm-alert p{font-size:16px;margin:0}
+.gm-alerts{margin:0 0 14px;padding-left:20px;font-size:16px;line-height:1.5;color:var(--s-danger)}
+.gm-steps{margin:0 0 14px;padding-left:22px;font-size:16px;line-height:1.55;max-width:72ch}
+.gm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.gm-grid--3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.gm-card{border:1px solid var(--m-border);border-radius:14px;padding:14px 16px;background:var(--s-field);min-width:0}
+.gm-card--flat{margin-top:14px}
+.gm-card__title{font-size:16px;font-weight:600;margin-bottom:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gm-big{font-family:var(--s-mono);font-size:20px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.gm-spark{height:48px;margin-top:8px}
+.gm-spark .pt-spark{height:48px}
+.gm-facts{margin-bottom:10px}
+.gm-break{overflow-wrap:anywhere;word-break:break-word}
+.gm-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:18px}
+.gm-form .m-field{flex:1 1 280px;min-width:0}
+.gm-form .tv-input{width:100%;max-width:100%}
+.st-row__spark{color:var(--m-text);margin-top:12px}
+.st-row__spark .pt-spark{width:100%;height:44px;display:block}
+@media (max-width:900px){
+  .gm-grid,.gm-grid--3{grid-template-columns:minmax(0,1fr)}
+}
 
 /* ===== Förhandsgranskning av loggmejlet (projects/log_preview.html) ===== */
 .lp{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
