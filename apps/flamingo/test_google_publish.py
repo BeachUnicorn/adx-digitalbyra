@@ -173,6 +173,9 @@ class PublishFixture:
     def review_page(self):
         return self.staff_client().get(reverse("manage:flamingo_review", args=[self.campaign.pk]))
 
+    def call_click_url(self):
+        return reverse("flamingo_public:call_click", args=[self.campaign.page_slug])
+
     def operations(self):
         return google_publish.build_operations(self.reload(), CID)
 
@@ -424,8 +427,11 @@ class GoLiveTests(PublishFixture, TestCase):
         self.assertEqual(len(fake.requests), 3)
         self.assertEqual(self.reload().status, Campaign.STATUS_LIVE)
 
-    def test_the_view_publishes_and_opens_the_landing_page(self):
-        self.assertEqual(Client().get(self.campaign.landing_url).status_code, 404)
+    def test_the_view_publishes_and_starts_counting_calls(self):
+        # Sidan är öppen före publiceringen (Giovanni 2026-10-04), men klicken
+        # på numret räknas först när kampanjen är live.
+        self.assertEqual(Client().get(self.campaign.landing_url).status_code, 200)
+        self.assertEqual(Client().post(self.call_click_url()).status_code, 404)
         ops = self.operations()
         self.google(TOKEN_OK, customer_row(auto_tagging=True), created(ops))
         response = self.post()
@@ -440,6 +446,7 @@ class GoLiveTests(PublishFixture, TestCase):
         self.assertIn("Annonserna visas först när kunden lagt in betalning", text)
         self.assertIn("Kunden har inte mejlats", text)
         self.assertEqual(Client().get(self.campaign.landing_url).status_code, 200)
+        self.assertEqual(Client().post(self.call_click_url()).status_code, 204)
         self.assertEqual(mail.outbox, [])
 
     def test_a_google_error_leaves_the_campaign_unchanged(self):
@@ -469,7 +476,9 @@ class GoLiveTests(PublishFixture, TestCase):
         text = " ".join(messages_of(response))
         self.assertIn("Inget publicerades.", text)
         self.assertNotIn(ACCESS, text)
-        self.assertEqual(Client().get(self.campaign.landing_url).status_code, 404)
+        # Inte live: sidan är öppen, men klicken på numret räknas inte.
+        self.assertEqual(Client().get(self.campaign.landing_url).status_code, 200)
+        self.assertEqual(Client().post(self.call_click_url()).status_code, 404)
 
         page = self.review_page()
         self.assertContains(page, "Senaste felet vid publiceringen")

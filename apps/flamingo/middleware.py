@@ -1,12 +1,15 @@
 """
 Flamingogrinden: en enda punkt framför allt under /flamingo/.
 
-Utan behörighet svarar grinden inte själv - den routar förfrågan genom
-config.urls_public, där /flamingo/ inte finns. Allt efter det (CSRF,
-APPEND_SLASH, X-Frame-Options, sajtens 404) blir då identiskt med en okänd
-adress; ett eget Http404 här gick att skilja från den (granskning
-2026-10-03). Med behörighet sätts request.flamingo och svaret märks noindex
-och ocachat. Byrån i kundvyn gör exakt det kunden gör, och det den sparar
+Bara verktyget (/flamingo/app/...) kräver behörighet (Giovanni 2026-10-04).
+Utan behörighet på Flamingos sidor sätts request.flamingo till PUBLIC och
+vyn visar bara publicerade sidor, utan noindex. Utan behörighet i verktyget
+svarar grinden inte själv - den routar förfrågan genom config.urls_public,
+där /flamingo/ inte finns. Allt efter det (CSRF, APPEND_SLASH,
+X-Frame-Options, sajtens 404) blir då identiskt med en okänd adress; ett
+eget Http404 här gick att skilja från den (granskning 2026-10-03). Med
+behörighet sätts request.flamingo och svaret blir ocachat; verktyget märks
+dessutom noindex. Byrån i kundvyn gör exakt det kunden gör, och det den sparar
 gäller på riktigt (Giovanni 2026-10-03); bara utkastförhandsvisningen i
 /manage/ (access.PREVIEW, read_only) är skrivskyddad, och dit skickas en
 POST tillbaka.

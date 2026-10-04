@@ -722,8 +722,11 @@ class FlowTests(NoAI, CampaignFixture, TestCase):
         for message in mail.outbox:
             self.assertEqual(message.to, [AGENCY])
             self.assertFalse(message.cc or message.bcc)
-        # Landningssidan är inte publik förrän byrån publicerat.
-        self.assertEqual(Client().get(campaign.landing_url).status_code, 404)
+        # Landningssidan är öppen redan nu (Giovanni 2026-10-04), men klicken
+        # på numret räknas först när byrån publicerat.
+        self.assertEqual(Client().get(campaign.landing_url).status_code, 200)
+        click = reverse("flamingo_public:call_click", args=[campaign.page_slug])
+        self.assertEqual(Client().post(click).status_code, 404)
 
     def test_an_edit_after_the_review_makes_a_new_draft(self):
         campaign, _ = self.proposal_for(self.badrum)
@@ -1020,8 +1023,12 @@ class ReviewAndPreviewTests(NoAI, CampaignFixture, TestCase):
         self.assertIn(f"&gt;{PHONE}&lt;", srcdoc)
         self.assertIn("rn-hero__call", srcdoc)
         self.assertIn("Förhandsvisning: formuläret skickar inget.", html)
-        # Den publika sidan finns inte förrän kampanjen är live.
-        self.assertEqual(Client().get(campaign.landing_url).status_code, 404)
+        # Den publika sidan är öppen redan som förslag (Giovanni 2026-10-04),
+        # utan remsan och med noindex.
+        public = Client().get(campaign.landing_url)
+        self.assertEqual(public.status_code, 200)
+        self.assertNotContains(public, "Förhandsvisning")
+        self.assertEqual(public["X-Robots-Tag"], "noindex, nofollow")
 
     def test_the_preview_falls_back_when_the_landing_page_cannot_be_drawn(self):
         campaign, _ = self.proposal_for(self.badrum)

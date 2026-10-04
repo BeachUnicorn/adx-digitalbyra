@@ -645,8 +645,12 @@ class PublishTests(StaffFixture, TestCase):
         self.assertEqual(waiting.status, Campaign.STATUS_NEEDS_CUSTOMER)
         self.assertIsNone(waiting.published_at)
 
-    def test_publish_after_approval_opens_the_landing_page(self):
-        self.assertEqual(Client().get(self.approved.landing_url).status_code, 404)
+    def test_publish_after_approval_starts_counting_calls(self):
+        # Sidan är öppen redan före (Giovanni 2026-10-04); klicken på numret
+        # räknas först när kampanjen är live.
+        click = reverse("flamingo_public:call_click", args=[self.approved.page_slug])
+        self.assertEqual(Client().get(self.approved.landing_url).status_code, 200)
+        self.assertEqual(Client().post(click).status_code, 404)
         response = self.post(self.approved, action="publish", google_campaign_id="12 345 678")
         self.assertRedirects(
             response,
@@ -657,6 +661,7 @@ class PublishTests(StaffFixture, TestCase):
         self.assertEqual(self.approved.status, Campaign.STATUS_LIVE)
         self.assertIsNotNone(self.approved.published_at)
         self.assertEqual(self.approved.google_campaign_id, "12345678")
+        self.assertEqual(Client().post(click).status_code, 204)
         self.assertEqual(mail.outbox, [])
 
     def test_publish_waits_for_the_google_link_but_not_for_billing(self):
@@ -690,7 +695,10 @@ class PublishTests(StaffFixture, TestCase):
         self.post(self.approved, action="pause")
         self.approved.refresh_from_db()
         self.assertEqual(self.approved.status, Campaign.STATUS_PAUSED)
-        self.assertEqual(Client().get(self.approved.landing_url).status_code, 404)
+        # Pausad: sidan är öppen, men klicken på numret räknas inte.
+        click = reverse("flamingo_public:call_click", args=[self.approved.page_slug])
+        self.assertEqual(Client().get(self.approved.landing_url).status_code, 200)
+        self.assertEqual(Client().post(click).status_code, 404)
         published_at = self.approved.published_at
         self.post(self.approved, action="resume")
         self.approved.refresh_from_db()

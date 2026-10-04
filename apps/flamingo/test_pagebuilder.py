@@ -727,15 +727,24 @@ class LandingViewTests(PageFixture, TestCase):
         )
         self.assertIn("Visa utkastet", staff.get(self.live.landing_url).content.decode())
 
-    def test_a_live_campaign_without_a_published_page_is_404(self):
+    def test_a_page_that_was_never_published_shows_its_draft(self):
+        blocks = self.page.draft_blocks
+        blocks[0]["versions"][0]["fields"]["title"] = "Bara i utkastet"
+        pagebuilder.save_draft(self.page, blocks, rev=self.page.rev)
         LandingPage.objects.filter(pk=self.page.pk).update(published_at=None)
-        self.assertEqual(Client().get(self.live.landing_url).status_code, 404)
+        response = Client().get(self.live.landing_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Bara i utkastet")
+        self.assertNotContains(response, "Förhandsvisning")
         self.assertEqual(self.client_for(self.staff).get(self.live.landing_url).status_code, 200)
 
-    def test_draft_and_paused_campaigns_are_404_for_the_public(self):
-        self.assertEqual(Client().get(self.draft.landing_url).status_code, 404)
+    def test_draft_and_paused_campaigns_are_open_and_staff_sees_a_preview(self):
+        self.assertEqual(Client().get(self.draft.landing_url).status_code, 200)
         Campaign.objects.filter(pk=self.live.pk).update(status=Campaign.STATUS_PAUSED)
-        self.assertEqual(Client().get(self.live.landing_url).status_code, 404)
+        response = Client().get(self.live.landing_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "Förhandsvisning")
+        self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
         response = self.client_for(self.staff).get(self.draft.landing_url)
         self.assertContains(response, "Förhandsvisning")
         self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
@@ -993,7 +1002,7 @@ class MigrationTests(TestCase):
 
 @override_settings(DEBUG=True, MEDIA_ROOT=_MEDIA)
 class DemoPageTests(TestCase):
-    def test_demo_pages_use_every_block_and_are_never_public(self):
+    def test_demo_pages_use_every_block_and_are_open_without_preview(self):
         call_command("flamingo_demo", stdout=io.StringIO())
         account = FlamingoAccount.objects.get(is_demo=True)
         pages = list(LandingPage.objects.filter(account=account))
@@ -1010,8 +1019,13 @@ class DemoPageTests(TestCase):
         client.force_login(staff)
         for campaign in account.campaigns.all():
             with self.subTest(campaign=campaign.name):
-                self.assertEqual(Client().get(campaign.landing_url).status_code, 404)
-                self.assertEqual(client.get(campaign.landing_url).status_code, 200)
+                # Öppen för alla (Giovanni 2026-10-04); byrån ser remsan.
+                public = Client().get(campaign.landing_url)
+                self.assertEqual(public.status_code, 200)
+                self.assertFalse(public.context["preview"])
+                staff_view = client.get(campaign.landing_url)
+                self.assertEqual(staff_view.status_code, 200)
+                self.assertTrue(staff_view.context["preview"])
         # Igen: inget dubbleras, och inga gamla bildfiler blir kvar i databasen.
         call_command("flamingo_demo", stdout=io.StringIO())
         self.assertEqual(LandingPage.objects.filter(account=account).count(), len(pages))

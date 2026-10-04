@@ -2,15 +2,17 @@
 Kundens landningssidor (/lp/<slug>/, kundresan steg 9): publika, till för
 kundens kunder.
 
-- Bara en kampanj som är live, på ett aktiverat konto hos en aktiv kund, har
-  en publik sida. Allt annat är 404 (sajtens vanliga 404-sida).
+- Varje kampanjs sida är alltid öppen utan inloggning, vilket läge kampanjen
+  än har (utkast, granskning, pausad, live), också för demokontot och för
+  ett avstängt konto eller en inaktiv kund (Giovanni 2026-10-04). Bara en
+  okänd adress är 404 (sajtens vanliga 404-sida). Sidorna ska inte hittas:
+  noindex, "Disallow: /lp/" i robots.txt och aldrig i sitemapen.
 - Sidan är kampanjens LandingPage (sidbyggaren, apps/flamingo/pagebuilder/),
   ritad i designen Ren av pagebuilder.render_page_html. Besökarna ser den
-  publicerade versionen; en live-kampanj vars sida aldrig publicerats är 404
-  (det ska inte kunna hända: sidan publiceras när kampanjen går live).
+  publicerade versionen; en sida som aldrig publicerats visar utkastet.
   Flera kampanjer kan dela en sida, men adressen är kampanjens egen, så
   förfrågningarna och klicken räknas till rätt kampanj.
-- Byrån (staff) kan förhandsvisa varje kampanj, oavsett status, med en
+- Byrån (staff) ser en kampanj som inte är live som förhandsvisning, med en
   synlig remsa överst: den publicerade versionen, eller utkastet med
   ?utkast=1 (och alltid för en sida som inte publicerats). Formuläret
   skickar inget i förhandsvisningen.
@@ -25,7 +27,8 @@ kundens kunder.
   frågorna sparas som Lead.answers[frågans etikett]. Inga mejl.
 - Ett klick på telefonnumret (varje tel:-länk med data-fl-call) skickas av
   static/js/flamingo-lp.js med sendBeacon till call_click
-  (/lp/<slug>/ring/) och blir en förfrågan "Klick på telefonnumret". Inget
+  (/lp/<slug>/ring/) och blir en förfrågan "Klick på telefonnumret". Bara
+  för en live-kampanj utanför demokontot (_live_campaign). Inget
   sms: ägaren får själva samtalet. Utan skript räknas inget, och länken
   fungerar ändå.
 - Mätningen hos Google: sidan frågar inte om samtycke (beslut 2026-10-03).
@@ -101,8 +104,8 @@ def _campaign_for(request, slug):
 
 
 def _page_for(request, campaign, preview):
-    """(sidan, which) för kampanjen, eller 404. which är "published" för
-    besökarna; byrån ser utkastet med ?utkast=1, och alltid för en sida som
+    """(sidan, which) för kampanjen. which är "published" för besökarna;
+    byrån ser utkastet med ?utkast=1, och alla ser utkastet på en sida som
     aldrig publicerats."""
     page = campaign.landing_page
     staff = is_agency_user(request.user)
@@ -295,9 +298,9 @@ def landing(request, slug):
 
 
 def _live_campaign(slug):
-    """Kampanjen bakom en publik sida, annars 404. Samma villkor som
-    _campaign_for utan byråns förhandsvisning: live, aktiverat konto, aktiv
-    kund och inget demokonto."""
+    """Kampanjen vars klick på numret räknas, annars 404: live, aktiverat
+    konto, aktiv kund och inget demokonto. Sidan är öppen ändå
+    (_campaign_for); det här villkoret gäller bara räkningen."""
     campaign = (
         Campaign.objects.select_related("account__customer", "service")
         .filter(page_slug=slug)
@@ -320,7 +323,7 @@ def _live_campaign(slug):
 def call_click(request, slug):
     """Ett klick på telefonnumret, skickat av flamingo-lp.js med sendBeacon.
 
-    Svarar alltid 204 utan innehåll för en publik sida (ingen läser svaret,
+    Svarar alltid 204 utan innehåll för en live-sida (ingen läser svaret,
     och en bot ska inte se om klicket räknades). Bara live-sidor; CSRF som
     formuläret. Ett klick blir en förfrågan "Klick på telefonnumret" med
     klick-id och utm, högst en per besökare och kampanj och timme

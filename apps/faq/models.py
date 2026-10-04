@@ -33,8 +33,8 @@ class FAQSection(models.Model):
     )
     is_active = models.BooleanField(_("Aktiv"), default=True)
     #: Samma designval som blocksidorna (BlockPage.design). En sektion för
-    #: ADX Flamingo är aldrig publik: inte på /faq/, inte i sitemapen och
-    #: inte i FAQ-block på ADX-sidor. Uttryckligt, inte härlett ur var den
+    #: ADX Flamingo visas bara på Flamingos sidor: inte på /faq/, inte som
+    #: egen post i sitemapen och inte i FAQ-block på ADX-sidor. Uttryckligt, inte härlett ur var den
     #: används - en härledning ändrades av vanliga redigeringssteg.
     design = models.CharField(
         _("Design"),

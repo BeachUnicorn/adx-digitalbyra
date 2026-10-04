@@ -171,33 +171,46 @@ class InboxFixture:
 
 
 class LandingPageTests(InboxFixture, TestCase):
-    def test_only_live_campaigns_are_public(self):
+    def test_every_campaign_page_is_open_whatever_the_status(self):
+        """Giovanni 2026-10-04: utkast, granskning, pausad och live är alla
+        öppna utan inloggning, utan remsa och med noindex."""
         anon = Client()
         self.assertEqual(anon.get("/lp/finns-inte/").status_code, 404)
-        self.assertEqual(anon.get(self.draft.landing_url).status_code, 404)
         thanks = reverse("flamingo_public:thanks", args=[self.draft.page_slug])
-        self.assertEqual(anon.get(thanks).status_code, 404)
-        for status in (Campaign.STATUS_IN_REVIEW, Campaign.STATUS_PAUSED):
+        self.assertEqual(anon.get(thanks).status_code, 200)
+        for status in (
+            Campaign.STATUS_DRAFT,
+            Campaign.STATUS_IN_REVIEW,
+            Campaign.STATUS_PAUSED,
+            Campaign.STATUS_LIVE,
+        ):
             Campaign.objects.filter(pk=self.draft.pk).update(status=status)
-            with self.subTest(status=status):
-                self.assertEqual(anon.get(self.draft.landing_url).status_code, 404)
-                self.assertEqual(
-                    self.client_for(self.anna).get(self.draft.landing_url).status_code, 404
-                )
+            for client in (anon, self.client_for(self.anna)):
+                with self.subTest(status=status, client=client):
+                    response = client.get(self.draft.landing_url)
+                    self.assertEqual(response.status_code, 200)
+                    self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
+                    self.assertNotContains(response, "Förhandsvisning")
         response = anon.get(self.call_page.landing_url)
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "flamingo/lp/ren/page.html")
 
-    def test_a_disabled_account_or_inactive_customer_hides_the_page(self):
+    def test_a_disabled_account_or_inactive_customer_keeps_the_page_open(self):
+        """Sidan är öppen, men klicken på numret räknas inte längre."""
+        click = reverse("flamingo_public:call_click", args=[self.call_page.page_slug])
         FlamingoAccount.objects.filter(pk=self.account.pk).update(is_enabled=False)
-        self.assertEqual(Client().get(self.call_page.landing_url).status_code, 404)
+        self.assertEqual(Client().get(self.call_page.landing_url).status_code, 200)
+        self.assertEqual(Client().post(click).status_code, 404)
         FlamingoAccount.objects.filter(pk=self.account.pk).update(is_enabled=True)
         Customer.objects.filter(pk=self.acme.pk).update(is_active=False)
-        self.assertEqual(Client().get(self.call_page.landing_url).status_code, 404)
+        self.assertEqual(Client().get(self.call_page.landing_url).status_code, 200)
+        self.assertEqual(Client().post(click).status_code, 404)
+        self.assertFalse(Lead.objects.filter(campaign=self.call_page).exists())
 
-    def test_a_404_is_the_normal_site_404(self):
+    def test_an_unknown_address_is_the_normal_site_404(self):
         unknown = Client().get("/finns-inte-alls-xyz/")
-        response = Client().get(self.draft.landing_url)
+        response = Client().get("/lp/finns-inte-xyz/")
+        self.assertEqual(response.status_code, 404)
         self.assertEqual(
             [t.name for t in response.templates][:1], [t.name for t in unknown.templates][:1]
         )

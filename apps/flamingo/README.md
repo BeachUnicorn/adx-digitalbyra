@@ -5,8 +5,31 @@ mätt hela vägen till affär. Kunden väljer vid inskicket om en person på ADX
 ska granska kampanjen innan den publiceras (beslut 2026-10-03). Godkänd
 kundresa: `adx-marketing/kundresa-mvp.html` (steg 02-12).
 
-Tjänsten är stängd: bara kunder som byrån aktiverat på kundkortet ser den.
-Kundens konto skapas av byrån (kontakt i kundportalen), inte av kunden själv.
+Verktyget är stängt: bara kunder som byrån aktiverat på kundkortet kommer
+in i det. Flamingos publicerade sidor och kundernas landningssidor är öppna
+(beslut 2026-10-04 nedan). Kundens konto skapas av byrån (kontakt i
+kundportalen), inte av kunden själv.
+
+## Beslut 2026-10-04 (Giovanni)
+
+Gäller före allt äldre om vem som ser vad:
+
+1. **Bara verktyget (`/flamingo/app/...`) kräver inloggning.** Utan
+   behörighet är det en okänd adress, som förut (404 som vilken adress som
+   helst, aldrig omdirigering eller 403).
+2. **Flamingos publicerade sidor (`/flamingo/`, `/flamingo/<slug>/`) är
+   öppna för alla**, indexeras (ingen noindex, varken rubrik eller
+   meta-tagg), står i sitemapen och räknas i besöksstatistiken. Opublicerade
+   sidor är 404 för alla utom byrån. En besökare utan behörighet ser "Logga
+   in" i stället för "Verktyget".
+3. **Kundernas landningssidor (`/lp/<slug>/`) är alltid öppna** utan
+   inloggning, vilket läge kampanjen än har (utkast, granskning, pausad,
+   live), också för demokontot och för ett avstängt konto eller en inaktiv
+   kund. De ska inte hittas: noindex, `Disallow: /lp/` i robots.txt och
+   aldrig i sitemapen. En sida som aldrig publicerats visar utkastet. Byrån
+   ser en sida som inte är live som förhandsvisning (remsan överst).
+4. **Klicken på numret (`/lp/<slug>/ring/`) räknas bara för live-kampanjer
+   utanför demokontot**, som förut.
 
 ## Beslut 2026-10-03 (Giovanni)
 
@@ -25,8 +48,9 @@ De här gäller före äldre beskrivningar:
    faktiskt är "granted" eller "denied" (det är tomt i dag).
 4. **Ett klick på numret eller ringknappen på /lp/ är en förfrågan och en
    konvertering.** Inga spårade eller vidarekopplade nummer.
-5. **Demokunden finns i produktion** (`flamingo_demo --prod`), syns aldrig
-   publikt, anropar aldrig Google och skickar aldrig något.
+5. **Demokunden finns i produktion** (`flamingo_demo --prod`), anropar
+   aldrig Google och skickar aldrig något. (Att demots sidor aldrig syns
+   publikt gäller inte längre: se beslutet 2026-10-04.)
 6. **ADX larmas med mejl vid inskick och godkännande**, med vad som hände.
 
 ## Delar
@@ -289,8 +313,12 @@ Utvalda ändå, med de här skyddsräckena:
 
 ## Behörighet
 
-All logik i `access.py`, en grind i `middleware.py`. 404 för alla utan
-behörighet (aldrig omdirigering eller 403). Verktyget visar alltid
+All logik i `access.py`, en grind i `middleware.py`. Verktyget
+(`/flamingo/app/...`) är 404 för alla utan behörighet (aldrig omdirigering
+eller 403), med samma status och rubriker som en okänd adress. Flamingos
+publicerade sidor är öppna (`access.PUBLIC`): grinden släpper fram
+besökaren utan noindex, och opublicerade sidor är 404 för alla utom byrån.
+Verktyget visar alltid
 `request.flamingo.customer` och inget annat: varje vy går via `app_view`,
 som slår upp kundens `FlamingoAccount`, och varje id ur adressen eller ett
 formulär hämtas med `account=account`.
@@ -303,9 +331,10 @@ formulär hämtas med `account=account`.
 - Byrån utan kundvy: verktyget visar Flamingo-kunderna med "Visa som
   kunden" (`app/staff_index.html`). Knappen skickar `next`, så kundvyn
   öppnas i verktyget; granskningens knapp öppnar kampanjen.
-- Kundens landningssidor (`/lp/`) är publika när kampanjen är live; byrån
-  kan förhandsvisa alla med en remsa överst. Ett demokonto har aldrig en
-  publik sida.
+- Kundens landningssidor (`/lp/`) är alltid öppna, oavsett kampanjens läge
+  och även för demokontot, ett avstängt konto och en inaktiv kund. Byrån ser
+  en sida som inte är live med en remsa överst. Noindex, `Disallow: /lp/` i
+  robots.txt och aldrig i sitemapen.
 - Byråns Google-sidor kräver byrån (`staff_required`). Nycklarna visas
   aldrig, bara namnen på inställningar som saknas.
 - Ett Google Ads-konto hör till en kund: ett id som ett annat (riktigt)
@@ -408,8 +437,9 @@ formulär hämtas med `account=account`.
      per konto och dygn (`limits.reserve_publish`), och samma larm om samma
      kampanj går till byrån högst en gång i timmen (`alerts.py`). Byrån
      publicerar från kön utan gräns.
-   - Pausa och återuppta stänger och öppnar sidan, hos Google först för en
-     kampanj som publicerats med API:t.
+   - Pausa och återuppta stänger och öppnar kampanjen, hos Google först för
+     en kampanj som publicerats med API:t. Sidan på `/lp/` är öppen hela
+     tiden; klicken på numret räknas bara medan kampanjen är live.
 9. **Förfrågan** (`public_views.py`, `leads.py`): formuläret skapar en
    `Lead` med klick-id (gclid, gbraid, wbraid i egna fält) och utm ur
    adressen. Ett klick på numret eller ringknappen blir också en `Lead`
@@ -785,8 +815,8 @@ I produktion finns ingen användare som kan logga in på demokunden. Byrån
 öppnar den med "Visa Flamingo som kunden" på kundkortet. Lokalt finns
 kontakten demo@exempelror.example, utan lösenord.
 
-Ett demokonto skickar aldrig något: `/lp/` är 404 för alla utom byrån,
-hemsidan läses aldrig av (`scan.demo_refusal`), Google Places frågas aldrig
+Ett demokonto skickar aldrig något: sidorna på `/lp/` är öppna (beslut
+2026-10-04) men klicken på numret räknas aldrig, hemsidan läses aldrig av (`scan.demo_refusal`), Google Places frågas aldrig
 (`places.update_from_google`, `reviews.refusal`), Reco anropas aldrig
 (`reco.refusal`) och ingen ruta laddas från Reco, inga bilder hämtas från
 någon hemsida (`media.DEMO_REFUSED`), inga sms (`sms.NOTE_DEMO`), inga anrop till

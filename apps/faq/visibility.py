@@ -3,7 +3,8 @@ Vilka FAQ-sektioner som får synas på den publika sajten.
 
 En aktiv ADX-sektion är publik på /faq/ och /faq/<slug>/, i sitemapen och
 därmed i 404-förslagen. En sektion med designen ADX Flamingo är det aldrig:
-Flamingo ligger bakom behörighet (apps/flamingo).
+den visas bara i FAQ-block på Flamingos sidor (/flamingo/, apps/flamingo),
+som är öppna sedan 2026-10-04.
 """
 
 

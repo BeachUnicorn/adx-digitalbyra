@@ -304,16 +304,22 @@ class GateTests(CoreFixture, TestCase):
         self.assertContains(response, "Kunden har inte ADX Flamingo")
         self.assertFalse(FlamingoAccount.objects.filter(customer=self.plain).exists())
 
-    def test_landing_pages_are_public_and_only_when_live(self):
+    def test_landing_pages_are_always_open_and_never_indexed(self):
+        """Giovanni 2026-10-04: varje kampanjs sida är öppen utan inloggning,
+        vilket läge kampanjen än har och även när kontot är avstängt. Bara en
+        okänd adress är 404."""
         self.assertEqual(Client().get("/lp/finns-inte/").status_code, 404)
-        self.assertEqual(Client().get(self.draft.landing_url).status_code, 404)
-        response = Client().get(self.live.landing_url)
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Rörjour i Nacka")
+        for campaign in (self.live, self.draft):
+            with self.subTest(campaign=campaign.name):
+                response = Client().get(campaign.landing_url)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
+                self.assertNotContains(response, "Förhandsvisning")
+        self.assertContains(Client().get(self.live.landing_url), "Rörjour i Nacka")
         thanks = reverse("flamingo_public:thanks", args=[self.live.page_slug])
         self.assertEqual(Client().get(thanks).status_code, 200)
         FlamingoAccount.objects.filter(pk=self.account.pk).update(is_enabled=False)
-        self.assertEqual(Client().get(self.live.landing_url).status_code, 404)
+        self.assertEqual(Client().get(self.live.landing_url).status_code, 200)
 
     def test_manage_routes_need_staff(self):
         gets = [

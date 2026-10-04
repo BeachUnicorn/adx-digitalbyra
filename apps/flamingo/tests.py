@@ -43,10 +43,13 @@ class FlamingoFixture:
 
 
 class GateTests(FlamingoFixture, TestCase):
-    def test_everyone_without_flamingo_gets_the_plain_site_404(self):
+    """Bara verktyget (/flamingo/app/...) kräver Flamingo-behörighet
+    (Giovanni 2026-10-04). Utan behörighet är det en okänd adress."""
+
+    def test_everyone_without_flamingo_gets_the_plain_site_404_in_the_app(self):
         unknown = Client().get("/finns-inte-alls/")
         for client in (Client(), self.client_for(self.bo)):
-            for path in ("/flamingo/", "/flamingo/app/", "/flamingo/fl-priser/", "/flamingo/x/"):
+            for path in ("/flamingo/app/", "/flamingo/app/kampanjer/", "/flamingo/app/x/"):
                 with self.subTest(path=path):
                     response = client.get(path)
                     self.assertEqual(response.status_code, 404)
@@ -57,16 +60,15 @@ class GateTests(FlamingoFixture, TestCase):
                         [t.name for t in unknown.templates][:1],
                     )
 
-    def test_without_access_flamingo_behaves_exactly_like_an_unknown_address(self):
+    def test_without_access_the_app_behaves_exactly_like_an_unknown_address(self):
         """Status och rubriker som för en adress som inte finns, för varje
         metod och variant (granskningen 2026-10-03 hittade tre skillnader)."""
         pairs = [
-            ("/flamingo/", "/finns-inte/"),
-            ("/flamingo/?x=1", "/finns-inte/?x=1"),
-            ("/flamingo", "/finns-inte"),
             ("/flamingo/app", "/finns-inte/app"),
             ("/flamingo/app/", "/finns-inte/app/"),
-            ("/flamingo/fl-priser/", "/finns-inte/fl-priser/"),
+            ("/flamingo/app/?x=1", "/finns-inte/app/?x=1"),
+            ("/flamingo/app/kampanjer/", "/finns-inte/app/kampanjer/"),
+            ("/flamingo/app/inkorg/1/", "/finns-inte/app/inkorg/1/"),
         ]
         headers = ("Location", "X-Frame-Options", "X-Robots-Tag", "Cache-Control")
         for user in (None, self.bo):
@@ -83,6 +85,20 @@ class GateTests(FlamingoFixture, TestCase):
                             want = b.get(header, "").replace("finns-inte", "flamingo")
                             self.assertEqual(a.get(header, ""), want, header)
 
+    def test_the_published_pages_are_open_to_everyone(self):
+        for client in (Client(), self.client_for(self.bo), self.client_for(self.anna)):
+            with self.subTest(client=client):
+                response = client.get("/flamingo/")
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, "Välkommen")
+                self.assertNotIn("X-Robots-Tag", response)
+
+    def test_unpublished_pages_are_404_for_everyone_but_staff(self):
+        for client in (Client(), self.client_for(self.bo), self.client_for(self.anna)):
+            with self.subTest(client=client):
+                self.assertEqual(client.get("/flamingo/fl-priser/").status_code, 404)
+        self.assertEqual(self.client_for(self.staff).get("/flamingo/fl-priser/").status_code, 200)
+
     def test_staff_viewing_as_reaches_the_view(self):
         """Kundvyn är inte längre skrivskyddad: grinden släpper fram en POST
         till vyn (Giovanni 2026-10-03, "visa som kund")."""
@@ -93,28 +109,28 @@ class GateTests(FlamingoFixture, TestCase):
         response = client.post("/flamingo/app/", {"x": "1"})
         self.assertNotEqual(response.get("Location"), "/flamingo/app/")
 
-    def test_a_contact_with_flamingo_sees_published_pages_only(self):
+    def test_a_contact_with_flamingo_reaches_the_app_unindexed(self):
         client = self.client_for(self.anna)
-        response = client.get("/flamingo/")
+        response = client.get("/flamingo/app/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Välkommen", response.content.decode())
         self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
         self.assertIn("no-store", response["Cache-Control"])
         self.assertEqual(client.get("/flamingo/fl-priser/").status_code, 404)
-        self.assertEqual(client.get("/flamingo/app/").status_code, 200)
 
     def test_staff_sees_drafts(self):
         client = self.client_for(self.staff)
         self.assertEqual(client.get("/flamingo/fl-priser/").status_code, 200)
 
-    def test_deactivation_and_an_inactive_customer_take_effect_at_once(self):
+    def test_deactivation_and_an_inactive_customer_close_the_app_at_once(self):
         client = self.client_for(self.anna)
-        self.assertEqual(client.get("/flamingo/").status_code, 200)
+        self.assertEqual(client.get("/flamingo/app/").status_code, 200)
         FlamingoAccount.objects.filter(customer=self.acme).update(is_enabled=False)
-        self.assertEqual(client.get("/flamingo/").status_code, 404)
+        self.assertEqual(client.get("/flamingo/app/").status_code, 404)
+        # Marknadssidorna är öppna ändå.
+        self.assertEqual(client.get("/flamingo/").status_code, 200)
         FlamingoAccount.objects.filter(customer=self.acme).update(is_enabled=True)
         Customer.objects.filter(pk=self.acme.pk).update(is_active=False)
-        self.assertEqual(client.get("/flamingo/").status_code, 404)
+        self.assertEqual(client.get("/flamingo/app/").status_code, 404)
 
     def test_a_tampered_session_choice_never_picks_a_foreign_customer(self):
         client = self.client_for(self.anna)
@@ -130,8 +146,8 @@ class GateTests(FlamingoFixture, TestCase):
         session = client.session
         session[VIEW_AS_KEY] = self.other.pk
         session.save()
-        response = client.get("/flamingo/")
-        self.assertContains(response, "får 404 här")
+        response = client.get("/flamingo/app/")
+        self.assertContains(response, "får 404 i appen")
 
     def test_unknown_flamingo_path_for_an_insider_uses_the_flamingo_404(self):
         response = self.client_for(self.anna).get("/flamingo/finns-inte/")
@@ -146,15 +162,14 @@ class LeakTests(FlamingoFixture, TestCase):
         self.assertEqual(Client().get("/fl-priser/").status_code, 404)
         self.assertEqual(self.client_for(self.staff).get("/fl-priser/").status_code, 404)
 
-    def test_not_in_the_sitemap_menus_link_picker_or_homepage(self):
+    def test_not_in_the_menus_link_picker_or_homepage(self):
+        """Flamingos sidor står i sitemapen (OpenPagesTests), men hör inte
+        till ADX:s egen sajt: inga menyer, ingen länkväljare, ingen startsida."""
         from apps.manage.forms import MenuItemForm
         from apps.website.links import linkable_targets
         from apps.website.models import SiteSettings
 
         BlockPage.objects.filter(pk=self.prices.pk).update(is_published=True)
-        xml = Client().get("/sitemap.xml").content.decode()
-        self.assertNotIn("flamingo", xml)
-        self.assertNotIn("fl-priser", xml)
         picker_ids = {t["link"]["id"] for t in linkable_targets() if t["link"]["kind"] == "page"}
         self.assertNotIn(self.home.pk, picker_ids)
         self.assertNotIn(self.home, MenuItemForm().fields["page"].queryset)
@@ -169,13 +184,84 @@ class LeakTests(FlamingoFixture, TestCase):
         self.assertEqual(self.home.get_absolute_url(), "/flamingo/")
         self.assertEqual(self.prices.get_absolute_url(), "/flamingo/fl-priser/")
 
-    def test_robots_txt_does_not_announce_the_area(self):
-        self.assertNotIn("flamingo", Client().get("/robots.txt").content.decode())
-
     def test_a_customer_on_flamingo_sees_no_staff_tools(self):
         html = self.client_for(self.anna).get("/flamingo/").content.decode()
         self.assertNotIn("/manage/blocks/", html)
         self.assertNotIn("c-admin-dock", html)
+
+
+class OpenPagesTests(FlamingoFixture, TestCase):
+    """Giovanni 2026-10-04: Flamingos publicerade sidor ska hittas, kundernas
+    landningssidor (/lp/) är öppna men ska inte hittas."""
+
+    @classmethod
+    def setUpTestData(cls):
+        from .models import Campaign, Service
+        from .testing import pages_from_campaigns
+
+        super().setUpTestData()
+        account = FlamingoAccount.objects.get(customer=cls.acme)
+        service = Service.objects.create(account=account, name="Rörjour")
+        cls.live = Campaign.objects.create(
+            account=account,
+            service=service,
+            name="Rörjour Nacka",
+            status=Campaign.STATUS_LIVE,
+            page={"title": "Rörjour i Nacka"},
+        )
+        pages_from_campaigns(cls.live)
+
+    def test_robots_txt_hides_the_landing_pages_but_not_flamingo(self):
+        lines = Client().get("/robots.txt").content.decode().splitlines()
+        self.assertIn("Disallow: /lp/", lines)
+        self.assertFalse([line for line in lines if "flamingo" in line], lines)
+
+    def test_the_sitemap_lists_published_flamingo_pages_only(self):
+        xml = Client().get("/sitemap.xml").content.decode()
+        self.assertIn("/flamingo/", xml)
+        self.assertNotIn("fl-priser", xml)
+        self.assertNotIn("/flamingo/app/", xml)
+        self.assertNotIn("/lp/", xml)
+        BlockPage.objects.filter(pk=self.prices.pk).update(is_published=True)
+        self.assertIn("/flamingo/fl-priser/", Client().get("/sitemap.xml").content.decode())
+
+    def test_the_marketing_page_is_indexable_and_the_landing_page_is_not(self):
+        page = Client().get("/flamingo/")
+        self.assertEqual(page.status_code, 200)
+        self.assertNotIn("X-Robots-Tag", page)
+        self.assertNotIn('name="robots" content="noindex', page.content.decode())
+        landing = Client().get(self.live.landing_url)
+        self.assertEqual(landing.status_code, 200)
+        self.assertEqual(landing["X-Robots-Tag"], "noindex, nofollow")
+        self.assertIn('name="robots" content="noindex', landing.content.decode())
+
+    def test_an_anonymous_visitor_is_offered_the_login_and_not_the_tool(self):
+        html = Client().get("/flamingo/").content.decode()
+        self.assertIn("Logga in", html)
+        self.assertNotIn("Verktyget", html)
+        self.assertNotIn('href="/flamingo/app/"', html)
+        self.assertNotIn("Logga ut", html)
+        # En kontakt med Flamingo får verktyget, inte inloggningen.
+        html = self.client_for(self.anna).get("/flamingo/").content.decode()
+        self.assertIn("Verktyget", html)
+        self.assertNotIn("Logga in<", html)
+
+    def test_analytics_counts_the_marketing_pages_only(self):
+        from apps.analytics.models import PageView
+
+        chrome = (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"
+        )
+        self.assertEqual(Client().get("/flamingo/", HTTP_USER_AGENT=chrome).status_code, 200)
+        self.assertEqual(
+            self.client_for(self.anna).get("/flamingo/app/", HTTP_USER_AGENT=chrome).status_code,
+            200,
+        )
+        self.assertEqual(
+            Client().get(self.live.landing_url, HTTP_USER_AGENT=chrome).status_code, 200
+        )
+        self.assertEqual(list(PageView.objects.values_list("path", flat=True)), ["/flamingo/"])
 
 
 class ManageTests(FlamingoFixture, TestCase):
@@ -354,7 +440,9 @@ class SeedFlamingoTests(TestCase):
         self.assertEqual(page.blocks.count(), count)
         self.assertEqual(BlockPage.objects.filter(design=BlockPage.DESIGN_FLAMINGO).count(), 1)
 
-    def test_the_faq_answers_only_behind_the_gate(self):
+    def test_the_faq_answers_only_on_flamingo_pages(self):
+        """Flamingos FAQ syns på Flamingos öppna sidor (Giovanni 2026-10-04),
+        aldrig på ADX:s /faq/, i ADX:s FAQ-block eller som egen post i sitemapen."""
         from apps.faq.models import FAQSection
 
         page = self.seed()
@@ -362,9 +450,8 @@ class SeedFlamingoTests(TestCase):
         faq_block = page.blocks.get(block_type="faq")
         section = FAQSection.objects.get(pk=faq_block.data["faq_section_id"])
         self.assertGreaterEqual(section.items.count(), 6)
-        self.assertContains(self.staff_client().get("/flamingo/"), section.items.first().question)
-
         public = Client()
+        self.assertContains(public.get("/flamingo/"), section.items.first().question)
         self.assertEqual(public.get(f"/faq/{section.slug}/").status_code, 404)
         self.assertNotIn(section.slug, public.get("/faq/").content.decode())
         self.assertNotIn(section.slug, public.get("/sitemap.xml").content.decode())

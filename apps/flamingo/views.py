@@ -1,7 +1,9 @@
 """
 Flamingos sidor. Innehållet är vanliga blocksidor (BlockPage med
 design="flamingo") som redigeras i /manage/ som alla andra sidor; vyerna här
-lägger bara på behörighet och Flamingos egen grundmall.
+lägger bara på Flamingos egen grundmall. De publicerade sidorna är öppna för
+alla, indexeras och står i sitemapen (Giovanni 2026-10-04); opublicerade
+sidor ser bara byrån. Bara verktyget kräver behörighet.
 
 Verktyget (/flamingo/app/...) bor i app_views/, kundens landningssidor
 (/lp/...) i public_views.py och byråns granskning i manage_review.py.
@@ -18,8 +20,10 @@ from .access import access_for
 
 
 def flamingo_required(view):
-    """Vyn kräver Flamingo-behörighet. Grinden (middleware) har normalt redan
-    avgjort det; utkastförhandsvisningen kör utan middleware och räknas här."""
+    """Vyn kräver att grinden (middleware) gett förfrågan en FlamingoAccess.
+    På Flamingos sidor får alla en (PUBLIC utan behörighet); i verktyget bara
+    den med behörighet. Utkastförhandsvisningen kör utan middleware och
+    räknas här."""
 
     @wraps(view)
     def wrapper(request, *args, **kwargs):

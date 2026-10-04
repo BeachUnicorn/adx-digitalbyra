@@ -204,8 +204,8 @@ class SiteSettingsForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Sidfotens blocksida är en del av den publika sajten: aldrig en
-        # ADX Flamingo-sida (de ligger bakom behörighet).
+        # Sidfotens blocksida är en del av ADX:s sajt: aldrig en ADX
+        # Flamingo-sida (de har egen design och hör till /flamingo/).
         field = self.fields.get("footer_component_page")
         if field is not None:
             field.queryset = BlockPage.objects.filter(design=BlockPage.DESIGN_ADX)

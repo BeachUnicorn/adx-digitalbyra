@@ -79,8 +79,9 @@ class BlockPage(models.Model):
     #: Designen avgör allt som skiljer: vilken grundmall och stilmall sidan
     #: får, vilka blocktyper som går att lägga på den, adressen och vem som
     #: ser den. ADX-sidor är publika på /<slug>/. ADX Flamingo-sidor ligger
-    #: under /flamingo/ bakom Flamingo-behörigheten (apps/flamingo) och syns
-    #: aldrig i sitemap, menyer, länkring eller 404-förslag.
+    #: under /flamingo/ (apps/flamingo): publicerade är de öppna och står i
+    #: sitemapen och därmed i 404-förslagen (Giovanni 2026-10-04), men de
+    #: syns aldrig i ADX:s menyer eller länkring.
     DESIGN_ADX = ""
     DESIGN_FLAMINGO = "flamingo"
     DESIGN_CHOICES = [(DESIGN_ADX, "ADX"), (DESIGN_FLAMINGO, "ADX Flamingo")]

@@ -38,11 +38,12 @@ urlpatterns = [
     path("kund/sms/", include("apps.sms.portal_urls")),
     # Kundportalen (apps/projects). Före sajtens slug-catchall.
     path("kund/", include("apps.projects.portal_urls")),
-    # ADX Flamingo, bakom behörighet (apps/flamingo). Före sajtens slug-catchall,
-    # annars skulle en Flamingo-sida kunna nås obehörigt via /<slug>/.
+    # ADX Flamingo (apps/flamingo): sidorna öppna, verktyget (app/) bakom
+    # behörighet. Före sajtens slug-catchall, annars skulle en Flamingo-sida
+    # (även ett utkast) kunna nås via /<slug>/.
     path("flamingo/", include("apps.flamingo.urls")),
-    # Flamingo-kundernas landningssidor (apps/flamingo/public_urls.py). Publika:
-    # de är till för kundens kunder. Före sajtens slug-catchall.
+    # Flamingo-kundernas landningssidor (apps/flamingo/public_urls.py). Alltid
+    # öppna, men noindex och nekade i robots.txt. Före sajtens slug-catchall.
     path("lp/", include("apps.flamingo.public_urls")),
     # JSON-API för Mac-appen ADX Fokus (apps/projects/api.py).
     path("api/v1/", include("apps.projects.api_urls")),

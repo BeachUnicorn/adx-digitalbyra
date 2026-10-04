@@ -8,10 +8,15 @@ Vem får se ADX Flamingo. Reglerna bor här och ingen annanstans.
                                Flamingo (kunden själv får 404)
     kontakt hos en kund med    Flamingo-sidorna och verktyget för den kunden
     Flamingo aktiverat
-    alla andra                 samma 404 som för vilken okänd adress som helst
+    alla andra                 Flamingos publicerade sidor (PUBLIC); i
+                               verktyget samma 404 som för vilken okänd
+                               adress som helst
 
-Ingen omdirigering till inloggning och inget 403: båda avslöjar att något
-finns här. Behörigheten läses från databasen vid varje anrop, så en
+Bara verktyget (/flamingo/app/...) kräver behörighet (Giovanni 2026-10-04).
+Flamingos publicerade sidor är öppna och indexeras; kundernas landningssidor
+(/lp/) går inte genom den här grinden alls (public_views.py). I verktyget
+ingen omdirigering till inloggning och inget 403: båda avslöjar att något
+finns där. Behörigheten läses från databasen vid varje anrop, så en
 avaktivering gäller direkt.
 """
 
@@ -84,7 +89,8 @@ def flamingo_customers(user):
 
 
 def resolve(request):
-    """FlamingoAccess för förfrågan, eller None när den ska få 404."""
+    """FlamingoAccess för förfrågan, eller None utan behörighet (404 i
+    verktyget, PUBLIC på de publicerade sidorna, se middleware.py)."""
     # Utkastförhandsvisningen i /manage/ anropar vyn direkt, utan middleware,
     # med en syntetisk förfrågan (apps/assistant/preview.py). Flaggan går
     # inte att sätta utifrån.

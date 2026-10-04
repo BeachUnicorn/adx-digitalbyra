@@ -2,7 +2,7 @@
 Sajtens adresser som om ADX Flamingo inte fanns.
 
 Flamingogrinden (apps/flamingo/middleware.py) routar en obehörig förfrågan
-under /flamingo/ hit i stället för att svara själv. Då går den genom exakt
+till verktyget (/flamingo/app/...) hit i stället för att svara själv. Då går den genom exakt
 samma kedja som vilken okänd adress som helst - CSRF, APPEND_SLASH,
 X-Frame-Options, sajtens 404 - och svaret går inte att skilja från en
 adress som inte finns.

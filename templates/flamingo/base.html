@@ -3,7 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
+{% comment %}Verktyget och 404-sidan indexeras aldrig. Flamingos publicerade sidor
+ska hittas (Giovanni 2026-10-04): page.html tar bort raden för dem.{% endcomment %}
+{% block robots %}<meta name="robots" content="noindex, nofollow">{% endblock %}
 <title>{% block title %}ADX Flamingo{% endblock %}</title>
 {% comment %}
 ADX Flamingo har egen design och laddar aldrig site.css. site-tools.css är
@@ -28,7 +30,7 @@ innan en Flamingo-404 kan visas - därav reserven.
 {% if fa.mode == "viewing_as" %}
 <div class="fl-staffbar" role="status">
   <div class="fl-wrap fl-staffbar__in">
-    <p class="fl-staffbar__text">Du ser Flamingo som {{ fa.customer.name }}. Det du sparar här gäller på riktigt och sparas i ditt namn.{% if fa.customer_lacks_flamingo %} Kunden har inte Flamingo aktiverat och får 404 här.{% endif %}</p>
+    <p class="fl-staffbar__text">Du ser Flamingo som {{ fa.customer.name }}. Det du sparar här gäller på riktigt och sparas i ditt namn.{% if fa.customer_lacks_flamingo %} Kunden har inte Flamingo aktiverat och får 404 i appen.{% endif %}</p>
     <form method="post" action="{% url 'portal:leave_view_as' %}">{% csrf_token %}<button type="submit" class="fl-staffbar__btn">Lämna kundvyn</button></form>
   </div>
 </div>

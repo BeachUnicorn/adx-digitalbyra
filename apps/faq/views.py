@@ -8,8 +8,8 @@ from .visibility import public_sections
 
 
 def section_list(request):
-    # Bara publika sektioner: en sektion som bara används av ADX Flamingo
-    # ligger bakom Flamingos behörighet (visibility.py).
+    # Bara ADX-sektioner: en sektion för ADX Flamingo hör till Flamingos
+    # sidor, inte till /faq/ (visibility.py).
     sections = public_sections()
     context = _get_site_context()
     context["sections"] = sections
@@ -39,8 +39,8 @@ def _owner_links(section):
     from apps.website.models import Block
 
     links = []
-    # Bara ADX-sidor: en Flamingo-sida ligger bakom behörighet och får inte
-    # länkas från den publika FAQ:n.
+    # Bara ADX-sidor: Flamingos sidor hör till /flamingo/ och länkas inte
+    # från ADX:s FAQ.
     faq_blocks = Block.objects.filter(
         block_type="faq", is_visible=True, page__is_published=True, page__design=""
     ).select_related("page")

@@ -72,7 +72,8 @@ class FAQSitemap(Sitemap):
     priority = 0.5
 
     def items(self):
-        # Flamingo-sektioner ligger bakom behörighet och hålls utanför.
+        # Flamingos FAQ-sektioner hör till Flamingos sidor (som står i
+        # BlockPageSitemap), inte till ADX:s /faq/, och hålls utanför.
         return public_sections()
 
     def location(self, obj):

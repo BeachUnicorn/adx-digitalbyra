@@ -466,20 +466,35 @@ class DemoStaffViewTests(DemoFixture, TestCase):
 
 
 class DemoLandingTests(DemoFixture, TestCase):
-    def test_the_live_page_is_404_for_visitors(self):
-        url = self.live.landing_url
+    def test_every_demo_page_is_open_to_visitors(self):
+        """Giovanni 2026-10-04: även demokontots sidor är öppna. De hittas
+        inte (noindex, robots.txt) och visar ingen förhandsvisningsremsa."""
         thanks = reverse("flamingo_public:thanks", args=[self.live.page_slug])
-        self.assertEqual(Client().get(url).status_code, 404)
-        self.assertEqual(Client().get(thanks).status_code, 404)
-        before = Lead.objects.count()
-        response = Client().post(url, {"name": "Test", "phone": "070-174 06 50"})
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(Lead.objects.count(), before)
+        self.assertEqual(Client().get(thanks).status_code, 200)
+        for campaign in self.account.campaigns.all():
+            with self.subTest(campaign=campaign.name):
+                response = Client().get(campaign.landing_url)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
+                self.assertFalse(response.context["preview"])
 
-    def test_the_demo_customers_own_contact_gets_404_too(self):
+    def test_the_demo_customers_own_contact_sees_the_pages_like_anyone(self):
         _user, client = self.demo_contact()
         for campaign in self.account.campaigns.all():
-            self.assertEqual(client.get(campaign.landing_url).status_code, 404, campaign.name)
+            with self.subTest(campaign=campaign.name):
+                response = client.get(campaign.landing_url)
+                self.assertEqual(response.status_code, 200)
+                self.assertFalse(response.context["preview"])
+
+    def test_a_click_on_the_number_is_never_counted_for_the_demo(self):
+        """Klicken på numret räknas bara för live-kampanjer utanför demokontot
+        (oförändrat 2026-10-04): sidan får ingen adress att skicka dem till."""
+        before = Lead.objects.count()
+        response = Client().get(self.live.landing_url)
+        self.assertEqual(response.context["call_beacon"], "")
+        click = reverse("flamingo_public:call_click", args=[self.live.page_slug])
+        self.assertEqual(Client().post(click).status_code, 404)
+        self.assertEqual(Lead.objects.count(), before)
 
     def test_staff_preview_works_and_creates_nothing(self):
         client = self.staff_client()
@@ -509,9 +524,11 @@ class DemoLandingTests(DemoFixture, TestCase):
         session.save()
         self.assertEqual(client.get(self.live.landing_url).status_code, 200)
 
-    def test_the_flag_is_what_closes_the_page(self):
+    def test_the_flag_is_what_stops_the_counting(self):
+        click = reverse("flamingo_public:call_click", args=[self.live.page_slug])
+        self.assertEqual(Client().post(click).status_code, 404)
         FlamingoAccount.objects.filter(pk=self.account.pk).update(is_demo=False)
-        self.assertEqual(Client().get(self.live.landing_url).status_code, 200)
+        self.assertEqual(Client().post(click).status_code, 204)
 
 
 class DemoScanTests(DemoFixture, TestCase):
