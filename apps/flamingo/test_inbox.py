@@ -207,6 +207,20 @@ class LandingPageTests(InboxFixture, TestCase):
         self.assertEqual(Client().post(click).status_code, 404)
         self.assertFalse(Lead.objects.filter(campaign=self.call_page).exists())
 
+    def test_the_form_saves_inquiries_even_when_the_page_is_not_live(self):
+        """Giovanni 2026-10-04: en förfrågan sparas även när sidan inte är
+        live (utkast, granskning, pausad), så att ingen förfrågan försvinner."""
+        for status in (
+            Campaign.STATUS_DRAFT,
+            Campaign.STATUS_IN_REVIEW,
+            Campaign.STATUS_PAUSED,
+        ):
+            Campaign.objects.filter(pk=self.call_page.pk).update(status=status)
+            before = Lead.objects.filter(campaign=self.call_page).count()
+            with self.subTest(status=status):
+                Client().post(self.call_page.landing_url, {"phone": "070-111 22 33"})
+                self.assertEqual(Lead.objects.filter(campaign=self.call_page).count(), before + 1)
+
     def test_an_unknown_address_is_the_normal_site_404(self):
         unknown = Client().get("/finns-inte-alls-xyz/")
         response = Client().get("/lp/finns-inte-xyz/")
