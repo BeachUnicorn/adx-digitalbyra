@@ -32,6 +32,8 @@ STAFF = "staff"
 VIEWING_AS = "viewing_as"
 CONTACT = "contact"
 PREVIEW = "preview"
+#: En besökare utan behörighet på Flamingos publicerade sidor (inte verktyget).
+PUBLIC = "public"
 
 
 @dataclass
@@ -60,6 +62,14 @@ class FlamingoAccess:
     def sees_drafts(self):
         """Opublicerade Flamingo-sidor syns för byrån, aldrig för kunder."""
         return self.is_agency
+
+
+APP_PREFIX = PREFIX + "app/"
+
+
+def is_app_path(path):
+    """Verktyget: kräver alltid Flamingo-behörighet."""
+    return path == APP_PREFIX.rstrip("/") or path.startswith(APP_PREFIX)
 
 
 def is_flamingo_path(path):

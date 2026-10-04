@@ -56,6 +56,8 @@ def robots_txt(request):
         "Disallow: /offert/",
         "Disallow: /kund/",
         "Disallow: /aiz/",
+        # Kundernas landningssidor (Flamingo) är öppna men ska inte hittas.
+        "Disallow: /lp/",
         "Disallow: /status/",
         "",
         f"Sitemap: {base}/sitemap.xml",

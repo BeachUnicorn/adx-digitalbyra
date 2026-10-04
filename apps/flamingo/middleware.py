@@ -16,7 +16,7 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.utils.cache import add_never_cache_headers
 
-from .access import is_flamingo_path, resolve
+from .access import PUBLIC, FlamingoAccess, is_app_path, is_flamingo_path, resolve
 
 SAFE_METHODS = ("GET", "HEAD", "OPTIONS")
 
@@ -31,6 +31,13 @@ class FlamingoGateMiddleware:
         if not is_flamingo_path(request.path_info):
             return self.get_response(request)
         access = resolve(request)
+        app = is_app_path(request.path_info)
+        if access is None and not app:
+            # Flamingos publicerade sidor är öppna för alla, indexeras och
+            # står i sitemapen (Giovanni 2026-10-04). Bara verktyget kräver
+            # behörighet; utkast visas aldrig för PUBLIC (views.flamingo_page).
+            request.flamingo = FlamingoAccess(PUBLIC)
+            return self.get_response(request)
         if access is None:
             request.urlconf = "config.urls_public"
             return self.get_response(request)
@@ -39,6 +46,7 @@ class FlamingoGateMiddleware:
             messages.info(request, "Förhandsvisningen är skrivskyddad.")
             return redirect(request.path_info)
         response = self.get_response(request)
-        response["X-Robots-Tag"] = "noindex, nofollow"
+        if app:
+            response["X-Robots-Tag"] = "noindex, nofollow"
         add_never_cache_headers(response)
         return response

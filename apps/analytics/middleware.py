@@ -46,9 +46,9 @@ _SKIP_PREFIXES = (
     # AI-guiderna bär åtkomstkoden i adressen - den får aldrig hamna i PageView.path.
     "/aiz/",
     "/status/",
-    # ADX Flamingo ligger bakom behörighet; dess sidor räknas inte som
-    # besök på den publika sajten.
-    "/flamingo/",
+    # Flamingos verktyg är inloggat; dess sidor räknas inte som besök.
+    # Flamingos publicerade sidor (/flamingo/, /flamingo/<slug>/) räknas.
+    "/flamingo/app/",
     # Flamingo-kundernas egna landningssidor: deras besökare är inte adx.se:s
     # besökare. Inga sidvisningar och inga ADX-kakor där.
     "/lp/",

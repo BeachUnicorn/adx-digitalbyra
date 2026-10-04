@@ -74,12 +74,13 @@ DRAFT_PARAM = "utkast"
 
 
 def _campaign_for(request, slug):
-    """(kampanjen, förhandsvisning?) eller 404.
+    """(kampanjen, förhandsvisning?) eller 404 för en okänd adress.
 
-    Publik: live på ett aktiverat konto hos en aktiv kund. Byrån ser allt
-    annat som förhandsvisning; alla andra får 404. Ett demokonto har aldrig
-    en publik sida: ett påhittat företag ska inte gå att hitta, inte ens
-    för demokundens kontakt."""
+    Alla landningssidor är alltid öppna utan inloggning, vilket läge
+    kampanjen än har och även för demokontot (Giovanni 2026-10-04). De
+    hittas inte av sökmotorer: robots.txt nekar /lp/, sidorna har noindex och
+    står aldrig i sitemapen. Byrån ser en sida som inte är live som
+    förhandsvisning (remsan överst, formuläret skickar inget)."""
     campaign = (
         Campaign.objects.select_related("account__customer", "service", "landing_page")
         .filter(page_slug=slug)
@@ -88,17 +89,15 @@ def _campaign_for(request, slug):
     if campaign is None:
         raise Http404
     account = campaign.account
-    public = (
+    live = (
         campaign.is_public
         and account.is_enabled
         and account.customer.is_active
         and not account.is_demo
     )
-    if public:
-        return campaign, False
-    if is_agency_user(request.user):
+    if not live and is_agency_user(request.user):
         return campaign, True
-    raise Http404
+    return campaign, False
 
 
 def _page_for(request, campaign, preview):
@@ -108,20 +107,12 @@ def _page_for(request, campaign, preview):
     page = campaign.landing_page
     staff = is_agency_user(request.user)
     if page is None:
-        if not preview:
-            logger.error("flamingo lp: kampanj %s är live men saknar sida", campaign.pk)
-            raise Http404
         page = pagebuilder.ensure_own_page(campaign)
         campaign.landing_page = page
     wants_draft = staff and request.GET.get(DRAFT_PARAM) == "1"
     if not page.is_published:
-        if not preview and not staff:
-            logger.error(
-                "flamingo lp: kampanj %s är live men sidan %s är inte publicerad",
-                campaign.pk,
-                page.pk,
-            )
-            raise Http404
+        # En sida som aldrig publicerats visas som den är (utkastet): alla
+        # landningssidor är öppna.
         return page, "draft"
     return page, "draft" if wants_draft else "published"
 

@@ -52,9 +52,11 @@ class BlockPageSitemap(Sitemap):
         """
         from apps.website.models import SiteSettings
 
-        # Flamingo-sidor ligger bakom behörighet: aldrig i sitemapen (och
-        # därmed aldrig i 404-förslagen eller länkrapportens crawl heller).
-        pages = BlockPage.objects.filter(is_published=True, design=BlockPage.DESIGN_ADX)
+        # Flamingos publicerade sidor är öppna och ska hittas (Giovanni
+        # 2026-10-04); verktyget och kundernas /lp/ står aldrig här.
+        pages = BlockPage.objects.filter(
+            is_published=True, design__in=(BlockPage.DESIGN_ADX, BlockPage.DESIGN_FLAMINGO)
+        )
         homepage_id = SiteSettings.load().homepage_id
         return pages.exclude(pk=homepage_id) if homepage_id else pages
 

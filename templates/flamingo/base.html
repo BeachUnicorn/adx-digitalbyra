@@ -47,12 +47,14 @@ innan en Flamingo-404 kan visas - därav reserven.
     <div class="fl-header__end">
       {% if fa.is_agency %}
       <a class="fl-header__link" href="{% url 'manage:flamingo_overview' %}">Panelen</a>
+      {% elif fa.mode == "public" %}
+      <a class="fl-header__link" href="{% url 'portal:home' %}">Logga in</a>
       {% else %}
       <a class="fl-header__link" href="{% url 'portal:home' %}">Kundportalen</a>
       <form method="post" action="{% url 'portal:logout' %}" class="fl-header__out">{% csrf_token %}<button type="submit" class="fl-header__link">Logga ut</button></form>
       {% endif %}
       {% comment %}app_active finns på varje sida i verktyget (också "" på Förslaget, byråns lista och no_account), aldrig på Flamingos sidor.{% endcomment %}
-      <a class="fl-btn fl-btn--sm" href="{{ app_url }}"{% if app_active is not None or request.path == app_url %} aria-current="page"{% endif %}>Verktyget</a>
+      {% if fa.mode != "public" %}<a class="fl-btn fl-btn--sm" href="{{ app_url }}"{% if app_active is not None or request.path == app_url %} aria-current="page"{% endif %}>Verktyget</a>{% endif %}
     </div>
     <button type="button" class="fl-burger" aria-label="Öppna meny" aria-expanded="false" aria-controls="fl-mob-menu" data-menu-open>
       <span></span><span></span><span></span>
@@ -75,10 +77,12 @@ portalen); stängs med Stäng, Esc eller en länk.
     <a href="{{ home_url }}"{% if request.path == home_url %} aria-current="page"{% endif %}>Start</a>
     {% for p in flamingo_nav %}<a href="{{ p.get_absolute_url }}"{% if request.path == p.get_absolute_url %} aria-current="page"{% endif %}>{{ p.title }}</a>{% endfor %}
   </nav>
-  <a class="fl-btn fl-mob-menu__cta" href="{{ app_url }}">Verktyget</a>
+  {% if fa.mode != "public" %}<a class="fl-btn fl-mob-menu__cta" href="{{ app_url }}">Verktyget</a>{% endif %}
   <div class="fl-mob-menu__foot">
     {% if fa.is_agency %}
     <a href="{% url 'manage:flamingo_overview' %}">Panelen</a>
+    {% elif fa.mode == "public" %}
+    <a href="{% url 'portal:home' %}">Logga in</a>
     {% else %}
     <a href="{% url 'portal:home' %}">Kundportalen</a>
     <form method="post" action="{% url 'portal:logout' %}">{% csrf_token %}<button type="submit">Logga ut</button></form>
