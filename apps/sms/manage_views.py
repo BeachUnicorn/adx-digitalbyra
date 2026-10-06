@@ -137,8 +137,11 @@ def customer_update(request, pk):
         messages.error(request, str(exc) if str(exc) else "Kontrollera fälten.")
         return _back(pk)
 
+    if is_new or sender != account.sender_name:
+        account.record_sender_change(request.user)
     account.sender_name = sender
     account.customer_manages_api = "customer_manages_api" in request.POST
+    account.customer_sets_sender = "customer_sets_sender" in request.POST
     account.markup_ore_per_part = markup
     account.yearly_fee_kr = fee
     if is_new or cap != account.monthly_cap_kr:

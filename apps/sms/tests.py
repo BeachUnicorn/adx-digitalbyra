@@ -2153,3 +2153,71 @@ class SelfServiceTests(SmsTestCase):
         client.post(reverse("manage:sms_customer_update", args=[self.acme.pk]), form)
         self.account.refresh_from_db()
         self.assertFalse(self.account.customer_manages_api)
+
+
+class SenderChoiceTests(SmsTestCase):
+    """Giovanni 2026-10-06: kunden får välja avsändarnamn om ADX slagit på
+    det på kundkortet. Byrån larmas vid varje byte; kunden mejlas inte."""
+
+    url = "/kund/sms/avsandare/"
+
+    def allow(self, on=True):
+        SmsAccount.objects.filter(pk=self.account.pk).update(customer_sets_sender=on)
+        self.account.refresh_from_db()
+
+    def test_off_by_default_the_customer_cannot_change_it(self):
+        self.client.force_login(self.contact)
+        page = self.client.get("/kund/sms/")
+        self.assertNotContains(page, 'name="sender_name"')
+        self.assertContains(page, "kontakta ADX")
+        self.assertEqual(self.client.post(self.url, {"sender_name": "Nytt"}).status_code, 404)
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.sender_name, "AcmeBygg")
+
+    def test_when_allowed_the_customer_sets_it_and_adx_is_alerted(self):
+        self.allow()
+        self.client.force_login(self.contact)
+        self.assertContains(self.client.get("/kund/sms/"), 'name="sender_name"')
+        self.client.post(self.url, {"sender_name": "AcmeTak"})
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.sender_name, "AcmeTak")
+        self.assertEqual(self.account.sender_changed_by, self.contact)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn("AcmeTak", mail.outbox[0].subject)
+        self.assertNotIn(self.contact.email, mail.outbox[0].to)
+
+    def test_invalid_names_are_refused(self):
+        self.allow()
+        self.client.force_login(self.contact)
+        for bad in ("A", "1Acme", "Acme Bygg", "Åkeri", "x" * 12, ""):
+            with self.subTest(bad=bad):
+                self.client.post(self.url, {"sender_name": bad})
+                self.account.refresh_from_db()
+                self.assertEqual(self.account.sender_name, "AcmeBygg")
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_the_api_follows_the_new_sender(self):
+        self.allow()
+        self.client.force_login(self.contact)
+        self.client.post(self.url, {"sender_name": "AcmeTak"})
+        self.account.refresh_from_db()
+        self.assertEqual(self.account.sender_name, "AcmeTak")
+
+    def test_customer_card_checkbox(self):
+        self.client.force_login(self.staff)
+        form = {
+            "is_enabled": "on",
+            "customer_sets_sender": "on",
+            "sender_name": "AcmeBygg",
+            "markup_ore_per_part": "5",
+            "yearly_fee_kr": "999",
+            "monthly_cap_kr": "500",
+            "allowed_countries": "SE",
+        }
+        self.client.post(reverse("manage:sms_customer_update", args=[self.acme.pk]), form)
+        self.account.refresh_from_db()
+        self.assertTrue(self.account.customer_sets_sender)
+        del form["customer_sets_sender"]
+        self.client.post(reverse("manage:sms_customer_update", args=[self.acme.pk]), form)
+        self.account.refresh_from_db()
+        self.assertFalse(self.account.customer_sets_sender)

@@ -23,6 +23,7 @@ from itertools import groupby
 
 from django.conf import settings
 from django.contrib import messages
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncDate
@@ -34,8 +35,15 @@ from django.views.decorators.http import require_POST
 
 from apps.projects.access import customer_for, is_agency_user, viewing_customer
 
-from . import numbers, pricing, ratelimit, service
-from .models import MAX_MONTHLY_CAP_KR, MonthlyStatement, SmsAccount, SmsApiKey, SmsMessage
+from . import alerts, numbers, pricing, ratelimit, service
+from .models import (
+    MAX_MONTHLY_CAP_KR,
+    MonthlyStatement,
+    SmsAccount,
+    SmsApiKey,
+    SmsMessage,
+    validate_sender,
+)
 
 #: Sms per sida i listan.
 PAGE_SIZE = 20
@@ -327,6 +335,34 @@ def key_revoke(request, pk):
             f"Nyckeln {key.name} är återkallad{_acting_note(request)}. Anrop med den nekas nu.",
         )
     return redirect("sms:keys")
+
+
+@require_POST
+@sms_portal
+def sender_update(request):
+    """Kunden väljer avsändarnamn, om ADX tillåtit det på kundkortet
+    (SmsAccount.customer_sets_sender). Byrån larmas vid varje byte."""
+    account = request.sms_account
+    if not account.customer_sets_sender:
+        raise Http404
+    new = (request.POST.get("sender_name") or "").strip()
+    try:
+        validate_sender(new)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+        return redirect(reverse("sms:dashboard") + "#avsandare")
+    old = account.sender_name
+    if new != old:
+        account.sender_name = new
+        account.record_sender_change(request.user)
+        account.save(
+            update_fields=["sender_name", "sender_changed_at", "sender_changed_by", "updated_at"]
+        )
+        alerts.sender_changed(account, old, new, request.user)
+    messages.success(
+        request, f"Avsändaren är {new}{_acting_note(request)}. Den gäller från nästa sms."
+    )
+    return redirect(reverse("sms:dashboard") + "#avsandare")
 
 
 @require_POST

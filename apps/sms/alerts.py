@@ -163,3 +163,22 @@ def provider_unknown(account, message, detail, now=None):
     except Exception:  # noqa: BLE001
         logger.exception("SMS-larmet om oklart svar misslyckades (konto %s)", account.pk)
         return False
+
+
+def sender_changed(account, old, new, user):
+    """Kunden (eller byrån i kundvyn) bytte avsändarnamn. Larm till byrån, så
+    att ett olämpligt namn upptäcks; kunden mejlas inte."""
+    who = ""
+    if user and user.is_authenticated:
+        who = user.get_full_name() or user.email or user.get_username()
+    return _send(
+        f"SMS: {account.customer.name} bytte avsändare till {new}",
+        [
+            f"{account.customer.name} har bytt avsändarnamn för sms.",
+            f"Förut: {old or '(inget)'}",
+            f"Nu: {new}",
+            f"Ändrat av: {who or 'okänd'}",
+            "",
+            f"Kundkortet: {_card_link(account)}",
+        ],
+    )

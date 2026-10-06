@@ -71,7 +71,7 @@ formulär, och det den gör gäller på riktigt.
     <tr><th scope="row">Länder</th><td>{% for code, name in country_names %}{{ name }} ({{ code }}){% if not forloop.last %}, {% endif %}{% endfor %}. Andra länder stoppas med <span class="sms-mono">country_not_allowed</span>.</td></tr>
     <tr><th scope="row">Pris</th><td>Ett pris per sms-del som beror på mottagarens land. Årsavgift {{ account.yearly_fee_kr }} kr. Allt utan moms, i efterhand per månad.</td></tr>
   </table>
-  <p class="tv-prop__note">Vill ni byta avsändare eller skicka till fler länder: kontakta ADX, så ändras det på kontot.</p>
+  <p class="tv-prop__note">{% if account.customer_sets_sender %}Avsändaren väljer ni på <a class="tv-link" href="{% url 'sms:dashboard' %}#avsandare">Översikt</a>. Vill ni skicka till fler länder{% else %}Vill ni byta avsändare eller skicka till fler länder{% endif %}: kontakta ADX, så ändras det på kontot.</p>
 </section>
 </div>
 {% endblock %}

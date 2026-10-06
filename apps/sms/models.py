@@ -75,6 +75,17 @@ class SmsAccount(models.Model):
     sender_name = models.CharField(
         "Avsändare", max_length=11, blank=True, validators=[validate_sender]
     )
+    #: Får kunden själv välja avsändarnamnet i portalen? Av från början: då
+    #: sätter ADX det på kundkortet (Giovanni 2026-10-06).
+    customer_sets_sender = models.BooleanField("Kunden får välja avsändarnamn", default=False)
+    sender_changed_at = models.DateTimeField(null=True, blank=True)
+    sender_changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
     markup_ore_per_part = models.PositiveIntegerField(
         "Påslag per sms-del (öre)", default=DEFAULT_MARKUP_ORE
     )
@@ -117,6 +128,11 @@ class SmsAccount(models.Model):
 
     def __str__(self):
         return f"SMS för {self.customer.name}"
+
+    def record_sender_change(self, user, now=None):
+        """Avsändaren ändrades: när och av vem (sparas av den som anropar)."""
+        self.sender_changed_at = now or timezone.now()
+        self.sender_changed_by = user if user and user.is_authenticated else None
 
     def record_cap_change(self, user, now=None):
         """Taket ändrades: när och av vem (sparas av den som anropar)."""
