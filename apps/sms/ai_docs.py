@@ -34,8 +34,9 @@ FIELDS = [
     (
         "from",
         "nej",
-        "Avsändaren. Utelämna den: kontots godkända avsändare används alltid, "
-        "och ett annat värde ger sender_not_allowed.",
+        "Avsändaren. Utelämnad används kontots standardavsändare. Har ADX godkänt "
+        "fler avsändare för kontot (till exempel en per verkstad) väljs en av dem "
+        "här, exakt som den står i GET /senders/. Annat ger sender_not_allowed.",
     ),
     (
         "reference",
@@ -86,6 +87,7 @@ def _spec(request):
             },
             {"method": "GET", "path": "/messages/<id>/", "what": "Ett sms och dess status."},
             {"method": "GET", "path": "/usage/", "what": "Månadens förbrukning, tak och gränser."},
+            {"method": "GET", "path": "/senders/", "what": "Kontots godkända avsändare."},
         ],
         "fields": [{"name": n, "required": r == "ja", "what": w} for n, r, w in FIELDS],
         "statuses": [{"status": s, "what": w} for s, w in STATUSES],
@@ -140,8 +142,8 @@ om den så här:
    en webbläsare eller i en app: den som har nyckeln skickar sms på kundens
    bekostnad.
 
-Fråga också vilken avsändare kontot har (den syns i portalen och i
-`GET {api}/usage/`) och vilka länder kontot får skicka till.
+Hämta kontots godkända avsändare med `GET {api}/senders/` och fråga vilka
+länder kontot får skicka till.
 
 ## Inloggning
 
@@ -192,6 +194,15 @@ fråga efter läget när ni behöver det, och inte oftare än gränserna tillåt
 | Status | Betydelse |
 |---|---|
 {statuses}
+
+## Avsändare
+
+    GET {api}/senders/
+
+Ger `{{"default": "...", "senders": [...], "choose_per_message": true|false}}`.
+`default` används när `from` utelämnas. Med `choose_per_message` får varje
+sms ha ett av namnen i `senders` som `from`, till exempel ett per verkstad.
+Nya namn godkänns av ADX; be användaren fråga Giovanni.
 
 ## Förbrukning och tak
 

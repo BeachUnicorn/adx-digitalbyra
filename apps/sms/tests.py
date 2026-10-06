@@ -2156,59 +2156,58 @@ class SelfServiceTests(SmsTestCase):
 
 
 class SenderChoiceTests(SmsTestCase):
-    """Giovanni 2026-10-06: kunden får välja avsändarnamn om ADX slagit på
-    det på kundkortet. Byrån larmas vid varje byte; kunden mejlas inte."""
+    """Giovanni 2026-10-06: en kund med flera verkstäder väljer avsändare per
+    sms via API:ts from, ur en lista ADX godkänt på kundkortet. Utan from
+    gäller standardavsändaren. GET /senders/ ger listan."""
 
-    url = "/kund/sms/avsandare/"
-
-    def allow(self, on=True):
-        SmsAccount.objects.filter(pk=self.account.pk).update(customer_sets_sender=on)
+    def allow(self, extra=("AcmeNacka", "AcmeSolna"), on=True):
+        SmsAccount.objects.filter(pk=self.account.pk).update(
+            customer_sets_sender=on, extra_senders=list(extra)
+        )
         self.account.refresh_from_db()
 
-    def test_off_by_default_the_customer_cannot_change_it(self):
-        self.client.force_login(self.contact)
-        page = self.client.get("/kund/sms/")
-        self.assertNotContains(page, 'name="sender_name"')
-        self.assertContains(page, "kontakta ADX")
-        self.assertEqual(self.client.post(self.url, {"sender_name": "Nytt"}).status_code, 404)
-        self.account.refresh_from_db()
-        self.assertEqual(self.account.sender_name, "AcmeBygg")
-
-    def test_when_allowed_the_customer_sets_it_and_adx_is_alerted(self):
+    def test_senders_endpoint(self):
+        _key, raw = SmsApiKey.issue(self.account, "Test")
+        auth = {"HTTP_AUTHORIZATION": f"Bearer {raw}"}
+        data = self.client.get("/api/sms/v1/senders/", **auth).json()
+        self.assertEqual(
+            data, {"default": "AcmeBygg", "senders": ["AcmeBygg"], "choose_per_message": False}
+        )
         self.allow()
-        self.client.force_login(self.contact)
-        self.assertContains(self.client.get("/kund/sms/"), 'name="sender_name"')
-        self.client.post(self.url, {"sender_name": "AcmeTak"})
-        self.account.refresh_from_db()
-        self.assertEqual(self.account.sender_name, "AcmeTak")
-        self.assertEqual(self.account.sender_changed_by, self.contact)
-        self.assertEqual(len(mail.outbox), 1)
-        self.assertIn("AcmeTak", mail.outbox[0].subject)
-        self.assertNotIn(self.contact.email, mail.outbox[0].to)
+        data = self.client.get("/api/sms/v1/senders/", **auth).json()
+        self.assertEqual(data["senders"], ["AcmeBygg", "AcmeNacka", "AcmeSolna"])
+        self.assertTrue(data["choose_per_message"])
+        self.assertEqual(self.client.get("/api/sms/v1/senders/").status_code, 401)
 
-    def test_invalid_names_are_refused(self):
+    def test_from_must_be_in_the_list(self):
+        from . import service
+
+        key, _raw = SmsApiKey.issue(self.account, "Test")
+        base = {"to": "+46701740605", "message": "Hej", "dryrun": True}
+        patcher = mock.patch.object(service, "estimate_cost", return_value=(5200, "test"))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        out = service.send(key, {**base, "from": "AcmeNacka"})
+        self.assertEqual(out.error, "sender_not_allowed")
         self.allow()
-        self.client.force_login(self.contact)
-        for bad in ("A", "1Acme", "Acme Bygg", "Åkeri", "x" * 12, ""):
-            with self.subTest(bad=bad):
-                self.client.post(self.url, {"sender_name": bad})
-                self.account.refresh_from_db()
-                self.assertEqual(self.account.sender_name, "AcmeBygg")
-        self.assertEqual(len(mail.outbox), 0)
+        out = service.send(key, {**base, "from": "AcmeNacka"})
+        self.assertFalse(out.error, out.detail)
+        self.assertEqual(out.estimate["from"], "AcmeNacka")
+        out = service.send(key, base)
+        self.assertEqual(out.estimate["from"], "AcmeBygg")
+        out = service.send(key, {**base, "from": "Polisen"})
+        self.assertEqual(out.error, "sender_not_allowed")
+        self.allow(on=False)
+        out = service.send(key, {**base, "from": "AcmeNacka"})
+        self.assertEqual(out.error, "sender_not_allowed")
 
-    def test_the_api_follows_the_new_sender(self):
-        self.allow()
-        self.client.force_login(self.contact)
-        self.client.post(self.url, {"sender_name": "AcmeTak"})
-        self.account.refresh_from_db()
-        self.assertEqual(self.account.sender_name, "AcmeTak")
-
-    def test_customer_card_checkbox(self):
+    def test_customer_card_saves_the_list(self):
         self.client.force_login(self.staff)
         form = {
             "is_enabled": "on",
             "customer_sets_sender": "on",
             "sender_name": "AcmeBygg",
+            "extra_senders": "AcmeNacka, AcmeSolna AcmeBygg",
             "markup_ore_per_part": "5",
             "yearly_fee_kr": "999",
             "monthly_cap_kr": "500",
@@ -2217,7 +2216,14 @@ class SenderChoiceTests(SmsTestCase):
         self.client.post(reverse("manage:sms_customer_update", args=[self.acme.pk]), form)
         self.account.refresh_from_db()
         self.assertTrue(self.account.customer_sets_sender)
-        del form["customer_sets_sender"]
+        self.assertEqual(self.account.extra_senders, ["AcmeNacka", "AcmeSolna"])
+        form["extra_senders"] = "Acme Bygg!"
         self.client.post(reverse("manage:sms_customer_update", args=[self.acme.pk]), form)
         self.account.refresh_from_db()
-        self.assertFalse(self.account.customer_sets_sender)
+        self.assertEqual(self.account.extra_senders, ["AcmeNacka", "AcmeSolna"])
+
+    def test_no_sender_box_in_the_portal(self):
+        self.allow()
+        self.client.force_login(self.contact)
+        self.assertNotContains(self.client.get("/kund/sms/"), 'name="sender_name"')
+        self.assertEqual(self.client.post("/kund/sms/avsandare/").status_code, 404)

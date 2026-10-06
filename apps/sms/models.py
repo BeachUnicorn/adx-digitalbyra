@@ -75,9 +75,15 @@ class SmsAccount(models.Model):
     sender_name = models.CharField(
         "Avsändare", max_length=11, blank=True, validators=[validate_sender]
     )
-    #: Får kunden själv välja avsändarnamnet i portalen? Av från början: då
-    #: sätter ADX det på kundkortet (Giovanni 2026-10-06).
-    customer_sets_sender = models.BooleanField("Kunden får välja avsändarnamn", default=False)
+    #: Får kunden välja avsändare per sms via API:ts from, ur standard-
+    #: avsändaren plus extra_senders? Av från början: då gäller bara
+    #: sender_name (Giovanni 2026-10-06, en kund med flera verkstäder).
+    customer_sets_sender = models.BooleanField(
+        "Kunden får välja avsändare via API:et", default=False
+    )
+    #: Extra godkända avsändarnamn, utöver sender_name (standard, används när
+    #: from utelämnas). Byrån godkänner dem på kundkortet.
+    extra_senders = models.JSONField("Extra godkända avsändare", default=list, blank=True)
     sender_changed_at = models.DateTimeField(null=True, blank=True)
     sender_changed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -128,6 +134,15 @@ class SmsAccount(models.Model):
 
     def __str__(self):
         return f"SMS för {self.customer.name}"
+
+    @property
+    def senders(self):
+        """Alla avsändare kunden får använda: standarden först, sedan de extra
+        (bara när kunden får välja)."""
+        names = [self.sender_name] if self.sender_name else []
+        if self.customer_sets_sender:
+            names += [n for n in (self.extra_senders or []) if n and n not in names]
+        return names
 
     def record_sender_change(self, user, now=None):
         """Avsändaren ändrades: när och av vem (sparas av den som anropar)."""

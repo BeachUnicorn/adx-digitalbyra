@@ -4,6 +4,7 @@ SMS-API:t, /api/sms/v1/ (dokumentationen för kunden: /kund/sms/dokumentation/).
     POST /api/sms/v1/messages/        skicka ett sms (eller provkör: dryrun)
     GET  /api/sms/v1/messages/<id>/   ett sms och dess status
     GET  /api/sms/v1/usage/           månadens förbrukning och tak
+    GET  /api/sms/v1/senders/         kontots godkända avsändare
 
 Inloggning med kundens nyckel i Authorization: Bearer adxsms_... Ingen
 cookie och därför ingen CSRF (samma mönster som apps/projects/api.py).
@@ -177,8 +178,25 @@ def usage(request):
             "remaining_sek": pricing.api_amount(data["remaining"]),
             "cap_reached": data["cap_reached"],
             "from": account.sender_name,
+            "senders": account.senders,
             "allowed_countries": account.countries,
             "limits": {**ratelimit.limits(), "max_parts": service.MAX_PARTS},
+        }
+    )
+
+
+@api_endpoint
+def senders(request):
+    """Kontots godkända avsändare: standarden (används när from utelämnas)
+    och, om kunden får välja, de extra namnen ADX godkänt."""
+    if request.method != "GET":
+        return error_response("method_not_allowed")
+    account = request.sms_account
+    return JsonResponse(
+        {
+            "default": account.sender_name,
+            "senders": account.senders,
+            "choose_per_message": account.customer_sets_sender,
         }
     )
 

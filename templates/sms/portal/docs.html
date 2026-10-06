@@ -30,7 +30,7 @@ API:t. Inga löften om leveranstider.
     <tbody>
       <tr><td class="sms-mono">to</td><td>ja</td><td>Mottagarens mobilnummer, helst i internationell form (+46701740605). Ett nummer utan landsnummer (0701740605) tolkas som svenskt.</td></tr>
       <tr><td class="sms-mono">message</td><td>ja</td><td>Texten. Högst {{ max_parts }} sms-delar, se Tecken och delar.</td></tr>
-      <tr><td class="sms-mono">from</td><td>nej</td><td>Avsändaren. Utelämna den, eller skicka exakt <b>{{ account.sender_name }}</b>; allt annat stoppas.</td></tr>
+      <tr><td class="sms-mono">from</td><td>nej</td><td>Avsändaren. Utelämnad blir den <b>{{ account.sender_name }}</b>.{% if account.customer_sets_sender and account.senders|length > 1 %} Ni kan också välja {% for n in account.senders %}<b>{{ n }}</b>{% if not forloop.last %}, {% endif %}{% endfor %} (listan finns i <span class="sms-mono">GET {{ api_base }}/senders/</span>).{% endif %} Allt annat stoppas.</td></tr>
       <tr><td class="sms-mono">reference</td><td>nej</td><td>Er egen id för sms:et, 1-64 tecken (a-z, A-Z, 0-9 och . _ : -). Samma reference två gånger ger samma sms tillbaka i stället för ett nytt, så ett nytt försök efter ett avbrutet anrop skickar aldrig dubbelt. Rekommenderas.</td></tr>
       <tr><td class="sms-mono">dryrun</td><td>nej</td><td><span class="sms-mono">true</span> provkör: svaret visar land, delar och pris, men inget skickas och inget kostar.</td></tr>
     </tbody>
@@ -91,6 +91,8 @@ console.log(data.id, data.status, data.price_sek);</code></pre><button type="but
   <h2 class="tv-sec-title" id="d-get">Läget för ett sms och månadens förbrukning</h2>
   <p class="sms-endpoint"><span class="sms-method sms-method--get">GET</span> <span class="sms-mono">{{ api_base }}/messages/&lt;id&gt;/</span></p>
   <p class="tv-prop__note">Samma form som svaret ovan. Ett id från ett annat konto ger <span class="sms-mono">not_found</span>.</p>
+  <p class="sms-endpoint"><span class="sms-method sms-method--get">GET</span> <span class="sms-mono">{{ api_base }}/senders/</span></p>
+  <p class="tv-prop__note">Kontots godkända avsändare: <span class="sms-mono">default</span> (används när from utelämnas), <span class="sms-mono">senders</span> (alla ni får använda) och <span class="sms-mono">choose_per_message</span>.</p>
   <p class="sms-endpoint"><span class="sms-method sms-method--get">GET</span> <span class="sms-mono">{{ api_base }}/usage/</span></p>
   <div class="sms-code-wrap"><pre class="sms-code"><code>{
   "period": "2026-10",

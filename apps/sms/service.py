@@ -85,7 +85,7 @@ ERROR_TEXTS = {
     "sms_not_enabled": "SMS är inte aktiverat för kontot.",
     "invalid_number": "Numret går inte att tolka, finns inte eller är inte ett mobilnummer.",
     "country_not_allowed": "Numret hör till ett land kontot inte får skicka till.",
-    "sender_not_allowed": "Avsändaren är inte kontots godkända avsändare.",
+    "sender_not_allowed": "Avsändaren är inte en av kontots godkända avsändare.",
     "message_too_long": f"Texten blir fler än {MAX_PARTS} sms-delar.",
     "monthly_cap_reached": "Månadens kostnadstak är nått.",
     "not_found": "Sms:et finns inte på kontot.",
@@ -403,7 +403,9 @@ def send(api_key, data, now=None):
         fields["reference"],
         fields["dryrun"],
     )
-    sender = account.sender_name
+    # from utelämnad: standardavsändaren. Annars ett av kontots godkända
+    # namn (SmsAccount.senders), exakt som det står där.
+    sender = fields["sender"] or account.sender_name
 
     # Samma reference som ett tidigare sms: samma svar, ingen ny prövning.
     if reference and not dryrun:
@@ -419,14 +421,16 @@ def send(api_key, data, now=None):
         "dryrun": dryrun,
         "reference": reference,
     }
-    if not sender:
+    if not account.sender_name:
         return _reject(account, api_key, "sender_not_allowed", "Kontot saknar avsändare.", **common)
-    if fields["sender"] and fields["sender"] != sender:
+    allowed = account.senders
+    if sender not in allowed:
+        common["sender"] = account.sender_name
         return _reject(
             account,
             api_key,
             "sender_not_allowed",
-            f"Avsändaren ska vara {sender} (eller utelämnas).",
+            "Avsändaren ska vara en av: " + ", ".join(allowed) + " (eller utelämnas).",
             **common,
         )
     try:

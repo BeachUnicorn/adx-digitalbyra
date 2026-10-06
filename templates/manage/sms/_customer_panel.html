@@ -24,10 +24,13 @@ så kundkortets vy behöver inte känna till SMS.
 
   <form method="post" action="{% url 'manage:sms_customer_update' customer.pk %}" class="tv-toggles">{% csrf_token %}
     <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="is_enabled"{% if sms.account.is_enabled %} checked{% endif %}> Aktiverat: API:t och kundens nycklar fungerar</label>
-    <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="customer_sets_sender"{% if sms.account.customer_sets_sender %} checked{% endif %}> Kunden får välja avsändarnamn själv i portalen (ADX larmas vid varje byte)</label>
+    <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="customer_sets_sender"{% if sms.account.customer_sets_sender %} checked{% endif %}> Kunden får välja avsändare per sms via API:et, ur standarden och de extra namnen nedan</label>
     <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="customer_manages_api"{% if sms.account.customer_manages_api %} checked{% endif %}> Kunden sköter nycklar, tak och dokumentation själv i portalen (annars sköter ADX det härifrån)</label>
     <div class="tv-form__pair">
-      <div class="m-field"><label for="sms-sender">Avsändare (3-11 tecken, a-z och 0-9, börjar med bokstav)</label><input id="sms-sender" name="sender_name" value="{{ sms.form.sender_name }}" maxlength="11" pattern="[A-Za-z][A-Za-z0-9]{2,10}" class="tv-input" autocomplete="off"></div>
+      <div class="m-field"><label for="sms-sender">Standardavsändare (3-11 tecken, a-z och 0-9, börjar med bokstav)</label><input id="sms-sender" name="sender_name" value="{{ sms.form.sender_name }}" maxlength="11" pattern="[A-Za-z][A-Za-z0-9]{2,10}" class="tv-input" autocomplete="off"></div>
+      <div class="m-field"><label for="sms-extra-senders">Extra godkända avsändare (samma regler, mellanslag emellan)</label><input id="sms-extra-senders" name="extra_senders" value="{{ sms.account.extra_senders|join:' ' }}" class="tv-input" placeholder="CSAutoNacka CSAutoSolna" autocomplete="off"></div>
+    </div>
+    <div class="tv-form__pair">
       <div class="m-field"><label for="sms-countries">Tillåtna länder (landskoder)</label><input id="sms-countries" name="allowed_countries" value="{{ sms.form.countries|join:' ' }}" class="tv-input" placeholder="SE NO DK" autocomplete="off"></div>
     </div>
     <div class="tv-form__pair">

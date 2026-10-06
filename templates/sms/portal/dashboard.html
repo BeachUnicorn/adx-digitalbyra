@@ -37,21 +37,6 @@ fokuserar eller trycker, och finns också som tabell under diagrammet.
   </div>
 </section>
 
-<section class="m-panel tv-panel" id="avsandare" aria-labelledby="sms-sender-title">
-  <h2 class="tv-sec-title" id="sms-sender-title">Avsändare</h2>
-  {% if account.customer_sets_sender %}
-  <p class="tv-prop__note">Namnet som står som avsändare på era sms. 3-11 tecken, bara a-z, A-Z och 0-9, och det börjar med en bokstav. Mottagaren kan inte svara på ett namn. Välj ett namn som mottagarna känner igen som ert.</p>
-  <form method="post" action="{% url 'sms:sender_update' %}" class="tv-row sms-form-row">{% csrf_token %}
-    <label for="sms-sender-name" class="sms-inline-label">Avsändarnamn</label>
-    <input id="sms-sender-name" type="text" name="sender_name" value="{{ account.sender_name }}" class="tv-input" maxlength="11" pattern="[A-Za-z][A-Za-z0-9]{2,10}" required autocomplete="off">
-    <button type="submit" class="m-btn m-btn--small">Spara avsändare</button>
-  </form>
-  {% if account.sender_changed_at %}<p class="tv-muted sms-cap-changed">Ändrat {{ account.sender_changed_at|date:"j b Y" }}{% with who=account.sender_changed_by %}{% if who %} av {{ who.get_full_name|default:who.email|default:who.get_username }}{% endif %}{% endwith %}.</p>{% endif %}
-  {% else %}
-  <p class="tv-prop__note">Era sms skickas med avsändaren <b>{{ account.sender_name }}</b>. Vill ni byta: kontakta ADX.</p>
-  {% endif %}
-</section>
-
 <section class="m-panel tv-panel sms-chart-panel" aria-labelledby="sms-chart-title">
   <div class="sms-chart-head">
     <h2 class="tv-sec-title" id="sms-chart-title">Sms per dag</h2>

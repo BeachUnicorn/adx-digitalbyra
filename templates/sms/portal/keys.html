@@ -67,11 +67,11 @@ formulär, och det den gör gäller på riktigt.
 <section class="m-panel tv-panel" aria-labelledby="sms-terms-title">
   <h2 class="tv-sec-title" id="sms-terms-title">Avsändare, länder och pris</h2>
   <table class="m-table m-table--plain sms-facts">
-    <tr><th scope="row">Avsändare</th><td><b>{{ account.sender_name }}</b>. Utelämna from i anropet, eller skicka exakt det här.</td></tr>
+    <tr><th scope="row">Avsändare</th><td><b>{{ account.sender_name }}</b> är standard och används när from utelämnas.{% if account.customer_sets_sender and account.senders|length > 1 %} Med from kan ni välja: {% for n in account.senders %}<span class="sms-mono">{{ n }}</span>{% if not forloop.last %}, {% endif %}{% endfor %}. Listan finns också i API:t, <span class="sms-mono">GET /api/sms/v1/senders/</span>.{% else %} Skicka from bara om den är exakt det här.{% endif %}</td></tr>
     <tr><th scope="row">Länder</th><td>{% for code, name in country_names %}{{ name }} ({{ code }}){% if not forloop.last %}, {% endif %}{% endfor %}. Andra länder stoppas med <span class="sms-mono">country_not_allowed</span>.</td></tr>
     <tr><th scope="row">Pris</th><td>Ett pris per sms-del som beror på mottagarens land. Årsavgift {{ account.yearly_fee_kr }} kr. Allt utan moms, i efterhand per månad.</td></tr>
   </table>
-  <p class="tv-prop__note">{% if account.customer_sets_sender %}Avsändaren väljer ni på <a class="tv-link" href="{% url 'sms:dashboard' %}#avsandare">Översikt</a>. Vill ni skicka till fler länder{% else %}Vill ni byta avsändare eller skicka till fler länder{% endif %}: kontakta ADX, så ändras det på kontot.</p>
+  <p class="tv-prop__note">Vill ni ha fler avsändare eller skicka till fler länder: kontakta ADX, så ändras det på kontot.</p>
 </section>
 </div>
 {% endblock %}

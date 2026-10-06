@@ -122,6 +122,13 @@ def customer_update(request, pk):
         markup = _int_field(request.POST, "markup_ore_per_part", 0, MAX_MARKUP_ORE, "Påslaget")
         fee = _int_field(request.POST, "yearly_fee_kr", 0, MAX_YEARLY_FEE_KR, "Årsavgiften")
         cap = _int_field(request.POST, "monthly_cap_kr", 0, MAX_MONTHLY_CAP_KR, "Taket")
+        extra_senders = []
+        for name in (request.POST.get("extra_senders") or "").replace(",", " ").split():
+            validate_sender(name)
+            if name != sender and name not in extra_senders:
+                extra_senders.append(name)
+        if len(extra_senders) > 50:
+            raise ValueError("Högst 50 extra avsändare.")
         countries = numbers.parse_country_list(request.POST.get("allowed_countries", ""))
         if not countries:
             raise ValueError("Minst ett land behövs (SE för Sverige).")
@@ -142,6 +149,7 @@ def customer_update(request, pk):
     account.sender_name = sender
     account.customer_manages_api = "customer_manages_api" in request.POST
     account.customer_sets_sender = "customer_sets_sender" in request.POST
+    account.extra_senders = extra_senders
     account.markup_ore_per_part = markup
     account.yearly_fee_kr = fee
     if is_new or cap != account.monthly_cap_kr:
