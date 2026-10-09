@@ -25,7 +25,7 @@ done
 log "Requesting certificate '${CERT_NAME}' for: ${DOMAINS[*]}"
 # --cert-name pins the storage name; --expand lets the domain set on an existing
 # cert of that name change (add/replace domains) without creating a new lineage.
-sudo certbot certonly --nginx \
+sudo certbot certonly --nginx --non-interactive --keep-until-expiring \
     --cert-name "$CERT_NAME" \
     --expand \
     "${domain_args[@]}"
@@ -41,7 +41,7 @@ if declare -p LINK_DOMAINS >/dev/null 2>&1 && [ "${#LINK_DOMAINS[@]}" -gt 0 ]; t
         link_args+=( -d "$d" )
     done
     log "Requesting certificate '${link_cert}' for: ${LINK_DOMAINS[*]}"
-    if ! sudo certbot certonly --nginx --cert-name "$link_cert" --expand "${link_args[@]}"; then
+    if ! sudo certbot certonly --nginx --non-interactive --keep-until-expiring --cert-name "$link_cert" --expand "${link_args[@]}"; then
         warn "Certifikatet '${link_cert}' kunde inte utfärdas. Sajtens eget certifikat påverkas inte."
     fi
 fi
