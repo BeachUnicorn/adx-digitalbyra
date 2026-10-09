@@ -1,0 +1,75 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load flamingo_app %}
+{% comment %}
+Mottagarna bakom en siffra (README I.8). Kontext från
+app_views/utskick.utskick_recipients: utskick, rows (sidans mottagare,
+decorate_recipients), page, view (?visa=), view_label, empty_text (sidan utan
+rader), views (chipsen),
+numbers (reports.summary), lists (kontots listor för Spara som lista),
+with_contacts (hur många i vyn som har en kontakt kvar), default_list_name.
+
+Spara som lista lägger mottagarnas kontakter (de som finns kvar) i en
+befintlig eller ny lista, till exempel "klickade men skickade ingen
+förfrågan", som sedan kan få ett eget utskick.
+{% endcomment %}
+{% block app_title %}{{ utskick.name }}: {{ view_label }}{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-ut-crumb" href="{% url 'flamingo:app_utskick' utskick.pk %}">{{ utskick.name }}</a></p>
+    <h1 class="fl-app-title">{{ view_label }}</h1>
+    <p class="fl-app-lead">{{ page.paginator.count|tal }} mottagare</p>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+<nav class="fl-ut-chips" aria-label="Visa mottagare">
+  {% for key, label in views %}<a class="fl-ut-chip{% if view == key %} is-on{% endif %}" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}?visa={{ key }}"{% if view == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+
+{% if rows %}
+{% include "flamingo/app/utskick/_recipients_table.html" %}
+{% if page.has_other_pages %}
+<nav class="fl-ut-pages" aria-label="Fler mottagare">
+  {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?visa={{ view }}&amp;sida={{ page.previous_page_number }}">Föregående</a>{% endif %}
+  <span class="fl-ut-pages__at">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?visa={{ view }}&amp;sida={{ page.next_page_number }}">Nästa</a>{% endif %}
+</nav>
+{% endif %}
+
+{% if with_contacts %}
+<section class="fl-panel fl-panel--soft" aria-labelledby="ut-savelist-title">
+  <h2 class="fl-panel__title" id="ut-savelist-title">Spara som lista</h2>
+  <p class="fl-panel__text">Lägg de {{ with_contacts|tal }} kontakterna i en lista, så kan de få ett eget utskick.</p>
+  <form class="fl-form fl-ut-savelist" method="post" action="{% url 'flamingo:app_utskick_save_list' utskick.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="visa" value="{{ view }}">
+    <div class="fl-form__row">
+      <div class="fl-field">
+        <label class="fl-field__label" for="ut-savelist-list">Lista</label>
+        <select class="fl-input" id="ut-savelist-list" name="lista_id">
+          <option value="ny">Ny lista</option>
+          {% for lista in lists %}<option value="{{ lista.pk }}">{{ lista.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="fl-field">
+        <label class="fl-field__label" for="ut-savelist-name">Namn på en ny lista</label>
+        <input class="fl-input" id="ut-savelist-name" type="text" name="ny_lista" maxlength="80" value="{{ default_list_name }}" autocomplete="off">
+      </div>
+    </div>
+    <div class="fl-form__actions">
+      <button type="submit" class="fl-btn fl-btn--sm">Spara som lista</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+{% else %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Inga mottagare här</p>
+  <p class="fl-empty__text">{{ empty_text }}</p>
+  <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_utskick' utskick.pk %}">Till rapporten</a>
+</div>
+{% endif %}
+{% endblock %}

@@ -357,6 +357,13 @@ LAST_LABELS = {
     "signup": "Anmälde sig",
     "lead": "Förfrågan",
     "test_send": "Fick ett testutskick",
+    # S2 (utskick-ui-byggaren): svar, STOPP och START (inbound, contacts.touch),
+    # klick och besök på landningssidan.
+    "reply": "Svarade på sms",
+    "stop": "Svarade STOPP",
+    "start": "Svarade START",
+    "click": "Klickade",
+    "lp_visit": "Besökte landningssidan",
 }
 #: Utan aktivitet: hur kontakten kom in.
 SOURCE_LABELS = {
@@ -1052,8 +1059,31 @@ def _channels(kontakt):
 
 
 def _summary(kontakt, leads):
-    """Sammanfattningen. Senare steg lägger till utskick och klick."""
-    parts = [count_text(leads, "förfrågan", "förfrågningar")] if leads else []
+    """Sammanfattningen: "6 utskick · 2 klick · 1 förfrågan" (I.7). Utskick
+    räknas som skickade mottagare, klick som mänskliga klick (S2)."""
+    from django.db.models import Sum
+
+    from ..models import Recipient
+
+    sent = Recipient.objects.filter(
+        utskick__account_id=kontakt.account_id,
+        contact=kontakt,
+        status__in=Recipient.SENT_LIKE,
+    )
+    n_sent = sent.count()
+    clicks = int(
+        Recipient.objects.filter(utskick__account_id=kontakt.account_id, contact=kontakt).aggregate(
+            n=Sum("click_count")
+        )["n"]
+        or 0
+    )
+    parts = []
+    if n_sent:
+        parts.append(count_text(n_sent, "utskick", "utskick"))
+    if clicks:
+        parts.append(count_text(clicks, "klick", "klick"))
+    if leads:
+        parts.append(count_text(leads, "förfrågan", "förfrågningar"))
     return " · ".join(parts)
 
 

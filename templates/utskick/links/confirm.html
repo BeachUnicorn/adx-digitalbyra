@@ -1,0 +1,38 @@
+{% extends "utskick/links/_base.html" %}
+{% comment %}
+k.adx.se/b/<kod> (link_views.confirm, README E.5). Ett GET bekräftar
+aldrig: sidan har en knapp, och bara POST (med fn, tokens.form_nonce)
+bekräftar. Länken gäller LinkCode.CONFIRM_HOURS timmar och används en gång. Bara det
+maskerade numret, aldrig ett namn. Aldrig Djangos CSRF-tagg här.
+
+tillstand: bekrafta (knappen), klar (bekräftat), utgangen (länken har gått
+ut), ogiltig (numret har bytts eller länken gäller inte längre) eller stangd
+(kontot tar inte emot nya anmälningar). rubrik är texten personen bekräftar
+(den sparas som bevis); igen efter ett START-svar.
+{% endcomment %}
+{% block title %}Bekräfta sms{% endblock %}
+{% block content %}
+{% if fel %}<div class="up-alert" role="alert"><p>{{ fel }}</p></div>{% endif %}
+{% if tillstand == "bekrafta" %}
+<h1 class="up-h1">{{ rubrik }}</h1>
+{% if maskerat %}<p class="up-masked">{{ maskerat }}</p>{% endif %}
+<p class="up-lead">Du får erbjudanden från {{ foretag }} via sms till det här numret. Du kan avregistrera dig när du vill.</p>
+<form class="up-form" method="post" action="{{ request.path }}">
+  <input type="hidden" name="fn" value="{{ fn }}">
+  <button class="up-btn up-btn--primary up-btn--block" type="submit">Ja, bekräfta</button>
+</form>
+<p class="up-help">Var det inte du som bad om det? Då kan du stänga sidan. Inget händer om du inte trycker på knappen.</p>
+{% elif tillstand == "klar" %}
+<h1 class="up-h1">Klart</h1>
+<p class="up-lead">{% if maskerat %}{{ maskerat }} får{% else %}Du får{% endif %} erbjudanden från {{ foretag }} via sms.</p>
+{% elif tillstand == "utgangen" %}
+<h1 class="up-h1">Länken har gått ut</h1>
+<p class="up-lead">Länken i sms:et gäller i {{ timmar }} timmar.{% if igen %} Svara START på sms:et igen för en ny länk.{% endif %}</p>
+{% elif tillstand == "stangd" %}
+<h1 class="up-h1">Det går inte att bekräfta just nu</h1>
+<p class="up-lead">{{ foretag }} tar inte emot nya anmälningar här just nu.</p>
+{% else %}
+<h1 class="up-h1">Länken gäller inte längre</h1>
+<p class="up-lead">Numret eller valet har ändrats sedan sms:et skickades.</p>
+{% endif %}
+{% endblock %}

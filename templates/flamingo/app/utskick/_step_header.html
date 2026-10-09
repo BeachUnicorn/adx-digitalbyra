@@ -1,0 +1,14 @@
+{% comment %}
+Rubriken i guidens steg: tillbaka till listan, utskickets namn och
+stegchipsen (_wizard.html). Kontext: utskick, wizard, customer. I ett steg
+med formulär sparar "Utskick" steget först (nasta=lista), som Spara utkast.
+Knapparna här står före formuläret i sidan, så den dolda knappen först tar
+Enter i formulärets fält (wizard.default: Sök i Mottagare, Spara i
+Innehåll, annars Nästa), som innan chipsen blev knappar.
+{% endcomment %}{% if wizard.form %}<button type="submit" form="{{ wizard.form }}" class="fl-sr" tabindex="-1" name="{{ wizard.default.0 }}" value="{{ wizard.default.1 }}">{{ wizard.default.2 }}</button>{% endif %}<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{% if wizard.form %}<button type="submit" form="{{ wizard.form }}" class="fl-ut-crumb" name="nasta" value="lista">Utskick</button>{% else %}<a class="fl-ut-crumb" href="{% url 'flamingo:app_utskick_list' %}">Utskick</a>{% endif %}</p>
+    <h1 class="fl-app-title">{{ utskick.name }}</h1>
+  </div>
+</header>
+{% include "flamingo/app/utskick/_wizard.html" %}

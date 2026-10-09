@@ -1,0 +1,50 @@
+/* ==========================================================================
+   ADX Flamingo - svarstråden i Inkorgen (flamingo-app-utskick-thread.css)
+
+   templates/flamingo/app/utskick/_thread.html, inkluderad av
+   flamingo/app/inbox/detail.html för svar på utskick (README C.2, G.2).
+   Bygger på flamingo-app.css (.fl-form, .fl-field, .fl-input, .fl-check,
+   .fl-notice, .fl-btn) och flamingo-app-inbox.css (.fl-leadcard__block).
+   Prefix .fl-th-. Meddelandena är bubblor som i mockupen: svaret till
+   vänster, det som skickats till höger. Allt radbryter vid 375 px.
+   ========================================================================== */
+
+.fl-th{gap:14px}
+.fl-th__head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
+.fl-th__actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.fl-th__inline{display:inline-flex;margin:0}
+.fl-th__about{font-size:16px;line-height:1.5;color:var(--fl-muted);overflow-wrap:anywhere}
+
+.fl-th__flag{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+.fl-th__flag p{flex:1 1 260px;margin:0}
+.fl-th__flag form{margin:0}
+
+/* ---------- Meddelandena ---------- */
+.fl-th__list{display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.fl-th__msg{
+  display:flex;flex-direction:column;gap:4px;max-width:min(560px,88%);min-width:0;
+  padding:12px 14px;border:1px solid var(--fl-soft);border-radius:16px;background:var(--fl-panel);
+}
+.fl-th__msg--in{align-self:flex-start;border-bottom-left-radius:6px}
+.fl-th__msg--out{align-self:flex-end;border-color:#E3DCFF;background:var(--fl-violet-tint,#F4F0FF);border-bottom-right-radius:6px}
+.fl-th__msg.is-warn{border-color:#F5C79A;background:#FFF3E6}
+.fl-th__body{font-size:17px;line-height:1.5;color:var(--fl-ink);overflow-wrap:anywhere;margin:0}
+.fl-th__meta{font-size:14px;line-height:1.4;color:var(--fl-muted);margin:0;overflow-wrap:anywhere}
+.fl-th__msg.is-warn .fl-th__note{color:#7A430D;font-weight:600}
+.fl-th__empty{font-size:16px;color:var(--fl-muted)}
+
+/* ---------- Svarsrutan ---------- */
+.fl-th__form{gap:12px}
+.fl-th__text{width:100%;min-height:96px;resize:vertical}
+.fl-th__count{font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.fl-th__staff{padding:10px 12px;border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-white)}
+.fl-th__unsub{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;padding-top:12px;border-top:1px solid var(--fl-soft)}
+.fl-th__unsub p{margin:0}
+
+/* ---------- Telefon ---------- */
+@media (max-width:560px){
+  .fl-th__msg{max-width:94%;padding:10px 12px}
+  .fl-th__body{font-size:16px}
+  .fl-th__form .fl-form__actions .fl-btn{width:100%}
+  .fl-th__unsub .fl-btn{width:100%}
+}

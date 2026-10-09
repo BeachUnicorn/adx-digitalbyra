@@ -1,0 +1,53 @@
+{% load flamingo_app %}{% comment %}
+Översiktens del för inkommande sms till svarsnumret (#inkommande, README G.1
+punkt 1, 4 och 5). Kontexten kommer från manage_inbound.panel_context(now) via
+manage_views.overview: inbound_held (väntande sms med maskerat nummer, text
+och kunder att välja), inbound_held_count, inbound_on, inbound_ips,
+inbound_last_reconcile, inbound_week, inbound_stops_week,
+inbound_answers_queued, inbound_answers_failed_week. Bara kunder som skickat
+från svarsnumret till numret går att välja (manage_inbound._choices). Tabellen har <thead>
+(kort under 760 px via manage-tables.js); inga style-attribut.
+{% endcomment %}
+<p class="m-section-title" id="inkommande">Inkommande sms</p>
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Svar till svarsnumret routas till kunden som senast skickade dit. {% if inbound_on %}Inkommande är påslaget{% if not inbound_ips %}, men SMS_DLR_ALLOWED_IPS är tom: i produktion svarar adressen 404 tills listan finns{% endif %}.{% else %}Inkommande är avstängt: UTSKICK_ELKS_INBOUND_TOKEN saknas.{% endif %} {% if inbound_last_reconcile %}Senaste avstämning mot 46elks {{ inbound_last_reconcile|date:"j b H:i" }}.{% endif %}</p>
+  <p class="tv-prop__note">Senaste 7 dagarna: {{ inbound_week|tal }} sms in, varav {{ inbound_stops_week|tal }} STOPP. Svar på STOPP och START i kö: {{ inbound_answers_queued|tal }}{% if inbound_answers_failed_week %}, {{ inbound_answers_failed_week|tal }} gick inte att skicka{% endif %}.</p>
+  {% if inbound_held %}
+  <p class="tv-prop__note"><b>{{ inbound_held_count|tal }} sms väntar på byrån.</b> De syns för ingen kund förrän de är kopplade. Flera möjliga kunder betyder att fler än en skickat från svarsnumret till numret de senaste 30 dagarna.</p>
+  <div class="m-table-wrap">
+    <table class="m-table mu-table mu-in-table">
+      <thead><tr><th>Kom in</th><th>Från</th><th>Text</th><th>Läge</th><th>Koppla</th></tr></thead>
+      <tbody>
+      {% for row in inbound_held %}
+      <tr>
+        <td>{{ row.message.received_at|date:"j b H:i" }}</td>
+        <td>{{ row.masked|default:"okänt" }}</td>
+        <td class="mu-in-text">{% if row.is_stop %}<b>STOPP</b> {% endif %}{{ row.text }}</td>
+        <td>{% if row.message.status == "ambiguous" %}Flera möjliga kunder{% if row.candidates %}: {% for pk, name in row.candidates %}{{ name }}{% if not forloop.last %}, {% endif %}{% endfor %}{% endif %}{% else %}Ingen kund har skickat dit{% endif %}</td>
+        <td>
+          {% if row.candidates or row.others %}
+          <form method="post" action="{% url 'manage:utskick_inbound_route' row.message.pk %}" class="mu-form">{% csrf_token %}
+            <input type="hidden" name="action" value="route">
+            <label class="m-sr-only" for="mu-in-account-{{ row.message.pk }}">Kund</label>
+            <select id="mu-in-account-{{ row.message.pk }}" name="account" class="tv-input" required>
+              <option value="">Välj kund</option>
+              {% for pk, name in row.candidates %}<option value="{{ pk }}">{{ name }} (skickade dit)</option>{% endfor %}
+              {% for pk, name in row.others %}<option value="{{ pk }}">{{ name }} (skickade dit tidigare)</option>{% endfor %}
+            </select>
+            <button type="submit" class="m-btn m-btn--small">Koppla till kund</button>
+          </form>
+          {% else %}<p class="tv-muted">Ingen kund har skickat sms till numret.</p>{% endif %}
+          <form method="post" action="{% url 'manage:utskick_inbound_route' row.message.pk %}" class="mu-form">{% csrf_token %}
+            <input type="hidden" name="action" value="ignore">
+            <button type="submit" class="m-btn m-btn--small m-btn--ghost">Lägg åt sidan</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="tv-muted">Inga sms väntar på byrån.</p>
+  {% endif %}
+</div>

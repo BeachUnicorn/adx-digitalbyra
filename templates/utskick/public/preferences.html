@@ -13,7 +13,7 @@ inte går att slå på här). Bara maskerade uppgifter, aldrig ett namn.
 Kontext: rader [{kanal, rubrik, not, tillstand (on, pending, off),
 kan_andras, sparrad}], maskerat ("070-*** ** 67 · a***@e***.example"),
 allt_sparrat, kan_spara, klart och klart_text (efter en sparning),
-mejl_till (maskerad), avregistrering_text (kundens extra rad efter en
+mejl_till och sms_till (maskerade, klart mejl, sms eller sms-mejl), avregistrering_text (kundens extra rad efter en
 avregistrering), fel.
 {% endcomment %}
 {% block title %}Mina utskick{% endblock %}
@@ -21,8 +21,11 @@ avregistrering), fel.
 <h1 class="up-h1">Vad vill du få från {{ foretag }}?</h1>
 {% if maskerat %}<p class="up-masked">{{ maskerat }}</p>{% endif %}
 {% if fel %}<div class="up-alert" role="alert"><p>{{ fel }}</p></div>{% endif %}
-{% if klart == "mejl" %}
-<div class="up-done" role="status"><p>Vi har skickat ett mejl till {{ mejl_till }}. Klicka på länken i mejlet för att börja få e-post.</p></div>
+{% if klart == "mejl" or klart == "sms" or klart == "sms-mejl" %}
+<div class="up-done" role="status">
+  {% if mejl_till %}<p>Vi har skickat ett mejl till {{ mejl_till }}. Klicka på länken i mejlet för att börja få e-post.</p>{% endif %}
+  {% if sms_till %}<p>Du får ett sms till {{ sms_till }} med en länk. Klicka på länken för att börja få sms.</p>{% endif %}
+</div>
 {% elif klart_text %}
 <div class="up-done" role="status">
   <p>{{ klart_text }}</p>
@@ -39,7 +42,7 @@ avregistrering), fel.
       <div class="up-row__text">
         {% if rad.kan_andras %}<label class="up-row__title" for="up-{{ rad.kanal }}">{{ rad.rubrik }}</label>{% else %}<span class="up-row__title">{{ rad.rubrik }}</span>{% endif %}
         {% if rad.not %}<p class="up-row__note">{{ rad.not }}</p>{% endif %}
-        {% if rad.tillstand == "pending" %}<p class="up-row__note">Väntar på att du klickar på länken i mejlet.</p>{% elif rad.sparrad %}<p class="up-row__note">Du har avregistrerat dig.</p>{% elif not rad.kan_andras %}<p class="up-row__note">Går inte att slå på här.</p>{% endif %}
+        {% if rad.tillstand == "pending" %}<p class="up-row__note">{% if rad.kanal == "sms" %}Väntar på att du klickar på länken i sms:et.{% else %}Väntar på att du klickar på länken i mejlet.{% endif %}</p>{% elif rad.sparrad %}<p class="up-row__note">Du har avregistrerat dig.</p>{% elif not rad.kan_andras %}<p class="up-row__note">Går inte att slå på här.</p>{% endif %}
       </div>
       {% if rad.kan_andras %}
       <input class="up-switch" id="up-{{ rad.kanal }}" name="{{ rad.kanal }}" type="checkbox" value="1" role="switch"{% if rad.tillstand != "off" %} checked{% endif %}>

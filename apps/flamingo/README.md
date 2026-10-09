@@ -104,7 +104,7 @@ Byråns sidor:
 | `/manage/flamingo/google/tillbaka/` | Googles omdirigering efter inloggningen (OAuth) |
 | `/manage/kunder/<pk>/flamingo/google/api/` (POST) | Kundkortets knappar: kopplingsförfrågan, nytt konto, läget från Google |
 | Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering, knapparna med API:t), kampanjerna, och sist Kontakter och utskick (`#utskick`, apps/utskick) |
-| `/manage/utskick/` | Kontakter och utskick för byrån: kunderna, kön för bekräftelsemejl, ticken, nödstoppet och biträdesavtalet (apps/utskick/README.md) |
+| `/manage/utskick/` | Kontakter och utskick för byrån: kunderna, kön för bekräftelsemejl, ticken, sändningen med informationsutskicken och "Provsms till mig" (S2), inkommande sms som väntar på byrån, länkar till nya webbplatser att godkänna, nödstoppet med klarmarkeringarna och biträdesavtalet (apps/utskick/README.md) |
 
 ## Kontakter och utskick (`apps/utskick`)
 
@@ -112,10 +112,11 @@ Flamingo 2.0 bor i en egen app: kontaktregistret, importen, samtyckena,
 anmälningssidan och (från S2) utskicken. Kontraktet och läget står i
 `apps/utskick/README.md`; här bara det som rör Flamingo:
 
-- Menyn visar Kontakter efter Kampanjer bara när byrån aktiverat utskick
-  för kunden (`utskick.nav.nav_for`, kundkortet `#utskick`). Sidorna ligger
-  under `app/kontakter/` och går genom `utskick.access.utskick_view`
-  (Flamingos `app_view` plus kravet att utskick är på, annars 404).
+- Menyn visar Kontakter och Utskick efter Kampanjer bara när byrån
+  aktiverat utskick för kunden (`utskick.nav.nav_for`, kundkortet
+  `#utskick`). Sidorna ligger under `app/kontakter/` och `app/utskick/` och
+  går genom `utskick.access.utskick_view` (Flamingos `app_view` plus kravet
+  att utskick är på, annars 404).
 - Inställningarnas rubrik heter "Inloggningar hos <kunden>": i Flamingo
   betyder Kontakter nu registret, inte portalens användare.
 - Landningssidans formulär får kryssrutorna "Ja, jag vill få erbjudanden
@@ -128,8 +129,33 @@ anmälningssidan och (från S2) utskicken. Kontraktet och läget står i
   kontakten (`Lead.contact`); utan ikryssad ruta kopplas förfrågan bara
   till en befintlig kontakt med exakt samma nummer eller e-post. Inga kakor.
 - Demokunden har kontakter, listor, taggar, extrafält, en klar import och
-  samtycken i varje läge (`utskick.demo`), och skickar aldrig något.
-- Inkorgens ändringar (svar på utskick, chips per typ) kommer med S2.
+  samtycken i varje läge, ett skickat utskick (simulerat) med klick,
+  förfrågningar, två svar och en STOPP, ett schemalagt och ett utkast
+  (`utskick.demo`), och skickar aldrig något.
+- **Spåret från utskick (S2, D10, D11).** Klicket på `k.adx.se/<kod>` går
+  till landningssidan med `ut=<token>` (aldrig en kaka); `flamingo-lp.js`
+  tar bort `ut` ur adressfältet, lägger den i formuläret och i klicket på
+  numret, och skickar besöksanropet `lp/<slug>/besok/` med tiden på sidan.
+  En förfrågan med en token från samma konto får `Lead.utskick`,
+  `Lead.utskick_recipient` och `Lead.attribution` (`utskick.attribution`),
+  högre gränser (`limits.UTSKICK_LEADS_PER_CAMPAIGN`, 200 i timmen) och
+  räknas också när Google-kampanjen är pausad. Sådana förfrågningar går
+  aldrig till Google (`Lead.can_send_to_google`) och räknas inte i
+  kostnaden per förfrågan och affär på översikten, som i stället visar
+  "Varav via utskick". Ägarens sms om dem samlas med svaren (högst ett per
+  30 minuter, `utskick.threads`), inget sms per förfrågan.
+- **Inkorgen (S2).** Svar på utskick är förfrågningar med källan `reply`
+  och en svarstråd (`utskick.Thread`, `Lead.reply_thread`): listan sorteras
+  på `Lead.activity_at` (senaste svaret), och när utskick är på blir
+  statusfiltret en rad chips med antal (Alla, Förfrågningar, Sms-svar,
+  E-postsvar, Avregistreringar) plus en statusväljare. Ett hanterat svar
+  heter "Klar", en STOPP "Avregistrerad automatiskt". Förfrågans sida visar
+  tråden (`flamingo/app/utskick/_thread.html`) med svarsrutan (sms från
+  svarsnumret 0766 86 00 46, " /<företaget>" läggs till när namnet saknas),
+  "Avregistrera från sms" och "Kontaktkort". Byrån i kundvyn svarar på
+  riktigt men måste kryssa i att den svarar som ADX; demot svarar aldrig.
+  Kanalen i listan: "Sms-svar", "STOPP" eller "Utskick: <namn>" för en
+  förfrågan via ett utskick.
 
 ## Sidbyggaren (`pagebuilder/`)
 
@@ -837,7 +863,11 @@ ingenting från Reco. Kontakter och utskick är på för demot
 (`apps/utskick/demo.py`): kontakter med samtycken i varje läge, en spärr,
 listor, taggar, extrafält, en klar import, en avstängd anmälningssida och
 förfrågningar kopplade till sina kontakter; organisationsnumret 559999-0000
-har fel kontrollsiffra och kan inte vara ett riktigt företags. Demot behöver
+har fel kontrollsiffra och kan inte vara ett riktigt företags. Utskicken:
+"Spolning inför vintern" skickades för åtta dagar sedan (simulerat, inget
+sms, ingen SmsMessage) med tre klick, två förfrågningar via utskicket, två
+svar i Inkorgen (ett nytt, ett klart) och en STOPP; ett schemalagt om fem
+dagar (ticken simulerar det när tiden kommer) och ett utkast. Demot behöver
 inget biträdesavtal. Kör det igen så byggs innehållet om (också demots
 spärrlista och samtyckeslogg); inget dubbleras.
 En annan kund med samma namn rörs aldrig.

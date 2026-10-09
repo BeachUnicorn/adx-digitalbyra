@@ -1,0 +1,136 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app utskick_tags %}
+{% comment %}
+Rapporten, S2 (README I.8, I.5). Kontext från app_views/utskick.utskick_report:
+utskick, numbers (reports.summary), status_label och status_tone,
+header_line ("Sms · skickat tisdag 8 okt 09.00 · 388 mottagare · kostnad 153 kr"),
+progress ("Skickas: 120 av 388 · Fortsätter 09.00 i morgon: utanför
+tidsfönstret"), banner (pausens text och knappar, I.5, eller None), tiles
+(Levererade, Klick, Svar, Förfrågningar med visa=), skipped_rows (Hoppades
+över per orsak), rows och more_rows (de första mottagarna), staff_line
+("Skickat av ADX (Giovanni) åt kunden"), info_line ("Information: ändrade
+öppettider"), can_pause, can_cancel, is_draft, is_scheduled, planned,
+is_staff_actor, staff_text. Ändra på ett schemalagt utskick är en länk till
+guiden: det blir ett utkast först när något faktiskt ändras. Avbryt frågar
+först, också i pausens ruta (knappen kind "cancel").
+
+Varje siffra leder till mottagarna bakom den (app_utskick_recipients?visa=).
+Knapparna som skickar (Fortsätt) kräver av byrån i kundvyn kryssrutan (I.4).
+Bara mänskliga klick räknas.
+{% endcomment %}
+{% block app_title %}{{ utskick.name }}{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-ut-crumb" href="{% url 'flamingo:app_utskick_list' %}">Utskick</a></p>
+    <h1 class="fl-app-title">{{ utskick.name }}</h1>
+    <p class="fl-app-lead">{{ header_line }}</p>
+    <p class="fl-ut-headline"><span class="fl-ut-status fl-ut-status--{{ status_tone }}">{{ status_label }}</span>{% if info_line %}<span class="fl-ut-muted">{{ info_line }}</span>{% endif %}{% if staff_line %}<span class="fl-ut-muted">{{ staff_line }}</span>{% endif %}</p>
+  </div>
+  <div class="fl-app-head__actions">
+    {% if can_pause %}
+    <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_state' utskick.pk %}">
+      {% csrf_token %}<button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="pausa">Pausa</button>
+    </form>
+    {% endif %}
+    {% if is_scheduled %}
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_utskick_step' utskick.pk 'mottagare' %}">Ändra</a>
+    {% endif %}
+    {% if can_cancel and not banner %}
+    <details class="fl-ut-more fl-ut-more--right">
+      <summary class="fl-btn fl-btn--ghost fl-btn--sm">Avbryt utskicket</summary>
+      <form class="fl-ut-confirm" method="post" action="{% url 'flamingo:app_utskick_state' utskick.pk %}">
+        {% csrf_token %}
+        <p>Inget mer skickas, och det går inte att ångra.</p>
+        <button type="submit" class="fl-btn fl-btn--sm" name="action" value="avbryt">Avbryt utskicket</button>
+      </form>
+    </details>
+    {% endif %}
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+{% if is_draft %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Utkast</p>
+  <p class="fl-empty__text">Utskicket är inte bekräftat än. Inget skickas förrän du har granskat det och tryckt på knappen.</p>
+  <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_utskick_step' utskick.pk 'mottagare' %}">Fortsätt med utskicket</a>
+</div>
+{% endif %}
+
+{% if banner %}
+<div class="fl-notice fl-notice--warn fl-ut-banner" role="status">
+  <span>{{ banner.text }}</span>
+  {% if banner.buttons %}
+  <div class="fl-ut-banner__actions">
+    {% for button in banner.buttons %}
+    {% if button.kind == "link" %}
+    <a class="fl-btn fl-btn--sm" href="{{ button.url }}">{{ button.label }}</a>
+    {% elif button.kind == "cancel" %}
+    <details class="fl-ut-more">
+      <summary class="fl-btn fl-btn--ghost fl-btn--sm">{{ button.label }}</summary>
+      <form class="fl-ut-confirm" method="post" action="{% url 'flamingo:app_utskick_state' utskick.pk %}">
+        {% csrf_token %}
+        <p>Inget mer skickas, och det går inte att ångra.</p>
+        <button type="submit" class="fl-btn fl-btn--sm" name="action" value="{{ button.action }}">{{ button.label }}</button>
+      </form>
+    </details>
+    {% else %}
+    <form class="fl-ut-banner__form" method="post" action="{% url 'flamingo:app_utskick_state' utskick.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="{{ button.action }}">
+      {% if button.sends and is_staff_actor %}<label class="fl-check"><input type="checkbox" name="som_adx" value="1" required><span>{{ staff_text }}</span></label>{% endif %}
+      <button type="submit" class="fl-btn fl-btn--sm{% if button.ghost %} fl-btn--ghost{% endif %}">{% if button.sends and is_staff_actor %}Skicka som ADX{% else %}{{ button.label }}{% endif %}</button>
+    </form>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if progress %}<p class="fl-ut-progress" role="status">{{ progress }}</p>{% endif %}
+
+{% if is_scheduled %}
+<p class="fl-notice"><span>Utskicket är schemalagt{% if planned is not None %} till {{ planned|tal }} mottagare{% endif %}. Ändrar du något före utskickstiden blir det ett utkast igen och behöver bekräftas på nytt.</span></p>
+{% endif %}
+
+{% if not is_draft and not is_scheduled %}
+<div class="fl-kpis fl-ut-kpis">
+  {% for tile in tiles %}
+  <a class="fl-kpi fl-ut-kpi" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}?visa={{ tile.visa }}">
+    <span class="fl-kpi__label">{{ tile.label }}</span>
+    <span class="fl-kpi__value">{{ tile.value|default:0|tal }}</span>
+    {% if tile.note %}<span class="fl-kpi__note">{{ tile.note }}</span>{% endif %}
+  </a>
+  {% endfor %}
+</div>
+
+{% if numbers.from_stats %}<p class="fl-panel__note">Mottagarna finns inte kvar (de sparas i 13 månader). Siffrorna är sparade när utskicket blev klart.</p>{% endif %}
+
+{% if skipped_rows %}
+<section class="fl-panel" aria-labelledby="ut-skipped-title">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="ut-skipped-title">Hoppades över</h2>
+    <a class="fl-panel__link" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}?visa=hoppades-over">{{ numbers.skipped|tal }} {% if numbers.skipped == 1 %}kontakt{% else %}kontakter{% endif %}</a>
+  </div>
+  <ul class="fl-list fl-ut-skips">
+    {% for row in skipped_rows %}
+    <li class="fl-list__item"><a class="fl-list__main" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}?visa={{ row.visa }}"><span class="fl-list__title">{{ row.label }}</span></a><span class="fl-ut-count">{{ row.n|tal }}</span></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
+
+{% if rows %}
+<section class="fl-ut-section" aria-labelledby="ut-rows-title">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="ut-rows-title">Mottagare</h2>
+    {% if more_rows %}<a class="fl-panel__link" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}">Visa alla mottagare</a>{% endif %}
+  </div>
+  {% include "flamingo/app/utskick/_recipients_table.html" %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

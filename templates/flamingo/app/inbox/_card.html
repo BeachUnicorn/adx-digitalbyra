@@ -1,12 +1,14 @@
 {% load flamingo_app %}{% comment %}
 Ett kort i inkorgens lista (som admin-inkorg.html): status och tid överst,
 kanalen till höger, namnet, tjänsten och början av meddelandet.
-Kontext: item (Lead med card_ago och card_channel), current (pk eller None).
+Kontext: item (Lead med card_ago, card_channel och card_status), current
+(pk eller None). Ett svar på utskick (S2) visar "Klar" i stället för
+Kontaktad, tiden för senaste svaret och början av det.
 {% endcomment %}<li class="fl-inbox-card{% if item.pk == current %} is-current{% endif %}{% if item.status == "new" %} is-new{% endif %}{% if item.status == "won" or item.status == "lost" or item.status == "junk" %} is-closed{% endif %}">
   <a class="fl-inbox-card__link" href="{% url 'flamingo:app_lead' item.pk %}"{% if item.pk == current %} aria-current="page"{% endif %}>
     <span class="fl-inbox-card__top">
-      <span class="fl-inbox-card__state"><i class="fl-inbox-dot fl-inbox-dot--{{ item.status }}" aria-hidden="true"></i>{{ item.get_status_display }}{% if item.status == "won" and item.value_kr %}, {{ item.value_kr|kr }}{% endif %} · {{ item.card_ago }}</span>
-      <span class="fl-inbox-card__channel">{{ item.card_channel }}</span>
+      <span class="fl-inbox-card__state"><i class="fl-inbox-dot fl-inbox-dot--{{ item.status }}" aria-hidden="true"></i>{{ item.card_status|default:item.get_status_display }}{% if item.status == "won" and item.value_kr %}, {{ item.value_kr|kr }}{% endif %} · {{ item.card_ago }}</span>
+      <span class="fl-inbox-card__channel{% if item.card_channel == "STOPP" %} is-stop{% endif %}">{{ item.card_channel }}</span>
     </span>
     <span class="fl-inbox-card__name">{{ item.display_name }}</span>
     {% if item.service_name or item.message %}<span class="fl-inbox-card__meta">{% if item.service_name %}{{ item.service_name }}{% endif %}{% if item.service_name and item.message %} · {% endif %}{% if item.message %}{{ item.message }}{% endif %}</span>{% endif %}

@@ -10,6 +10,9 @@ En modul per del, och en ägare per modul:
     signup.py     inställningarna för anmälningssidan
     settings.py   Inställningar för kontakter
     dpa.py        biträdesavtalet
+    utskick.py    Utskick (S2): listan, guiden, Granska, rapporten,
+                  mottagarna, testsändningen och Inställningar för utskick
+    inbox_reply.py  svaren i Inkorgen (S2): svara och avregistrera från sms
 
 Varje vy skrivs så här:
 
@@ -45,3 +48,15 @@ def render_contacts(request, template, tab, context=None, status=200):
     }
     merged.update(context or {})
     return render_app(request, template, "contacts", merged, status=status)
+
+
+def render_utskick(request, template, tab, context=None, status=200):
+    """Som render_contacts, för en sida under Utskick: sidomenyns punkt är
+    "utskick" och flikraden har tab ("utskick", "settings") markerad.
+    Mallarna utgår från flamingo/app/utskick/_layout.html."""
+    merged = {
+        "ut_nav": nav.utskick_tabs(tab),
+        "utskick_settings": getattr(request, "utskick_settings", None),
+    }
+    merged.update(context or {})
+    return render_app(request, template, "utskick", merged, status=status)

@@ -5,6 +5,13 @@ SMS-API:t, /api/sms/v1/ (dokumentationen för kunden: /kund/sms/dokumentation/).
     GET  /api/sms/v1/messages/<id>/   ett sms och dess status
     GET  /api/sms/v1/usage/           månadens förbrukning och tak
     GET  /api/sms/v1/senders/         kontots godkända avsändare
+    GET  /api/sms/v1/suppressions/?to=+46...   har numret svarat STOPP
+                                      (kundens spärrlista i Flamingos utskick)
+
+Nyckeln når bara API:ts egna sms (source "api"): sms från Flamingos utskick
+bär mottagarnas nummer, sammanfogade namn, personliga koder och svar, och
+dem ska den som håller nyckeln aldrig kunna läsa (apps/utskick C.1). Varje
+läsning, också framtida listor, filtrerar på source="api".
 
 Inloggning med kundens nyckel i Authorization: Bearer adxsms_... Ingen
 cookie och därför ingen CSRF (samma mönster som apps/projects/api.py).
@@ -27,7 +34,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from apps.common.net import client_ip
 
-from . import pricing, ratelimit, service
+from . import numbers, pricing, ratelimit, service
 from .models import SmsApiKey, SmsMessage
 
 logger = logging.getLogger(__name__)
@@ -61,6 +68,7 @@ def message_json(message):
         error = {"code": message.error_code, "message": text}
     return {
         "id": message.pk,
+        "source": message.source,
         "status": "unknown" if message.is_unknown else message.status,
         "to": message.to,
         "country": message.country or None,
@@ -152,7 +160,11 @@ def messages(request):
 def message_detail(request, pk):
     if request.method != "GET":
         return error_response("method_not_allowed")
-    message = SmsMessage.objects.filter(account=request.sms_account, pk=pk).first()
+    message = (
+        SmsMessage.objects.filter(account=request.sms_account, pk=pk)
+        .filter(source=SmsMessage.Source.API)
+        .first()
+    )
     if message is None:
         return error_response("not_found")
     return JsonResponse(message_json(message))
@@ -198,6 +210,46 @@ def senders(request):
             "senders": account.senders,
             "choose_per_message": account.customer_sets_sender,
         }
+    )
+
+
+#: Svaret när kunden inte har Flamingos utskick (ingen spärrlista att fråga).
+NO_UTSKICK_TEXT = "Kontot har ingen spärrlista: Flamingos utskick är inte aktiverat."
+
+
+def _utskick_account(sms_account):
+    """Kundens Flamingo-konto när kunden har utskick, annars None. Ett
+    avstängt utskick räknas: spärrarna gäller kundens marknadsföring ändå."""
+    from apps.utskick.models import UtskickSettings
+
+    flamingo = getattr(sms_account.customer, "flamingo", None)
+    if flamingo is None or not UtskickSettings.objects.filter(account=flamingo).exists():
+        return None
+    return flamingo
+
+
+@api_endpoint
+def suppressions(request):
+    """Har numret svarat STOPP (eller avregistrerat sig) hos kunden i
+    Flamingos utskick? {"to": "+46...", "suppressed": true|false}. En STOPP
+    till Exempelrör gäller all Exempelrörs marknadsföring (marknadsförings-
+    lagen), också den som går via API:t. 404 när kunden inte har utskick."""
+    if request.method != "GET":
+        return error_response("method_not_allowed")
+    account = _utskick_account(request.sms_account)
+    if account is None:
+        return error_response("not_found", NO_UTSKICK_TEXT)
+    raw = (request.GET.get("to") or "").strip()
+    if not raw:
+        return error_response("invalid_request", "Fältet to saknas.")
+    try:
+        number = numbers.parse(raw)
+    except numbers.InvalidNumber as exc:
+        return error_response("invalid_number", str(exc))
+    from apps.utskick.suppression import is_suppressed
+
+    return JsonResponse(
+        {"to": number.e164, "suppressed": bool(is_suppressed(account, "sms", number.e164))}
     )
 
 

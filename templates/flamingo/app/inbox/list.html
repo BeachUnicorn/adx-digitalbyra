@@ -5,7 +5,9 @@ Inkorgen (kundresan steg 11): förfrågningarna nyast först, filtrerade på
 status. "Alla" visar allt utom skräp. Till höger (under listan i telefon)
 lägger kunden till en förfrågan själv. Kontext från app_views/inbox.py:
 page, leads, filters, status, status_label, this_month, total, add_form,
-add_open.
+add_open. S2 (apps/utskick, README C.2): med utskick på (utskick_on) blir
+chipsen en rad med typer och antal (types, typ, ?typ=) och statusen ett val
+med en Visa-knapp (status_options), utan JavaScript.
 {% endcomment %}
 {% block app_title %}Inkorg{% endblock %}
 {% block app_content %}
@@ -25,11 +27,28 @@ add_open.
 <div class="fl-inbox-layout">
   <section class="fl-inbox-main" aria-labelledby="fl-inbox-list-title">
     <h2 class="fl-sr" id="fl-inbox-list-title">Förfrågningar, {{ status_label|lower }}</h2>
+    {% if utskick_on %}
+    {# S2: typerna med antal, och statusen som ett val (README C.2). #}
+    <nav class="fl-inbox-filters fl-inbox-types" aria-label="Visa förfrågningar och svar">
+      {% for t in types %}
+      <a class="fl-inbox-filter{% if t.active %} is-on{% endif %}" href="{% url 'flamingo:app_inbox' %}{% if t.value or status %}?{% endif %}{% if t.value %}typ={{ t.value }}{% endif %}{% if t.value and status %}&amp;{% endif %}{% if status %}status={{ status }}{% endif %}"{% if t.active %} aria-current="true"{% endif %}>{{ t.label }} <span class="fl-inbox-filter__count">{{ t.count }}</span></a>
+      {% endfor %}
+    </nav>
+    <form class="fl-inbox-statusform" method="get" action="{% url 'flamingo:app_inbox' %}">
+      {% if typ %}<input type="hidden" name="typ" value="{{ typ }}">{% endif %}
+      <label class="fl-inbox-statusform__label" for="fl-inbox-status">Status</label>
+      <select class="fl-input fl-inbox-statusform__select" id="fl-inbox-status" name="status">
+        {% for value, label in status_options %}<option value="{{ value }}"{% if value == status %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Visa</button>
+    </form>
+    {% else %}
     <nav class="fl-inbox-filters" aria-label="Visa förfrågningar med status">
       {% for f in filters %}
       <a class="fl-inbox-filter{% if f.active %} is-on{% endif %}" href="{% url 'flamingo:app_inbox' %}{% if f.value %}?status={{ f.value }}{% endif %}"{% if f.active %} aria-current="true"{% endif %}>{{ f.label }} <span class="fl-inbox-filter__count">{{ f.count }}</span></a>
       {% endfor %}
     </nav>
+    {% endif %}
 
     {% if leads %}
     <ul class="fl-inbox-list">
@@ -37,15 +56,15 @@ add_open.
     </ul>
     {% if page.has_other_pages %}
     <nav class="fl-inbox-pages" aria-label="Fler förfrågningar">
-      {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if status %}status={{ status }}&amp;{% endif %}sida={{ page.previous_page_number }}">Nyare</a>{% endif %}
+      {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if typ %}typ={{ typ }}&amp;{% endif %}{% if status %}status={{ status }}&amp;{% endif %}sida={{ page.previous_page_number }}">Nyare</a>{% endif %}
       <span class="fl-inbox-pages__at">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
-      {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if status %}status={{ status }}&amp;{% endif %}sida={{ page.next_page_number }}">Äldre</a>{% endif %}
+      {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if typ %}typ={{ typ }}&amp;{% endif %}{% if status %}status={{ status }}&amp;{% endif %}sida={{ page.next_page_number }}">Äldre</a>{% endif %}
     </nav>
     {% endif %}
     {% elif total %}
     <div class="fl-empty">
       <p class="fl-empty__title">Inga förfrågningar här</p>
-      <p class="fl-empty__text">Ingen förfrågan har status {{ status_label|lower }} just nu.</p>
+      <p class="fl-empty__text">{% if typ %}Inget i {{ type_label|lower }}{% if status %} med status {{ status_label|lower }}{% endif %} just nu.{% else %}Ingen förfrågan har status {{ status_label|lower }} just nu.{% endif %}</p>
       <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_inbox' %}">Visa alla</a>
     </div>
     {% else %}

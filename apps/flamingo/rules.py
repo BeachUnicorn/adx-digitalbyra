@@ -324,10 +324,64 @@ def onboarding_things(account, now):
     return things
 
 
-def three_things(account, now=None):
-    """Högst tre saker att göra nu, viktigast först."""
-    now = now or timezone.now()
+# --- Utskick (apps/utskick, S2): utskick-ui-byggaren ------------------------
+
+
+def utskick_things(account, now):
+    """Pausade utskick och länkvärdar som väntar på ADX (README C.2, I.5,
+    E.8): en sak per pausat utskick, en för värdarna. Bara när utskick är
+    på för kontot. Kunden mejlas aldrig om en paus, så det här och
+    rapportens ruta är signalen."""
+    from apps.utskick.access import is_enabled
+    from apps.utskick.models import AllowedHost, Utskick
+
+    if not is_enabled(account):
+        return []
     things = []
+    paused = (
+        Utskick.objects.listed()
+        .filter(account=account, status__in=Utskick.PAUSED_STATES)
+        .order_by("status_changed_at", "pk")[:MAX_THINGS]
+    )
+    for utskick in paused:
+        label = utskick.get_pause_reason_display() if utskick.pause_reason else "Pausat"
+        things.append(
+            Thing(
+                key=f"utskick_paused_{utskick.pk}",
+                title=f"Utskicket {utskick.name}",
+                text=f"är {label[:1].lower()}{label[1:]}.",
+                url=reverse("flamingo:app_utskick", args=[utskick.pk]),
+                action="Öppna",
+            )
+        )
+    hosts = list(
+        AllowedHost.objects.filter(account=account, status=AllowedHost.Status.PENDING)
+        .order_by("requested_at", "pk")
+        .values_list("host", flat=True)[:4]
+    )
+    if hosts:
+        text = (
+            f"Länken till {hosts[0]} godkänns av ADX innan utskicket kan skickas."
+            if len(hosts) == 1
+            else "Länkar till nya webbplatser godkänns av ADX innan utskicken kan skickas."
+        )
+        things.append(
+            Thing(
+                key="utskick_hosts",
+                title="Väntar på ADX:",
+                text=text,
+                url=reverse("flamingo:app_utskick_list"),
+                action="Visa",
+            )
+        )
+    return things
+
+
+def three_things(account, now=None):
+    """Högst tre saker att göra nu, viktigast först. Pausade utskick och
+    länkar som väntar på ADX kommer före resten (README C.2)."""
+    now = now or timezone.now()
+    things = list(utskick_things(account, now))
     for rule in (waiting_leads, campaigns_waiting, stale_leads):
         thing = rule(account, now)
         if thing is not None:

@@ -26,6 +26,18 @@ Ett fel är antingen säkert eller oklart (ElksError.ambiguous). Säkert:
 nekades; då gick inget sms iväg. Oklart: tidsgränsen löpte ut, förbindelsen
 bröts, 46elks svarade 5xx eller med något som inte var JSON. Då kan 46elks
 ha tagit emot och skickat sms:et, och service.py får aldrig skicka det igen.
+
+46elks 429 (för många sms i minuten för byråns konto) är ett säkert fel med
+throttled=True: inget skickades, och service.py svarar rate_limited (429)
+i stället för provider_error, utan larm (apps/utskick/README.md, C.1).
+
+list_messages(since) läser 46elks sms-historik (GET /a1/sms, nyast först,
+sida för sida med next) för utskickens avstämning av inkommande sms till
+svarsnumret (apps/utskick README G.1 punkt 4). Sidans parameter är
+LIST_PAGE_PARAM; slingan stannar när en sida bara har äldre eller redan
+sedda sms, så ett fel där ger högst en sida, aldrig en evig slinga. Med
+deadline (time.monotonic()) stannar den också när tiden är slut, och varje
+anrop får högst den tid som är kvar; svaret säger då complete=False.
 """
 
 import base64
@@ -34,7 +46,9 @@ import json
 import logging
 import socket
 import ssl
+import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -53,12 +67,14 @@ ERROR_TEXT_MAX = 200
 class ElksError(Exception):
     """46elks svarade inte, svarade med fel eller med något oväntat.
 
-    ambiguous: anropet kan ha nått fram och sms:et kan ha skickats."""
+    ambiguous: anropet kan ha nått fram och sms:et kan ha skickats.
+    throttled: 46elks svarade 429; inget skickades, försök igen om en minut."""
 
-    def __init__(self, message, status=None, ambiguous=False):
+    def __init__(self, message, status=None, ambiguous=False, throttled=False):
         super().__init__(message)
         self.status = status
         self.ambiguous = ambiguous
+        self.throttled = throttled
 
 
 #: Fel som uppstår innan något nått 46elks: inget kan ha skickats.
@@ -123,6 +139,7 @@ def _post(fields):
             f"46elks svarade {exc.code}: {text or 'inget svar'}",
             exc.code,
             ambiguous=exc.code >= 500,
+            throttled=exc.code == 429,
         ) from None
     except URLError as exc:
         # urlopen slår in fel under anslutningen och själva sändningen i
@@ -204,3 +221,116 @@ def send(sender, to, body, whendelivered=""):
         # 46elks svarade ja men utan id: sms:et kan mycket väl ha skickats.
         raise ElksError("46elks svarade utan id.", ambiguous=True)
     return result
+
+
+# ---------------------------------------------------------------- historiken
+
+#: Sms per sida och högsta antal sidor i en avstämning (2 000 sms).
+LIST_PAGE_SIZE = 100
+LIST_MAX_PAGES = 20
+#: Parametern som tar svarets next för nästa (äldre) sida. 46elks
+#: dokumentation (/docs/sms-history): start = "hämta sms före den här tiden".
+#: Kontrolleras mot dokumentationen i S2-checklistan (README J S2 steg 6).
+LIST_PAGE_PARAM = "start"
+
+
+def _parse_time(value):
+    """46elks tider (UTC, ofta utan tidszon) som medvetna datetime, eller None."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+
+
+def _get(params, timeout=TIMEOUT_SECONDS):
+    """GET /a1/sms med parametrarna. dict, eller ElksError (aldrig oklart:
+    en läsning skickar inget)."""
+    if not is_configured():
+        raise ElksError("SMS-leverantören är inte inkopplad.")
+    request = Request(  # noqa: S310 - fast https-adress, inget från användaren
+        f"{API_URL}?{urlencode(params)}",
+        method="GET",
+        headers={"Authorization": _auth_header(), "Accept": "application/json"},
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:  # noqa: S310
+            raw = response.read(4 * MAX_RESPONSE_BYTES)
+    except HTTPError as exc:
+        code = exc.code
+        raise ElksError(f"46elks svarade {code}.", code, throttled=code == 429) from None
+    except (URLError, TimeoutError, OSError, http.client.HTTPException) as exc:
+        raise ElksError(f"46elks gick inte att nå ({type(exc).__name__}).") from None
+    try:
+        payload = json.loads(raw.decode("utf-8", "replace") or "{}")
+    except ValueError:
+        raise ElksError("46elks svarade med något som inte är JSON.") from None
+    if not isinstance(payload, dict):
+        raise ElksError("46elks svarade med något oväntat.")
+    return payload
+
+
+class Messages(list):
+    """list_messages svar: en vanlig lista, och complete=False när läsningen
+    stannade för att tiden (deadline) tog slut innan since nåddes."""
+
+    complete = True
+
+
+def list_messages(since, *, direction="incoming", to=None, max_pages=LIST_MAX_PAGES, deadline=None):
+    """46elks sms från since till nu, nyast först, som
+    [{"id", "from", "to", "message", "created", "direction"}] (created som
+    datetime). Filtrerar på direction och to (svarsnumret). Kastar ElksError.
+    deadline (time.monotonic()): inga fler sidor efter den, och varje anrop
+    får högst tiden som är kvar (svaret har då complete=False)."""
+    found = Messages()
+    seen = set()
+    cursor = None
+    for _ in range(max(1, int(max_pages))):
+        timeout = TIMEOUT_SECONDS
+        if deadline is not None:
+            left = deadline - time.monotonic()
+            if left <= 0.5:
+                found.complete = False
+                break
+            timeout = min(TIMEOUT_SECONDS, max(1.0, left))
+        params = {"limit": LIST_PAGE_SIZE}
+        if cursor:
+            params[LIST_PAGE_PARAM] = cursor
+        payload = _get(params, timeout=timeout)
+        rows = payload.get("data") or []
+        fresh = False
+        older = False
+        for row in rows if isinstance(rows, list) else []:
+            if not isinstance(row, dict):
+                continue
+            created = _parse_time(row.get("created"))
+            if created is not None and created < since:
+                older = True
+                continue
+            sms_id = str(row.get("id") or "")[:120]
+            if not sms_id or sms_id in seen:
+                continue
+            seen.add(sms_id)
+            fresh = True
+            if direction and row.get("direction") != direction:
+                continue
+            if to and row.get("to") != to:
+                continue
+            found.append(
+                {
+                    "id": sms_id,
+                    "from": str(row.get("from") or ""),
+                    "to": str(row.get("to") or ""),
+                    "message": str(row.get("message") or ""),
+                    "created": created,
+                    "direction": str(row.get("direction") or ""),
+                }
+            )
+        cursor = payload.get("next")
+        if older or not fresh or not cursor:
+            break
+    return found

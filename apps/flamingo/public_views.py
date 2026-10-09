@@ -51,6 +51,19 @@ mejl kommer när rutan för e-post var ikryssad (?epost=1, inget annat i
 adressen), oavsett om adressen redan fick e-post: sidan avslöjar inte vem
 som redan finns hos kunden.
 
+Besök från ett utskick (apps/utskick, README D10, E.4): klicket på
+k.adx.se skickar besökaren hit med ?ut=<token>. Ingen kaka och ingen
+lagring: token prövas mot sidans konto (utskick.attribution.resolve; en
+token från ett annat konto ignoreras helt), besöket loggas på klicket (inte
+för byrån, förhandsvisningen eller demot), formuläret bär token i ett dolt
+fält och klicket på numret skickar den. Förfrågan får utskicket och spåret
+(och går aldrig till Google), med högre gränser (limits). Tiden på sidan
+kommer med visit_beacon (/lp/<slug>/besok/, csrf_exempt: token är
+behörigheten), högst var tionde sekund. flamingo-lp.js tar bort ut ur
+adressfältet, så att en kopierad länk inte bär mottagarens token. Ett
+utskicksklick räknar också klicket på numret när Google-kampanjen är
+pausad (kontot aktiverat, kunden aktiv, inget demokonto).
+
 Skydd: CSRF, ett osynligt honungsfält (en bot som fyller det får samma
 tack-sida, men ingen förfrågan skapas), spärrarna i limits.py (högst
 RATE_LIMIT förfrågningar i timmen per besökare och kampanj och högst
@@ -65,6 +78,7 @@ from django import forms
 from django.http import Http404, HttpResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.projects.access import is_agency_user
@@ -260,10 +274,11 @@ def _lp_consent(account, spec):
     }
 
 
-def _capture(lead, form, request):
+def _capture(lead, form, request, click=None):
     """Efter förfrågan: samtycket och kopplingen till kontakten (utskick).
     Kastar aldrig. True när rutan för e-post var ikryssad (tack-sidans
-    ?epost=1), vad capture än gjorde med den."""
+    ?epost=1), vad capture än gjorde med den. click är utskickets klick
+    (förfrågan kom via ett utskick) eller None."""
     from apps.common.net import client_ip
     from apps.utskick import capture
 
@@ -275,6 +290,7 @@ def _capture(lead, form, request):
             consent.get("texts") or {},
             request.path,
             limits.ip_hash(client_ip(request)),
+            click=click,
         )
     except Exception:  # noqa: BLE001 - förfrågan är redan sparad och ska fram
         logger.exception("flamingo lp: utskick tog inte emot förfrågan %s", lead.pk)
@@ -328,6 +344,24 @@ def _measure_context(request, campaign, preview):
     }
 
 
+def _utskick_click(campaign, *sources):
+    """(ut, klicket) när besöket kommer från ett utskick hos samma konto,
+    annars ("", None). Felaktiga och främmande token ignoreras helt (E.4)."""
+    ut = leads.ut_from(*sources)
+    if not ut:
+        return "", None
+    from apps.utskick import attribution
+
+    click = attribution.resolve(ut, campaign)
+    return (ut, click) if click is not None else ("", None)
+
+
+def _counted_visit(request, campaign, preview):
+    """Loggas besöket från ett utskick? Inte för byrån, förhandsvisningen
+    eller demokontot (E.4)."""
+    return not preview and not campaign.account.is_demo and not is_agency_user(request.user)
+
+
 def _respond(html, status=200):
     response = HttpResponse(html, status=status)
     response["X-Robots-Tag"] = "noindex, nofollow"
@@ -346,6 +380,13 @@ def landing(request, slug):
     tracking = leads.tracking_from(request.GET)
     consent = _lp_consent(account, spec)
     status = 200
+    post = request.POST if request.method == "POST" else None
+    ut, click = _utskick_click(campaign, post, request.GET)
+    counted = _counted_visit(request, campaign, preview)
+    if request.method == "GET" and click is not None and counted:
+        from apps.utskick import attribution
+
+        attribution.record_lp_visit(click, campaign)
 
     if request.method == "POST":
         if request.POST.get(HONEYPOT, ""):
@@ -358,9 +399,11 @@ def landing(request, slug):
             if preview:
                 # Förhandsvisningen skapar ingen förfrågan och skickar inget.
                 return redirect("flamingo_public:thanks", slug=campaign.page_slug)
-            lead, refused = limits.create_form_lead(campaign, form.lead_data(), request)
+            lead, refused = limits.create_form_lead(
+                campaign, form.lead_data(), request, click=click
+            )
             if lead is not None:
-                email_ticked = _capture(lead, form, request)
+                email_ticked = _capture(lead, form, request, click if lead.utskick_id else None)
                 sms.notify_new_lead(lead)
                 thanks_url = reverse("flamingo_public:thanks", args=[campaign.page_slug])
                 if email_ticked:
@@ -379,16 +422,25 @@ def landing(request, slug):
     extra = _layout_extra(request, campaign, preview, page, which)
     extra.update(_measure_context(request, campaign, preview))
     extra.update({"tracking": tracking, "action": request.get_full_path(), "lp_consent": consent})
+    # Utskicket (E.4): det dolda fältet ut och besöksanropet för tiden på sidan.
+    extra["ut"] = ut
+    extra["visit_beacon"] = (
+        reverse("flamingo_public:visit_beacon", args=[campaign.page_slug])
+        if click is not None and counted
+        else ""
+    )
     html = pagebuilder.render_page_html(
         page, account, campaign, which=which, request=request, form=form, extra=extra
     )
     return _respond(html, status=status)
 
 
-def _live_campaign(slug):
-    """Kampanjen vars klick på numret räknas, annars 404: live, aktiverat
-    konto, aktiv kund och inget demokonto. Sidan är öppen ändå
-    (_campaign_for); det här villkoret gäller bara räkningen."""
+def _live_campaign(slug, data=None):
+    """(kampanjen, utskickets klick eller None) när klicket på numret räknas,
+    annars 404: live, aktiverat konto, aktiv kund och inget demokonto. Med
+    ett ut-klick från samma konto (data["ut"], E.4) räknas det också när
+    Google-kampanjen inte är live. Sidan är öppen ändå (_campaign_for); det
+    här villkoret gäller bara räkningen."""
     campaign = (
         Campaign.objects.select_related("account__customer", "service")
         .filter(page_slug=slug)
@@ -397,14 +449,12 @@ def _live_campaign(slug):
     if campaign is None:
         raise Http404
     account = campaign.account
-    if not (
-        campaign.is_public
-        and account.is_enabled
-        and account.customer.is_active
-        and not account.is_demo
-    ):
+    if not (account.is_enabled and account.customer.is_active and not account.is_demo):
         raise Http404
-    return campaign
+    _ut, click = _utskick_click(campaign, data)
+    if not campaign.is_public and click is None:
+        raise Http404
+    return campaign, click
 
 
 @require_POST
@@ -416,18 +466,49 @@ def call_click(request, slug):
     formuläret. Ett klick blir en förfrågan "Klick på telefonnumret" med
     klick-id och utm, högst en per besökare och kampanj och timme
     (limits.create_call_click_lead). Inget sms: ägaren får samtalet. Byrån
-    räknas inte."""
-    campaign = _live_campaign(slug)
+    räknas inte. Med utskickets ut (flamingo-lp.js skickar den) får
+    förfrågan utskicket och spåret."""
+    campaign, click = _live_campaign(slug, request.POST)
     response = HttpResponse(status=204)
     response["Cache-Control"] = "no-store"
     response["X-Robots-Tag"] = "noindex, nofollow"
     if is_agency_user(request.user):
         return response
-    lead, refused = limits.create_call_click_lead(campaign, request.POST, request)
+    lead, refused = limits.create_call_click_lead(campaign, request.POST, request, click=click)
     if lead is None and refused != limits.LIMIT_DUPLICATE:
         logger.warning(
             "flamingo lp: för många klick på numret (%s, kampanj %s)", refused, campaign.pk
         )
+    return response
+
+
+#: Besöksanropet är litet: ut och sekunderna.
+VISIT_BEACON_MAX_BYTES = 512
+
+
+@csrf_exempt
+@require_POST
+def visit_beacon(request, slug):
+    """Tiden på sidan för ett besök från ett utskick (README C.2, E.4),
+    skickat av flamingo-lp.js med sendBeacon. Kroppen: ut och s (sekunder).
+    csrf_exempt: den signerade token är behörigheten (H.2), och sidan sätter
+    ingen kaka. Svarar alltid 204 utan innehåll (ingen ska kunna se om
+    token gällde). Token från ett annat konto, byrån och demokontot
+    ignoreras; högst en skrivning per klick och tio sekunder
+    (attribution.record_beacon)."""
+    response = HttpResponse(status=204)
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    if len(request.body or b"") > VISIT_BEACON_MAX_BYTES or is_agency_user(request.user):
+        return response
+    campaign = Campaign.objects.select_related("account").filter(page_slug=slug).first()
+    if campaign is None or campaign.account.is_demo:
+        return response
+    _ut, click = _utskick_click(campaign, request.POST)
+    if click is not None:
+        from apps.utskick import attribution
+
+        attribution.record_beacon(click, request.POST.get("s", ""))
     return response
 
 

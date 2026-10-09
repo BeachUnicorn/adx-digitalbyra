@@ -36,8 +36,10 @@ omdömen, och Reco anropas aldrig.
 
 Kontakter och utskick (apps/utskick/demo.py) är på för demot: kontakter
 med samtycken i varje läge, listor, taggar, extrafält, en klar import, en
-avstängd anmälningssida och förfrågningar kopplade till sina kontakter.
-Demokontot behöver inget biträdesavtal och skickar aldrig något.
+avstängd anmälningssida och förfrågningar kopplade till sina kontakter;
+ett skickat utskick (simulerat) med klick, förfrågningar via utskicket, två
+svar och en STOPP i Inkorgen, ett schemalagt och ett utkast. Demokontot
+behöver inget biträdesavtal och skickar aldrig något.
 
 Idempotent: demokunden hittas på namnet OCH is_demo och uppdateras, och
 innehållet (uppgifter, tjänster, kampanjer, sidor, bilder, granskningar,
@@ -1426,7 +1428,10 @@ class Command(BaseCommand):
         def lead(when, **fields):
             fields.setdefault("source", Lead.SOURCE_FORM)
             created = now - when if isinstance(when, timedelta) else when
-            return Lead.objects.create(account=account, created_at=created, **fields)
+            # activity_at som created_at: Inkorgen sorteras på den (S2).
+            return Lead.objects.create(
+                account=account, created_at=created, activity_at=created, **fields
+            )
 
         sara = lead(
             timedelta(hours=5),
@@ -1633,6 +1638,10 @@ class Command(BaseCommand):
         w("  /flamingo/app/kontakter/")
         w("  /flamingo/app/kontakter/listor/")
         w("  /flamingo/app/kontakter/import/")
+        w("Utskick:")
+        w("  /flamingo/app/utskick/")
+        w("  /flamingo/app/utskick/installningar/")
+        w("  /manage/utskick/")
         w("Landningssidorna (bara byrån ser dem, alla andra får 404):")
         for state, campaign in campaigns.items():
             w(f"  {campaign.landing_url}   ({state})")

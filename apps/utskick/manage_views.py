@@ -311,6 +311,7 @@ def customer_update(request, pk):
             row.contact_limit = data["contact_limit"]
         if data["email_daily_cap"] is not None:
             row.email_daily_cap = data["email_daily_cap"]
+        was_blocked = bool(row.pk and row.sending_blocked)
         row.sending_blocked = data["sending_blocked"]
         row.blocked_reason = data["blocked_reason"] if data["sending_blocked"] else ""
         was_on = row.is_enabled
@@ -322,6 +323,17 @@ def customer_update(request, pk):
         elif was_on and not enable:
             row.disabled_at = now
         row.save()
+        # --- S2, sändningsmotorn (D.8): ett avstängt eller stoppat konto pausar
+        # sina schemalagda, frysande och pågående utskick i samma transaktion.
+        # Att slå på igen fortsätter ingenting av sig självt.
+        from .models import Utskick
+        from .sending import state as sending_state
+
+        if was_on and not enable:
+            sending_state.pause_account(account, Utskick.PauseReason.ACCOUNT_DISABLED, now)
+        elif row.sending_blocked and not was_blocked:
+            sending_state.pause_account(account, Utskick.PauseReason.BLOCKED, now)
+        # --- slut S2
     logger.info(
         "Utskick för konto %s sparat av användare %s (på: %s, stoppat: %s)",
         account.pk,
@@ -366,14 +378,43 @@ def end_counts(account):
     }
 
 
+def _end_utskick(account):
+    """S2-delen av "Avsluta utskick och radera allt": mottagarna i omgångar
+    (en stor kaskad på en liten server låser länge), sedan resten. Svaren
+    tas bort med sina förfrågningar i Inkorgen (Lead med source reply bär
+    numret och senaste svaret), inte bara trådarna."""
+    from apps.flamingo.models import Lead
+
+    from .models import Click, LinkCode, Recipient, Thread, Utskick
+
+    Click.objects.filter(account=account).delete()
+    LinkCode.objects.filter(account=account).delete()
+    while True:
+        batch = list(
+            Recipient.objects.filter(utskick__account=account).values_list("pk", flat=True)[
+                :DELETE_BATCH
+            ]
+        )
+        if not batch:
+            break
+        Recipient.objects.filter(pk__in=batch).delete()
+    Thread.objects.filter(account=account).delete()
+    Lead.objects.filter(account=account, source=Lead.SOURCE_REPLY).delete()
+    Utskick.objects.filter(account=account).delete()
+
+
 def end_account(account, user=None):
     """Ta bort kontots kontakter, listor, taggar, fält, importer (med filer)
     och anmälningssidan, och stäng av utskick. Spärrlistan och
     samtyckesloggen finns kvar som pseudonymt bevis (kontakten blir null,
-    kundens anteckningar töms). Senare steg tar också bort utskick,
-    mottagare, klick och trådar. Returnerar antalen som togs bort."""
+    kundens anteckningar töms). Från S2 också utskicken, mottagarna,
+    sms-koderna, klicken och svarstrådarna. Returnerar antalen som togs bort."""
     counts = end_counts(account)
     with transaction.atomic():
+        # --- S2, sändningsmotorn (E.7): utskick, mottagare, sms-koder, klick
+        # och svarstrådar. Spärrlistan och samtyckesloggen finns kvar.
+        _end_utskick(account)
+        # --- slut S2
         importer.delete_account_jobs(account)
         SignupForm.objects.filter(account=account).delete()
         # Kundens anteckningar på beviset töms, som vid en GDPR-borttagning (H.4).
@@ -523,6 +564,12 @@ def overview(request):
         "dpa_page": page,
         "next_version": timezone.localtime(now).strftime("%Y-%m"),
     }
+    # S2: varje byggares del av översikten har sin egen modul och mall
+    # (manage_sending, manage_inbound, manage_links; S2-HANDOFF.md).
+    from . import manage_inbound, manage_links, manage_sending
+
+    for part in (manage_sending, manage_inbound, manage_links):
+        context.update(part.panel_context(now))
     return render(request, "manage/utskick/overview.html", context)
 
 

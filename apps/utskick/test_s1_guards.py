@@ -40,10 +40,13 @@ APP_FOLDERS = (
     TEMPLATES / "flamingo" / "app" / "utskick",
 )
 #: Alla mallar utan style= och inbäddade skript. Bekräftelsemejlet
-#: (utskick/mail) har sina stilar inbäddade, som mejl måste.
+#: (utskick/mail) har sina stilar inbäddade, som mejl måste. Länkvärdarnas
+#: sidor (S2, utskick/links) också: de har dessutom aldrig {% csrf_token %}
+#: (test_s2_links.LinkTemplateGuardTests).
 NO_INLINE_FOLDERS = (
     *APP_FOLDERS,
     TEMPLATES / "utskick" / "public",
+    TEMPLATES / "utskick" / "links",
     TEMPLATES / "manage" / "utskick",
 )
 MANAGE_FOLDER = TEMPLATES / "manage" / "utskick"

@@ -1,0 +1,8 @@
+{% comment %}
+Förhandsvisningen som en telefon (README I.2: max-width 100 %, under
+redigeraren i smal skärm). Kontext: sender_text (avsändaren som den syns),
+preview (composer.preview), bubble_id (id:t räknaren skriver om, valfritt).
+{% endcomment %}<div class="fl-ut-phone">
+  <p class="fl-ut-phone__top"><b>{{ sender_text }}</b><span>Sms</span></p>
+  <p class="fl-ut-bubble"{% if bubble_id %} id="{{ bubble_id }}"{% endif %}>{{ preview.text|linebreaksbr }}</p>
+</div>

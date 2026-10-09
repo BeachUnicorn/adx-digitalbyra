@@ -16,7 +16,7 @@ lika för manuellt, import, anmälan, landningssidan och API:t.
     record_event(contact, kind, ...)     Event plus senaste aktivitet
     add_to_list / add_tag / remove_tag   massändringar inom kontot
     room_left(account)                   hur många fler som får plats (contact_limit)
-    export_contact(contact)              GDPR: allt om en person som en dict (S1-källorna)
+    export_contact(contact)              GDPR: allt om en person som en dict (S1 och S2)
     log_export(account, actor, kind, rows), reserve_export(account)
     delete_contact(contact, actor=..., delete_leads=True, suppress=True)
                                          GDPR: ta bort personen, behåll beviset
@@ -674,6 +674,7 @@ def export_contact(contact):
             {"tid": _iso(e.at), "händelse": e.kind} for e in contact.events.order_by("at", "pk")
         ],
         "förfrågningar": leads,
+        **_export_s2(contact),
     }
 
 
@@ -701,14 +702,17 @@ def delete_contact(contact, *, actor=None, delete_leads=True, suppress=True, now
     spärrarna finns kvar som pseudonymt bevis (contact blir null, kundens
     anteckning töms); med suppress läggs varje känd adress på spärrlistan
     (orsak erasure) så att personen inte importeras igen; med delete_leads
-    tas personens förfrågningar bort. Senare steg tar också bort svar och
-    trådar, nollar mottagarrader och tömmer sms-texterna (README H.4).
+    tas personens förfrågningar bort. Svarstrådarna och deras förfrågningar
+    tas alltid bort, mottagarraderna nollas och sms-texterna töms (S2,
+    _erase_s2, README H.4).
     Returnerar {"leads": n, "suppressed": n}."""
     actor = actor or SYSTEM
     now = now or timezone.now()
     account = contact.account
     summary = {"leads": 0, "suppressed": 0}
     with transaction.atomic():
+        # S2 först: svarstrådarna och deras förfrågningar tas alltid bort.
+        _erase_s2(contact, account)
         if delete_leads:
             leads = linked_leads(contact)
             summary["leads"] = leads.count()
@@ -731,3 +735,129 @@ def delete_contact(contact, *, actor=None, delete_leads=True, suppress=True, now
         getattr(actor.user, "pk", None),
     )
     return summary
+
+
+# ---------------------------------------------------------------------------
+# S2 (inkorg-byggaren): utskick, klick, svar och sms i GDPR-exporten och
+# borttagningen (README H.4). Anropas av export_contact och delete_contact.
+# ---------------------------------------------------------------------------
+
+
+def _sms_rows_for(contact, recipient_sms=(), thread_sms=()):
+    """Kontaktens sms genom Flamingo (allt utom API:t) hos kundens SmsAccount:
+    till numret, eller burna av kontaktens mottagare och trådar."""
+    from apps.sms.models import SmsAccount, SmsMessage
+
+    sms_account = SmsAccount.objects.filter(customer_id=contact.account.customer_id).first()
+    if sms_account is None:
+        return SmsMessage.objects.none()
+    match = Q(pk__in=list(recipient_sms)) | Q(pk__in=list(thread_sms))
+    if contact.phone:
+        match |= Q(to=contact.phone)
+    return (
+        SmsMessage.objects.filter(account=sms_account)
+        .exclude(source=SmsMessage.Source.API)
+        .filter(match)
+    )
+
+
+def _contact_threads(contact):
+    """Kontaktens svarstrådar: kopplade till kontakten, eller till dess nummer
+    eller e-post utan kontakt (avtalet saknades när svaret kom)."""
+    from .models import Thread
+
+    match = Q(contact=contact)
+    addresses = [a for a in (contact.phone, contact.email) if a]
+    if addresses:
+        match |= Q(contact__isnull=True, address__in=addresses)
+    return Thread.objects.filter(account_id=contact.account_id).filter(match)
+
+
+def _export_s2(contact):
+    from .models import Click, Recipient, ThreadMessage
+
+    recipients = (
+        Recipient.objects.filter(contact=contact, utskick__account_id=contact.account_id)
+        .select_related("utskick")
+        .order_by("created_at", "pk")
+    )
+    clicks = Click.objects.filter(contact=contact, account_id=contact.account_id).order_by(
+        "at", "pk"
+    )
+    threads = list(_contact_threads(contact).select_related("utskick").order_by("created_at"))
+    messages = ThreadMessage.objects.filter(thread__in=threads).order_by("at", "pk")
+    by_thread = {}
+    for message in messages:
+        by_thread.setdefault(message.thread_id, []).append(
+            {
+                "tid": _iso(message.at),
+                "riktning": "in" if message.direction == ThreadMessage.Direction.IN else "ut",
+                "text": message.body,
+            }
+        )
+    recipient_sms = [r.sms_message_id for r in recipients if r.sms_message_id]
+    thread_sms = [m.sms_message_id for m in messages if m.sms_message_id]
+    sms_rows = _sms_rows_for(contact, recipient_sms, thread_sms).order_by("created_at", "pk")
+    return {
+        "utskick": [
+            {
+                "utskick": r.utskick.name,
+                "kanal": r.get_channel_display(),
+                "status": r.get_status_display(),
+                "skickat": _iso(r.sent_at),
+                "levererat": _iso(r.delivered_at),
+                "klick": r.click_count,
+                "svarade": _iso(r.replied_at),
+                "avregistrerade": _iso(r.stopped_at),
+            }
+            for r in recipients
+        ],
+        "klick": [{"tid": _iso(c.at), "enhet": c.device} for c in clicks],
+        "svar": [
+            {
+                "kanal": t.get_channel_display(),
+                "utskick": t.utskick.name if t.utskick_id else "",
+                "meddelanden": by_thread.get(t.pk, []),
+            }
+            for t in threads
+        ],
+        "sms": [
+            {"tid": _iso(m.created_at), "text": m.body, "status": m.get_status_display()}
+            for m in sms_rows
+        ],
+    }
+
+
+def _erase_s2(contact, account):
+    """Det S2 vet om personen, i delete_contacts transaktion: trådarna med
+    meddelanden och svarsförfrågningarna tas bort, mottagarraderna nollas
+    (kontakt, adress, sammanfogning), sms genom Flamingo får tomt nummer och
+    tom text (land, delar, pris och referens finns kvar för underlaget,
+    K.2.6), och inkommande sms från numret töms."""
+    from apps.flamingo.models import Lead
+
+    from .models import InboundMessage, Recipient, ThreadMessage
+
+    threads = _contact_threads(contact)
+    thread_ids = list(threads.values_list("pk", flat=True))
+    recipients = Recipient.objects.filter(contact=contact, utskick__account=account)
+    recipient_sms = list(
+        recipients.exclude(sms_message__isnull=True).values_list("sms_message_id", flat=True)
+    )
+    thread_sms = list(
+        ThreadMessage.objects.filter(thread_id__in=thread_ids)
+        .exclude(sms_message__isnull=True)
+        .values_list("sms_message_id", flat=True)
+    )
+    _sms_rows_for(contact, recipient_sms, thread_sms).update(to="", body="")
+    Lead.objects.filter(
+        account=account, source=Lead.SOURCE_REPLY, reply_thread__pk__in=thread_ids
+    ).delete()
+    threads.model.objects.filter(pk__in=thread_ids).delete()
+    recipients.update(contact=None, address="", merge={})
+    inbound = Q(contact=contact)
+    if contact.phone:
+        inbound |= Q(account=account, from_address=contact.phone)
+    if contact.email:
+        inbound |= Q(account=account, from_address=contact.email)
+    InboundMessage.objects.filter(inbound).update(from_address="", body="")

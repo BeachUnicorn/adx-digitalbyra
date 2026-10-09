@@ -70,3 +70,89 @@ def agency(subject, lines, once=None, window="hour", now=None):
         logger.exception("Kunde inte skicka utskickslarmet till byrån")
         return False
     return True
+
+
+# ---------------------------------------------------------------------------
+# S2: sändningsmotorns larm (README D.3, D.4, D.9, H.5). Bara pk och antal.
+# ---------------------------------------------------------------------------
+
+
+def _utskick_line(utskick):
+    return f"Utskick {utskick.pk} hos konto {utskick.account_id}."
+
+
+def breaker(until, now=None):
+    """Nödbromsen drogs (D.4): tre oklara svar eller fel från 46elks inom två
+    minuter. All sms-sändning från utskicken väntar till until."""
+    from django.utils import timezone
+
+    stamp = timezone.localtime(until).strftime("%H.%M")
+    return agency(
+        "Utskick: sms pausade efter fel hos 46elks",
+        [
+            "Tre sms fick ett oklart svar eller ett fel från 46elks inom två minuter.",
+            f"All sms-sändning från utskicken väntar till {stamp}. Kundernas API påverkas inte.",
+            "Stäm av oklara sms på /manage/sms/#kontrollera.",
+        ],
+        once="sms_breaker",
+        now=now,
+    )
+
+
+def utskick_paused(utskick, reason, detail="", now=None):
+    """Ett utskick pausades av en orsak byrån ska känna till (provider,
+    stops). Högst ett larm per utskick och orsak i timmen."""
+    lines = [_utskick_line(utskick), f"Orsak: {reason}."]
+    if detail:
+        lines.append(detail)
+    return agency(
+        f"Utskick: pausat ({reason})",
+        lines,
+        once=f"paused:{utskick.pk}:{reason}",
+        now=now,
+    )
+
+
+def first_big_utskick(utskick, recipients, now=None):
+    """Kontots första utskick med fler än 500 mottagare (D.9)."""
+    return agency(
+        "Utskick: första stora utskicket för en kund",
+        [
+            _utskick_line(utskick),
+            f"{recipients} mottagare. Kontrollera att urvalet och samtyckena ser rimliga ut.",
+        ],
+        once=f"first_big:{utskick.account_id}",
+        window="day",
+        now=now,
+    )
+
+
+def information_utskick(utskick, recipients, recent, now=None):
+    """Informationsutskick till fler än 200, eller fler än två på 30 dagar
+    för samma konto (H.5)."""
+    return agency(
+        "Utskick: informationsutskick att granska",
+        [
+            _utskick_line(utskick),
+            f"Skäl: {utskick.get_info_reason_display() or 'saknas'}.",
+            f"{recipients} mottagare. Kontot har {recent} informationsutskick "
+            "de senaste 30 dagarna.",
+            "Information kräver inget samtycke och följer inte veckotaket.",
+        ],
+        once=f"information:{utskick.pk}",
+        window="day",
+        now=now,
+    )
+
+
+def low_disk(free_pct, now=None):
+    """Frysningen vägrar starta när diskens lediga utrymme är under 8 % (D.3)."""
+    return agency(
+        "Utskick: disken är nästan full",
+        [
+            f"Ledigt på disken: {free_pct:.1f} %.",
+            "Schemalagda utskick fryses inte förrän det finns mer än 8 % ledigt.",
+        ],
+        once="freeze_low_disk",
+        now=now,
+    )

@@ -1,0 +1,189 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Guidens steg 3: Innehåll, sms-redigeraren (README I.8, I.10, F.3, F.8, H.5,
+E.8). Kontext från app_views/utskick._step_innehall: utskick, wizard, sms,
+preview (composer.preview: text, parts, counter, part_ore, longest_parts,
+longest_count, non_gsm, sender), non_gsm_text (tecknen i klartext: "ett
+hårt mellanslag"), errors (composer.validate), kontakt och next_kontakt
+(förhandsvisningens kontakt och "byt kontakt", en knapp som sparar först), insert_tags
+([(platshållare, rubrik)]), used_tags (reservtexterna), link_rows ([{link,
+host, status, token}]), campaigns, templates ([{key, label, text,
+information}]), sender_identified, too_long, max_parts, planned (antal sms),
+total_text, test (owner, owner_text, staff, demo), opt_out, reply_sender,
+sender_text, sample_link (k.adx.se/a8Kf2X, lika lång som en riktig länk),
+is_staff_actor, staff_text, display_name, is_demo.
+
+Hela sidan är ett formulär, så att inget skrivet försvinner när kunden
+lägger till en länk, väljer en mall, byter tecken, byter kontakt, väljer
+ett annat steg eller skickar ett test: varje knapp sparar texten först. Den
+dolda Spara-knappen i rubriken (_step_header.html) tar Enter. Rutan om dyra
+tecken finns alltid och döljs när texten inte har några; skriptet visar den
+medan kunden skriver. Utan skript syns allt och fungerar; flamingo-app-utskick.js
+räknar tecken och delar medan kunden skriver (textarea[data-ut-sms]),
+hämtar den exakta förhandsvisningen (app_utskick_sms_preview) och infogar
+platshållare där markören står.
+{% endcomment %}
+{% block app_title %}{{ utskick.name }}: Innehåll{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_header %}{% include "flamingo/app/utskick/_step_header.html" %}{% endblock %}
+{% block ut_content %}
+<form id="ut-innehall" class="fl-form fl-ut-form" data-ut-guard method="post" action="{% url 'flamingo:app_utskick_step' utskick.pk 'innehall' %}">
+  {% csrf_token %}
+  <button type="submit" class="fl-sr" tabindex="-1" name="nasta" value="innehall">Spara</button>
+  {% if kontakt %}<input type="hidden" name="kontakt" value="{{ kontakt.pk }}">{% endif %}
+
+  <div class="fl-ut-editor">
+    <div class="fl-ut-editor__main">
+      <div class="fl-field{% if errors %} is-error{% endif %}">
+        <label class="fl-field__label" for="ut-sms-body">Text i sms:et</label>
+        <textarea class="fl-input fl-ut-textarea" id="ut-sms-body" name="sms_body" rows="7" maxlength="2000" aria-describedby="ut-sms-count ut-sms-help" data-ut-sms data-ut-sms-count="ut-sms-count" data-ut-sms-gsm="ut-gsm" data-ut-sms-ore-per-part="{{ preview.part_ore }}" data-ut-sms-recipients="{{ planned }}" data-ut-sms-optout="{{ opt_out }}" data-ut-sms-link="{{ sample_link }}" data-ut-sms-optout-mode="{% if reply_sender %}reply{% else %}name{% endif %}" data-ut-sms-preview="{% url 'flamingo:app_utskick_sms_preview' utskick.pk %}{% if kontakt %}?kontakt={{ kontakt.pk }}{% endif %}" data-ut-sms-bubble="ut-bubble" data-ut-sms-notes="ut-sms-notes">{{ utskick.sms_body }}</textarea>
+        <p class="fl-ut-counter" id="ut-sms-count">{{ preview.counter }}{% if planned %} · cirka {{ total_text }}{% endif %}</p>
+        <div class="fl-ut-notes" id="ut-sms-notes" aria-live="polite">
+          {% for error in errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+          {% if not sender_identified %}<p class="fl-field__error">Mottagaren ser bara ett nummer. Skriv {{ display_name }} i texten.</p>{% endif %}
+          {% if too_long %}<p class="fl-field__error">Texten blir längre än {{ max_parts }} sms-delar för några mottagare. Korta texten.</p>{% endif %}
+          {% if preview.longest_count and not too_long %}<p class="fl-ut-warn">Längsta namnet ger {{ preview.longest_parts }} delar för {{ preview.longest_count|tal }} {% if preview.longest_count == 1 %}person{% else %}personer{% endif %}.</p>{% endif %}
+        </div>
+        <p class="fl-field__help" id="ut-sms-help">{% if reply_sender %}En rad om att svara STOPP läggs till sist om du inte skriver den själv.{% else %}En avregistreringslänk läggs till sist, eller där du skriver {avregistrering}.{% endif %} Länkar blir korta och personliga, till exempel {{ sample_link }}.</p>
+      </div>
+
+      <div class="fl-ut-insert" data-ut-insert-row hidden>
+        <span class="fl-ut-insert__label">Infoga</span>
+        {% for token, label in insert_tags %}<button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ut-insert="{{ token }}" data-ut-target="ut-sms-body">{{ label }}</button>{% endfor %}
+      </div>
+      <p class="fl-field__help fl-ut-insert__plain" data-ut-insert-plain>Platshållare: {förnamn}, {efternamn}, {namn}, {företag}, {fält:nyckel} och {avregistrering}. Reservtext skrivs efter ett streck: {förnamn|du}.</p>
+
+      <div class="fl-notice fl-notice--warn fl-ut-gsm" id="ut-gsm" aria-live="polite"{% if not preview.non_gsm %} hidden{% endif %}>
+        <span>Texten innehåller <span data-ut-gsm-chars>{{ non_gsm_text }}</span>. Då skickas hela sms:et med 70 tecken per del i stället för 160, och det blir dyrare. Tryck Byt automatiskt.</span>
+        <button type="submit" class="fl-btn fl-btn--sm" name="action" value="fix">Byt automatiskt</button>
+      </div>
+
+      {% if used_tags %}
+      <fieldset class="fl-field fl-ut-group">
+        <legend class="fl-field__label">Om ett värde saknas</legend>
+        {% for item in used_tags %}
+        <div class="fl-field">
+          <label class="fl-field__label fl-ut-sublabel" for="ut-reserv-{{ forloop.counter }}">Om {{ item.label }} saknas, skriv</label>
+          <input class="fl-input" id="ut-reserv-{{ forloop.counter }}" type="text" name="reserv_{{ item.tag }}" value="{{ item.value }}" maxlength="60" autocomplete="off" placeholder="Lämna tomt för att hoppa över ordet">
+        </div>
+        {% endfor %}
+        <p class="fl-field__help">En reservtext i klamrarna gäller före den här.</p>
+      </fieldset>
+      {% endif %}
+    </div>
+
+    <aside class="fl-ut-editor__side" aria-label="Förhandsvisning">
+      {% include "flamingo/app/utskick/_phone.html" with bubble_id="ut-bubble" %}
+      <p class="fl-ut-phone__note">{% if kontakt %}Förhandsvisning med {{ kontakt.display_name }}{% if next_kontakt %} · <button type="submit" class="fl-ut-linkbtn" name="byt_kontakt" value="{{ next_kontakt.pk }}">byt kontakt</button>{% endif %}{% else %}Välj mottagare för att se texten med deras namn.{% endif %} · <a href="#ut-test">skicka test</a></p>
+    </aside>
+  </div>
+
+  <section class="fl-panel" id="ut-lankar" aria-labelledby="ut-lankar-title">
+    <h2 class="fl-panel__title" id="ut-lankar-title">Länkar</h2>
+    <p class="fl-panel__text">Varje mottagare får en egen kort länk, så att du ser vem som klickade och vem som skickade en förfrågan.</p>
+    {% if link_rows %}
+    <ul class="fl-list fl-ut-links">
+      {% for row in link_rows %}
+      <li class="fl-list__item">
+        <div class="fl-list__main">
+          <span class="fl-list__title fl-ut-token">{{ row.token }}</span>
+          <span class="fl-list__meta fl-ut-url">{% if row.link.kind == "lp" %}Flamingo-sida: {{ row.link.campaign.name|default:row.link.destination }}{% else %}{{ row.link.destination }}{% endif %}</span>
+          {% if row.status == "pending" or row.status == "new" %}<span class="fl-ut-lock">Väntar på ADX: länkar till nya webbplatser godkänns av ADX.</span>{% elif row.status == "refused" %}<span class="fl-ut-lock">ADX har inte godkänt länkar till {{ row.host }}.</span>{% endif %}
+        </div>
+        <span class="fl-ut-links__actions">
+          <button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ut-insert="{{ row.token }}" data-ut-target="ut-sms-body" hidden>Infoga</button>
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="ta_bort_lank" value="{{ row.link.pk }}">Ta bort</button>
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <details class="fl-ut-more"{% if not link_rows %} open{% endif %}>
+      <summary class="fl-btn fl-btn--ghost fl-btn--sm">Lägg till länk</summary>
+      <div class="fl-ut-linkform">
+        <div class="fl-field">
+          <label class="fl-field__label" for="ut-lank-nyckel">Namn i texten</label>
+          <input class="fl-input" id="ut-lank-nyckel" type="text" name="lank_nyckel" maxlength="40" placeholder="boka" autocomplete="off" aria-describedby="ut-lank-nyckel-help">
+          <p class="fl-field__help" id="ut-lank-nyckel-help">Blir {länk:boka} i texten. Små bokstäver, siffror och bindestreck.</p>
+        </div>
+        <fieldset class="fl-field">
+          <legend class="fl-field__label">Vart går länken?</legend>
+          <div class="fl-seg">
+            <label class="fl-seg__opt"><input type="radio" name="lank_typ" value="lp" checked><span>Flamingo-sida</span></label>
+            <label class="fl-seg__opt"><input type="radio" name="lank_typ" value="extern"><span>Egen adress</span></label>
+          </div>
+        </fieldset>
+        <div class="fl-field">
+          <label class="fl-field__label" for="ut-lank-kampanj">Flamingo-sida</label>
+          {% if campaigns %}
+          <select class="fl-input" id="ut-lank-kampanj" name="lank_kampanj">
+            <option value="">Välj sida</option>
+            {% for campaign in campaigns %}<option value="{{ campaign.pk }}">{{ campaign.name }}</option>{% endfor %}
+          </select>
+          <p class="fl-field__help">Full spårning: besök, tid på sidan och förfrågningar.</p>
+          {% else %}
+          <p class="fl-field__help">Du har ingen publicerad Flamingo-sida än. Publicera en kampanj under Kampanjer, eller välj Egen adress.</p>
+          {% endif %}
+        </div>
+        <div class="fl-field">
+          <label class="fl-field__label" for="ut-lank-adress">Egen adress</label>
+          <input class="fl-input" id="ut-lank-adress" type="url" name="lank_adress" placeholder="https://" autocomplete="off" aria-describedby="ut-lank-adress-help">
+          <p class="fl-field__help" id="ut-lank-adress-help">Länkar till nya webbplatser godkänns av ADX innan utskicket kan skickas.</p>
+        </div>
+        <button type="submit" class="fl-btn fl-btn--sm" name="action" value="lank">Lägg till länken</button>
+      </div>
+    </details>
+  </section>
+
+  <details class="fl-panel fl-ut-templates">
+    <summary class="fl-ut-templates__summary">Mallar</summary>
+    <ul class="fl-list">
+      {% for mall in templates %}
+      <li class="fl-list__item">
+        <div class="fl-list__main">
+          <span class="fl-list__title">{{ mall.label }}{% if mall.information %} <span class="fl-ut-muted">(information)</span>{% endif %}</span>
+          <span class="fl-list__meta">{{ mall.text }}</span>
+        </div>
+        <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="mall" value="{{ mall.key }}">Använd</button>
+      </li>
+      {% endfor %}
+    </ul>
+    <p class="fl-field__help">Mallen ersätter texten du har skrivit. Ändra den sedan så att den låter som du.</p>
+  </details>
+
+  <section class="fl-panel fl-panel--soft" id="ut-test" aria-labelledby="ut-test-title">
+    <h2 class="fl-panel__title" id="ut-test-title">Skicka test</h2>
+    {% if test.demo %}
+    <p class="fl-panel__text">Demokontot skickar aldrig.</p>
+    {% else %}
+    <p class="fl-panel__text">Testet skickar texten{% if kontakt %} med uppgifterna för {{ kontakt.display_name }}{% endif %} och sparar den först. Det kostar som ett vanligt sms. Högst 10 test per dag.</p>
+    {% if test.staff %}
+    <div class="fl-ut-testrow">
+      <div class="fl-field">
+        <label class="fl-field__label" for="ut-test-nummer">Ditt mobilnummer</label>
+        <input class="fl-input" id="ut-test-nummer" type="tel" name="nummer" autocomplete="tel" placeholder="070-123 45 67">
+      </div>
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="till" value="eget">Skicka test till mig</button>
+    </div>
+    {% if test.owner %}
+    <details class="fl-ut-more">
+      <summary class="fl-btn fl-btn--ghost fl-btn--sm">Skicka test till kunden (kunden får sms:et)</summary>
+      <div class="fl-ut-confirm">
+        <p>Testet går till {{ test.owner_text }}, kundens nummer för förfrågningar.</p>
+        <label class="fl-check"><input type="checkbox" name="som_adx" value="1"><span>{{ staff_text }}</span></label>
+        <button type="submit" class="fl-btn fl-btn--sm" name="till" value="agare">Skicka som ADX</button>
+      </div>
+    </details>
+    {% endif %}
+    {% elif test.owner %}
+    <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="till" value="agare">Skicka test till {{ test.owner_text }}</button>
+    {% else %}
+    <p class="fl-panel__note">Lägg in ditt mobilnummer för sms om nya förfrågningar under <a href="{% url 'flamingo:app_settings' %}">Inställningar</a>, så kan du skicka ett test till dig.</p>
+    {% endif %}
+    {% endif %}
+  </section>
+  {% include "flamingo/app/utskick/_step_actions.html" %}
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>{% endblock %}

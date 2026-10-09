@@ -68,7 +68,8 @@ On disk each site gets its own isolated checkout, venv, DB and service:
 | `bootstrap.sh` | once per server | Installs nginx, postgres, certbot, uv; creates the system user. Run as root. |
 | `postgres.sh <slug>` | once per site | Creates the Postgres role + database. Idempotent. |
 | `provision-site.sh <slug>` | once per site | Dirs → clone → `.env` → `uv sync` → migrate → static → systemd + nginx. Idempotent. |
-| `certs.sh <slug>` | per site | Issues/renews the Let's Encrypt cert for all the site's domains. |
+| `certs.sh <slug>` | per site | Issues/renews the Let's Encrypt cert for all the site's domains, and (adx) a separate cert `LINK_CERT_NAME` for `LINK_DOMAINS` (`k.adx.se`, `klick.adx.se`). |
+| `nginx-only.sh <slug>` | as `ubuntu` | Re-renders and reloads only the nginx vhost (incl. the link-host block, `apps/utskick/README.md` C.5). Run before and after the first link-host cert. |
 | `superuser.sh <slug>` | per site | Creates the Django admin user. |
 | `deploy.sh <slug>` / `--all` | every update | Pull → `uv sync` → migrate → static → graceful reload → **health check + auto-rollback**. |
 | `backup.sh <slug>` | cron | `pg_dump` → S3 (+ local retention). |

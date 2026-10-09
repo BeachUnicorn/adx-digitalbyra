@@ -32,6 +32,18 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Adresser som bär en behörighet i sökvägen loggas inte (apps/utskick,
+    # README C.5): 46elks inkommande sms (/api/utskick/<token>/), Mina
+    # utskick (/utskick/val/<token>/) och bekräftelsen (/utskick/bekrafta/<token>/).
+    location ~ ^/(api/utskick|utskick/val|utskick/bekrafta)/ {
+        access_log off;
+        proxy_pass http://unix:${SOCKET};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     location /static/ {
         alias ${STATIC_DIR}/;
         expires 30d;
@@ -49,3 +61,4 @@ server {
     access_log /var/log/nginx/${SITE_SLUG}_access.log;
     error_log /var/log/nginx/${SITE_SLUG}_error.log;
 }
+${LINK_BLOCK}

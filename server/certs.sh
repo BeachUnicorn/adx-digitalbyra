@@ -30,6 +30,22 @@ sudo certbot certonly --nginx \
     --expand \
     "${domain_args[@]}"
 
+# Länkvärdarna (apps/utskick, README C.5): en EGEN certifikatlinje, så att ett
+# misslyckat HTTP-01 på k.adx.se eller klick.adx.se aldrig stoppar sajtens
+# eget certifikat (det är redan klart här ovanför). Efter första gången: kör
+# nginx-only.sh <slug> så att 443-blocket för länkvärdarna ritas.
+if declare -p LINK_DOMAINS >/dev/null 2>&1 && [ "${#LINK_DOMAINS[@]}" -gt 0 ]; then
+    link_cert="${LINK_CERT_NAME:-${SITE_SLUG}-links}"
+    link_args=()
+    for d in "${LINK_DOMAINS[@]}"; do
+        link_args+=( -d "$d" )
+    done
+    log "Requesting certificate '${link_cert}' for: ${LINK_DOMAINS[*]}"
+    if ! sudo certbot certonly --nginx --cert-name "$link_cert" --expand "${link_args[@]}"; then
+        warn "Certifikatet '${link_cert}' kunde inte utfärdas. Sajtens eget certifikat påverkas inte."
+    fi
+fi
+
 log "Validating and reloading nginx..."
 sudo nginx -t
 sudo systemctl reload nginx

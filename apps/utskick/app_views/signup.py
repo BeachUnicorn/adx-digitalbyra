@@ -7,8 +7,13 @@ public_views.signup).
 
 - Sidan (SignupForm, en per kund) skapas avstängd första gången kunden
   sparar; kunden slår på den själv.
-- Kanalen är e-post i S1 (README L, Security 13): den som anmäler sig får
-  ett bekräftelsemejl och räknas först efter klicket.
+- Kanalerna: e-post (den som anmäler sig får ett bekräftelsemejl och
+  räknas först efter klicket) och från S2 sms (README L, Security 13 och
+  K.2.5): ett sms med en länk till k.adx.se/b/, och sms räknas först efter
+  klicket. Sms går att välja när byrån slagit på sms-utskicken och kundens
+  sms är aktiverat (optin.sms_signup_block). Formuläret bär
+  kanaler_visade, så att en sparning utan rutorna (äldre formulär)
+  behåller kanalerna.
 - Listan och taggarna kommer ur formuläret som id:n och går genom
   access.owned_ids (ett främmande id ger 400, H.1).
 - Rutan "Öppen" säger varför sidan ändå är stängd för besökarna, och hur
@@ -32,13 +37,16 @@ from apps.common.security import normalize_typography
 
 from .. import capture, optin
 from ..access import collect_block_reason, owned_ids, utskick_view
-from ..models import CHANNEL_EMAIL, ContactList, SignupForm, Tag
+from ..models import CHANNEL_EMAIL, CHANNEL_SMS, CHANNELS, ContactList, SignupForm, Tag
 from . import render_contacts
 
 TEMPLATE = "flamingo/app/kontakter/signup.html"
 DEFAULT_TITLE = "Få våra erbjudanden"
 DOI_OFF_TEXT = "Bekräftelsemejlen är inte påslagna än. Be ADX slå på dem."
 INACTIVE_TEXT = "Sidan är avstängd. Slå på den nedan när du vill ta emot anmälningar."
+CHANNEL_NEEDED_TEXT = "Välj minst en kanal."
+#: Formulärets markering att kanalrutorna visades (S2).
+CHANNELS_SHOWN = "kanaler_visade"
 
 
 def _text(value, max_length):
@@ -70,20 +78,58 @@ class SignupSettingsForm(forms.Form):
         return _text(self.cleaned_data.get("intro"), 400)
 
 
+def channel_blocks(account):
+    """{kanal: varför den inte kan erbjudas på sidan, eller ""}."""
+    return {
+        CHANNEL_EMAIL: "" if optin.doi_ready() else DOI_OFF_TEXT,
+        CHANNEL_SMS: optin.sms_signup_block(account),
+    }
+
+
 def closed_reasons(account, row, sida):
     """Varför anmälningssidan är stängd för besökarna, i klartext (tom
-    lista när den är öppen). Samma villkor som public_views._signup_open."""
+    lista när den är öppen). Samma villkor som public_views._signup_open:
+    stängd när ingen av sidans kanaler kan erbjudas."""
     reasons = []
     block = collect_block_reason(account)
     if block:
         reasons.append(block)
     if not capture.privacy_available(account, row):
         reasons.append(capture.PRIVACY_MISSING_TEXT)
-    if not optin.doi_ready():
-        reasons.append(DOI_OFF_TEXT)
+    chosen = [ch for ch in (sida.channels if sida else [CHANNEL_EMAIL]) if ch in CHANNELS]
+    blocks = channel_blocks(account)
+    if not any(not blocks[ch] for ch in chosen):
+        reasons.extend(blocks[ch] for ch in chosen if blocks[ch])
     if sida is None or not sida.is_active:
         reasons.append(INACTIVE_TEXT)
     return reasons
+
+
+def _posted_channels(request, sida):
+    """Kanalerna ur formuläret (bara kända), eller sidans nuvarande när
+    formuläret inte visade rutorna. Sms bara när det går att välja; en
+    redan vald kanal får stå kvar."""
+    current = list(sida.channels) if sida else [CHANNEL_EMAIL]
+    if request.POST.get(CHANNELS_SHOWN) != "1":
+        return current
+    wanted = request.POST.getlist("kanal")
+    return [ch for ch in CHANNELS if ch in wanted]
+
+
+def _channel_rows(request, account, sida):
+    chosen = set(sida.channels if sida else [CHANNEL_EMAIL])
+    if request.method == "POST" and request.POST.get(CHANNELS_SHOWN) == "1":
+        chosen = set(request.POST.getlist("kanal"))
+    blocks = channel_blocks(account)
+    return [
+        {
+            "kanal": channel,
+            "rubrik": "E-post" if channel == CHANNEL_EMAIL else "Sms",
+            "vald": channel in chosen,
+            "hinder": blocks[channel],
+        }
+        for channel in CHANNELS
+    ]
 
 
 @utskick_view
@@ -100,10 +146,15 @@ def signup_settings(request, account):
             Tag, account, [v for v in request.POST.getlist("add_tags") if v], limit=200
         )
         form = SignupSettingsForm(request.POST)
+        channels = _posted_channels(request, sida)
+        if not channels:
+            form.is_valid()
+            form.add_error(None, CHANNEL_NEEDED_TEXT)
         if form.is_valid():
             with transaction.atomic():
                 if sida is None:
                     sida = SignupForm(account=account, channels=[CHANNEL_EMAIL])
+                sida.channels = channels
                 sida.title = form.cleaned_data["title"]
                 sida.intro = form.cleaned_data["intro"]
                 sida.add_to_list_id = list_ids[0] if list_ids else None
@@ -143,5 +194,8 @@ def signup_settings(request, account):
         # En stängd sida går att förhandsgranska (public_views._signup_page).
         "kan_forhandsgranska": bool(public_url),
         "forhandsgranska_url": f"{public_url}?forhandsgranska=1" if public_url else "",
+        # S2: kanalerna sidan erbjuder (e-post, sms) och varför en inte går.
+        "kanaler": _channel_rows(request, account, sida),
+        "kanaler_visade": CHANNELS_SHOWN,
     }
     return render_contacts(request, TEMPLATE, "signup", context)

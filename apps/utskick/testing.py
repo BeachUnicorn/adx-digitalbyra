@@ -4,7 +4,8 @@ Hjälp för utskickens tester (test_s1_*.py och senare steg).
     class MinaTester(UtskickFixture, TestCase): ...
 
 UtskickFixture.setUpTestData skapar demoföretaget Exempelrör
-(exempelror.example) med Flamingo och utskick på, en aktuell version av
+(exempelror.example, också webbplatsen i ADX kundregister, så att länkar dit
+inte behöver byråns granskning) med Flamingo och utskick på, en aktuell version av
 biträdesavtalet som kontot godkänt, en inloggning för kunden (anna) och en
 för byrån (staff), och ett andra konto (Annanfirma) med utskick på för
 tester av att inget läcker mellan konton. Nummer är PTS fiktiva serie
@@ -55,7 +56,9 @@ class UtskickFixture:
     @classmethod
     def setUpTestData(cls):
         cls.staff = User.objects.create_user("byra", password="x12345678", is_staff=True)
-        cls.customer = Customer.objects.create(name="Exempelrör AB")
+        cls.customer = Customer.objects.create(
+            name="Exempelrör AB", website="https://exempelror.example"
+        )
         cls.anna = User.objects.create_user(
             "anna@exempelror.example",
             email="anna@exempelror.example",

@@ -20,6 +20,17 @@ Steg S1:
     ExportLog         vem som exporterade vad
     Counter           exakta gränser i databasen (LocMem är per arbetare)
 
+Steg S2 (sms-utskick, länkvärdarna, svar och STOPP):
+
+    Utskick           ett utskick: urval, text, tid, läge och bekräftelsen
+    Recipient         en mottagare per kanal, frusen vid frysningen
+    AllowedHost       externa länkvärdar som byrån godkänt (E.8)
+    TrackedLink       en länk i ett utskick (eller en namngiven länk, S4)
+    LinkCode          sms-koderna på k.adx.se: klick, /s/ och /p/, /b/
+    Click             mänskliga klick och skannrar (bottar räknas bara)
+    Thread, ThreadMessage   svarstrådarna i Inkorgen
+    InboundMessage    varje inkommande sms (och från S3 mejl), idempotent
+
 Varje rad hör till ett flamingo.FlamingoAccount, direkt eller via sin
 förälder, och varje fråga filtrerar på kontot (H.1). Inga personuppgifter i
 __str__ eller i loggar: bara pk (H.3). Telefonnummer och e-post skrivs efter
@@ -559,6 +570,10 @@ class ConsentLog(models.Model):
     evidence = models.CharField(max_length=300, blank=True)
     source = models.CharField(max_length=16)
     source_detail = models.CharField(max_length=200, blank=True)
+    #: Utskicket som ändringen hör till, till exempel STOPP efter utskick 41 (S2).
+    utskick = models.ForeignKey(
+        "Utskick", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     by_user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -617,6 +632,10 @@ class Suppression(models.Model):
     channel = models.CharField(max_length=5, choices=CHANNEL_CHOICES)
     value_hash = models.CharField(max_length=64)
     reason = models.CharField(max_length=12, choices=Reason.choices)
+    #: Utskicket spärren kom efter (STOPP-svaret, /s/-länken), S2.
+    utskick = models.ForeignKey(
+        "Utskick", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     created_at = models.DateTimeField(default=timezone.now)
     note = models.CharField(max_length=200, blank=True)
 
@@ -782,11 +801,25 @@ class Event(models.Model):
     TEST_SEND = "test_send"
     #: Slagen som finns från S1 (fler tillkommer per steg, README B.1).
     S1_KINDS = (IMPORTED, SIGNUP, LEAD, TEST_SEND)
+    LP_VISIT = "lp_visit"
+    CALL_CLICK = "call_click"
+    REPLY = "reply"
+    STOP = "stop"
+    START = "start"
+    #: Slagen som tillkommer i S2.
+    S2_KINDS = (LP_VISIT, CALL_CLICK, REPLY, STOP, START)
 
     account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="+")
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name="events")
     kind = models.CharField(max_length=20)
     at = models.DateTimeField(default=timezone.now)
+    #: Utskicket och mottagaren händelsen hör till (S2).
+    utskick = models.ForeignKey(
+        "Utskick", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    recipient = models.ForeignKey(
+        "Recipient", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
     lead = models.ForeignKey(
         "flamingo.Lead", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -858,3 +891,726 @@ class Counter(models.Model):
 
     def __str__(self):
         return f"{self.scope} {self.window:%Y-%m-%d %H:%M}"
+
+
+# ---------------------------------------------------------------------------
+# S2: utskicken, mottagarna, länkarna, klicken och svaren
+# ---------------------------------------------------------------------------
+
+REKLAM = "reklam"
+INFORMATION = "information"
+PURPOSE_CHOICES = [(REKLAM, "Reklam"), (INFORMATION, "Information")]
+
+
+class UtskickQuerySet(models.QuerySet):
+    def listed(self):
+        """Utskicken som visas i listor, räkningar och sidhuvuden. Från S5
+        utesluter den flödesstegens dolda utskick (flow_step__isnull=True,
+        README B.5); varje lista och räkning ska gå via den här redan nu."""
+        return self.all()
+
+
+class Utskick(models.Model):
+    """Ett utskick (README B.2). Läget skrivs bara av sending.transition
+    (villkorlig UPDATE ... WHERE status = <förväntat>). E-postkolumnerna
+    kommer med S3 (db_default, B.0)."""
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Utkast"
+        SCHEDULED = "scheduled", "Schemalagt"
+        FREEZING = "freezing", "Förbereds"
+        SENDING = "sending", "Skickas"
+        PAUSED_CAP = "paused_cap", "Pausat vid taket"
+        PAUSED_HEALTH = "paused_health", "Pausat"
+        PAUSED = "paused", "Pausat"
+        SENT = "sent", "Skickat"
+        CANCELLED = "cancelled", "Avbrutet"
+
+    class ChannelMode(models.TextChoices):
+        SMS_ONLY = "sms_only", "Bara sms"
+        EMAIL_ONLY = "email_only", "Bara e-post"
+        SMS_THEN_EMAIL = "sms_then_email", "Sms, annars e-post"
+        BOTH = "both", "Både sms och e-post"
+
+    class InfoReason(models.TextChoices):
+        BOKNING = "bokning", "Bokning"
+        ARENDE = "arende", "Ärende"
+        OPPETTIDER = "oppettider", "Ändrade öppettider"
+        DRIFTSTORNING = "driftstorning", "Driftstörning"
+        ANNAT = "annat", "Annat"
+
+    class SenderKind(models.TextChoices):
+        REPLY = "reply", "Svarsnumret"
+        NAME = "name", "Avsändarnamn"
+
+    class SendMode(models.TextChoices):
+        NOW = "now", "Nu"
+        AT = "at", "Vid en tid"
+
+    class PauseReason(models.TextChoices):
+        """Varför ett utskick är pausat, med listans etikett (README I.5;
+        rapportens text och knappar står där)."""
+
+        SMS_COST_CAP = "sms_cost_cap", "Pausat vid taket"
+        ADX_MAIL_CAP = "adx_mail_cap", "Pausat vid taket"
+        BOUNCES = "bounces", "Pausat: studsar"
+        COMPLAINTS = "complaints", "Pausat: klagomål"
+        STOPS = "stops", "Pausat: avregistreringar"
+        ACCOUNT_HEALTH = "account_health", "Pausat: studsar"
+        AUDIENCE_GREW = "audience_grew", "Pausat"
+        LATE = "late", "Pausat"
+        SMS_DISABLED = "sms_disabled", "Pausat"
+        EMAIL_DISABLED = "email_disabled", "Pausat"
+        PROVIDER = "provider", "Pausat"
+        ACCOUNT_DISABLED = "account_disabled", "Pausat"
+        BLOCKED = "blocked", "Pausat"
+        STAFF = "staff", "Pausat av ADX"
+        CUSTOMER = "customer", "Pausat"
+        #: Länkarna eller reglerna för information stoppar utskicket efter
+        #: bekräftelsen (ADX nekade en värd, undantaget gäller inte längre).
+        CONTENT = "content", "Pausat"
+
+    #: Lägen där kunden kan ändra (en ändring av ett schemalagt gör det till utkast).
+    EDITABLE = (Status.DRAFT, Status.SCHEDULED)
+    #: Lägen där ticken arbetar med utskicket.
+    ACTIVE = (Status.SCHEDULED, Status.FREEZING, Status.SENDING)
+    PAUSED_STATES = (Status.PAUSED_CAP, Status.PAUSED_HEALTH, Status.PAUSED)
+    FINISHED = (Status.SENT, Status.CANCELLED)
+    #: Pauser som kräver en ny bekräftelse innan utskicket fortsätter (B.2).
+    RECONFIRM_REASONS = (
+        PauseReason.LATE,
+        PauseReason.AUDIENCE_GREW,
+        PauseReason.ACCOUNT_DISABLED,
+        PauseReason.CONTENT,
+    )
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_set"
+    )
+    #: Syns bara för kunden.
+    name = models.CharField("Namn", max_length=120)
+    purpose = models.CharField("Syfte", max_length=12, choices=PURPOSE_CHOICES, default=REKLAM)
+    info_reason = models.CharField(
+        "Skäl för information", max_length=14, choices=InfoReason.choices, blank=True
+    )
+    info_reason_text = models.CharField("Annat skäl", max_length=200, blank=True)
+    #: Byråns undantag från reglerna för information: {by, at, reason} (H.5).
+    content_override = models.JSONField(default=dict, blank=True)
+    channel_mode = models.CharField(
+        "Kanal", max_length=16, choices=ChannelMode.choices, default=ChannelMode.SMS_ONLY
+    )
+    #: {"lists": [], "tags": [], "segments": [], "contacts": [],
+    #:  "exclude": {"lists": [], "tags": [], "segments": [], "recent_days": 14}}.
+    #: Varje id har gått genom access.owned_ids; frysningen prövar igen (H.1).
+    audience = models.JSONField("Mottagare", default=dict, blank=True)
+    #: Sms-texten före sammanfogningen, högst 1000 tecken.
+    sms_body = models.TextField("Sms-text", blank=True)
+    sms_sender_kind = models.CharField(
+        "Avsändare", max_length=6, choices=SenderKind.choices, default=SenderKind.REPLY
+    )
+    #: Ett av SmsAccount.senders när avsändaren är ett namn.
+    sms_sender_name = models.CharField("Avsändarnamn", max_length=11, blank=True)
+    #: {"förnamn": "du"}: det som står när värdet saknas (F.3). Används av
+    #: sms från S2 och av e-posten från S3.
+    merge_fallbacks = models.JSONField(default=dict, blank=True)
+    send_mode = models.CharField(max_length=5, choices=SendMode.choices, default=SendMode.AT)
+    scheduled_at = models.DateTimeField("Skickas", null=True, blank=True)
+    status = models.CharField(max_length=14, choices=Status.choices, default=Status.DRAFT)
+    pause_reason = models.CharField(
+        max_length=20, choices=PauseReason.choices, blank=True, default=""
+    )
+    #: E-postens provväntan (D.9, S3). Ingen paus.
+    hold_until = models.DateTimeField(null=True, blank=True)
+    status_changed_at = models.DateTimeField(default=timezone.now)
+    #: Bekräftelsen (D12): engångsvärdet i Granska-formuläret, vem och när,
+    #: och exakt siffrorna i Granska när den gjordes (I.6).
+    confirm_nonce = models.CharField(max_length=32, blank=True)
+    confirmed_at = models.DateTimeField(null=True, blank=True)
+    confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    confirmed_as_staff = models.BooleanField(default=False)
+    confirm_summary = models.JSONField(default=dict, blank=True)
+    #: Frysningen i bitar: sista kontaktens pk (D.3).
+    freeze_cursor = models.PositiveBigIntegerField(default=0)
+    frozen_at = models.DateTimeField(null=True, blank=True)
+    frozen_counts = models.JSONField(default=dict, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    #: Summorna, slutgiltiga när utskicket är klart; finns kvar efter
+    #: retentionen av mottagarna (E.7).
+    stats = models.JSONField(default=dict, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    objects = UtskickQuerySet.as_manager()
+
+    class Meta:
+        verbose_name = "Utskick"
+        verbose_name_plural = "Utskick"
+        ordering = ["-created_at", "-pk"]
+        indexes = [
+            models.Index(
+                fields=["account", "status", "-created_at"], name="utskick_utskick_status"
+            ),
+            models.Index(fields=["status", "scheduled_at"], name="utskick_utskick_due"),
+        ]
+
+    def __str__(self):
+        return f"Utskick {self.pk}"
+
+    @property
+    def is_paused(self):
+        return self.status in self.PAUSED_STATES
+
+    @property
+    def is_information(self):
+        return self.purpose == INFORMATION
+
+
+class Recipient(models.Model):
+    """En mottagare och kanal i ett utskick, frusen vid frysningen (D.3):
+    adressen, sammanfogningens värden, grunden och tracking_ok. Kontakten
+    blir null och adressen töms när kontakten tas bort (H.4)."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "I kö"
+        SKIPPED = "skipped", "Hoppades över"
+        SENDING = "sending", "Skickas"
+        SENT = "sent", "Skickat"
+        DELIVERED = "delivered", "Levererat"
+        FAILED = "failed", "Misslyckades"
+        BOUNCED = "bounced", "Studsade"
+        COMPLAINED = "complained", "Klagomål"
+        UNKNOWN = "unknown", "Oklart läge"
+        CANCELLED = "cancelled", "Avbrutet"
+
+    class SkipReason(models.TextChoices):
+        """Varför en mottagare hoppades över, med rapportens text (I.8)."""
+
+        NO_CONSENT = "no_consent", "Inget samtycke"
+        DECLINED = "declined", "Vill inte ha erbjudanden"
+        PENDING_DOI = "pending_doi", "Väntar på bekräftelse"
+        SUPPRESSED = "suppressed", "Avregistrerad"
+        BOUNCED = "bounced", "Studsad adress"
+        WEEKLY_CAP = "weekly_cap", "Veckotaket"
+        NO_ADDRESS = "no_address", "Saknar nummer eller e-post"
+        INVALID_NUMBER = "invalid_number", "Ogiltigt nummer"
+        COUNTRY = "country", "Land som inte är tillåtet"
+        DUPLICATE = "duplicate", "Dubblett"
+        DELETED = "deleted", "Borttagen"
+        ADDRESS_CHANGED = "address_changed", "Nytt nummer sedan utskicket skapades"
+        REPLY_COLLISION = "reply_collision", "Fick nyss sms från en annan ADX-kund"
+        RECENT = "recent", "Fick ett utskick nyligen"
+        SES_SUPPRESSED = "ses_suppressed", "Spärrad hos e-posttjänsten"
+        ADX_CAP = "adx_cap", "Taket för ADX-domänen"
+
+    #: Hur långt en mottagare kommit. Leveransrapporter och händelser flyttar
+    #: bara framåt (D.5): en sen rapport gör aldrig om levererat till skickat.
+    RANK = {
+        Status.QUEUED: 0,
+        Status.SENDING: 1,
+        Status.SENT: 2,
+        Status.UNKNOWN: 2,
+        Status.DELIVERED: 3,
+        Status.FAILED: 3,
+        Status.BOUNCED: 3,
+        Status.COMPLAINED: 4,
+    }
+    #: Räknas som skickade (veckotaket, rapporten).
+    SENT_LIKE = (
+        Status.SENT,
+        Status.DELIVERED,
+        Status.UNKNOWN,
+        Status.BOUNCED,
+        Status.COMPLAINED,
+    )
+
+    utskick = models.ForeignKey(Utskick, on_delete=models.CASCADE, related_name="recipients")
+    contact = models.ForeignKey(
+        Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name="recipients"
+    )
+    channel = models.CharField(max_length=5, choices=CHANNEL_CHOICES)
+    #: Fryst E.164 eller e-post. Töms när kontakten tas bort (H.4).
+    address = models.CharField(max_length=254, blank=True)
+    #: Frysta värden för sammanfogningen: {"förnamn": "Anna"}.
+    merge = models.JSONField(default=dict, blank=True)
+    #: Samtyckets grund vid frysningen (sidfotens rad): Consent.Basis.
+    basis = models.CharField(max_length=17, blank=True)
+    #: Kopierat från samtycket vid frysningen (spårningspixeln, H.5).
+    tracking_ok = models.BooleanField(default=False)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.QUEUED)
+    skip_reason = models.CharField(max_length=16, choices=SkipReason.choices, blank=True)
+    #: Tidsfönstret, minutgränsen eller nödbromsen: inte före då.
+    not_before = models.DateTimeField(null=True, blank=True)
+    attempts = models.PositiveSmallIntegerField(default=0)
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    sms_message = models.ForeignKey(
+        "sms.SmsMessage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="utskick_recipients",
+    )
+    #: Avsändaren som faktiskt användes: svarsnumret eller ett namn (D4).
+    sms_sender = models.CharField(max_length=16, blank=True)
+    parts = models.PositiveSmallIntegerField(default=0)
+    #: SES MessageId (S3). Finns från S2 så att S3 inte behöver lägga till den.
+    ses_message_id = models.CharField(max_length=100, blank=True)
+    error = models.CharField(max_length=200, blank=True)
+    #: Bara mänskliga klick (E.3).
+    first_clicked_at = models.DateTimeField(null=True, blank=True)
+    click_count = models.PositiveSmallIntegerField(default=0)
+    #: Bottar och förhandsvisningar: räknas, sparas inte.
+    bot_hits = models.PositiveSmallIntegerField(default=0)
+    #: Öppnat (S3, en indikation). Finns från S2 av samma skäl som ses_message_id.
+    opened_at = models.DateTimeField(null=True, blank=True)
+    replied_at = models.DateTimeField(null=True, blank=True)
+    stopped_at = models.DateTimeField(null=True, blank=True)
+    #: Demokontot: inget skickades, mottagaren visas som levererad (D.4).
+    simulated = models.BooleanField(default=False)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Mottagare"
+        verbose_name_plural = "Mottagare"
+        constraints = [
+            # S5 lägger till "flow_run är null" i villkoret och ett eget
+            # villkor för flödenas mottagare (B.2).
+            models.UniqueConstraint(
+                fields=["utskick", "contact", "channel"],
+                condition=Q(contact__isnull=False),
+                name="utskick_recipient_unique",
+            ),
+        ]
+        indexes = [
+            # Tickens kö (D.4).
+            models.Index(
+                fields=["channel", "not_before", "id"],
+                condition=Q(status="queued"),
+                name="utskick_rcpt_queue",
+            ),
+            models.Index(fields=["utskick", "status"], name="utskick_rcpt_status"),
+            # Veckotaket.
+            models.Index(fields=["contact", "channel", "sent_at"], name="utskick_rcpt_week"),
+            # Återhämtningen efter en krasch (D.5).
+            models.Index(
+                fields=["status", "claimed_at"],
+                condition=Q(status="sending"),
+                name="utskick_rcpt_claimed",
+            ),
+            models.Index(
+                fields=["ses_message_id"],
+                condition=~Q(ses_message_id=""),
+                name="utskick_rcpt_ses_id",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Mottagare {self.pk} ({self.channel}, {self.status})"
+
+
+class AllowedHost(models.Model):
+    """En extern länkvärd som byrån godkänt eller nekat för kunden (E.8)."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Väntar på ADX"
+        APPROVED = "approved", "Godkänd"
+        REFUSED = "refused", "Nekad"
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_hosts"
+    )
+    #: Gemener, IDNA.
+    host = models.CharField(max_length=253)
+    status = models.CharField(max_length=8, choices=Status.choices, default=Status.PENDING)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    requested_at = models.DateTimeField(default=timezone.now)
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        verbose_name = "Godkänd länkvärd"
+        verbose_name_plural = "Godkända länkvärdar"
+        constraints = [
+            models.UniqueConstraint(fields=["account", "host"], name="utskick_host_unique"),
+        ]
+
+    def __str__(self):
+        return f"Länkvärd {self.pk} ({self.status})"
+
+
+class TrackedLink(models.Model):
+    """En spårad länk: i ett utskick (lp eller external) eller en namngiven
+    länk (S4, utskick null). Koderna bär aldrig adresser, så det finns ingen
+    öppen omdirigering (E.3)."""
+
+    class Kind(models.TextChoices):
+        LP = "lp", "Flamingo-sida"
+        EXTERNAL = "external", "Extern"
+        NAMED = "named", "Namngiven"
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_links"
+    )
+    utskick = models.ForeignKey(
+        Utskick, null=True, blank=True, on_delete=models.CASCADE, related_name="links"
+    )
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    #: Platshållarens namn i sms:et: {länk:varmepump}.
+    key = models.CharField(max_length=40, blank=True)
+    #: kind lp: kampanjen (campaign.account_id ska vara account_id, E.3).
+    campaign = models.ForeignKey(
+        "flamingo.Campaign",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="utskick_links",
+    )
+    #: Absolut http(s)-adress (E.8) eller kampanjens landing_url.
+    destination = models.CharField(max_length=500)
+    label = models.CharField(max_length=120, blank=True)
+    add_utm = models.BooleanField(default=True)
+    #: E-postblocket och platsen i det (S3, klickkartan i S6).
+    block_id = models.CharField(max_length=16, blank=True)
+    position = models.PositiveSmallIntegerField(default=0)
+    #: Namngivna länkar (S4): klick.adx.se/<public_slug>/<slug>.
+    slug = models.SlugField(max_length=40, blank=True)
+    #: Summor som ticken räknar upp (E.3).
+    human_clicks = models.PositiveIntegerField(default=0)
+    bot_hits = models.PositiveIntegerField(default=0)
+    leads = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Spårad länk"
+        verbose_name_plural = "Spårade länkar"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["utskick", "key"],
+                condition=Q(utskick__isnull=False) & ~Q(key=""),
+                name="utskick_link_key",
+            ),
+            models.UniqueConstraint(
+                fields=["account", "slug"], condition=~Q(slug=""), name="utskick_link_slug"
+            ),
+        ]
+
+    def __str__(self):
+        return f"Länk {self.pk} ({self.kind})"
+
+
+class LinkCode(models.Model):
+    """En sms-kod på k.adx.se (E.2): sex tecken ur [A-Za-z0-9], skiftlägeskänslig
+    (Postgres standardkollation är deterministisk). Bara sms; e-postens länkar
+    är signerade adresser utan rader."""
+
+    class Kind(models.TextChoices):
+        LINK = "link", "Klicklänk"
+        PERSON = "person", "Avregistrering och val (/s/, /p/)"
+        CONFIRM = "confirm", "Bekräftelse (/b/)"
+
+    class Purpose(models.TextChoices):
+        SIGNUP = "signup", "Anmälan"
+        START = "start", "START"
+        PREF_ON = "pref_on", "Slå på sms"
+
+    #: Koder av sorten confirm gäller så här länge (E.5).
+    CONFIRM_HOURS = 24
+
+    code = models.CharField(max_length=8, unique=True)
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    #: Kopierat vid frysningen; överlever retentionen av mottagaren.
+    account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="+")
+    channel = models.CharField(max_length=5, default=CHANNEL_SMS)
+    #: Hashen av adressen koden skickades till.
+    value_hash = models.CharField(max_length=64)
+    recipient = models.ForeignKey(
+        Recipient, null=True, blank=True, on_delete=models.SET_NULL, related_name="codes"
+    )
+    #: Bekräftelsekoder.
+    contact = models.ForeignKey(
+        Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    #: Bara kind link.
+    link = models.ForeignKey(
+        TrackedLink, null=True, blank=True, on_delete=models.CASCADE, related_name="codes"
+    )
+    #: Bekräftelsekoder: signup, start eller pref_on.
+    purpose = models.CharField(max_length=12, choices=Purpose.choices, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    used_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Sms-kod"
+        verbose_name_plural = "Sms-koder"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient", "link"],
+                condition=Q(kind="link"),
+                name="utskick_code_link",
+            ),
+        ]
+        indexes = [
+            # Retentionen (E.7): bekräftelsekoder efter 7 dagar, personkoder
+            # efter 36 månader.
+            models.Index(fields=["kind", "created_at"], name="utskick_code_kind"),
+        ]
+
+    def __str__(self):
+        # Utan koden: den är en behörighet.
+        return f"Sms-kod {self.pk} ({self.kind})"
+
+
+class Click(models.Model):
+    """Ett mänskligt klick eller en skanner (E.3). Bottar räknas på
+    mottagaren och länken men sparas aldrig. Aldrig IP-adressen, bara dess
+    hash."""
+
+    class Channel(models.TextChoices):
+        SMS = "sms", "Sms"
+        EMAIL = "email", "E-post"
+        NAMED = "named", "Namngiven länk"
+
+    class Kind(models.TextChoices):
+        HUMAN = "human", "Människa"
+        SCANNER = "scanner", "Skanner"
+
+    #: engaged_seconds sparas högst så här högt (E.4).
+    MAX_ENGAGED_SECONDS = 1800
+
+    account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="+")
+    utskick = models.ForeignKey(
+        Utskick, null=True, blank=True, on_delete=models.SET_NULL, related_name="clicks"
+    )
+    recipient = models.ForeignKey(
+        Recipient, null=True, blank=True, on_delete=models.SET_NULL, related_name="clicks"
+    )
+    link = models.ForeignKey(
+        TrackedLink, null=True, blank=True, on_delete=models.SET_NULL, related_name="clicks"
+    )
+    contact = models.ForeignKey(
+        Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name="clicks"
+    )
+    channel = models.CharField(max_length=5, choices=Channel.choices)
+    kind = models.CharField(max_length=8, choices=Kind.choices, default=Kind.HUMAN)
+    at = models.DateTimeField(default=timezone.now)
+    #: Träffar efter taket på 20 rader i timmen (E.3).
+    repeat_count = models.PositiveSmallIntegerField(default=0)
+    device = models.CharField(max_length=8, blank=True)
+    os = models.CharField(max_length=20, blank=True)
+    browser = models.CharField(max_length=20, blank=True)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    lp_visits = models.PositiveSmallIntegerField(default=0)
+    first_visit_at = models.DateTimeField(null=True, blank=True)
+    engaged_seconds = models.PositiveSmallIntegerField(default=0)
+    #: Skrivspärren för besöksanropen (högst en skrivning per 10 s).
+    beacon_at = models.DateTimeField(null=True, blank=True)
+    #: Klick på telefonnumret med den här token.
+    called = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Klick"
+        verbose_name_plural = "Klick"
+        indexes = [
+            models.Index(fields=["utskick", "at"], name="utskick_click_utskick"),
+            models.Index(fields=["recipient", "link", "at"], name="utskick_click_rcpt"),
+            models.Index(fields=["account", "-at"], name="utskick_click_account"),
+        ]
+
+    def __str__(self):
+        return f"Klick {self.pk} ({self.kind})"
+
+
+class InboundMessage(models.Model):
+    """Ett inkommande sms (S2) eller mejl (S3). Unikt per kanal och
+    leverantörens id, så att 46elks omförsök, avstämningen och SQS
+    omleveranser aldrig ger dubbletter. Texten töms när den routats (den
+    bor sedan i ThreadMessage)."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Väntar"
+        ROUTED = "routed", "Routat"
+        AMBIGUOUS = "ambiguous", "Flera kunder möjliga"
+        UNROUTABLE = "unroutable", "Ingen kund"
+        STOP = "stop", "STOPP"
+        START = "start", "START"
+        AUTOREPLY = "autoreply", "Autosvar"
+        SPAM = "spam", "Skräp"
+        IGNORED = "ignored", "Ignorerat"
+        COUNTED = "counted", "Bara räknat"
+
+    channel = models.CharField(max_length=5, choices=CHANNEL_CHOICES)
+    #: 46elks id eller SES mail.messageId.
+    provider_id = models.CharField(max_length=120)
+    from_address = models.CharField(max_length=254, blank=True)
+    to_address = models.CharField(max_length=254, blank=True)
+    body = models.TextField(blank=True)
+    subject = models.CharField(max_length=200, blank=True)
+    received_at = models.DateTimeField()
+    account = models.ForeignKey(
+        FlamingoAccount, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    contact = models.ForeignKey(
+        Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    #: Hur meddelandet routades: "sms:1234", "token:r:567", "thread:89".
+    routed_via = models.CharField(max_length=30, blank=True)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.PENDING)
+    #: Bedömningar, storlekar, s3-nyckel, kontona en STOPP gällde. Aldrig texter.
+    meta = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Inkommande meddelande"
+        verbose_name_plural = "Inkommande meddelanden"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["channel", "provider_id"], name="utskick_inbound_unique"
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["status", "-received_at"], name="utskick_inbound_status"),
+            models.Index(fields=["from_address", "-received_at"], name="utskick_inbound_from"),
+        ]
+
+    def __str__(self):
+        return f"Inkommande {self.pk} ({self.channel}, {self.status})"
+
+
+class Thread(models.Model):
+    """En svarstråd. Varje tråd har en förfrågan (Lead med source "reply")
+    som är dess rad i Inkorgen (README B.2, "Why replies are Lead rows")."""
+
+    class Kind(models.TextChoices):
+        REPLY = "reply", "Svar"
+        STOP = "stop", "STOPP"
+        DIRECT = "direct", "Direkt"
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_threads"
+    )
+    #: Null: ingen kontakt (avtalet saknas). Tas bort uttryckligen vid
+    #: GDPR-borttagning (H.4).
+    contact = models.ForeignKey(
+        Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name="threads"
+    )
+    channel = models.CharField(max_length=5, choices=CHANNEL_CHOICES)
+    kind = models.CharField(max_length=6, choices=Kind.choices, default=Kind.REPLY)
+    lead = models.OneToOneField(
+        "flamingo.Lead",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="reply_thread",
+    )
+    #: Utskicket som besvaras.
+    utskick = models.ForeignKey(
+        Utskick, null=True, blank=True, on_delete=models.SET_NULL, related_name="threads"
+    )
+    #: Den andra partens nummer eller e-post.
+    address = models.CharField(max_length=254, blank=True)
+    unread = models.BooleanField(default=True)
+    #: "Ser ut som en avregistrering" (G.1).
+    looks_like_stop = models.BooleanField(default=False)
+    last_in_at = models.DateTimeField(null=True, blank=True)
+    last_out_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Svarstråd"
+        verbose_name_plural = "Svarstrådar"
+        indexes = [
+            models.Index(
+                fields=["account", "contact", "channel", "-last_in_at"],
+                name="utskick_thread_contact",
+            ),
+        ]
+
+    def __str__(self):
+        return f"Tråd {self.pk} ({self.channel}, {self.kind})"
+
+
+class ThreadMessage(models.Model):
+    """Ett meddelande i en tråd, in eller ut. Bilagor sparas aldrig, bara
+    namn och storlek."""
+
+    class Direction(models.TextChoices):
+        IN = "in", "In"
+        OUT = "out", "Ut"
+
+    class Status(models.TextChoices):
+        RECEIVED = "received", "Mottaget"
+        SENDING = "sending", "Skickas"
+        SENT = "sent", "Skickat"
+        FAILED = "failed", "Misslyckades"
+
+    #: Inkommande text sparas högst så här lång.
+    MAX_BODY = 20_000
+
+    thread = models.ForeignKey(Thread, on_delete=models.CASCADE, related_name="messages")
+    direction = models.CharField(max_length=3, choices=Direction.choices)
+    body = models.TextField()
+    subject = models.CharField(max_length=200, blank=True)
+    at = models.DateTimeField(default=timezone.now)
+    sms_message = models.ForeignKey(
+        "sms.SmsMessage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="thread_messages",
+    )
+    inbound = models.ForeignKey(
+        InboundMessage, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    #: SES-id för ett utgående mejl (S3).
+    email_message_id = models.CharField(max_length=200, blank=True)
+    #: [{"name", "size"}]: filerna sparas aldrig.
+    attachments = models.JSONField(default=list, blank=True)
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    sent_as_staff = models.BooleanField(default=False)
+    status = models.CharField(max_length=8, choices=Status.choices, default=Status.RECEIVED)
+
+    class Meta:
+        verbose_name = "Meddelande i tråd"
+        verbose_name_plural = "Meddelanden i trådar"
+        ordering = ["at", "pk"]
+        indexes = [
+            models.Index(fields=["thread", "at"], name="utskick_tmsg_thread"),
+        ]
+
+    def __str__(self):
+        return f"Meddelande {self.pk} ({self.direction}, {self.status})"

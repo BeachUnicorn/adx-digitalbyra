@@ -1,13 +1,27 @@
 """
-Demokundens kontakter (README C.2, J S1): anropas av flamingo_demo.
+Demokundens kontakter och utskick (README C.2, J S1 och S2): anropas av
+flamingo_demo.
 
     reset(account)              tar bort allt utskick har för demokontot, också
-                                spärrlistan och samtyckesloggen (bara demot)
+                                spärrlistan, samtyckesloggen, svarstrådarna och
+                                de inkommande sms:en (bara demot)
     seed(account, staff, now)   bygger det från grunden: utskick på, ett påhittat
                                 organisationsnummer, extrafält, taggar, listor,
                                 kontakter med samtycken i varje läge, en klar
                                 import, en avstängd anmälningssida och förfrågningar
-                                kopplade till sina kontakter
+                                kopplade till sina kontakter; och utskicken (S2):
+                                ett skickat (simulerat) med klick, förfrågningar,
+                                två svar och en STOPP, ett schemalagt och ett utkast
+
+Utskicken går genom samma kod som en riktig kunds: bekräftelsen
+(sending.state), frysningen (sending.freeze), demots simulering
+(sending.sms.simulate: levererat utan sms, D.4) och avslutet
+(sending.tick.finish). Svaren och STOPP går genom inbound.routing och
+inbound.stop med påhittade inkommande sms, så att Inkorgen visar
+"Sms-svar", "STOPP" och "Avregistrerad automatiskt" som för en riktig
+kund. Bekräftelsen av STOPP skickas aldrig: den står som "Demokontot
+skickar aldrig." i tråden, som ticken skulle ha lämnat den. Inget sms och
+ingen SmsMessage skapas, och 46elks anropas aldrig.
 
 Allt är påhittat som resten av demot: numren kommer ur PTS serie för film
 och böcker (070-174 06 05 till 99), adresserna slutar på .example (och
@@ -20,11 +34,20 @@ iväg (optin.due hoppar över demokonton).
 Idempotent: reset och seed tillsammans ger samma antal varje gång
 (test_demo.counts). Samtyckena skrivs genom consent.set_status, så
 beviset ser ut precis som hos en riktig kund.
+
+Det schemalagda utskicket går i väg av sig självt när tiden kommer (ticken
+simulerar det, demot skickar aldrig); nästa körning av flamingo_demo
+bygger om det.
 """
 
-from datetime import timedelta
+from datetime import datetime, time, timedelta
+
+from django.db.models import F, Value
+from django.db.models.functions import Coalesce
+from django.utils import timezone
 
 from apps.flamingo.models import Fact
+from apps.sms.pricing import STOCKHOLM
 
 from . import consent as consents
 from . import contacts, importer
@@ -32,6 +55,9 @@ from .access import PERSON, SYSTEM, Actor, settings_for, suggest_public_slug
 from .models import (
     CHANNEL_EMAIL,
     CHANNEL_SMS,
+    REKLAM,
+    AllowedHost,
+    Click,
     Consent,
     ConsentLog,
     Contact,
@@ -41,10 +67,17 @@ from .models import (
     ExportLog,
     FieldDef,
     ImportJob,
+    InboundMessage,
+    LinkCode,
     ListMembership,
+    Recipient,
     SignupForm,
     Suppression,
     Tag,
+    Thread,
+    ThreadMessage,
+    TrackedLink,
+    Utskick,
     UtskickSettings,
     default_consent_text,
 )
@@ -62,6 +95,7 @@ def reset(account):
     spärrlistan och samtyckesloggen tas aldrig bort för en riktig kund."""
     if not account.is_demo:
         raise ValueError("utskick.demo.reset gäller bara demokontot.")
+    _reset_s2(account)
     importer.delete_account_jobs(account)
     SignupForm.objects.filter(account=account).delete()
     Contact.objects.filter(account=account).delete()
@@ -415,4 +449,359 @@ def seed(account, staff, now):
         channels=[CHANNEL_EMAIL],
         is_active=False,
     )
+    _utskick(account, staff, now, made, lists, tags)
     return made
+
+
+# ---------------------------------------------------------------------------
+# Utskicken (S2)
+# ---------------------------------------------------------------------------
+
+#: Det skickade utskicket gick för så här många dagar sedan, klockan 10.00
+#: (inom tidsfönstret både vardag och helg); det schemalagda går om så här
+#: många dagar.
+SENT_DAYS_AGO = 8
+SCHEDULED_IN_DAYS = 5
+SENT_NAME = "Spolning inför vintern"
+SENT_BODY = (
+    "Hej {förnamn|du}, inför vintern spolar Exempelrör avloppet så att det inte "
+    "fryser eller stoppar. Boka en tid: {länk:spolning}"
+)
+SCHEDULED_NAME = "Service av varmvattenberedaren"
+SCHEDULED_BODY = (
+    "Hej {förnamn|du}, det är dags för service av varmvattenberedaren. Svara på "
+    "sms:et så ringer Exempelrör upp och bokar en tid."
+)
+DRAFT_NAME = "Blandare till fast pris"
+DRAFT_BODY = (
+    "Hej {förnamn|du}, i november byter Exempelrör blandare till fast pris. "
+    "Svara JA så ringer vi upp."
+)
+#: Svaren på det skickade utskicket: (nummer, minuter efter, text).
+REPLIES = [
+    (
+        "+46701740612",
+        50,
+        "Passar det tisdag nästa vecka? Vi hade stopp i källaren i våras.",
+    ),
+    ("+46701740614", 180, "Tack, vi spolade i våras så vi väntar till nästa år."),
+]
+#: Kundens svar från Inkorgen på det andra svaret (som det står när det gått).
+ANSWER = (200, "Tack Lena, hör av dig när det är dags. /Exempelrör")
+STOP_FROM = ("+46701740613", 25, "Stopp")
+#: Klicken: (nummer, minuter efter, sekunder på sidan, förfrågan).
+CLICKS = [
+    ("+46701740620", 12, 95, "form"),
+    ("+46701740612", 45, 20, ""),
+    ("+46701740623", 120, 48, "call"),
+]
+KIM_MESSAGE = "Vill boka spolning av avloppet, helst en förmiddag."
+
+
+def _reset_s2(account):
+    """Utskickens rader för demot: utskicken (mottagarna och länkarna följer
+    med), koderna, klicken, svarstrådarna med sina förfrågningar, de
+    inkommande sms:en och länkvärdarna."""
+    from apps.flamingo.models import Lead
+
+    Utskick.objects.filter(account=account).delete()
+    LinkCode.objects.filter(account=account).delete()
+    Click.objects.filter(account=account).delete()
+    Lead.objects.filter(account=account, source=Lead.SOURCE_REPLY).delete()
+    Thread.objects.filter(account=account).delete()
+    InboundMessage.objects.filter(account=account).delete()
+    InboundMessage.objects.filter(provider_id__startswith=_inbound_prefix(account)).delete()
+    AllowedHost.objects.filter(account=account).delete()
+
+
+def _inbound_prefix(account):
+    return f"demo-{account.pk}-"
+
+
+def _at_ten(day):
+    return datetime.combine(day, time(10, 0), tzinfo=STOCKHOLM)
+
+
+def _campaign(account):
+    """Flamingo-sidan utskicket länkar till: avloppsspolningens (pausad hos
+    Google; ett klick från ett utskick räknas ändå, E.4), annars den som är live."""
+    from apps.flamingo.models import Campaign
+
+    campaigns = Campaign.objects.filter(account=account).select_related("service")
+    return (
+        campaigns.filter(service__name="Avloppsspolning").order_by("pk").first()
+        or campaigns.filter(status=Campaign.STATUS_LIVE).order_by("pk").first()
+    )
+
+
+def _confirm(utskick, staff, now):
+    """Bekräftelsen som Granska gör den (I.6), av byrån i kundvyn."""
+    from . import audience
+    from .sending import state
+
+    nonce = state.issue_nonce(utskick)
+    counted = audience.count(utskick, now)
+    summary = {
+        "sms": counted["sms"],
+        "email": 0,
+        "skipped": counted["skipped"],
+        "skipped_by_reason": counted["skipped_by_reason"],
+        "total": counted["total"],
+        "purpose": utskick.purpose,
+    }
+    result = state.confirm(
+        utskick, actor=_staff_actor(staff), nonce=nonce, summary=summary, now=now
+    )
+    if not result.ok:
+        raise RuntimeError(f"Demots utskick kunde inte bekräftas: {result.error}")
+    return utskick
+
+
+def _new_utskick(account, staff, name, body, audience, created_at, scheduled_at=None):
+    from . import audience as audiences
+
+    data = audiences.empty()
+    data.update(audience)
+    return Utskick.objects.create(
+        account=account,
+        name=name,
+        purpose=REKLAM,
+        channel_mode=Utskick.ChannelMode.SMS_ONLY,
+        audience=data,
+        sms_body=body,
+        sms_sender_kind=Utskick.SenderKind.REPLY,
+        send_mode=Utskick.SendMode.AT,
+        scheduled_at=scheduled_at,
+        created_by=staff,
+        created_at=created_at,
+        status_changed_at=created_at,
+    )
+
+
+def _send(utskick, at):
+    """Frysningen, demots simulering och nu sending (D.3, D.4). Övergången
+    till freezing direkt (inte freeze.start_due): demot ska byggas också
+    när disken är nästan full, och utan byråns larm om det."""
+    from .sending import freeze, state
+    from .sending import sms as loop
+
+    state.transition(utskick, Utskick.Status.FREEZING, expected=(Utskick.Status.SCHEDULED,), now=at)
+    for _ in range(50):
+        result = freeze.freeze_chunk(utskick, at)
+        if result is None or result["done"]:
+            break
+    loop.simulate(utskick.account, at + timedelta(minutes=1), only=utskick.pk)
+    utskick.refresh_from_db()
+    if utskick.status != Utskick.Status.SENDING:
+        raise RuntimeError(f"Demots utskick fastnade i läget {utskick.status}.")
+
+
+def _click(recipient, link, at, seconds, called=False):
+    """Ett mänskligt klick från en telefon, besöket på sidan och tiden där
+    (som klicket, landningssidan och besöksanropet skriver dem, E.3, E.4)."""
+    from . import attribution
+
+    click = Click.objects.create(
+        account_id=recipient.utskick.account_id,
+        utskick=recipient.utskick,
+        recipient=recipient,
+        link=link,
+        contact_id=recipient.contact_id,
+        channel=Click.Channel.SMS,
+        kind=Click.Kind.HUMAN,
+        at=at,
+        device="mobile",
+        os="iOS",
+        browser="Safari",
+        engaged_seconds=seconds,
+        beacon_at=at + timedelta(seconds=seconds),
+        called=called,
+    )
+    Recipient.objects.filter(pk=recipient.pk).update(
+        click_count=F("click_count") + 1,
+        first_clicked_at=Coalesce(F("first_clicked_at"), Value(at)),
+    )
+    attribution.record_lp_visit(click, link.campaign, at)
+    return click
+
+
+def _lead(click, campaign, kind, at, kontakt):
+    """Förfrågan som klicket gav (formuläret eller numret), med spåret (E.4)."""
+    from apps.flamingo.models import Lead
+
+    from . import attribution
+
+    fields = {
+        "account": campaign.account,
+        "campaign": campaign,
+        "service": campaign.service,
+        "created_at": at,
+        "activity_at": at,
+    }
+    if kind == "form":
+        lead = Lead.objects.create(
+            source=Lead.SOURCE_FORM,
+            name=kontakt.full_name,
+            phone=_display(kontakt.phone),
+            message=KIM_MESSAGE,
+            status=Lead.STATUS_QUOTE,
+            **fields,
+        )
+    else:
+        lead = Lead.objects.create(
+            source=Lead.SOURCE_CALL_CLICK, status=Lead.STATUS_CONTACTED, **fields
+        )
+    return attribution.attach(lead, click, now=at)
+
+
+def _display(e164):
+    from . import normalize
+
+    return normalize.display_phone(e164)
+
+
+def _inbound(account, n, e164, text, at):
+    from .inbound import routing
+
+    return InboundMessage.objects.create(
+        channel=CHANNEL_SMS,
+        provider_id=f"{_inbound_prefix(account)}{n}",
+        from_address=e164,
+        to_address=routing.reply_number(),
+        body=text,
+        received_at=at,
+        created_at=at,
+    )
+
+
+def _candidate(account, recipient):
+    from .inbound import routing
+
+    return routing.Candidate(account, None, True, recipient, recipient.utskick)
+
+
+def _context(thread, recipient):
+    """Utskickets sms först i tråden, som ensure_context lägger det för en
+    riktig kund (demot har ingen SmsMessage att peka på)."""
+    from . import composer
+
+    body = composer.render_sms(recipient.utskick, recipient, recipient.sms_sender)
+    return ThreadMessage.objects.create(
+        thread=thread,
+        direction=ThreadMessage.Direction.OUT,
+        body=body,
+        at=recipient.sent_at,
+        status=ThreadMessage.Status.SENT,
+    )
+
+
+def _replies(account, utskick, recipients, sent_at):
+    """Två svar (ett nytt, ett besvarat och klart) och en STOPP, genom samma
+    routning som 46elks inkommande (G.1)."""
+    from apps.flamingo.models import Lead
+
+    from . import threads
+    from .inbound import routing, stop
+
+    n = 0
+    for e164, minutes, text in REPLIES:
+        n += 1
+        at = sent_at + timedelta(minutes=minutes)
+        recipient = recipients[e164]
+        inbound = _inbound(account, n, e164, text, at)
+        thread = routing.route_to(inbound, _candidate(account, recipient), at, via="demo")
+        routing._done(inbound)
+        _context(thread, recipient)
+        if e164 == REPLIES[-1][0]:
+            answered = sent_at + timedelta(minutes=ANSWER[0])
+            ThreadMessage.objects.create(
+                thread=thread,
+                direction=ThreadMessage.Direction.OUT,
+                body=ANSWER[1],
+                at=answered,
+                status=ThreadMessage.Status.SENT,
+            )
+            Thread.objects.filter(pk=thread.pk).update(last_out_at=answered, unread=False)
+            Lead.objects.filter(pk=thread.lead_id).update(status=Lead.STATUS_CONTACTED)
+
+    e164, minutes, text = STOP_FROM
+    n += 1
+    at = sent_at + timedelta(minutes=minutes)
+    recipient = recipients[e164]
+    inbound = _inbound(account, n, e164, text, at)
+    stop.apply_stop(inbound, [_candidate(account, recipient)], at)
+    routing._done(inbound)
+    thread = Thread.objects.get(account=account, address=e164)
+    _context(thread, recipient)
+    for answer in threads.answers_queued().filter(thread=thread):
+        # Som ticken lämnar det för demot: "Demokontot skickar aldrig."
+        threads._fail_answer(answer, "demo")
+
+
+def _utskick(account, staff, now, made, lists, tags):
+    """Tre utskick: ett skickat (simulerat) med klick, förfrågningar, svar
+    och en STOPP, ett schemalagt och ett utkast."""
+    from .sending import tick
+
+    today = timezone.localtime(now, STOCKHOLM).date()
+    sent_at = _at_ten(today - timedelta(days=SENT_DAYS_AGO))
+    campaign = _campaign(account)
+
+    sent = _new_utskick(
+        account,
+        staff,
+        SENT_NAME,
+        SENT_BODY,
+        {"lists": [lists["Kunder"].pk]},
+        sent_at - timedelta(days=2),
+        scheduled_at=sent_at,
+    )
+    link = None
+    if campaign is not None:
+        from . import links
+
+        link = links.add_link(sent, key="spolning", campaign=campaign, label="Boka spolning")
+    else:
+        sent.sms_body = SENT_BODY.replace(" Boka en tid: {länk:spolning}", "")
+        sent.save(update_fields=["sms_body"])
+    _confirm(sent, staff, sent_at - timedelta(days=1))
+    _send(sent, sent_at)
+    recipients = {
+        r.address: r
+        for r in Recipient.objects.filter(utskick=sent, status=Recipient.Status.DELIVERED)
+    }
+    if link is not None:
+        for e164, minutes, seconds, kind in CLICKS:
+            recipient = recipients.get(e164)
+            if recipient is None:
+                continue
+            at = sent_at + timedelta(minutes=minutes)
+            click = _click(recipient, link, at, seconds, called=kind == "call")
+            if kind:
+                _lead(click, campaign, kind, at + timedelta(minutes=3), made[e164])
+        TrackedLink.objects.filter(pk=link.pk).update(
+            human_clicks=Click.objects.filter(link=link, kind=Click.Kind.HUMAN).count(),
+            leads=sum(1 for e164, *_rest, kind in CLICKS if kind and e164 in recipients),
+        )
+    _replies(account, sent, recipients, sent_at)
+    tick.finish(sent_at + timedelta(minutes=20), only=sent.pk)
+
+    scheduled = _new_utskick(
+        account,
+        staff,
+        SCHEDULED_NAME,
+        SCHEDULED_BODY,
+        {"lists": [lists["Servicepåminnelse"].pk]},
+        now - timedelta(days=1),
+        scheduled_at=_at_ten(today + timedelta(days=SCHEDULED_IN_DAYS)),
+    )
+    _confirm(scheduled, staff, now)
+
+    _new_utskick(
+        account,
+        staff,
+        DRAFT_NAME,
+        DRAFT_BODY,
+        {"tags": [tags["Nacka"].pk]},
+        now - timedelta(hours=3),
+    )

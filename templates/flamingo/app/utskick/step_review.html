@@ -1,0 +1,88 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Guidens steg 5: Granska (README I.6, I.4, D12). Kontext från
+app_views/utskick._step_granska: utskick, wizard, review (items [{level:
+info|ok|warn|block, text, step, fix, linkcheck}], blocking, preview,
+cost_text, send_now, when_text, n_sms, n_links), nonce (engångsvärdet som
+bekräftelsen prövar), reconfirm (ett pausat utskick som ska bekräftas igen:
+stegen går inte att ändra, så Ändra och Byt automatiskt visas inte, och har
+tiden passerat skickas det när det bekräftas), dialog_text ("388 sms skickas
+nu. Kostnad cirka 151 kr.", demokontot säger att inget skickas), report_url,
+is_staff_actor, staff_text, sender_text, is_demo.
+
+Inget skickas utan knappen. Ett blockerande fel gör knappen inaktiv (och
+bekräftelsen prövar allt igen). Skicka nu öppnar en <dialog> som upprepar
+siffrorna (flamingo-app-utskick.js, data-ut-dialog); utan skript står samma
+mening ovanför knappen. Byrån i kundvyn måste kryssa i rutan och knappen
+heter Skicka som ADX (I.4).
+{% endcomment %}
+{% block app_title %}{{ utskick.name }}: Granska{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_header %}{% include "flamingo/app/utskick/_step_header.html" %}{% endblock %}
+{% block ut_content %}
+{% if reconfirm %}<p class="fl-notice fl-notice--warn"><span>Utskicket är pausat och behöver bekräftas igen innan det fortsätter.{% if review.send_now %} Det skickas när du bekräftar.{% endif %} Stegen går inte att ändra nu.</span></p>{% endif %}
+<div class="fl-ut-review">
+  <section class="fl-panel" aria-labelledby="ut-checks-title">
+    <h2 class="fl-panel__title" id="ut-checks-title">Kontroller</h2>
+    <ul class="fl-ut-checks">
+      {% for item in review.items %}
+      <li class="fl-ut-check fl-ut-check--{{ item.level }}">
+        <span class="fl-ut-check__icon" aria-hidden="true"></span>
+        <span class="fl-ut-check__text"><span class="fl-sr">{% if item.level == "block" %}Måste rättas{% elif item.level == "warn" %}Varning{% elif item.level == "ok" %}Klart{% else %}Information{% endif %}: </span>{{ item.text }}</span>
+        {% if item.step and not reconfirm %}<a class="fl-ut-check__link" href="{% url 'flamingo:app_utskick_step' utskick.pk item.step %}">Ändra</a>{% endif %}
+        {% if item.fix and not reconfirm %}
+        <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_step' utskick.pk 'innehall' %}">
+          {% csrf_token %}
+          <input type="hidden" name="tillbaka" value="granska">
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="fix">Byt automatiskt</button>
+        </form>
+        {% endif %}
+        {% if item.linkcheck %}
+        <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_link_check' utskick.pk %}" data-ut-linkcheck>
+          {% csrf_token %}
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Kontrollera länkarna</button>
+          <span class="fl-ut-check__result" data-ut-linkcheck-result aria-live="polite"></span>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <div class="fl-ut-review__side">
+    <section class="fl-panel fl-panel--accent fl-ut-summary" aria-labelledby="ut-summary-title">
+      <h2 class="fl-panel__title" id="ut-summary-title">Sammanfattning</h2>
+      <p class="fl-ut-summary__big">{{ review.n_sms|tal }} sms</p>
+      <p class="fl-panel__text">Uppskattad kostnad {{ review.cost_text }}. Kostnaden räknas mot ditt kostnadstak för sms.</p>
+      <p class="fl-panel__text">{% if review.send_now %}Skickas när du bekräftar.{% else %}Schemalagt {{ review.when_text }}.{% endif %}</p>
+      <form class="fl-form" method="post" action="{% url 'flamingo:app_utskick_confirm' utskick.pk %}">
+        {% csrf_token %}
+        <input type="hidden" name="nonce" value="{{ nonce }}">
+        {% if is_staff_actor %}<label class="fl-check"><input type="checkbox" name="som_adx" value="1" required><span>{{ staff_text }}</span></label>{% endif %}
+        {% if review.send_now %}<p class="fl-ut-summary__repeat">{{ dialog_text }}</p>{% endif %}
+        <div class="fl-ut-actions">
+          <button type="submit" class="fl-btn fl-ut-actions__next"{% if review.blocking %} disabled{% endif %}{% if review.send_now %} data-ut-dialog="ut-dialog-skicka"{% endif %}>{% if is_staff_actor %}Skicka som ADX{% elif review.send_now %}Skicka nu{% else %}Schemalägg utskicket{% endif %}</button>
+          {% if reconfirm %}<a class="fl-btn fl-btn--ghost fl-ut-actions__save" href="{{ report_url }}">Tillbaka till utskicket</a>{% else %}<a class="fl-btn fl-btn--ghost fl-ut-actions__save" href="{% url 'flamingo:app_utskick_list' %}">Spara utkast</a>{% endif %}
+        </div>
+        {% if review.blocking %}<p class="fl-field__error">Rätta det som är markerat innan utskicket kan skickas.</p>{% endif %}
+      </form>
+      {% if review.send_now and not review.blocking %}
+      <dialog class="fl-ut-dialog" id="ut-dialog-skicka" aria-labelledby="ut-dialog-title">
+        <h2 class="fl-ut-dialog__title" id="ut-dialog-title">{% if is_demo %}Visa som skickat{% else %}Skicka nu{% endif %}</h2>
+        <p class="fl-ut-dialog__text">{{ dialog_text }}</p>
+        <div class="fl-ut-actions">
+          <button type="button" class="fl-btn fl-ut-actions__next" data-ut-dialog-ok>{% if is_staff_actor %}Skicka som ADX{% else %}Skicka nu{% endif %}</button>
+          <button type="button" class="fl-btn fl-btn--ghost fl-ut-actions__save" data-ut-dialog-cancel>Tillbaka</button>
+        </div>
+      </dialog>
+      {% endif %}
+    </section>
+
+    <section class="fl-panel fl-panel--soft" aria-label="Förhandsvisning">
+      {% include "flamingo/app/utskick/_phone.html" with preview=review.preview bubble_id="" %}
+    </section>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>{% endblock %}

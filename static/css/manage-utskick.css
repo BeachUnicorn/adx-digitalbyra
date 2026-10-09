@@ -50,3 +50,10 @@ a.mu-kpi:hover{border-color:var(--m-text-muted)}
   .mu-kpi{padding:16px 18px}
   .mu-kpi .m-stat__value{font-size:26px}
 }
+
+/* ===== Inkommande sms (inkorg-byggaren, S2): #inkommande ===== */
+.mu-in-text{min-width:180px;max-width:420px;overflow-wrap:anywhere;white-space:pre-line}
+.mu-in-table .mu-form{margin:0 0 6px}
+@media (max-width: 760px){
+  .mu-in-text{min-width:0;max-width:none}
+}

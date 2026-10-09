@@ -21,6 +21,11 @@ högst så många sms som skickas samtidigt från olika konton.
 Dygnsgränsen räknas också i databasen (sms-raderna nyckeln skapat sedan
 midnatt) och gäller exakt.
 
+Flamingos utskick (apps/utskick) går genom samma kontroll men med marginal
+(headroom): kontots gräns minus headroom och byråns minus global_headroom,
+så att utskicken alltid lämnar plats åt kundens eget API och åt Flamingos
+egna sms. Marginalen räknas av den som anropar (headroom()); API:t skickar 0.
+
 Kostnaden skyddas inte här utan av kostnadstaket (service.py).
 """
 
@@ -95,22 +100,55 @@ def _window_retry(rows, limit, now):
     return max(1, math.ceil(60 - (now - oldest).total_seconds()))
 
 
-def check_account_minute(account, now=None):
+def _with_headroom(limit, headroom):
+    """Gränsen minus marginalen. None: ingen gräns (gränsen är 0 eller
+    mindre i inställningarna, som förut). 0: marginalen tar allt, inget får
+    skickas."""
+    if limit <= 0:
+        return None
+    return max(0, limit - max(0, int(headroom or 0)))
+
+
+def headroom(account_per_minute, agency_per_minute):
+    """(headroom, global_headroom) för en avsändare som får använda högst
+    account_per_minute av kontots minutgräns och agency_per_minute av byråns
+    (utskicken: UTSKICK_SMS_ACCOUNT_PER_MINUTE, UTSKICK_SMS_GLOBAL_PER_MINUTE).
+    Aldrig negativ: ber den om mer än gränsen får den gränsen."""
+    return (
+        max(0, limits()["per_minute"] - int(account_per_minute)),
+        max(0, global_per_minute() - int(agency_per_minute)),
+    )
+
+
+def check_account_minute(account, now=None, *, headroom=0, global_headroom=0):
     """Exakt minutgräns i databasen, för en sändning (inte en provkörning).
-    Körs under kontots radlås i service.send.
+    Körs under kontots radlås i service.send_for_account.
 
     - Kontot: dess sms de senaste 60 sekunderna, utom de som stoppades före
-      46elks som rejected, mot SMS_RATE_PER_MINUTE. Gäller oavsett hur många
-      nycklar och arbetare kunden använder.
+      46elks som rejected, mot SMS_RATE_PER_MINUTE minus headroom. Gäller
+      oavsett hur många nycklar och arbetare kunden använder.
     - Byrån: alla kunders sms som gick till 46elks (inte rejected eller
-      blocked_cap), mot SMS_GLOBAL_PER_MINUTE.
+      blocked_cap), mot SMS_GLOBAL_PER_MINUTE minus global_headroom.
 
-    Returnerar Retry-After i sekunder, eller None."""
+    API:t skickar marginalen 0 (gränserna som förut). Returnerar Retry-After
+    i sekunder, eller None."""
     now = now or timezone.now()
     recent = SmsMessage.objects.filter(created_at__gt=now - timedelta(seconds=60))
-    own = recent.filter(account=account).exclude(status=SmsMessage.Status.REJECTED)
-    retry = _window_retry(own, limits()["per_minute"], now)
-    if retry:
-        return retry
-    everyone = recent.exclude(status__in=SmsMessage.STOPPED)
-    return _window_retry(everyone, global_per_minute(), now)
+    for rows, limit in (
+        (
+            recent.filter(account=account).exclude(status=SmsMessage.Status.REJECTED),
+            _with_headroom(limits()["per_minute"], headroom),
+        ),
+        (
+            recent.exclude(status__in=SmsMessage.STOPPED),
+            _with_headroom(global_per_minute(), global_headroom),
+        ),
+    ):
+        if limit is None:
+            continue
+        if limit == 0:
+            return 60
+        retry = _window_retry(rows, limit, now)
+        if retry:
+            return retry
+    return None

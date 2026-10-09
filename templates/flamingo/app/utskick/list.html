@@ -1,0 +1,92 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load flamingo_app utskick_tags %}
+{% comment %}
+Utskick: listan (README I.8). Kontext från app_views/utskick.utskick_list:
+rows (sidans utskick med ut_status, ut_tone, ut_audience, ut_numbers och
+ut_planned), page, visa (valt filter), filters ([(nyckel, rubrik)]),
+any_utskick, usage_line ("Oktober: 2 640 sms-delar · kostnad hittills ...").
+
+Under 760 px blir tabellen kort (flamingo-app.css läser data-label). Tomma
+celler skrivs utan blanksteg, så att de döljs i kortläget. Nytt utskick är
+ett POST-formulär: utkastet skapas och guiden öppnas på Mottagare.
+{% endcomment %}
+{% block app_title %}Utskick{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Utskick</h1>
+    {% if usage_line %}<p class="fl-app-lead">{{ usage_line }}</p>{% endif %}
+  </div>
+  <div class="fl-app-head__actions">
+    <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_new' %}">
+      {% csrf_token %}
+      <button type="submit" class="fl-btn fl-btn--sm">Nytt utskick</button>
+    </form>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+{% if any_utskick %}
+<nav class="fl-ut-chips" aria-label="Visa utskick">
+  {% for key, label in filters %}<a class="fl-ut-chip{% if visa == key %} is-on{% endif %}" href="{% url 'flamingo:app_utskick_list' %}{% if key %}?visa={{ key }}{% endif %}"{% if visa == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+{% endif %}
+
+{% if rows %}
+<div class="fl-ut-tablebox"><div class="fl-table-wrap">
+  <table class="fl-table fl-ut-table">
+    <thead>
+      <tr>
+        <th scope="col">Utskick</th>
+        <th scope="col">Kanal</th>
+        <th scope="col">Status</th>
+        <th scope="col" class="is-num">Mottagare</th>
+        <th scope="col" class="is-num">Klick</th>
+        <th scope="col" class="is-num">Svar</th>
+        <th scope="col" class="is-num">Förfrågningar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for utskick in rows %}
+      <tr>
+        <td class="is-primary" data-label="Utskick"><a class="fl-ut-name" href="{% if utskick.status == 'draft' %}{% url 'flamingo:app_utskick_step' utskick.pk 'mottagare' %}{% else %}{% url 'flamingo:app_utskick' utskick.pk %}{% endif %}">{{ utskick.name }}</a><span class="fl-ut-sub">{{ utskick.ut_audience }}</span></td>
+        <td data-label="Kanal">Sms</td>
+        <td data-label="Status"><span class="fl-ut-status fl-ut-status--{{ utskick.ut_tone }}">{{ utskick.ut_status }}</span></td>
+        <td class="is-num" data-label="Mottagare">{% if utskick.ut_numbers %}{{ utskick.ut_numbers.recipients|tal }}{% elif utskick.ut_planned is not None %}{{ utskick.ut_planned|tal }}{% endif %}</td>
+        <td class="is-num" data-label="Klick">{% if utskick.ut_numbers %}{{ utskick.ut_numbers.clicked|tal }}{% if utskick.ut_numbers.click_pct is not None %} ({{ utskick.ut_numbers.click_pct|procent }}){% endif %}{% endif %}</td>
+        <td class="is-num" data-label="Svar">{% if utskick.ut_numbers %}{{ utskick.ut_numbers.replied|tal }}{% endif %}</td>
+        <td class="is-num" data-label="Förfrågningar">{% if utskick.ut_numbers %}<strong class="fl-ut-leads">{{ utskick.ut_numbers.leads|tal }}</strong>{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>
+
+{% if page.has_other_pages %}
+<nav class="fl-ut-pages" aria-label="Fler utskick">
+  {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if visa %}visa={{ visa }}&amp;{% endif %}sida={{ page.previous_page_number }}">Föregående</a>{% endif %}
+  <span class="fl-ut-pages__at">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if visa %}visa={{ visa }}&amp;{% endif %}sida={{ page.next_page_number }}">Nästa</a>{% endif %}
+</nav>
+{% endif %}
+
+{% elif any_utskick %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Inga utskick här</p>
+  <p class="fl-empty__text">Inga utskick har det läget just nu.</p>
+  <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_utskick_list' %}">Visa alla</a>
+</div>
+
+{% else %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Inga utskick än.</p>
+  <p class="fl-empty__text">Ett utskick är ett sms till dina kontakter: ett erbjudande till de som sagt ja, eller information om en bokning eller ändrade öppettider. Du väljer mottagare, skriver texten och granskar allt innan något skickas.</p>
+  <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_new' %}">
+    {% csrf_token %}
+    <button type="submit" class="fl-btn fl-btn--sm">Nytt utskick</button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

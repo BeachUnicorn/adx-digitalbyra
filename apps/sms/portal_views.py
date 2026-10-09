@@ -34,7 +34,7 @@ from django.views.decorators.http import require_POST
 
 from apps.projects.access import customer_for, is_agency_user, viewing_customer
 
-from . import numbers, pricing, ratelimit, service
+from . import hooks, numbers, pricing, ratelimit, service
 from .models import (
     MAX_MONTHLY_CAP_KR,
     MonthlyStatement,
@@ -55,6 +55,21 @@ STATUS_FILTERS = [
     ("failed", "Misslyckade"),
     ("stopped", "Stoppade"),
 ]
+
+#: Källfiltret (?kalla=), visas bara när kontot har sms från Flamingos
+#: utskick. Utskick: utskick, flöden och testsändningar; Svar: svar från
+#: Inkorgen och Flamingos bekräftelser (STOPP, START).
+SOURCE_FILTERS = [
+    ("", "Alla"),
+    ("api", "API"),
+    ("utskick", "Utskick"),
+    ("svar", "Svar"),
+]
+SOURCE_GROUPS = {
+    "api": (SmsMessage.Source.API,),
+    "utskick": (SmsMessage.Source.UTSKICK, SmsMessage.Source.FLOW, SmsMessage.Source.TEST),
+    "svar": (SmsMessage.Source.REPLY, SmsMessage.Source.SYSTEM),
+}
 
 MONTHS = [
     "januari",
@@ -220,6 +235,7 @@ def _message_list(request, account):
     qs = SmsMessage.objects.filter(account=account).select_related("api_key")
     q = (request.GET.get("q") or "").strip()[:100]
     status = request.GET.get("status", "")
+    source = request.GET.get("kalla", "")
     if q:
         digits = "".join(ch for ch in q if ch.isdigit())
         match = Q(body__icontains=q) | Q(reference__iexact=q)
@@ -232,8 +248,28 @@ def _message_list(request, account):
         qs = qs.filter(status=status)
     else:
         status = ""
+    # Källfiltret finns bara för en kund som också skickar via Flamingo.
+    has_sources = (
+        SmsMessage.objects.filter(account=account).exclude(source=SmsMessage.Source.API).exists()
+    )
+    if has_sources and source in SOURCE_GROUPS:
+        qs = qs.filter(source__in=SOURCE_GROUPS[source])
+    else:
+        source = ""
     page = Paginator(qs.order_by("-created_at", "-pk"), PAGE_SIZE).get_page(request.GET.get("sida"))
-    return {"page": page, "q": q, "status": status, "filtered": bool(q or status)}
+    # Sms som inte kom från API:t visar sin källa ("Utskick: Höstservice")
+    # i stället för reference (hooks.labels).
+    labels = hooks.labels(page.object_list)
+    for message in page.object_list:
+        message.source_label = labels.get(message.pk, "")
+    return {
+        "page": page,
+        "q": q,
+        "status": status,
+        "source": source,
+        "source_filters": SOURCE_FILTERS if has_sources else [],
+        "filtered": bool(q or status or source),
+    }
 
 
 @sms_portal
@@ -411,8 +447,16 @@ def docs(request):
             country_names=[(c, numbers.country_name(c)) for c in account.countries],
             fee=account.yearly_fee_kr,
             cap=account.monthly_cap_kr,
+            has_utskick=_has_utskick(account),
         ),
     )
+
+
+def _has_utskick(account):
+    """Har kunden Flamingos utskick (spärrlistan och det delade taket)?"""
+    from .api import _utskick_account
+
+    return _utskick_account(account) is not None
 
 
 @sms_portal

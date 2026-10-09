@@ -565,3 +565,74 @@ def chip(contact, channel, consent=None):
     else:
         label, tone = "Inget samtycke", "muted"
     return {"label": label, "tone": tone, "channel": word}
+
+
+# ---------------------------------------------------------------------------
+# S2 (länk-byggaren): Ångra efter en avregistrering på k.adx.se/s/ (E.5)
+# ---------------------------------------------------------------------------
+
+
+def _mentions_tracking(text):
+    from .capture import tracking_ok
+
+    return tracking_ok(text or "")
+
+
+def restore(
+    contact, channel, *, unsubscribe_log, source, actor=None, source_detail="", ip_hash="", now=None
+):
+    """Ångra (E.5, H.6): personen ångrade avregistreringen inom 30 minuter
+    med engångsvärdet från sidan, alltså bevisat av personen själv. Spärren
+    tas bort och samtycket blir det det var före avregistreringen
+    (unsubscribe_log.old_status), med texten, beviset och grunden från den
+    raden i loggen som gällde då. En ny rad i loggen (källa source,
+    source_detail "Ångra ..."). Nekas ("locked") när samtycket ändrats sedan
+    avregistreringen eller adressen bytts. Returnerar Outcome."""
+    now = now or timezone.now()
+    actor = actor or SYSTEM
+    previous = unsubscribe_log.old_status or MISSING
+    with transaction.atomic():
+        keys.require_fingerprints()
+        row = _consent_row(contact, channel, lock=True)
+        value_hash = keys.value_hash(channel, contact.address(channel))
+        if (
+            row is None
+            or row.status != UNSUBSCRIBED
+            or not value_hash
+            or row.value_hash != value_hash
+            or unsubscribe_log.value_hash != value_hash
+        ):
+            return Outcome(row, refused="locked")
+        before = (
+            ConsentLog.objects.filter(
+                contact=contact,
+                channel=channel,
+                value_hash=value_hash,
+                new_status=previous,
+                at__lte=unsubscribe_log.at,
+            )
+            .exclude(pk=unsubscribe_log.pk)
+            .order_by("-at", "-pk")
+            .first()
+        )
+        lifted = suppressions.lift(contact.account, channel, value_hash)
+        if previous in (MISSING, UNSUBSCRIBED):
+            # Inget samtycke att återställa: raden blir missing (spärren är borta).
+            previous = MISSING
+        row = _apply(
+            contact,
+            channel,
+            row,
+            previous,
+            value_hash=value_hash,
+            source=source,
+            actor=actor,
+            source_detail=source_detail,
+            text_shown=before.text_shown if before is not None else "",
+            tracking_ok=bool(before is not None and _mentions_tracking(before.text_shown)),
+            evidence=before.evidence if before is not None else "",
+            collected_at=before.at if before is not None else None,
+            ip_hash=ip_hash,
+            now=now,
+        )
+    return Outcome(row, changed=True, lifted=lifted)

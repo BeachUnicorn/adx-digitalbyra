@@ -9,6 +9,7 @@ Mallhjälp för Kontakter och Utskick.
     {{ kontakt.email|maskerad_epost }}  "a***@e***.example"
     {% samtycke_chip kontakt "sms" as chip %}   {"label", "tone", "channel"}
     {% utskick_card customer as ut %}   kundkortets panel (manage_views.card_context)
+    {% utskick_hosts customer as hosts %}  kundkortets väntande och nekade länkvärdar (S2)
     {{ field|beskriven:help }}          fältet med aria-describedby på hjälptexten och felet
 
 Tal och kronor skrivs med flamingo_app ({{ n|tal }}, {{ n|kr }}). Mellanrummet
@@ -101,3 +102,12 @@ def utskick_card(customer):
     from ..manage_views import card_context
 
     return card_context(customer)
+
+
+# S2 (länk-byggaren): länkvärdarna på kundkortet (README E.8).
+@register.simple_tag
+def utskick_hosts(customer):
+    """Kundens väntande och nekade externa länkvärdar (manage_links.card_hosts)."""
+    from ..manage_links import card_hosts
+
+    return card_hosts(customer)

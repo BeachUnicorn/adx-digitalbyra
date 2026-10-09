@@ -1,0 +1,256 @@
+/* ==========================================================================
+   ADX Flamingo - Utskick, vyerna (flamingo-app-utskick-views.css)
+
+   templates/flamingo/app/utskick/ utom svarstråden (_thread.html har
+   flamingo-app-utskick-thread.css): listan, guidens fem steg, Granska,
+   rapporten, mottagarna och Inställningar för utskick (README I.1 till I.9).
+   Bygger på flamingo-app.css (.fl-table, .fl-panel, .fl-form, .fl-kpis,
+   .fl-list, .fl-seg, .fl-check, .fl-notice) och flamingo-app-utskick.css
+   (flikraden). Allt här har prefixet .fl-ut-.
+
+   Komponenterna:
+     .fl-ut-chips/.fl-ut-chip      filtren över listan och mottagarna
+     .fl-ut-status--<ton>          läget: draft, scheduled, sending, paused, sent,
+                                   cancelled, och resultatet: ok, info, warn, stop, muted
+     .fl-ut-wizard/.fl-ut-steps    guidens chips; under 560 px "Steg 3 av 5: Innehåll"
+     .fl-ut-actions                Nästa (först i koden, sist på skärmen), Tillbaka,
+                                   Spara utkast; Nästa bred under 560 px
+     .fl-ut-option                 ett val som kort (radio): reklam, kanal, avsändare
+     .fl-ut-cols                   Mottagare: valen och räkningen (rutan under i smalt)
+     .fl-ut-editor                 Innehåll: texten och telefonen (telefonen under i smalt)
+     .fl-ut-phone/.fl-ut-bubble    förhandsvisningen, aldrig bredare än ytan
+     .fl-ut-counter                "GSM-7 · 134 av 160 · 1 del · 151 kr", radbryts
+     .fl-ut-checks/.fl-ut-check    Granskas kontroller: ok, info, warn, block
+     .fl-ut-dialog                 Skicka nu, min(100vw - 32px, 480px)
+     .fl-ut-banner                 pausens ruta i rapporten
+     .fl-ut-kpis                   rapportens fyra rutor, två i bredd under 560 px
+
+   Regler som i resten av verktyget: brödtext minst 16 px, inga
+   style-attribut, inget bredare än skärmen i 375 px.
+   ========================================================================== */
+
+.fl-ut-inline{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0}
+.fl-ut-muted{color:var(--fl-muted);font-weight:400}
+.fl-ut-crumb{color:inherit;text-decoration:none}
+.fl-ut-crumb:hover{text-decoration:underline;text-underline-offset:3px}
+/* Knappar som ser ut som länkar (sparar steget först: stegchipsen, "Utskick"
+   överst och "byt kontakt"). */
+button.fl-ut-crumb,.fl-ut-linkbtn{
+  margin:0;padding:0;border:0;background:none;font:inherit;letter-spacing:inherit;cursor:pointer;
+}
+.fl-ut-linkbtn{color:var(--fl-ink);text-decoration:underline;text-underline-offset:3px}
+.fl-ut-linkbtn:hover{color:var(--fl-violet)}
+.fl-ut-form{max-width:1080px}
+.fl-ut-section{display:flex;flex-direction:column;gap:12px;min-width:0}
+.fl-ut-count{flex:none;font-size:16px;font-variant-numeric:tabular-nums;color:var(--fl-ink)}
+.fl-ut-url,.fl-ut-token{overflow-wrap:anywhere}
+.fl-ut-token{font-family:var(--fl-mono);font-size:15px}
+.fl-ut-lock{display:block;margin-top:4px;font-size:16px;line-height:1.45;color:#7A430D}
+.fl-ut-warn{font-size:16px;line-height:1.45;color:#7A430D}
+
+/* ---------- Filter som chips ---------- */
+.fl-ut-chips{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.fl-ut-chip{
+  display:inline-flex;align-items:center;min-height:40px;padding:8px 14px;border:1px solid var(--fl-line);
+  border-radius:999px;background:var(--fl-white);font-size:16px;line-height:1.3;color:var(--fl-ink);text-decoration:none;
+}
+.fl-ut-chip:hover{border-color:var(--fl-ink)}
+.fl-ut-chip.is-on{border-color:var(--fl-ink);background:var(--fl-ink);color:var(--fl-white)}
+
+/* ---------- Läget ---------- */
+.fl-ut-status{
+  display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:3px 10px;border-radius:999px;
+  background:var(--fl-panel2);color:var(--fl-body);font-size:14px;font-weight:600;line-height:1.4;
+}
+.fl-ut-status::before{content:"";flex:none;width:7px;height:7px;border-radius:50%;background:currentColor}
+.fl-ut-status--draft,.fl-ut-status--cancelled,.fl-ut-status--muted{background:var(--fl-panel2);color:var(--fl-muted)}
+.fl-ut-status--scheduled,.fl-ut-status--info{background:var(--fl-violet-tint);color:var(--fl-violet-ink)}
+.fl-ut-status--sending{background:#EAF1FF;color:#2456BE}
+.fl-ut-status--paused,.fl-ut-status--warn{background:#FFF3E6;color:#7A430D}
+.fl-ut-status--sent,.fl-ut-status--ok{background:#E7F5EC;color:#17703D}
+.fl-ut-status--stop{background:#FCEDED;color:#8F1F1F}
+
+/* ---------- Tabellerna ---------- */
+.fl-ut-tablebox{min-width:0}
+.fl-ut-name{font-weight:600;text-decoration:none}
+.fl-ut-name:hover{text-decoration:underline}
+.fl-ut-sub{display:block;margin-top:2px;font-size:16px;font-weight:400;color:var(--fl-muted)}
+.fl-ut-leads{color:var(--fl-ok)}
+.fl-ut-pages{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px}
+.fl-ut-pages__at{font-size:16px;color:var(--fl-muted)}
+
+/* ---------- Guidens steg ---------- */
+.fl-ut-wizard{min-width:0}
+.fl-ut-steps{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.fl-ut-steps__item{display:flex;min-width:0}
+.fl-ut-steps__link{
+  display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:5px 14px 5px 5px;
+  border:1px solid transparent;border-radius:999px;background:var(--fl-panel2);color:var(--fl-muted);
+  font-size:16px;line-height:1.3;text-decoration:none;
+}
+.fl-ut-steps__link:hover{border-color:var(--fl-line);color:var(--fl-ink)}
+button.fl-ut-steps__link{font-family:inherit;cursor:pointer}
+.fl-ut-steps__link.is-locked{cursor:default}
+.fl-ut-steps__link.is-locked:hover{border-color:transparent;color:var(--fl-muted)}
+.fl-ut-steps__num{
+  display:inline-flex;align-items:center;justify-content:center;flex:none;width:28px;height:28px;
+  border-radius:50%;background:var(--fl-white);font-family:var(--fl-mono);font-size:13px;font-weight:500;
+}
+.fl-ut-steps__item.is-now .fl-ut-steps__link{background:var(--fl-ink);color:var(--fl-white)}
+.fl-ut-steps__item.is-now .fl-ut-steps__num{color:var(--fl-ink)}
+.fl-ut-steps__compact{display:none;margin:0;font-size:16px;font-weight:600;color:var(--fl-ink)}
+
+.fl-ut-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding-top:6px}
+.fl-ut-actions__prev{order:1}
+.fl-ut-actions__save{order:2}
+.fl-ut-actions__next{order:3;margin-left:auto}
+.fl-btn[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+
+/* ---------- Val som kort ---------- */
+.fl-ut-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:10px;min-width:0}
+.fl-ut-option{position:relative;display:flex;min-width:0;cursor:pointer}
+.fl-ut-option input{position:absolute;top:18px;left:16px;width:20px;height:20px;margin:0;accent-color:var(--fl-ink);cursor:pointer}
+.fl-ut-option__body{
+  display:flex;flex-direction:column;gap:4px;width:100%;min-width:0;padding:14px 16px 14px 48px;
+  border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-white);
+}
+.fl-ut-option:hover .fl-ut-option__body{border-color:var(--fl-ink)}
+.fl-ut-option input:checked + .fl-ut-option__body{border-color:var(--fl-violet);background:#FBFAFF;box-shadow:0 0 0 1px var(--fl-violet)}
+.fl-ut-option input:focus-visible + .fl-ut-option__body{outline:2px solid var(--fl-violet);outline-offset:2px}
+.fl-ut-option__title{font-size:16px;font-weight:600;line-height:1.35;color:var(--fl-ink);overflow-wrap:anywhere}
+.fl-ut-option__text{font-size:16px;line-height:1.45;color:var(--fl-muted)}
+.fl-ut-option.is-locked{cursor:default}
+.fl-ut-option.is-locked .fl-ut-option__body{border-style:dashed;background:var(--fl-panel)}
+.fl-ut-info[hidden]{display:none}
+
+/* ---------- Mottagare ---------- */
+.fl-ut-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,320px);gap:24px;align-items:start}
+.fl-ut-cols__main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.fl-ut-cols__side{position:sticky;top:16px;min-width:0}
+.fl-ut-group{display:flex;flex-direction:column;gap:8px}
+.fl-ut-group__title{margin:6px 0 0;font-family:var(--fl-mono);font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--fl-muted)}
+.fl-ut-picks{display:flex;flex-direction:column;gap:8px;min-width:0}
+.fl-ut-picks .fl-check span{overflow-wrap:anywhere}
+.fl-ut-search{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.fl-ut-search .fl-input{flex:1 1 220px;min-width:0}
+.fl-ut-countbox{gap:8px}
+.fl-ut-countbox__value{font-size:24px;font-weight:600;letter-spacing:-.02em;line-height:1.2;color:var(--fl-ink)}
+.fl-ut-countbox__text{font-size:16px;line-height:1.5;color:var(--fl-body)}
+
+/* ---------- Innehåll ---------- */
+.fl-ut-editor{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,300px);gap:24px;align-items:start}
+.fl-ut-editor__main{display:flex;flex-direction:column;gap:14px;min-width:0}
+.fl-ut-editor__side{display:flex;flex-direction:column;gap:10px;min-width:0;position:sticky;top:16px}
+.fl-ut-textarea{width:100%;min-height:170px;resize:vertical;font-size:16px;line-height:1.5}
+.fl-ut-counter{margin:0;font-family:var(--fl-mono);font-size:14px;line-height:1.5;color:var(--fl-muted);overflow-wrap:anywhere}
+.fl-ut-counter.is-over{color:#B42318;font-weight:500}
+.fl-ut-notes{display:flex;flex-direction:column;gap:4px}
+.fl-ut-notes:empty{display:none}
+.fl-ut-insert{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.fl-ut-insert[hidden]{display:none}
+.fl-ut-insert__label{font-size:16px;color:var(--fl-muted)}
+.fl-ut-gsm{align-items:flex-start}
+.fl-ut-sublabel{font-weight:500}
+.fl-ut-links .fl-list__item{align-items:flex-start}
+.fl-ut-links__actions{display:flex;flex-wrap:wrap;gap:6px}
+.fl-ut-linkform{display:flex;flex-direction:column;gap:14px;margin-top:12px}
+.fl-ut-templates{gap:10px}
+.fl-ut-templates__summary{font-size:20px;font-weight:600;letter-spacing:-.02em;cursor:pointer}
+.fl-ut-testrow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.fl-ut-testrow .fl-field{flex:1 1 220px}
+
+.fl-ut-more{min-width:0}
+.fl-ut-more > summary{list-style:none;cursor:pointer}
+.fl-ut-more > summary::-webkit-details-marker{display:none}
+.fl-ut-more--right{position:relative}
+.fl-ut-confirm{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:10px;padding:14px;border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-white)}
+.fl-ut-confirm p{font-size:16px;line-height:1.5;color:var(--fl-body)}
+
+/* ---------- Telefonen ---------- */
+.fl-ut-phone{
+  width:280px;max-width:100%;margin:0 auto;padding:14px 12px 18px;border:1px solid var(--fl-line);
+  border-radius:28px;background:var(--fl-panel2);
+}
+.fl-ut-phone__top{display:flex;flex-direction:column;align-items:center;gap:2px;margin:0 0 12px;font-size:13px;line-height:1.3;color:var(--fl-muted);text-align:center}
+.fl-ut-phone__top b{font-size:15px;color:var(--fl-ink);overflow-wrap:anywhere}
+.fl-ut-bubble{
+  max-width:92%;margin:0;padding:10px 12px;border-radius:16px 16px 16px 4px;background:var(--fl-white);
+  font-size:16px;line-height:1.45;color:var(--fl-ink);overflow-wrap:anywhere;
+}
+.fl-ut-bubble.is-live{white-space:pre-line}
+.fl-ut-phone__note{margin:0;font-size:16px;line-height:1.5;color:var(--fl-muted);text-align:center}
+
+/* ---------- Granska ---------- */
+.fl-ut-review{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,360px);gap:24px;align-items:start}
+.fl-ut-review__side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.fl-ut-checks{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.fl-ut-check{display:flex;flex-wrap:wrap;align-items:flex-start;gap:6px 10px;padding:10px 0;border-top:1px solid var(--fl-soft);font-size:16px;line-height:1.5;color:var(--fl-ink)}
+.fl-ut-check:first-child{border-top:0;padding-top:0}
+.fl-ut-check__icon{flex:none;position:relative;width:20px;height:20px;margin-top:2px;border-radius:50%;background:var(--fl-panel2)}
+.fl-ut-check__icon::after{content:"";position:absolute;inset:0;margin:auto}
+.fl-ut-check--ok .fl-ut-check__icon{background:var(--fl-ok)}
+.fl-ut-check--ok .fl-ut-check__icon::after{width:5px;height:9px;margin-top:4px;border-right:2px solid var(--fl-white);border-bottom:2px solid var(--fl-white);transform:rotate(45deg)}
+.fl-ut-check--warn .fl-ut-check__icon{background:#E8A23A}
+.fl-ut-check--warn .fl-ut-check__icon::after,.fl-ut-check--block .fl-ut-check__icon::after{width:2px;height:10px;background:var(--fl-white)}
+.fl-ut-check--block .fl-ut-check__icon{background:#B42318}
+.fl-ut-check--info .fl-ut-check__icon{background:var(--fl-violet-tint);border:2px solid var(--fl-violet)}
+.fl-ut-check__text{flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
+.fl-ut-check--block .fl-ut-check__text{color:#8F1F1F;font-weight:500}
+.fl-ut-check__link{font-size:16px;color:var(--fl-violet-ink);text-underline-offset:3px}
+.fl-ut-check__result{font-size:16px;color:var(--fl-body)}
+.fl-ut-summary__big{font-size:30px;font-weight:600;letter-spacing:-.03em;line-height:1.1;color:var(--fl-ink)}
+.fl-ut-summary__repeat{font-size:16px;line-height:1.5;color:var(--fl-ink)}
+.fl-ut-summary .fl-ut-actions__next{margin-left:0}
+
+.fl-ut-dialog{
+  width:min(100vw - 32px,480px);max-width:none;padding:22px;border:1px solid var(--fl-line);
+  border-radius:var(--fl-r-md);background:var(--fl-white);color:var(--fl-ink);box-shadow:var(--fl-shadow);
+}
+.fl-ut-dialog::backdrop{background:rgba(20,18,28,.45)}
+.fl-ut-dialog__title{margin:0 0 8px;font-size:22px;font-weight:600;letter-spacing:-.02em}
+.fl-ut-dialog__text{margin:0 0 16px;font-size:16px;line-height:1.55}
+
+/* ---------- Rapporten ---------- */
+.fl-ut-headline{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin:0;font-size:16px}
+.fl-ut-banner{align-items:flex-start}
+.fl-ut-banner__actions{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px}
+.fl-ut-banner__form{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0}
+.fl-ut-progress{margin:0;font-size:16px;font-weight:600;line-height:1.5;color:var(--fl-ink)}
+.fl-ut-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.fl-ut-kpi{color:inherit;text-decoration:none}
+.fl-ut-kpi:hover{border-color:var(--fl-ink)}
+.fl-ut-kpi .fl-kpi__label,.fl-ut-kpi .fl-kpi__value,.fl-ut-kpi .fl-kpi__note{display:block}
+.fl-ut-skips .fl-list__item{flex-wrap:nowrap}
+
+/* ---------- Inställningar ---------- */
+.fl-ut-setrows .fl-list__item{align-items:flex-start}
+.fl-ut-usage{display:flex;flex-direction:column;gap:6px;margin-top:6px;max-width:420px}
+.fl-ut-usage__text{font-size:16px;color:var(--fl-body)}
+.fl-ut-usage__bar{width:100%;height:10px}
+.fl-ut-hours{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.fl-ut-hours .fl-input{width:auto;min-width:96px}
+.fl-ut-savelist .fl-form__actions{justify-content:flex-start}
+
+/* ---------- Under 900 px: allt i en spalt ---------- */
+@media (max-width:900px){
+  .fl-ut-cols,.fl-ut-editor,.fl-ut-review{grid-template-columns:minmax(0,1fr)}
+  .fl-ut-cols__side,.fl-ut-editor__side{position:static}
+  .fl-ut-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+/* ---------- Telefon ---------- */
+@media (max-width:560px){
+  .fl-ut-steps{display:none}
+  .fl-ut-steps__compact{display:block}
+  .fl-ut-actions{flex-direction:column;align-items:stretch}
+  .fl-ut-actions .fl-btn{width:100%}
+  .fl-ut-actions__next{order:3;margin-left:0}
+  .fl-ut-actions__prev{order:1}
+  .fl-ut-actions__save{order:2}
+  .fl-ut-option__body{padding:12px 14px 12px 44px}
+  .fl-ut-option input{top:15px;left:14px}
+  .fl-ut-banner__actions,.fl-ut-banner__form{width:100%}
+  .fl-ut-banner__form .fl-btn,.fl-ut-banner__actions > .fl-btn{width:100%}
+  .fl-ut-check .fl-ut-inline{width:100%}
+  .fl-ut-dialog{padding:18px}
+}

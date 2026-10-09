@@ -78,18 +78,29 @@ class Numbers:
     impressions: int | None = None
     #: När Googles rapport senast lästes.
     stats_read_at: object = None
+    #: Utskick (apps/utskick, README C.2 och D11): förfrågningar och affärer
+    #: som kom via Google, det vill säga utan utskick och utan svar på
+    #: utskick. Kronor per förfrågan och affär räknas bara på dem. None för
+    #: ett konto där ingen räknat dem (samma tal som leads och deals).
+    google_leads: int | None = None
+    google_deals: int | None = None
+    #: "Varav via utskick: 31 förfrågningar, 4 affärer".
+    utskick_leads: int = 0
+    utskick_deals: int = 0
 
     @property
     def kr_per_lead(self):
-        if self.spend_kr is None or not self.leads:
+        leads = self.leads if self.google_leads is None else self.google_leads
+        if self.spend_kr is None or not leads:
             return None
-        return round(self.spend_kr / self.leads)
+        return round(self.spend_kr / leads)
 
     @property
     def kr_per_deal(self):
-        if self.spend_kr is None or not self.deals:
+        deals = self.deals if self.google_deals is None else self.google_deals
+        if self.spend_kr is None or not deals:
             return None
-        return round(self.spend_kr / self.deals)
+        return round(self.spend_kr / deals)
 
     @property
     def cohort_percent(self):
@@ -98,12 +109,20 @@ class Numbers:
 
 def numbers_for(account, now):
     since = period_start(now)
-    leads = account.leads.filter(created_at__gte=since, status__in=Lead.COUNTED_STATUSES)
+    # Ett svar på ett utskick är en tråd i Inkorgen, ingen förfrågan (C.2).
+    leads = account.leads.filter(created_at__gte=since, status__in=Lead.COUNTED_STATUSES).exclude(
+        source=Lead.SOURCE_REPLY
+    )
     won = account.leads.filter(status=Lead.STATUS_WON).filter(
         Q(won_at__gte=since) | Q(won_at__isnull=True, updated_at__gte=since)
     )
+    via_utskick = Q(utskick__isnull=False) | Q(source=Lead.SOURCE_REPLY)
     stats = ad_stats(account, since)
     return Numbers(
+        google_leads=leads.exclude(via_utskick).count(),
+        google_deals=won.exclude(via_utskick).count(),
+        utskick_leads=leads.filter(utskick__isnull=False).count(),
+        utskick_deals=won.filter(via_utskick).count(),
         leads=leads.count(),
         deals=won.count(),
         deals_without_value=won.filter(value_kr__isnull=True).count(),

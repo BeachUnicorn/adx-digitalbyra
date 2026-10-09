@@ -73,12 +73,15 @@ sms tillbaka och skickar aldrig igen.
     POST /api/sms/v1/messages/         {to, message, from?, reference?, dryrun?}
     GET  /api/sms/v1/messages/<id>/
     GET  /api/sms/v1/usage/
+    GET  /api/sms/v1/senders/
+    GET  /api/sms/v1/suppressions/?to=+46...   (kunder med Flamingos utskick)
 
 Felkoder (stabila): `invalid_request` 400, `invalid_key` 401,
 `sms_not_enabled` 403, `invalid_number` 400, `country_not_allowed` 400,
 `sender_not_allowed` 400, `message_too_long` 400, `monthly_cap_reached` 402,
 `not_found` 404, `method_not_allowed` 405, `reference_conflict` 409,
-`rate_limited` 429 (med `Retry-After`), `internal_error` 500,
+`rate_limited` 429 (med `Retry-After`; också när 46elks svarar 429, se
+nedan), `internal_error` 500,
 `provider_error` 502. Därtill `provider_unknown` på ett sms med status
 `unknown` (svaret 202): inget fel i anropet, men läget är okänt. Kundens
 dokumentation: `/kund/sms/dokumentation/`.
@@ -145,6 +148,69 @@ leveransadressen var de än står, spårar inte `/api/sms/46elks/`, maskar
 variabler som heter `to`, `body`, `data` och `signature`, och skickar inga
 lokala variabler alls från `apps.sms`: där bär nästan varje variabel ett
 nummer, en text eller en nyckel.
+
+## Flamingos utskick genom SMS-API:t (2026-10, apps/utskick S2)
+
+Flamingos utskick (`apps/utskick`, kontraktet i `apps/utskick/README.md`
+avsnitt C.1) skickar sina sms genom samma tjänst som API:t, så att taket,
+minutgränserna, underlagen och portalen gäller precis som för kundens egna
+sms. API:t beter sig som förut, med ett undantag (46elks 429, nedan).
+
+- **Två ingångar.** `service.send(api_key, data)` är API:t, oförändrat (källa
+  `api`). `service.send_for_account(account, data, *, source, api_key=None,
+  allow_reply_number=False, headroom=0, global_headroom=0,
+  part_cost_hint=None)` är samma sändning för ett konto utan nyckel. Utskick
+  anropar den bara via `apps/utskick/sending/sms_wrapper.py`, som nekar
+  demokontot och prövar utskickens nycklar först.
+- **Källan** (`SmsMessage.source`): `api`, `utskick`, `flow`, `reply` (svar
+  från Inkorgen), `system` (bekräftelser och STOPP-svar), `test`.
+  `db_default "api"`, så att en äldre version som skriver utan fältet får
+  rätt värde.
+- **Svarsnumret** `UTSKICK_REPLY_NUMBER` (+46766860046, delat av alla kunder):
+  bara `send_for_account` med `allow_reply_number=True` får skicka från det.
+  `validate_sender` och kundkortet tar fortfarande bara namn, så en
+  API-nyckel kan aldrig skicka från numret. `sender` rymmer 16 tecken.
+  Ett partiellt index `(to, created_at) WHERE sender = '+46766860046'` bär
+  routningen av svaren.
+- **Taket delas.** Kostnaden för utskickens sms räknas mot kundens tak
+  tillsammans med API:ts, och står på samma underlag (`/smsz/` och
+  portalens dokumentation säger det till kunder med utskick).
+- **Marginalen i minutgränserna.** `ratelimit.check_account_minute(account,
+  now, headroom=, global_headroom=)` jämför mot gränsen minus marginalen;
+  API:t skickar 0. Utskick och flöden använder `ratelimit.headroom(
+  UTSKICK_SMS_ACCOUNT_PER_MINUTE, UTSKICK_SMS_GLOBAL_PER_MINUTE)`, det vill
+  säga högst 45 av kundens 60 och 60 av byråns 80 i minuten.
+- **46elks 429.** `elks.ElksError(throttled=True)`. Under sändningen blir
+  den reserverade raden `rejected` med felkod `rate_limited` och pris 0 (en
+  stoppad rad håller ingen reference och kostar inget; raden sparas som
+  alla andra), och anroparen får `rate_limited` (429, `Retry-After: 60`)
+  utan larm till byrån. Tidigare blev det `provider_error` (502) och ett
+  larm. Svarar 46elks 429 redan på provkörningen sparas ingen rad.
+- **Krokar** (`hooks.py`): `apply_delivery_report` och `resolve_check`
+  anropar `hooks.status_changed(message)`; utskick registrerar sig i sin
+  `AppConfig.ready()` och flyttar sina mottagare framåt. Portalens etiketter
+  kommer från `hooks.labels(messages)`. En krok som fäller rullas tillbaka
+  i en egen savepoint och loggas; leveransrapporten svarar som förut.
+  apps/sms importerar inget från utskick.
+- **API:ts läsningar** (`GET /messages/<id>/`, och varje framtida lista)
+  filtrerar på `source="api"`: den som har nyckeln läser aldrig
+  prenumeranternas nummer, sammanfogade namn, personliga koder eller svar.
+  Svaren har fältet `source`.
+- **Spärrlistan för API-kunder:** `GET /api/sms/v1/suppressions/?to=+46...`
+  ger `{"to", "suppressed"}` ur kundens spärrlista i utskick (en STOPP till
+  kunden gäller all kundens marknadsföring). 404 när kunden aldrig haft
+  utskick; ett avstängt utskick svarar ändå (spärrarna gäller).
+- **Underlaget:** `MonthlyStatement.by_source` och `usage()["by_source"]`
+  visar fördelningen per källa. Bara information: summorna, raderna per land
+  och CSV:n räknas som förut.
+- **Portalen:** listan har ett källfilter (Alla, API, Utskick, Svar) när
+  kunden har sms som inte kom från API:t, och sådana sms visar sin källa
+  ("Utskick: Höstservice värmepump", "Svar i Inkorgen") i stället för
+  reference.
+- **Historiken:** `elks.list_messages(since, to=...)` läser 46elks
+  sms-historik (GET /a1/sms) för utskickens avstämning av inkommande sms.
+  Sidparametern (`LIST_PAGE_PARAM`) kontrolleras mot 46elks dokumentation i
+  utskickens S2-checklista.
 
 ## Kontrollerat mot 46elks (2026-10-03)
 

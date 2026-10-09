@@ -433,7 +433,9 @@ class NavTests(UtskickFixture, TestCase):
         items = nav.nav_for(self.account)
         keys_in_order = [key for key, _, _ in items]
         self.assertEqual(keys_in_order.index("contacts"), keys_in_order.index("campaigns") + 1)
-        self.assertEqual(len(items), len(APP_NAV) + 1)
+        # S2: Utskick direkt efter Kontakter (README C.2), tio länkar.
+        self.assertEqual(keys_in_order.index("utskick"), keys_in_order.index("contacts") + 1)
+        self.assertEqual(len(items), len(APP_NAV) + 2)
         UtskickSettings.objects.filter(account=self.account).update(is_enabled=False)
         self.assertEqual(nav.nav_for(self.account), APP_NAV)
         self.assertEqual(nav.nav_for(None), APP_NAV)

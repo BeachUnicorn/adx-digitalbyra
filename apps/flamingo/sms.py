@@ -26,6 +26,12 @@ nummer besökaren själv skriver, med kundens namn som avsändare):
 
 Ett sms som stoppas loggas med status "disabled" och orsaken i error.
 
+Svar på utskick (apps/utskick, README C.2 och G.1 punkt 9): en förfrågan
+som kom via ett utskick får inget eget sms till ägaren (det samlas med
+svaren), och ägarens samlade sms om svar och sådana förfrågningar skickas
+av utskickens tick genom notify_owner_text med texten från
+owner_reply_text. Autosvaret till besökaren är som förut.
+
 Ett demokonto (FlamingoAccount.is_demo) skickar aldrig: varje sms loggas
 som "disabled" med NOTE_DEMO, före alla andra prövningar och oavsett om
 46elks är inkopplat.
@@ -86,6 +92,7 @@ NOTE_BAD_NUMBER = "Numret går inte att tolka som ett telefonnummer."
 NOTE_ALREADY_REPLIED = "Numret har redan fått ett autosvar det senaste dygnet."
 NOTE_DAILY_LIMIT = f"Dagens gräns på {SMS_DAILY_MAX} sms för kontot är nådd."
 NOTE_DEMO = "Demokonto: inga sms skickas."
+NOTE_VIA_UTSKICK = "Förfrågan kom via ett utskick: sms:et till dig kommer samlat med svaren."
 
 
 def is_configured():
@@ -223,6 +230,44 @@ def owner_text(lead):
     if base:
         text += f" Se mer: {base}{reverse('flamingo:app_lead', args=[lead.pk])}"
     return text[:BODY_MAX]
+
+
+def _count_text(n, one, many):
+    return f"{n} {one if n == 1 else many}"
+
+
+def owner_reply_text(account, n_replies, n_leads, url, *, name="", phone="", text=""):
+    """Ägarens samlade sms om svar på utskick och förfrågningar via utskick
+    (apps/utskick/threads.py skickar det högst var 30:e minut).
+
+    Ett enda svar: "Svar på utskick från Johan Berg, 073-555 12 34: <svar>.
+    Se mer: <url>" (namnet och svaret rensas som besökarens text). Annars
+    "3 nya svar på utskick. Se Inkorgen: <url>" eller "2 nya svar och 1
+    förfrågan via utskick. Se Inkorgen: <url>"."""
+    n_replies, n_leads = int(n_replies or 0), int(n_leads or 0)
+    if n_replies == 1 and not n_leads:
+        clean_phone = re.sub(r"[^\d+\-() ]", "", phone or "").strip()[:VISITOR_NAME_MAX]
+        who = ", ".join(p for p in (visitor_text(name), clean_phone) if p)
+        body = f"Svar på utskick från {who}" if who else "Svar på utskick"
+        reply = visitor_text(text, max_length=200)
+        if reply:
+            body += f": {reply}"
+        if not body.endswith((".", "?", "!")):
+            body += "."
+        if url:
+            body += f" Se mer: {url}"
+        return body[:BODY_MAX]
+    replies = _count_text(n_replies, "nytt svar", "nya svar")
+    if n_replies and n_leads:
+        leads_text = _count_text(n_leads, "förfrågan", "förfrågningar")
+        body = f"{replies} och {leads_text} via utskick."
+    elif n_replies:
+        body = f"{replies} på utskick."
+    else:
+        body = _count_text(n_leads, "ny förfrågan", "nya förfrågningar") + " via utskick."
+    if url:
+        body += f" Se Inkorgen: {url}"
+    return body[:BODY_MAX]
 
 
 def autoreply_text(account, lead):
@@ -382,9 +427,34 @@ def notify_new_lead(lead, now=None):
     return [row for row in rows if row is not None]
 
 
+def notify_owner_text(account, text, lead=None, now=None):
+    """Ett sms till ägaren med en färdig text (utskickens samlade sms om
+    svar), som Flamingos vanliga ägarsms: samma rad i SmsLog, samma
+    dygnsgräns, aldrig från demokontot. Den som anropar har prövat kundens
+    val (notify_on_reply eller notify_sms). Returnerar SmsLog-raden. Kastar
+    aldrig."""
+    kind = SmsLog.KIND_OWNER
+    body = str(text or "")[:BODY_MAX]
+    try:
+        if getattr(account, "is_demo", False):
+            status = SmsLog.STATUS_DISABLED
+            return _log(account, lead, kind, account.notify_phone, body, status, NOTE_DEMO)
+        if not account.notify_phone.strip():
+            status = SmsLog.STATUS_DISABLED
+            return _log(account, lead, kind, "", body, status, NOTE_NO_NOTIFY_PHONE)
+        return send(account, kind, account.notify_phone, body, lead=lead, now=now)
+    except Exception:  # noqa: BLE001 - ett ägarsms får aldrig fälla ticken
+        logger.exception("Flamingo: ägarens sms om svar kunde inte skickas (konto %s)", account.pk)
+        return None
+
+
 def _notify_owner(account, lead, now=None):
     body = owner_text(lead)
     kind = SmsLog.KIND_OWNER
+    if getattr(lead, "utskick_id", None):
+        # Samlas med svaren på utskick (apps/utskick/threads.py, G.1 punkt 9).
+        status = SmsLog.STATUS_DISABLED
+        return _log(account, lead, kind, account.notify_phone, body, status, NOTE_VIA_UTSKICK)
     if getattr(account, "is_demo", False):
         status = SmsLog.STATUS_DISABLED
         return _log(account, lead, kind, account.notify_phone, body, status, NOTE_DEMO)

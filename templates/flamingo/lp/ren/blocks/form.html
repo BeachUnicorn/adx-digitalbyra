@@ -21,6 +21,10 @@ display_name. Rutorna är aldrig förkryssade; efter en POST med fel står
 besökarens eget val kvar. Texten som visas är den som sparas som bevis.
 En ikryssad ruta vars adress inte duger (form.consent_error_channels) märks
 is-error och pekar på felet vid telefon- eller e-postfältet.
+
+ut (apps/utskick, E.4): utskickets token när besöket kom från ett utskick
+hos samma konto (public_views._utskick_click), annars tom. Ett dolt fält,
+så att förfrågan får utskicket. Aldrig i tracking (Lead.utm).
 {% endcomment %}<section class="rn-block rn-form rn-form--{{ b.variant }} rn-s--{{ surface }}" id="formular"{% pb_block %} aria-labelledby="formular-titel">
   <div class="rn-wrap rn-form__in">
     <div class="rn-form__card">
@@ -114,6 +118,7 @@ is-error och pekar på felet vid telefon- eller e-postfältet.
         </div>
         {% for key, value in tracking.items %}<input type="hidden" name="{{ key }}" value="{{ value }}">
         {% endfor %}
+        {% if ut %}<input type="hidden" name="ut" value="{{ ut }}">{% endif %}
 
         <button class="rn-btn rn-btn--primary rn-btn--lg rn-btn--block" type="submit"><span{% pb "submit" %}>{{ f.submit|default:spec.submit }}</span></button>
         <p class="rn-small">Uppgifterna skickas till {{ site.business }}.</p>

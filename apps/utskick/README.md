@@ -1,8 +1,9 @@
 # apps/utskick: Flamingo 2.0 (Kontakter och Utskick)
 
-Architecture and build plan. Status 2026-10-09: **S1 is built and tested locally, not deployed**
-(none of the J S1 checklist steps has run; see "S1 as built" below). S2 to S6 are not built. This
-file is the contract for the build; update it when a stage ships or a decision changes. Revision 2
+Architecture and build plan. Status 2026-10-10: **S1 is built, committed and deployed** (see "S1
+as built"). **S2 is built and tested locally, not committed or deployed** (none of the J S2
+checklist steps has run; see "S2 as built" below). S3 to S6 are not built. This file is the
+contract for the build; update it when a stage ships or a decision changes. Revision 2
 (2026-10-09) folds in the security, ops and product reviews; what was not taken over is listed in
 section L.
 
@@ -105,7 +106,7 @@ customer sees one meaning of "Kontakter".
   unbuilt feature and no "kommer senare" text appears in the product (it reads as a promise).
 - Own click domain (`klick.<kundens domän>`) is not in S1 to S6 (K.2.4).
 
-## S1 as built (2026-10-09, not deployed)
+## S1 as built (2026-10-09, deployed)
 
 Everything in J S1 exists: the 17 models (`utskick.0001`, `flamingo.0016`), the core modules, the
 Kontakter views (list, card, consent panel, add and edit, GDPR export and delete, register export,
@@ -198,6 +199,220 @@ Deviations from this contract, decided while building S1:
   showed failures outside these apps (closed database connections in later tests of a worker, a
   missing file in `apps.cloud`'s invoice test), and without `tblib` one failure stops the whole
   parallel run. The full run therefore uses `--parallel 1`.
+
+## S2 as built (2026-10-10, not committed, not deployed)
+
+Everything in J S2 exists. Decisions Giovanni confirmed after revision 2: the reply number may be
+pointed at the inbound webhook after S2 is deployed (K.2.1, a manual step); the yearly 999 kr sms
+fee also applies to customers who use sms only through Utskick (K.2.7, no fee change in code);
+SES eu-west-1 has production access, the identity `utskick.adx.se` is verified and the role
+`adx-utskick` exists (S3 inputs).
+
+What exists, by layer:
+
+- **Data**: `utskick.0002` (Utskick, Recipient, AllowedHost, TrackedLink, LinkCode, Click, Thread,
+  ThreadMessage, InboundMessage, the nullable utskick FKs on ConsentLog, Suppression and Event),
+  `flamingo.0017` (Lead utskick FKs, attribution, `activity_at` with the backfill, source `reply`),
+  `sms.0006` (source, sender 16, the indexes, `by_source`), all per B.0. Every S2 foreign key also
+  carries its `ON DELETE` in Postgres (`dbfk.py`, see deviations).
+- **apps/sms** (C.1 in full): `send_for_account` with `source`, the reply-number rule, headroom,
+  the 429 mapping, `hooks.py`, API reads limited to `source="api"`, the suppression endpoint,
+  `by_source`, portal source filter and labels, `/smsz/`, `elks.list_messages`.
+- **Engine** (D.1 to D.5, D.8, D.9): `audience.py`, `timing.py`, `composer.py`,
+  `sending/{state,checks,freeze,sms,recover,tick,sms_wrapper}.py`, `smsbridge.py` (delivery
+  hook), `reports.py`, `retention.purge_s2`, the month-end RESERVED check, agency alerts.
+- **Links and attribution** (E.1 to E.5, E.7, E.8): `links.py` (router and rules),
+  `link_views.py`, `link_actions.py`, `attribution.py`, `codes.py`, `tokens.py` S2 part,
+  `optin.py` S2 part (confirm sms, sms on the signup page and Mina utskick),
+  `config/urls_links.py`, the LP changes in apps/flamingo (`ut`, beacon, raised limits).
+- **Inbound and Inkorg** (G.1, G.2): `inbound/{elks,routing,stop}.py`, `webhook_urls.py`,
+  `threads.py`, `app_views/inbox_reply.py`, the inbox changes in apps/flamingo
+  (`app_views/inbox.py`, owner texts in `sms.py`).
+- **UI** (I.1, I.4 to I.10): `app_views/utskick.py` (list, the five steps, Granska, confirm,
+  state, report, recipients, save as list, test sms, settings, the JSON endpoints), templates under
+  `templates/flamingo/app/utskick/`, `static/css/flamingo-app-utskick-views.css`,
+  `static/css/flamingo-app-utskick-thread.css`, `static/js/flamingo-app-utskick.js` (incl. the sms
+  counter the inbox thread reuses); outside the app `rules.three_things`, `overview.numbers_for`
+  ("Varav via utskick"), the contact-card timeline and summary.
+- **Agency** (`/manage/utskick/`): `manage_sending.py` (#sandning: running and paused utskick,
+  the breaker, information utskick with the staff override, "Provsms till mig"),
+  `manage_inbound.py` (#inkommande: held replies, "Koppla till kund", "Lägg åt sidan"),
+  `manage_links.py` (#vardar and the customer card: link hosts to approve or refuse), the D.8
+  pause in `customer_update`, and "Avsluta utskick och radera allt" removes the S2 rows.
+- **Server** (C.5): `sites.d/adx.conf` `LINK_DOMAINS`/`LINK_CERT_NAME`, `lib.sh`
+  `build_link_block` (port 80 always, 443 once `/etc/letsencrypt/live/adx-links/` exists),
+  `templates/nginx.conf.template` `${LINK_BLOCK}` and `access_log off` for `/api/utskick/`,
+  `/utskick/val/`, `/utskick/bekrafta/`, `certs.sh` lineage `adx-links`, `nginx-only.sh`.
+- **Demo**: `demo.seed` builds one sent (simulated) utskick "Spolning inför vintern" with three
+  clicks, two leads via the utskick, two reply threads (one new, one answered and "Klar") and one
+  STOPP, one scheduled and one draft, all through the real engine, routing and STOPP code;
+  `demo.reset` removes them.
+- **Tests**: `test_s2_{foundation,tick,ui,links,inbound,inbox,info,flow}.py`, the S2 tests in
+  `apps/sms/tests.py`, and the extensions in `apps/flamingo/test_demo.py` (S2 content, idempotent
+  counts, the page walk with `apps.sms.elks._post` failing, the tick simulating the demo, the
+  sending buttons refusing it), `test_s1_guards.py` (link templates), `apps/common/test_sentry.py`.
+  `test_s2_flow.py` walks the whole path with the real views, the tick and apps/sms: guide, Granska
+  and confirm, freeze and send, delivery report through the hook, report; click on `k.adx.se`,
+  LP with `ut`, beacon, form lead with attribution, Inkorg; inbound reply, thread, answer from the
+  Inkorg and the next reply in the same thread, batched owner sms; STOPP, its confirmation from
+  the tick, START and the `/b/` link.
+
+`S2-HANDOFF.md` lists file ownership, helper APIs and the per-builder notes; delete it when S2
+ships.
+
+Deviations from this contract, decided while building S2:
+
+- **Migrations and models.** Django 6.0.5 has no database-level `on_delete`, so each S2 migration
+  ends with `dbfk.apply` (drop and re-add the FK with `ON DELETE CASCADE / SET NULL`, same name);
+  guard `test_s2_foundation.DbOnDeleteTests`. **Any later migration that adds an FK to or from
+  utskick ends with `migrations.RunPython(lambda a, s: dbfk.apply(a, s, [...]), RunPython.noop)`.**
+  `Recipient.ses_message_id` (partial index on `!= ''`) and `opened_at` (S3) and
+  `Utskick.merge_fallbacks` (F.3, used by sms) are in S2, so S3 adds no column to a table S2
+  writes; `TrackedLink.slug` and its partial unique constraint too (nothing left for S4 there);
+  extra index `LinkCode (kind, created_at)` for retention. `Recipient.basis` is 17 characters.
+  `Utskick.objects.listed()` is the one place S5 excludes flow-step utskick. `purpose` defaults
+  to `reklam`, `channel_mode` to `sms_only`.
+- **apps/sms.** The delivery hook is `smsbridge.sync_from_message` (not
+  `sending.sms.sync_from_message`), registered in `UtskickConfig.ready()` with the portal labeler.
+  A 429 on the dryrun estimate is also `rate_limited`, without a row. Headroom applies to sources
+  `utskick` and `flow` only (single sms such as replies, confirmations and tests use the full
+  limits). Portal filter groups: "Utskick" = utskick, flow, test; "Svar" = reply, system. The
+  suppression endpoint answers 404 only when the customer never had utskick (a disabled utskick
+  still answers: the STOPPs bind the customer's marketing either way).
+  `elks.list_messages` pages with `start=<next>` (as remembered from the 46elks docs; the
+  contract said `end`); it stops after one page if the parameter is wrong, so verify it before
+  relying on the reconcile (checklist step 6).
+- **Engine.** Swedish holidays include midsommarafton, julafton and nyårsafton (weekend window).
+  The demo is simulated before the Switchboard checks (it never sends) and `state.confirm` accepts
+  a demo utskick while sms is off. The breaker reads real time. When every due account has used
+  its minute budget the sms phase sleeps 1 s and tries again until its deadline. `sms_not_enabled`
+  (and a missing or disabled SmsAccount) pauses all of the account's sending utskick
+  (`sms_disabled`). `invalid_number` / `country_not_allowed` at send time: recipient `failed`
+  with `skip_reason` `invalid_number` / `country`. Person codes are frozen only for the name
+  sender; a reply-number recipient gets one at send time when a collision switches the sender.
+  The D.9 stops share is `max(Recipient.stopped_at count, Suppression(utskick, stop|link) count)`.
+  Tick phase 4 also pauses utskick of accounts that can no longer send
+  (`freeze.pause_unsendable`). The freeze cost pre-check uses `composer.preview` parts times
+  `recent_part_cost("SE")` or 5 200 plus markup (no dryrun). Weekly cap: reklam recipients sent or
+  sending in the Stockholm ISO week of the send moment; information neither counts nor is capped.
+  A stale `sending` recipient without a held message is requeued; after 5 attempts it is `failed`.
+  `links.rollup` runs on worked ticks while an utskick is sending or finished within 30 days, and
+  once a day in `utskick_daily`.
+- **"Provsms till mig"** (J S2 step 6) is on `/manage/utskick/#sandning-prov` (POST
+  `manage:utskick_probe`), not on `/manage/utskick/nodstopp/` (a POST-only switch): staff pick the
+  paying customer in the form among customers with an enabled SmsAccount and a non-demo account
+  (choose ADX's internal test customer), at most 10 per staff user and hour; source `test`, sender
+  the reply number, works before `sms_enabled`, not past the breaker. Replies to it route to that
+  customer's Inkorg.
+- **Links.** `clean_external(account, url, allow_pending=False)`; `add_link` stores a link to a new
+  host and requests it (Granska blocks through `link_problems`). `check_destinations` returns
+  `None` for a URL it did not check. Retention of Click and LinkCode is `retention.purge_s2`.
+  HTML pages on the link hosts send `Cache-Control: private, no-store` but keep
+  `Referrer-Policy: same-origin`; only the 302s get `no-referrer`. The botcheck on `/p/` sees the
+  path without the code. `/p/` "Anmäl dig" exists for email only (a person code always has a
+  number). ConsentLog rows written by `consent.set_status` carry no `utskick` (no such argument);
+  the Suppression does. A test-sms link code (no recipient) redirects without counting anything;
+  `/s/` works by `(account, value_hash)` for it and for an erased contact. `/b/` with purpose
+  `start` and no contact lifts the suppression by hash. The click endpoint runs 6 to 7 queries,
+  not 4 (the miss check and the scanner check). Link-host 404s all say "Länken har gått ut"; the
+  link-host home page links ADX's privacy page at `SITE_BASE_URL + "/integritetspolicy/"`
+  (verify the production slug).
+- **Inbound and Inkorg.** The thread template is `flamingo/app/utskick/_thread.html`. Reply leads
+  leave `Lead.utskick` empty (the answered utskick is `Thread.utskick`), so replies never count as
+  "Förfrågningar via utskick". No `Event` rows for reply, stop or start: the timeline reads the
+  thread messages and the consent log. A reply from a number that is not a contact creates one
+  only when the account can collect and the number is not suppressed. STOPP and START answers are
+  not gated by `sms_enabled` (step 6 tests STOPP before sms is on) but by the breaker and the cap
+  pre-check, and are dropped after 6 hours unsent. Extra limits: one START link per number and
+  customer per day; more than 20 ordinary sms an hour from one number are only counted. Inbox
+  replies: a 60 s double-submit guard, and a sent reply marks the lead "Klar". The inbox month
+  count leaves replies out; the "E-postsvar" chip is hidden while it is empty. "Production" for
+  the empty-IP-list refusal means `DEBUG` off.
+- **UI.** Purpose (Reklam, Information with the reason) is on the Kanal step (I.8), not on
+  Mottagare as in the mockup. The opt-out line is added to every utskick sms, information
+  included; with a name sender a typed "Svara STOPP för att inte få fler sms." is removed. A raw
+  `http(s)://` or `www.` address in the text is a validation error: links go through `{länk:x}`.
+  "Skicka test till kunden" is a `<details>` with the I.4 checkbox (works without JS); Skicka nu in
+  Granska is a `<dialog>` with the same sentence above the button without JS. "Byt kontakt"
+  cycles through the first 50 audience contacts. A pause from the app is reason `customer`, from
+  staff in view-as `staff`. Cost estimates use `recent_part_cost("SE")` or 5 200 per part plus the
+  account's markup (verify the 52 öre fallback against a live dryrun in the checklist). The email
+  row of "Tak per kontakt" (I.9) is already editable because the field exists.
+- **Integration.** The demo's utskick go through the real engine; the scheduled one is simulated
+  by the tick when its time comes (the demo still never sends), and `flamingo_demo` rebuilds it.
+  The demo's own leads get `activity_at = created_at`, so the Inkorg keeps their order. A thread
+  message that predates its thread and has no SmsMessage, sender or inbound (the demo's simulated
+  sms, or an sms row that no longer exists) is labelled "Utskick: <namn>". The nginx link block
+  also sets `X-Robots-Tag` itself (static files included) and hides any `Set-Cookie` from the app.
+  Sentry also masks link-host links without a scheme (`k.adx.se/Ab12Cd`, as they stand in sms).
+
+Fixes after the three S2 reviews (security, sending, UX), 2026-10-10:
+
+- **Content after the confirmation.** Adding or removing a link unconfirms a scheduled utskick
+  like any other change. `state.content_problems` (`links.link_problems` plus
+  `checks.information_problems`) runs at freeze start and in the pre-checks; a problem pauses
+  with the new reason `content` (in `RECONFIRM_REASONS`, choice added to `utskick.0002`, no SQL).
+  The click endpoint re-checks external hosts (`links.destination_ok`), test codes included.
+- **Edits race the tick.** Every step save runs under `select_for_update` on the utskick row with
+  the status re-checked under the lock (`app_views.utskick._editing`); a lost race answers "Utskicket
+  går inte att ändra nu." and changes nothing. The agency alert for a new link host is sent after
+  the lock (`links.request_if_new`), never while it is held.
+- **Own site.** Only `Customer.website` (staff-set) counts, never `FlamingoAccount.website_url`;
+  shared hosts and public suffixes never count (E.8). Information uses the same domains
+  (`checks.own_hosts` is `links.own_domains`). The shared test fixture gives Exempelrör the
+  website `https://exempelror.example` in the customer register.
+- **Information rules.** The agency override stores `fingerprint` (`checks.content_fingerprint`:
+  reason, reason text, body, fallbacks) and holds only while it matches; the agency overview says
+  when the text changed since. The ad-word check covers inline fallbacks and `merge_fallbacks`;
+  `{fält:...}` values are checked across the audience in Granska and the frozen values after the
+  freeze (`checks.field_problems`, never released by the override). Names (`{förnamn}`) are not
+  checked: "Rea" is a first name.
+- **Test sms** is refused while `content_problems` is non-empty, and every attempt is logged with
+  the user pk and staff flag (the contact event too).
+- **STOPP confirmation** is one per account (G.1).
+- **References** carry `~` (C.1); `sms.apply` and `recover.held_message` adopt only rows with
+  source utskick (or flow) to the recipient's own number.
+- **"Avsluta utskick och radera allt"** also deletes the reply leads. **"Koppla till kund"** lists
+  only customers that sent from the reply number to that number (candidates first), never the
+  demo; `route_held` creates no contact for an account without such an sms.
+- **Small hardening.** The inbound webhook compares the token as bytes (a non-ASCII token is 404,
+  not 500). Sentry masks `sok=`. Recovery cancels rows it requeued into a cancelled utskick.
+  `adopt` and the thread paths re-read the sms status after linking it (a delivery report in that
+  gap is no longer lost). Price hints are per country and only from countries without history.
+  The reconcile reads back to the previous run minus 20 minutes (at most 48 h), keeps the tick's
+  deadline (`elks.list_messages(deadline=)`, each GET bounded by the time left, `complete=False`
+  when cut short), and keeps the previous timestamp after a 46elks error.
+- **Stats.** `retention.refresh_stats` recomputes `Utskick.stats` daily for utskick finished in the
+  last 30 days, and `purge_s2` recomputes them right before the recipients (and clicks) go.
+- **Re-confirming a paused utskick.** Granska sends now when the scheduled time has passed (late,
+  audience grew); a future time is kept. The "Ändra" links, Byt automatiskt and the step chips are
+  hidden or inert in that mode, and "Spara utkast" becomes "Tillbaka till utskicket". A paused
+  utskick that needs a new confirmation and has nothing frozen can be reopened as a draft
+  ("Ändra utskicket", `state.reopen`; late goes to Tid, content to Innehåll).
+- **Guide.** The step chips, "Utskick" above the title and "byt kontakt" are submit buttons that
+  save the step first (`form=` attribute; a hidden default button first in the page keeps Enter
+  as before), and `flamingo-app-utskick.js` asks before leaving a step with unsaved changes
+  (`form[data-ut-guard]`). "Spara utkast" and the chips leave Mottagare without recipients; only
+  Nästa needs a choice. "Ändra" on a scheduled utskick is a link (it becomes a draft only when
+  something changes). Cancelling from the pause banner asks first.
+- **Copy.** The cost-raising characters are named ("ett hårt mellanslag"; a visible one is
+  followed by its name, "(en typografisk apostrof)") and the Byt automatiskt box is always in the page (the script shows it); the counter
+  is not `aria-live` (the notes are). Missing link: "Lägg till den under Länkar i Innehåll." The
+  demo's dialog says nothing is sent. A time under 5 minutes ahead: "Välj en tid minst 5 minuter
+  fram." The locked Flamingo-page option says how to unlock it. The thread writes 09.00 and "för
+  dig". The recipients page has a "Gick inte fram" chip and an empty text per view. The email cap
+  row in Inställningar shows only once email is live (the stored value is posted hidden).
+
+Checklist notes for the lead (in addition to J S2):
+
+- Step 2: nginx serves `/static/` on the link hosts (the pages load `utskick-public.css` and, on
+  `/p/`, `utskick-public.js`); `collectstatic` in the deploy covers it.
+- Step 4: `server/nginx-only.sh adx` (port 80 only), `server/certs.sh adx` (lineage `adx-links`;
+  certbot's `--nginx` challenge works with the server-level `return 301` as for adx.se), then
+  `server/nginx-only.sh adx` again (443).
+- Step 6: verify the 46elks history paging parameter (`start` vs `end`) with a message older than
+  the first page, and the 46elks part price against the 5 200 fallback.
+- Before a real customer: the ADX privacy page slug the link-host home page links to.
 
 ---
 
@@ -950,6 +1165,11 @@ No cycle.
   `SENDER_RE`; otherwise `sender in account.senders` as today. `validate_sender` and the card form
   stay alphanumeric-only, so an API key can never send from the shared number.
 - `_record(...)` takes `source` and truncates `sender[:16]`.
+- Flamingo's own references (`u<utskick>:<recipient>`, `t<msg>`, `x<inbound>`, `b<code>`,
+  `p<probe>`) are stored with a `~` prefix through `send_for_account(..., internal_reference=)`
+  (`sms_wrapper.internal_reference`). `REFERENCE_RE` never accepts `~` from the API, so an API
+  key can neither take over a recipient's send nor get a 409 for a reference Flamingo used
+  (S2 security and sending reviews).
 - `ratelimit.check_account_minute(account, now, *, headroom=0, global_headroom=0)` compares against
   `per_minute - headroom` and `global - global_headroom`. The API passes 0. Utskick passes `headroom
   = max(0, SMS_RATE_PER_MINUTE - UTSKICK_SMS_ACCOUNT_PER_MINUTE)` and `global_headroom = max(0,
@@ -1277,8 +1497,10 @@ of=("self",))` on every claim keeps the manual `--only` run and the daily comman
 
 0. `start_due`: utskick with `status=scheduled` and `scheduled_at <= now`. If `now - scheduled_at
    > 3 h` or the Stockholm date changed since `scheduled_at`, move to `paused` reason `late` (the
-   customer resumes after reviewing, which re-confirms). If free disk space is below 8%
-   (`shutil.disk_usage`), refuse to freeze, keep `scheduled`, alert the agency hourly.
+   customer resumes after reviewing, which re-confirms). If a link host is pending or refused, or
+   the information rules (H.5) stop the text (`state.content_problems`), move to `paused` reason
+   `content` (re-confirm). If free disk space is below 8% (`shutil.disk_usage`), refuse to
+   freeze, keep `scheduled`, alert the agency hourly.
 1. `audience.contacts(utskick)`: always starts from `Contact.objects.filter(account=utskick.account)`
    and joins lists, tags and segments with `list__account=` / `tag__account=` filters (a tampered
    id in `audience` yields nothing); union of lists, tags, segments (S4) and explicit contacts,
@@ -1295,6 +1517,8 @@ of=("self",))` on every claim keeps the manual `--only` run and the daily comman
    tick); the `freeze_cursor` update. After the chunk, assert that every sms recipient that needs
    codes has them (one per `{länk:x}` placeholder; a `person` code when the body needs `/s/`).
 4. When the cursor reaches the end: `frozen_counts`, then pre-checks:
+   - links and information rules again (`state.content_problems`, with the frozen field values for
+     information) -> `paused` reason `content` (needs a new confirmation);
    - sms cost: `sum(parts) x part cost + markup_for` vs `pricing.usage(sms_account)["remaining"]` ->
      `paused_cap` reason `sms_cost_cap` before the first send if it does not fit;
    - ADX-domain mail cap and the daily email cap (S3, D.9) -> `paused_cap` reason `adx_mail_cap` /
@@ -1765,12 +1989,22 @@ adds the absolute check and refuses IP literals, ports other than 80 and 443, us
 rebrand.ly, cutt.ly, shorturl.at), and the link hosts themselves. gclid/gbraid/wbraid are stripped.
 
 Hosts allowed without review: the account's verified sender domains, its snippet domains, the
-website host from Företaget facts, and `links.GLOBAL_HOSTS` (google.com/maps, maps.app.goo.gl,
-g.page, search.google.com, facebook.com, instagram.com, linkedin.com, youtube.com, tiktok.com,
-reco.se, each with subdomains). Any other host creates `AllowedHost(status=pending)` and an agency
-alert; the link editor shows "Väntar på ADX: länkar till nya webbplatser godkänns av ADX." and
-Granska blocks until it is approved on the customer card (`manage:utskick_host_decide`). A refused
-host shows "ADX har inte godkänt länkar till example.com."
+website in ADX's customer register (`Customer.website`, which only staff edit; never
+`FlamingoAccount.website_url`, which the customer types in onboarding before anything is fetched),
+and `links.GLOBAL_HOSTS` (google.com/maps, maps.app.goo.gl, g.page, search.google.com,
+facebook.com, instagram.com, linkedin.com, youtube.com, tiktok.com, reco.se, each with
+subdomains). A public suffix or shared host (`links.SHARED_HOSTS`: co.uk, org.se, github.io and
+the like; `PATH_TENANT_HOSTS`: sites.google.com, facebook.com, linktr.ee and the like) is never
+the customer's own. Dot segments in the path are resolved before any prefix check
+(`/maps/../url` is `/url`), and redirectors on the free hosts (`l.facebook.com`, `/url`,
+`/redirect`, `/redir`, `/l.php`, `/link`, `/away`) are refused with "Länken går till en
+omdirigering. Använd adressen till sidan den leder till." Any other host creates
+`AllowedHost(status=pending)` and an agency alert; the link editor shows "Väntar på ADX: länkar
+till nya webbplatser godkänns av ADX." and Granska blocks until it is approved on the customer
+card (`manage:utskick_host_decide`). A refused host shows "ADX har inte godkänt länkar till
+example.com." The host is checked again after the confirmation (freeze start and the pre-checks
+pause with reason `content`, D.3) and at every click (`links.destination_ok`: a refused, pending
+or no longer own host answers "Länken har gått ut").
 
 ---
 
@@ -2009,10 +2243,11 @@ Endpoint `POST /api/utskick/46elks/inkommande/<token>/` (`webhook_urls.py`, name
    reason="stop", utskick=...)`, consent sms -> `unsubscribed` (source `stop`, by_label "Svar
    STOPP"), queued sms recipients of that contact -> `skipped` (`suppressed`), `Recipient.stopped_at`,
    thread kind `stop` (or appended to an open reply thread), lead `contacted`. `meta["accounts"]`
-   records the accounts. One confirmation sms (queued, source `system`, reference `x<inbound_pk>`,
-   billed to the latest account, at most one per number per 24 h, cap pre-checked): "Du får inga
-   fler sms från Exempelrör." or, for several, "Du får inga fler sms från Exempelrör och Annat AB."
-   followed by "Svara START om du ångrar dig."
+   records the accounts. One confirmation sms **per account** (queued, source `system`,
+   reference `x<inbound_pk>`, billed to that account, at most one per number, account and 24 h,
+   cap pre-checked): "Du får inga fler sms från Exempelrör. Svara START om du ångrar dig." Each
+   names only its own account: a combined text in the latest customer's thread (Inkorg and sms
+   portal) told that customer which other ADX customers text the person (S2 security review).
 7. **START** (same normalisation, first word START, at most 3 words): applies to the accounts in
    `meta["accounts"]` of that number's latest STOPP within 13 months. It does not lift anything by
    itself: it queues one confirm sms per account with a `k.adx.se/b/<code>` link (purpose `start`,
@@ -3152,6 +3387,7 @@ utan svar" triggers from an API event.
 
 1. **46elks number.** Is `+46766860046` rented on ADX's 46elks account, and may we point its
    `sms_url` at `https://adx.se/api/utskick/46elks/inkommande/<token>/` when S2 is deployed?
+   **Answered (Giovanni, after revision 2): yes, after S2 is deployed, as a manual step.**
 2. **DPA on the customer's behalf.** May the agency accept the biträdesavtal in view-as with a
    recorded statement ("Godkänt av Anna Lindqvist per mejl 2 okt"), or must a customer contact click
    it themselves? The plan allows staff with the statement.
@@ -3173,6 +3409,7 @@ utan svar" triggers from an API event.
 7. **Yearly sms fee.** Enabling sms on the card starts the 999 kr yearly fee
    (`service_year_start`). Should a customer who uses sms only through Utskick pay it? If not, the
    card sets `yearly_fee_kr=0` when sms is enabled for utskick only (test included).
+   **Answered (Giovanni, after revision 2): the fee applies to them too; no change in code.**
 
 ---
 

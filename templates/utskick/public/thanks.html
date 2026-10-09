@@ -4,15 +4,20 @@ Tack-sidan efter en anmälan (public_views.signup_thanks, README I.7).
 Samma text vad som än hände med samtycket: sidan får inte avslöja om
 adressen redan får erbjudanden. maskerad_epost är adressen personen skrev,
 maskerad (a***@e***.example), aldrig i klartext; tom utan hänvisning (och
-vid botskyddets låtsade framgång). dagar är bekräftelselänkens giltighet.
+vid botskyddets låtsade framgång). maskerat_nummer (S2) likadant för sms.
+kanaler är sidans kanaler. dagar och timmar är länkarnas giltighet.
 {% endcomment %}
 {% block title %}Tack{% endblock %}
 {% block content %}
 <h1 class="up-h1">Tack</h1>
-{% if maskerad_epost %}
-<p class="up-lead">Om {{ maskerad_epost }} inte redan får erbjudanden från {{ foretag }} får du ett mejl dit. Klicka på länken i mejlet för att börja få e-post.</p>
-{% else %}
+{% if maskerad_epost or maskerat_nummer %}
+{% if maskerad_epost %}<p class="up-lead">Om {{ maskerad_epost }} inte redan får erbjudanden från {{ foretag }} får du ett mejl dit. Klicka på länken i mejlet för att börja få e-post.</p>{% endif %}
+{% if maskerat_nummer %}<p class="up-lead">Om {{ maskerat_nummer }} inte redan får erbjudanden från {{ foretag }} får du ett sms dit. Klicka på länken i sms:et för att börja få sms.</p>{% endif %}
+{% elif "email" in kanaler %}
 <p class="up-lead">Klicka på länken i mejlet från {{ foretag }} för att börja få e-post.</p>
+{% else %}
+<p class="up-lead">Klicka på länken i sms:et från {{ foretag }} för att börja få sms.</p>
 {% endif %}
-<p class="up-help">Hittar du inte mejlet? Titta i skräpposten. Länken gäller i {{ dagar }} dagar.</p>
+{% if maskerad_epost or not maskerat_nummer and "email" in kanaler %}<p class="up-help">Hittar du inte mejlet? Titta i skräpposten. Länken gäller i {{ dagar }} dagar.</p>{% endif %}
+{% if maskerat_nummer %}<p class="up-help">Länken i sms:et gäller i {{ timmar }} timmar.</p>{% endif %}
 {% endblock %}

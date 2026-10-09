@@ -638,6 +638,8 @@ def _form_context(state):
         "action": state.extra.get("action") or "",
         # Kryssrutorna för utskick (public_views._lp_consent), eller None.
         "lp_consent": state.extra.get("lp_consent"),
+        # Utskickets token som dolt fält (public_views, apps/utskick E.4), eller "".
+        "ut": state.extra.get("ut") or "",
     }
 
 

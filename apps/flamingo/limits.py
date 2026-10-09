@@ -30,6 +30,16 @@ gunicorn-arbetare och töms vid omstart), så en spärr gäller hela sajten.
     Per konto och timme     reserve_hourly: uppladdade bilder
                             (media.UPLOADS_PER_HOUR).
 
+Utskick (apps/utskick, README C.2, E.4): en förfrågan eller ett klick på
+numret med ett ut-klick från samma konto (utskick.attribution.resolve)
+räknas mot UTSKICK_LEADS_PER_CAMPAIGN i stället för kampanjens vanliga
+gräns (ett sms till 2 000 personer ger många förfrågningar samma timme),
+högst attribution.LEADS_PER_CLICK_HOUR per klick och timme (sedan räknas
+förfrågan som vilken som helst, utan spår). Förfrågningar via utskick
+räknas inte mot de vanliga gränserna, så att ett utskick aldrig stänger
+formuläret för besökare från Google. Klickets id ingår i dubblettnyckeln
+för klick på numret.
+
 Besökarens IP sparas aldrig. Lead.ip_hash är en HMAC av adressen med
 SECRET_KEY som nyckel: samma adress ger samma värde, men värdet går inte att
 vända tillbaka till en adress. En IPv6-adress räknas som sitt /64-nät (en
@@ -71,6 +81,9 @@ CALL_CLICK_DEDUPE = timedelta(minutes=60)
 CALL_CLICKS_PER_IP = 5
 #: Klick på numret i timmen till en kampanj, från alla besökare tillsammans.
 CALL_CLICKS_PER_CAMPAIGN = 30
+#: Förfrågningar och klick på numret i timmen till en kampanj via utskick
+#: (ett ut-klick från samma konto), från alla mottagare tillsammans.
+UTSKICK_LEADS_PER_CAMPAIGN = 200
 #: Låsen per kampanj i Postgres: egen nyckelrymd ("FL") plus kampanjens id.
 _LOCK_SPACE = 0x464C << 32
 
@@ -135,29 +148,45 @@ def _lock_campaign_leads(campaign_pk):
 # ---------------------------------------------------------------------------
 
 
-def create_form_lead(campaign, data, request, now=None):
+def _utskick_click(click, now):
+    """Klicket om det får ge spåret och de högre gränserna (högst
+    attribution.LEADS_PER_CLICK_HOUR förfrågningar per klick och timme),
+    annars None. Prövas under kampanjens lås."""
+    if click is None:
+        return None
+    from apps.utskick import attribution
+
+    return click if attribution.usable_for_lead(click, now) else None
+
+
+def create_form_lead(campaign, data, request, now=None, click=None):
     """(förfrågan, "") eller (None, LIMIT_IP / LIMIT_CAMPAIGN).
 
     Kampanjens rad låses medan förfrågningarna räknas och den nya sparas, så
     samtidiga inskick till samma kampanj tas ett i taget och inte kan smita
-    förbi gränsen."""
+    förbi gränsen. click är utskickets klick (samma konto som kampanjen,
+    utskick.attribution.resolve) eller None."""
     now = now or timezone.now()
     hashed = ip_hash(client_ip(request))
     with transaction.atomic():
         _lock_campaign_leads(campaign.pk)
+        click = _utskick_click(click, now)
         # Klicken på numret räknas för sig: en ström av klick får inte
         # stänga formuläret.
         recent = Lead.objects.filter(
             campaign_id=campaign.pk, created_at__gte=now - LEAD_WINDOW
         ).exclude(source=Lead.SOURCE_CALL_CLICK)
-        if recent.count() >= LEADS_PER_CAMPAIGN:
+        if click is not None:
+            if recent.count() >= UTSKICK_LEADS_PER_CAMPAIGN:
+                return None, LIMIT_CAMPAIGN
+        elif recent.filter(utskick__isnull=True).count() >= LEADS_PER_CAMPAIGN:
             return None, LIMIT_CAMPAIGN
         if hashed and recent.filter(ip_hash=hashed).count() >= LEADS_PER_IP:
             return None, LIMIT_IP
-        return leads.create_lead(campaign, data, request, ip_hash=hashed), ""
+        return leads.create_lead(campaign, data, request, ip_hash=hashed, click=click), ""
 
 
-def create_call_click_lead(campaign, data, request, now=None):
+def create_call_click_lead(campaign, data, request, now=None, click=None):
     """(förfrågan, "") eller (None, LIMIT_DUPLICATE / LIMIT_CAMPAIGN / LIMIT_IP).
 
     Samma låsning som create_form_lead. Samma besökare från samma
@@ -165,13 +194,18 @@ def create_call_click_lead(campaign, data, request, now=None):
     kampanjen den senaste CALL_CLICK_DEDUPE räknas inte igen. Två personer
     bakom samma adress (operatörens CGNAT) med var sitt annonsklick räknas
     båda. Utan IP-adress (ingen hash) gäller bara kampanjens gräns. Nås
-    kampanjens gräns larmas byrån (cap_alert)."""
+    kampanjens gräns larmas byrån (cap_alert). Med ett utskicksklick (click)
+    ingår klickets id i dubblettnyckeln och kampanjens gräns är
+    UTSKICK_LEADS_PER_CAMPAIGN."""
     now = now or timezone.now()
     hashed = ip_hash(client_ip(request))
     tracking = leads.tracking_from(data)
     same_click = {key: tracking.get(key, "") for key in ("gclid", "gbraid", "wbraid")}
     with transaction.atomic():
         _lock_campaign_leads(campaign.pk)
+        click = _utskick_click(click, now)
+        if click is not None:
+            same_click["attribution__click"] = click.pk
         if (
             hashed
             and Lead.objects.filter(
@@ -185,12 +219,18 @@ def create_call_click_lead(campaign, data, request, now=None):
         clicks = Lead.objects.filter(
             source=Lead.SOURCE_CALL_CLICK, created_at__gte=now - LEAD_WINDOW
         )
-        if clicks.filter(campaign_id=campaign.pk).count() >= CALL_CLICKS_PER_CAMPAIGN:
+        campaign_clicks = clicks.filter(campaign_id=campaign.pk)
+        if click is not None:
+            over = campaign_clicks.count() >= UTSKICK_LEADS_PER_CAMPAIGN
+        else:
+            over = campaign_clicks.filter(utskick__isnull=True).count() >= CALL_CLICKS_PER_CAMPAIGN
+        if over:
             refused = LIMIT_CAMPAIGN
         elif hashed and clicks.filter(ip_hash=hashed).count() >= CALL_CLICKS_PER_IP:
             return None, LIMIT_IP
         else:
-            return leads.create_call_click_lead(campaign, data, ip_hash=hashed), ""
+            lead = leads.create_call_click_lead(campaign, data, ip_hash=hashed, click=click)
+            return lead, ""
     cap_alert(campaign, now)
     return None, refused
 

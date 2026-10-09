@@ -601,6 +601,9 @@ class VvsLegacyGuardTests(TestCase):
             # Flamingo 2.0 (apps/utskick): kontraktet nämner reco.se bland
             # länkvärdarna utan granskning (E.8) och omdömesblocket i Brev (F.1).
             "apps/utskick/README.md",
+            # S2 (länk-byggaren): reco.se i links.GLOBAL_HOSTS (E.8) och dess test.
+            "apps/utskick/links.py",
+            "apps/utskick/test_s2_links.py",
         }
     )
 

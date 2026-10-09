@@ -1,0 +1,57 @@
+{% comment %}
+Översiktens del för externa länkvärdar (apps/utskick/manage_links.panel_context,
+README E.8): webbplatser som en kund vill länka till i ett utskick och som
+väntar på byråns beslut, och de senaste besluten. Att neka kräver en
+anteckning (kunden ser den inte). Kunden mejlas aldrig.
+Tabeller här har <thead> (vakten i test_s1_guards); inga style-attribut.
+{% endcomment %}
+<p class="m-section-title" id="vardar">Länkar till andra webbplatser</p>
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Länkar till kundens hemsida, Google Maps, sociala medier och omdömessidor behöver inget beslut. Andra webbplatser väntar här, och utskicket kan inte skickas förrän länken är godkänd.</p>
+  {% if hosts_pending %}
+  <div class="m-table-wrap">
+    <table class="m-table mu-table">
+      <thead><tr><th>Kund</th><th>Webbplats</th><th>Begärd</th><th>Beslut</th></tr></thead>
+      <tbody>
+      {% for r in hosts_pending %}
+      <tr>
+        <td>{% if r.customer %}<a class="tv-link" href="{% url 'manage:customer_detail' r.customer.pk %}#utskick"><b>{{ r.customer.name }}</b></a>{% else %}Konto {{ r.host.account_id }}{% endif %}</td>
+        <td><b>{{ r.host.host }}</b></td>
+        <td>{{ r.host.requested_at|date:"j b Y H:i" }}{% if r.requested_by %} av {{ r.requested_by }}{% endif %}</td>
+        <td>
+          <form method="post" action="{% url 'manage:utskick_host_decide' r.host.pk %}" class="mu-form">{% csrf_token %}
+            <input type="hidden" name="next" value="{% url 'manage:utskick_overview' %}#vardar">
+            <label class="m-sr-only" for="mu-host-note-{{ r.host.pk }}">Anteckning för {{ r.host.host }} (krävs för att neka)</label>
+            <input id="mu-host-note-{{ r.host.pk }}" name="note" maxlength="200" class="tv-input" placeholder="Anteckning" autocomplete="off">
+            <button type="submit" name="action" value="approve" class="m-btn m-btn--small">Godkänn</button>
+            <button type="submit" name="action" value="refuse" class="m-btn m-btn--small m-btn--ghost">Neka</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="tv-muted">Inga länkar väntar på beslut.</p>
+  {% endif %}
+  {% if hosts_decided %}
+  <details class="mu-details"><summary>Senaste besluten</summary>
+    <div class="m-table-wrap">
+      <table class="m-table mu-table">
+        <thead><tr><th>Kund</th><th>Webbplats</th><th>Beslut</th><th>Anteckning</th></tr></thead>
+        <tbody>
+        {% for r in hosts_decided %}
+        <tr>
+          <td>{% if r.customer %}{{ r.customer.name }}{% else %}Konto {{ r.host.account_id }}{% endif %}</td>
+          <td>{{ r.host.host }}</td>
+          <td>{{ r.host.get_status_display }} {{ r.host.decided_at|date:"j b Y" }}{% if r.decided_by %} av {{ r.decided_by }}{% endif %}</td>
+          <td>{{ r.host.note|default:"-" }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </details>
+  {% endif %}
+</div>

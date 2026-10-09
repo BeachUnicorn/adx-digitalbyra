@@ -21,7 +21,7 @@ from datetime import timedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Value
 from django.utils import timezone
 
 from apps.projects.models import Customer
@@ -36,6 +36,12 @@ DEFAULT_YEARLY_FEE_KR = 999
 #: knappt 900 svenska sms-delar med standardpåslaget.
 DEFAULT_MONTHLY_CAP_KR = 500
 MAX_MONTHLY_CAP_KR = 1_000_000
+
+#: Det delade svarsnumret för Flamingos utskick (apps/utskick, D4). Bara
+#: utskick får skicka från det (service.send_for_account med
+#: allow_reply_number); kundernas API-nycklar aldrig. Värdet i det partiella
+#: indexet på SmsMessage är inställningens värde när migreringen skrevs.
+REPLY_NUMBER = getattr(settings, "UTSKICK_REPLY_NUMBER", "") or "+46766860046"
 
 #: 46elks: en textavsändare är 3-11 tecken a-z, A-Z och 0-9 och börjar med en
 #: bokstav ("Alphanumeric numbers may not start with a digit"). Prövas med
@@ -274,7 +280,23 @@ class SmsMessage(models.Model):
         GSM7 = "gsm7", "GSM-7"
         UCS2 = "ucs2", "UCS-2"
 
+    class Source(models.TextChoices):
+        """Vem som skickade: kundens API, eller Flamingos utskick
+        (apps/utskick). Allt går genom service.send_for_account, så taket,
+        underlagen och portalen gäller alla källor (D5)."""
+
+        API = "api", "API"
+        UTSKICK = "utskick", "Utskick"
+        FLOW = "flow", "Flöde"
+        REPLY = "reply", "Svar"
+        SYSTEM = "system", "Bekräftelse"
+        TEST = "test", "Test"
+
     account = models.ForeignKey(SmsAccount, on_delete=models.PROTECT, related_name="messages")
+    #: db_default: den förra versionen skriver sms utan fältet (utskick README B.0).
+    source = models.CharField(
+        "Källa", max_length=10, choices=Source.choices, default=Source.API, db_default="api"
+    )
     api_key = models.ForeignKey(
         SmsApiKey, on_delete=models.SET_NULL, null=True, blank=True, related_name="messages"
     )
@@ -282,7 +304,8 @@ class SmsMessage(models.Model):
     reference = models.CharField(max_length=64, blank=True)
     to = models.CharField("Till", max_length=32)
     country = models.CharField("Land", max_length=2, blank=True)
-    sender = models.CharField("Från", max_length=11, blank=True)
+    #: Ett namn (högst 11 tecken) eller svarsnumret i E.164 (utskick).
+    sender = models.CharField("Från", max_length=16, blank=True)
     body = models.TextField("Text")
     parts = models.PositiveSmallIntegerField("Delar", default=0)
     encoding = models.CharField(max_length=4, choices=Encoding.choices, default=Encoding.GSM7)
@@ -322,6 +345,14 @@ class SmsMessage(models.Model):
             models.Index(fields=["account", "created_at"], name="sms_msg_account_created"),
             models.Index(fields=["api_key", "created_at"], name="sms_msg_key_created"),
             models.Index(fields=["country", "sent_at"], name="sms_msg_country_sent"),
+            models.Index(fields=["account", "source", "created_at"], name="sms_msg_source"),
+            # Svaren till det delade numret routas till kunden som senast
+            # skickade från det till avsändaren (apps/utskick G.1, D4).
+            models.Index(
+                fields=["to", "created_at"],
+                condition=Q(sender=REPLY_NUMBER),
+                name="sms_msg_reply_number",
+            ),
         ]
         constraints = [
             # En reference hör till ett sms per konto - men bara när sms:et
@@ -375,6 +406,11 @@ class MonthlyStatement(models.Model):
     total = models.BigIntegerField(default=0)
     #: Rader per land: [{"country", "sms", "parts", "provider_cost", "markup", "total"}].
     lines = models.JSONField(default=list)
+    #: Bara information: {källa: {"sms", "parts", "total"}} (API, utskick,
+    #: svar ...). Summorna ovan räknas som förut. db_default (utskick B.0).
+    by_source = models.JSONField(
+        default=dict, blank=True, db_default=Value({}, output_field=models.JSONField())
+    )
     markup_ore_per_part = models.PositiveIntegerField(default=0)
     yearly_fee_kr = models.PositiveIntegerField(default=0)
     closed_at = models.DateTimeField(null=True, blank=True)

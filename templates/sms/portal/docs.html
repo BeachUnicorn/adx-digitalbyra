@@ -110,6 +110,10 @@ console.log(data.id, data.status, data.price_sek);</code></pre><button type="but
   "allowed_countries": [{% for code in account.countries %}"{{ code }}"{% if not forloop.last %}, {% endif %}{% endfor %}],
   "limits": {"per_second": {{ limits.per_second }}, "per_minute": {{ limits.per_minute }}, "per_day": {{ limits.per_day }}, "max_parts": {{ max_parts }}}
 }</code></pre></div>
+  {% if has_utskick %}
+  <p class="sms-endpoint"><span class="sms-method sms-method--get">GET</span> <span class="sms-mono">{{ api_base }}/suppressions/?to=+46701234567</span></p>
+  <p class="tv-prop__note">Har numret svarat STOPP eller avregistrerat sig från era utskick i ADX Flamingo? Svaret är <span class="sms-mono">{"to": "+46701234567", "suppressed": true}</span> eller <span class="sms-mono">false</span>. En avregistrering gäller all er marknadsföring, också den som går via API:t: fråga innan ni skickar reklam, och skicka inte när svaret är <span class="sms-mono">true</span>.</p>
+  {% endif %}
 </section>
 
 <section class="m-panel tv-panel" aria-labelledby="d-status">
@@ -151,7 +155,7 @@ console.log(data.id, data.status, data.price_sek);</code></pre><button type="but
     <tr><th scope="row">Anrop</th><td>{{ limits.per_second }} per sekund och nyckel.</td></tr>
     <tr><th scope="row">Sms</th><td>{{ limits.per_minute }} per minut och nyckel, provkörningar inräknade, och {{ limits.per_minute }} per minut för kontot med alla nycklar tillsammans. {{ limits.per_day }} per dygn (svensk tid) och nyckel.</td></tr>
     <tr><th scope="row">Längd</th><td>Högst {{ max_parts }} sms-delar: 918 tecken med GSM-alfabetet, 402 med UCS-2.</td></tr>
-    <tr><th scope="row">Kostnad</th><td>Kostnadstaket ({{ cap }} kr i månaden nu), som ni själva ändrar under Nycklar och tak.</td></tr>
+    <tr><th scope="row">Kostnad</th><td>Kostnadstaket ({{ cap }} kr i månaden nu), som ni själva ändrar under Nycklar och tak.{% if has_utskick %} Taket gäller också sms från era utskick i ADX Flamingo: kostnaden räknas ihop.{% endif %}</td></tr>
   </table>
   <p class="tv-prop__note">Över en gräns svarar API:t <span class="sms-mono">rate_limited</span> (HTTP 429) med huvudet <span class="sms-mono">Retry-After</span>: så många sekunder ska ni vänta. Det kan också hända när många av ADX kunder skickar samtidigt, eftersom leverantören har en gräns för ADX alla sms tillsammans.</p>
 </section>

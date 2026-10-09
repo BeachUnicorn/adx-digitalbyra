@@ -1,0 +1,12 @@
+{% extends "utskick/links/_base.html" %}
+{% comment %}
+Startsidan på k.adx.se och klick.adx.se (link_views.home, README E.1): en
+neutral förklaring och en länk till ADX integritetspolicy. Inga uppgifter
+om någon kund.
+{% endcomment %}
+{% block title %}Länkar i sms och mejl{% endblock %}
+{% block content %}
+<h1 class="up-h1">Länkar i sms och mejl</h1>
+<p class="up-lead">Den här adressen används för länkar i sms och mejl som skickas med ADX Flamingo.</p>
+{% endblock %}
+{% block footer %}<p><a class="up-link" href="{{ adx_privacy_url }}">Så hanterar ADX personuppgifter</a></p>{% endblock %}

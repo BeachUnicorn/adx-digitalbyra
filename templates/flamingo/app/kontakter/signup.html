@@ -10,8 +10,9 @@ Kontext: sida (SignupForm eller None innan första sparningen), form
 vald_lista, valda_taggar, publik_url, oppen, skal (varför sidan är stängd
 för besökarna), kan_forhandsgranska och forhandsgranska_url (fungerar
 också när sidan är stängd). Kopiera-knappen använder
-flamingo-app-kontakter.js (data-kt-copy, dold utan skript). Kanalen är
-e-post; QR-koden finns inte än och nämns inte.
+flamingo-app-kontakter.js (data-kt-copy, dold utan skript). kanaler (S2):
+[{kanal, rubrik, vald, hinder}], e-post och sms; en kanal med hinder går
+inte att välja (texten säger varför). QR-koden finns inte än och nämns inte.
 {% endcomment %}
 {% block app_title %}Anmälan{% endblock %}
 {% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
@@ -26,7 +27,7 @@ e-post; QR-koden finns inte än och nämns inte.
 {% block kt_content %}
 <section class="fl-panel" aria-labelledby="kt-an-page">
   <h2 class="fl-panel__title" id="kt-an-page">Sidan där kunderna anmäler sig</h2>
-  <p class="fl-panel__text">Länka till sidan från din webbplats, kvitton eller sociala medier. Den som anmäler sig får ett mejl och klickar på en länk innan e-posten räknas.</p>
+  <p class="fl-panel__text">Länka till sidan från din webbplats, kvitton eller sociala medier. Den som anmäler sig får ett mejl eller ett sms med en länk och klickar på den innan anmälan räknas.</p>
   {% if oppen %}
   <p class="fl-notice fl-notice--ok" role="status"><span>Sidan är öppen.</span></p>
   {% else %}
@@ -41,28 +42,32 @@ e-post; QR-koden finns inte än och nämns inte.
       {% if publik_url %}<button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-kt-copy="{{ publik_url }}" hidden>Kopiera länk</button>{% endif %}
       {% if kan_forhandsgranska %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ forhandsgranska_url }}" target="_blank" rel="noopener">Förhandsgranska</a>{% endif %}
     </li>
-    <li class="fl-list__item">
-      <div class="fl-list__main">
-        <span class="fl-list__title">Kanal</span>
-        <span class="fl-list__meta">E-post</span>
-      </div>
-    </li>
   </ul>
 </section>
 
 <form class="fl-form" method="post" action="{% url 'flamingo:app_signup' %}">
   {% csrf_token %}
   {% if form.non_field_errors %}<p class="fl-notice fl-notice--error" role="alert"><span>{% for error in form.non_field_errors %}{{ error }} {% endfor %}</span></p>{% endif %}
+  <section class="fl-panel" aria-labelledby="kt-an-kanal">
+    <h2 class="fl-panel__title" id="kt-an-kanal">Kanaler</h2>
+    <input type="hidden" name="{{ kanaler_visade }}" value="1">
+    {% for rad in kanaler %}
+    <label class="fl-check"><input type="checkbox" name="kanal" value="{{ rad.kanal }}"{% if rad.vald %} checked{% endif %}{% if rad.hinder and not rad.vald %} disabled{% endif %}{% if rad.hinder %} aria-describedby="kt-an-kanal-{{ rad.kanal }}"{% endif %}><span>{{ rad.rubrik }}</span></label>
+    {% if rad.hinder %}<p class="fl-field__help" id="kt-an-kanal-{{ rad.kanal }}">{{ rad.hinder }}</p>{% endif %}
+    {% endfor %}
+    <p class="fl-field__help">Sms bekräftas med en länk i ett sms, som räknas på ditt sms-konto.</p>
+  </section>
+
   <section class="fl-panel" aria-labelledby="kt-an-text">
     <h2 class="fl-panel__title" id="kt-an-text">Text på sidan</h2>
     {% include "flamingo/app/kontakter/_field.html" with field=form.title help="Till exempel Få våra erbjudanden." %}
     {% include "flamingo/app/kontakter/_field.html" with field=form.intro help="Vad personen får, till exempel påminnelser om service och erbjudanden." %}
-    <p class="fl-field__help">Texten vid kryssrutan är samtyckestexten för e-post under Inställningar.</p>
+    <p class="fl-field__help">Texterna vid kryssrutorna är samtyckestexterna för e-post och sms under Inställningar.</p>
   </section>
 
   <section class="fl-panel" aria-labelledby="kt-an-where">
     <h2 class="fl-panel__title" id="kt-an-where">Var de nya kontakterna hamnar</h2>
-    <p class="fl-panel__text">De läggs i listan och får taggarna när de har klickat på länken i mejlet.</p>
+    <p class="fl-panel__text">De läggs i listan och får taggarna när de har klickat på länken i mejlet eller sms:et.</p>
     <div class="fl-field">
       <label class="fl-field__label" for="kt-an-list">Lista</label>
       <select class="fl-input" id="kt-an-list" name="add_to_list">

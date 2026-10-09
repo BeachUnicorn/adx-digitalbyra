@@ -1,0 +1,16 @@
+{% comment %}
+Guidens steg (README I.2): chips i bred skärm; under 560 px "Steg 3 av 5:
+Innehåll" (flamingo-app-utskick-views.css), med Tillbaka och Nästa längst ned
+i formuläret (_step_actions.html). Kontext: wizard från app_views/utskick._wizard.
+
+I ett steg med formulär (wizard.form) är chipsen knappar i det formuläret:
+de sparar steget först och går sedan dit (nasta=), så att inget skrivet
+försvinner. I Granska är de länkar. När utskicket är pausat och ska
+bekräftas igen (wizard.locked) går stegen inte att ändra, och chipsen är
+bara text.
+{% endcomment %}<nav class="fl-ut-wizard" aria-label="Guidens steg">
+  <ol class="fl-ut-steps">
+    {% for step in wizard.steps %}<li class="fl-ut-steps__item{% if step.now %} is-now{% endif %}">{% if step.now %}<a class="fl-ut-steps__link" href="{{ step.url }}" aria-current="step">{% elif wizard.locked %}<span class="fl-ut-steps__link is-locked">{% elif wizard.form %}<button type="submit" form="{{ wizard.form }}" class="fl-ut-steps__link" name="nasta" value="{{ step.key }}">{% else %}<a class="fl-ut-steps__link" href="{{ step.url }}">{% endif %}<span class="fl-ut-steps__num" aria-hidden="true">{{ step.number }}</span><span>{{ step.label }}</span>{% if step.now %}</a>{% elif wizard.locked %}</span>{% elif wizard.form %}</button>{% else %}</a>{% endif %}</li>{% endfor %}
+  </ol>
+  <p class="fl-ut-steps__compact">Steg {{ wizard.number }} av {{ wizard.total }}: {{ wizard.label }}</p>
+</nav>

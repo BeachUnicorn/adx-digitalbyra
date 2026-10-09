@@ -2248,3 +2248,520 @@ class SenderChoiceTests(SmsTestCase):
         self.client.force_login(self.contact)
         self.assertNotContains(self.client.get("/kund/sms/"), 'name="sender_name"')
         self.assertEqual(self.client.post("/kund/sms/avsandare/").status_code, 404)
+
+
+# ---------------------------------------------------------------- S2: utskick genom sms-appen
+# apps/utskick/README.md, C.1 och J S2: källan, svarsnumret, marginalen i
+# minutgränserna, 46elks 429, krokarna, underlagets källor, spärrlistan för
+# API-kunder och portalens etiketter. API:t beter sig som förut, utom 429.
+
+REPLY = "+46766860046"
+
+
+class ThrottledElks(FakeElks):
+    """46elks svarar 429 på de första throttle sändningarna (och på
+    provkörningen när throttle_dryrun är satt), sedan som FakeElks."""
+
+    def __init__(self, throttle=1, throttle_dryrun=False, **kwargs):
+        super().__init__(**kwargs)
+        self.throttle = throttle
+        self.throttle_dryrun = throttle_dryrun
+
+    def __call__(self, fields):
+        if fields.get("dryrun") == "yes" and self.throttle_dryrun:
+            self.calls.append(dict(fields))
+            raise elks.ElksError("46elks svarade 429: Too many requests", 429, throttled=True)
+        if fields.get("dryrun") != "yes" and self.throttle > 0:
+            self.throttle -= 1
+            self.calls.append(dict(fields))
+            raise elks.ElksError("46elks svarade 429: Too many requests", 429, throttled=True)
+        return super().__call__(fields)
+
+
+class SourceTests(SmsTestCase):
+    def test_the_api_stores_source_api_and_shows_it(self):
+        self.fake()
+        response = self.api_post({"to": FICTIONAL, "message": "Hej"})
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["source"], "api")
+        self.assertEqual(SmsMessage.objects.get(pk=response.json()["id"]).source, "api")
+
+    def test_send_for_account_stores_its_source_without_a_key(self):
+        self.fake()
+        out = service.send_for_account(
+            self.account,
+            {"to": FICTIONAL, "message": "Hej från Acme", "reference": "u1:2"},
+            source="utskick",
+        )
+        self.assertTrue(out.ok, out.detail)
+        msg = out.message
+        self.assertEqual((msg.source, msg.api_key_id, msg.reference), ("utskick", None, "u1:2"))
+        self.assertEqual(msg.status, SmsMessage.Status.SENT)
+
+    def test_rejected_rows_keep_the_source_too(self):
+        out = service.send_for_account(
+            self.account, {"to": "+4612", "message": "Hej"}, source="reply"
+        )
+        self.assertEqual(out.error, "invalid_number")
+        self.assertEqual(out.message.source, "reply")
+
+    def test_message_detail_never_shows_an_utskick_row(self):
+        row = self.message(source="utskick", body="Hej Anna, din kod")
+        response = self.api_get(f"/api/sms/v1/messages/{row.pk}/")
+        self.assertEqual(response.status_code, 404)
+        self.assertNotIn("Anna", response.content.decode())
+        api_row = self.message(source="api")
+        self.assertEqual(self.api_get(f"/api/sms/v1/messages/{api_row.pk}/").status_code, 200)
+
+    def test_the_cap_is_shared_between_sources(self):
+        self.fake()
+        self.account.monthly_cap_kr = 1
+        self.account.save()
+        # 0,57 kr från ett utskick: ett API-sms till ryms inte under 1 kr.
+        self.message(source="utskick", customer_price=5700)
+        response = self.api_post({"to": FICTIONAL, "message": "Hej"})
+        self.assertEqual(response.status_code, 402)
+
+
+class ReplyNumberTests(SmsTestCase):
+    def test_utskick_may_send_from_the_reply_number(self):
+        fake = self.fake()
+        out = service.send_for_account(
+            self.account,
+            {"to": FICTIONAL, "message": "Hej", "from": REPLY},
+            source="utskick",
+            allow_reply_number=True,
+        )
+        self.assertTrue(out.ok, out.detail)
+        self.assertEqual(out.message.sender, REPLY)
+        self.assertEqual(fake.sends[0]["from"], REPLY)
+
+    def test_without_permission_the_number_is_refused(self):
+        self.fake()
+        out = service.send_for_account(
+            self.account, {"to": FICTIONAL, "message": "Hej", "from": REPLY}, source="utskick"
+        )
+        self.assertEqual(out.error, "sender_not_allowed")
+
+    def test_an_api_key_can_never_send_from_the_number(self):
+        fake = self.fake()
+        response = self.api_post({"to": FICTIONAL, "message": "Hej", "from": REPLY})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "sender_not_allowed")
+        self.assertEqual(fake.sends, [])
+        with self.assertRaises(ValidationError):
+            validate_sender(REPLY)
+
+    def test_an_account_without_a_name_may_still_use_the_number(self):
+        self.fake()
+        self.account.sender_name = ""
+        self.account.save()
+        out = service.send_for_account(
+            self.account,
+            {"to": FICTIONAL, "message": "Hej", "from": REPLY},
+            source="reply",
+            allow_reply_number=True,
+        )
+        self.assertTrue(out.ok, out.detail)
+
+    def test_sender_holds_sixteen_characters(self):
+        row = self.message(sender="+461234567890123")
+        row.refresh_from_db()
+        self.assertEqual(row.sender, "+461234567890123")
+
+
+class HeadroomTests(SmsTestCase):
+    def test_headroom_comes_from_the_settings_and_is_clamped(self):
+        from . import ratelimit
+
+        self.assertEqual(ratelimit.headroom(45, 60), (15, 20))
+        self.assertEqual(ratelimit.headroom(100, 500), (0, 0))
+        with override_settings(SMS_RATE_PER_MINUTE=30):
+            self.assertEqual(ratelimit.headroom(45, 60), (0, 20))
+
+    @override_settings(SMS_RATE_PER_MINUTE=4)
+    def test_utskick_leaves_room_for_the_api(self):
+        self.fake()
+        for _ in range(2):
+            self.message(created_at=timezone.now() - timedelta(seconds=5))
+        out = service.send_for_account(
+            self.account, {"to": FICTIONAL, "message": "Hej"}, source="utskick", headroom=2
+        )
+        self.assertEqual(out.error, "rate_limited")
+        self.assertTrue(1 <= out.retry_after <= 60)
+        # API:t (utan marginal) har fortfarande plats.
+        self.assertEqual(self.api_post({"to": FICTIONAL, "message": "Hej"}).status_code, 201)
+
+    @override_settings(SMS_GLOBAL_PER_MINUTE=3)
+    def test_global_headroom(self):
+        self.fake()
+        self.message(account=self.other_account)
+        out = service.send_for_account(
+            self.account,
+            {"to": FICTIONAL, "message": "Hej"},
+            source="utskick",
+            global_headroom=2,
+        )
+        self.assertEqual(out.error, "rate_limited")
+        self.assertEqual(self.api_post({"to": FICTIONAL, "message": "Hej"}).status_code, 201)
+
+    @override_settings(SMS_RATE_PER_MINUTE=4)
+    def test_headroom_that_takes_everything_blocks(self):
+        from . import ratelimit
+
+        self.assertEqual(ratelimit.check_account_minute(self.account, headroom=4), 60)
+        self.assertIsNone(ratelimit.check_account_minute(self.account))
+
+
+class ThrottledTests(SmsTestCase):
+    """46elks 429: rate_limited (429) i stället för provider_error, raden
+    blir rejected rate_limited med pris 0, och inget larm till byrån."""
+
+    def throttle(self, **kwargs):
+        fake = ThrottledElks(**kwargs)
+        patcher = mock.patch("apps.sms.elks._post", side_effect=fake)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return fake
+
+    def test_the_api_gets_429_and_the_row_costs_nothing(self):
+        self.throttle()
+        response = self.api_post({"to": FICTIONAL, "message": "Hej", "reference": "order-9"})
+        self.assertEqual(response.status_code, 429)
+        self.assertEqual(response["Retry-After"], "60")
+        self.assertEqual(response.json()["error"]["code"], "rate_limited")
+        msg = SmsMessage.objects.get(pk=response.json()["error"]["id"])
+        self.assertEqual((msg.status, msg.error_code), ("rejected", "rate_limited"))
+        self.assertEqual((msg.customer_price, msg.markup), (0, 0))
+        self.assertEqual(mail.outbox, [])
+        self.assertEqual(pricing.month_to_date_units(self.account), 0)
+
+    def test_a_retry_with_the_same_reference_reaches_46elks(self):
+        fake = self.throttle()
+        data = {"to": FICTIONAL, "message": "Hej", "reference": "u7:42"}
+        first = service.send_for_account(self.account, data, source="utskick")
+        self.assertEqual((first.error, first.retry_after), ("rate_limited", 60))
+        second = service.send_for_account(self.account, data, source="utskick")
+        self.assertTrue(second.ok, second.detail)
+        self.assertNotEqual(second.message.pk, first.message.pk)
+        self.assertEqual(second.message.status, "sent")
+        self.assertEqual(len(fake.sends), 2)
+        self.assertTrue(fake.sends[-1]["message"] == "Hej")
+
+    def test_a_throttled_estimate_stores_nothing(self):
+        self.throttle(throttle=0, throttle_dryrun=True)
+        response = self.api_post({"to": FICTIONAL, "message": "Hej"})
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(SmsMessage.objects.exists())
+        self.assertEqual(mail.outbox, [])
+
+    def test_other_4xx_still_fail_as_before(self):
+        self.fake(fail_send="46elks svarade 403: nej")
+        response = self.api_post({"to": FICTIONAL, "message": "Hej"})
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_the_client_marks_429_as_throttled_and_not_ambiguous(self):
+        error = HTTPError(elks.API_URL, 429, "Too Many", {}, io.BytesIO(b"Too many requests"))
+        with mock.patch("apps.sms.elks.urlopen", side_effect=error):
+            with self.assertRaises(elks.ElksError) as ctx:
+                elks.send("AcmeBygg", FICTIONAL, "Hej")
+        self.assertTrue(ctx.exception.throttled)
+        self.assertFalse(ctx.exception.ambiguous)
+
+
+class PartCostHintTests(SmsTestCase):
+    def test_a_hint_replaces_the_dryrun_when_there_is_no_history(self):
+        fake = self.fake()
+        out = service.send_for_account(
+            self.account, {"to": FICTIONAL, "message": "Hej"}, source="utskick", part_cost_hint=5200
+        )
+        self.assertTrue(out.ok, out.detail)
+        self.assertEqual(fake.dryruns, [])
+        self.assertEqual(out.message.estimated_cost, 5200)
+
+    def test_without_a_hint_the_api_dryruns_as_before(self):
+        fake = self.fake()
+        self.api_post({"to": FICTIONAL, "message": "Hej"})
+        self.assertEqual(len(fake.dryruns), 1)
+
+
+class HookTests(SmsTestCase):
+    def setUp(self):
+        super().setUp()
+        from . import hooks
+
+        self.hooks = hooks
+        self.seen = []
+        saved = list(hooks.STATUS_CALLBACKS)
+        hooks.STATUS_CALLBACKS[:] = [self.seen.append]
+        self.addCleanup(lambda: hooks.STATUS_CALLBACKS.__setitem__(slice(None), saved))
+
+    def test_a_delivery_report_calls_the_hook(self):
+        self.fake()
+        msg = service.send_for_account(
+            self.account, {"to": FICTIONAL, "message": "Hej"}, source="utskick"
+        ).message
+        status, _ = service.apply_delivery_report(msg.pk, msg.provider_id, "delivered")
+        self.assertEqual(status, 200)
+        self.assertEqual([(m.pk, m.status) for m in self.seen], [(msg.pk, "delivered")])
+        # En upprepning ändrar inget och meddelar inget.
+        service.apply_delivery_report(msg.pk, msg.provider_id, "delivered")
+        self.assertEqual(len(self.seen), 1)
+
+    def test_the_agency_check_calls_the_hook(self):
+        msg = self.message(status=SmsMessage.Status.RESERVED, provider_id="", needs_check=True)
+        self.assertTrue(service.resolve_check(msg, sent=True))
+        self.assertEqual([m.status for m in self.seen], ["sent"])
+
+    def test_a_failing_hook_never_breaks_the_report(self):
+        def broken(message):
+            SmsMessage.objects.filter(pk=message.pk).update(body="ändrat av kroken")
+            raise RuntimeError("kroken föll")
+
+        self.hooks.STATUS_CALLBACKS[:] = [broken]
+        self.fake()
+        msg = service.send_for_account(
+            self.account, {"to": FICTIONAL, "message": "Hej"}, source="utskick"
+        ).message
+        with self.assertLogs("apps.sms.hooks", level="ERROR"):
+            status, _ = service.apply_delivery_report(msg.pk, msg.provider_id, "delivered")
+        self.assertEqual(status, 200)
+        msg.refresh_from_db()
+        # Krokens ändring rullades tillbaka, rapportens står kvar.
+        self.assertEqual((msg.status, msg.body), ("delivered", "Hej"))
+
+
+class StatementBySourceTests(SmsTestCase):
+    def setUp(self):
+        super().setUp()
+        self.account.service_year_start = None
+        self.account.save()
+
+    def test_by_source_is_informational_and_totals_are_unchanged(self):
+        self.message(source="api", customer_price=5700)
+        self.message(source="utskick", customer_price=5700, parts=1)
+        self.message(
+            source="utskick", provider_cost=10400, markup=1000, customer_price=11400, parts=2
+        )
+        self.message(source="utskick", status="rejected", customer_price=0, provider_id="")
+        statement = pricing.build_statement(self.account, pricing.current_period())
+        self.assertEqual(statement.sms_count, 3)
+        self.assertEqual(statement.total, 22800)
+        self.assertEqual(
+            statement.by_source,
+            {
+                "api": {"sms": 1, "parts": 1, "total": 5700},
+                "utskick": {"sms": 2, "parts": 3, "total": 17100},
+            },
+        )
+        self.assertEqual(sum(line["total"] for line in statement.lines), 22800)
+        usage = pricing.usage(self.account)
+        self.assertEqual(usage["by_source"]["utskick"]["sms"], 2)
+        self.assertEqual(usage["by_source"]["api"]["cost"], 5700)
+
+    def test_closing_a_month_saves_by_source(self):
+        last = pricing.previous_month(pricing.current_period())
+        start, _end = pricing.month_bounds(last)
+        self.message(source="reply", created_at=start + timedelta(days=1))
+        statement, made = pricing.close_statement(self.account, last)
+        self.assertTrue(made)
+        statement.refresh_from_db()
+        self.assertEqual(statement.by_source["reply"]["sms"], 1)
+
+
+class SuppressionEndpointTests(SmsTestCase):
+    """GET /api/sms/v1/suppressions/?to=: kundens spärrlista i utskicken."""
+
+    def enable_utskick(self, customer=None, slug="acme"):
+        from apps.flamingo.models import FlamingoAccount
+        from apps.utskick.testing import enable_utskick
+
+        flamingo = FlamingoAccount.objects.create(customer=customer or self.acme, is_enabled=True)
+        enable_utskick(flamingo, slug, "Acme")
+        return flamingo
+
+    def ask(self, to, raw=None):
+        return self.api_get(f"/api/sms/v1/suppressions/?to={to}", raw=raw)
+
+    def test_404_without_utskick(self):
+        response = self.ask("%2B46701740605")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["error"]["code"], "not_found")
+
+    def test_answers_from_the_customers_own_list_only(self):
+        from apps.utskick import suppression
+        from apps.utskick.models import UtskickSettings
+
+        flamingo = self.enable_utskick()
+        other = self.enable_utskick(self.other, slug="annan")
+        suppression.add(flamingo, "sms", keys_hash("sms", FICTIONAL), "stop")
+        suppression.add(other, "sms", keys_hash("sms", FICTIONAL_2), "stop")
+        yes = self.ask("0701740605")
+        self.assertEqual(yes.status_code, 200)
+        self.assertEqual(yes.json(), {"to": FICTIONAL, "suppressed": True})
+        self.assertEqual(self.ask("%2B46701740606").json()["suppressed"], False)
+        # En avstängd utskicksdel: spärrarna gäller ändå.
+        UtskickSettings.objects.filter(account=flamingo).update(is_enabled=False)
+        self.assertEqual(self.ask("%2B46701740605").json()["suppressed"], True)
+
+    def test_bad_numbers_and_methods(self):
+        self.enable_utskick()
+        self.assertEqual(self.ask("abc").json()["error"]["code"], "invalid_number")
+        self.assertEqual(self.api_get("/api/sms/v1/suppressions/").status_code, 400)
+        response = self.client.post(
+            "/api/sms/v1/suppressions/?to=0701740605", HTTP_AUTHORIZATION=f"Bearer {self.raw}"
+        )
+        self.assertEqual(response.status_code, 405)
+
+    def test_documented_for_ai_assistants(self):
+        cache.clear()
+        text = self.client.get("/smsz/").content.decode()
+        self.assertIn("/suppressions/?to=", text)
+        self.assertIn("delar de taket med API:t", text)
+
+
+def keys_hash(channel, value):
+    from apps.utskick import keys
+
+    return keys.value_hash(channel, value)
+
+
+class PortalSourceTests(SmsTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.contact)
+
+    def test_api_only_customers_see_no_source_filter(self):
+        self.message(source="api", reference="order-1")
+        html = self.client.get("/kund/sms/").content.decode()
+        self.assertNotIn('name="kalla"', html)
+        self.assertIn("reference order-1", html)
+
+    def test_utskick_rows_show_a_label_instead_of_the_reference(self):
+        self.message(source="api", body="Från API:t", reference="order-1")
+        self.message(source="reply", body="Tack för svaret", reference="t12")
+        self.message(source="system", body="Du får inga fler sms", reference="x3")
+        html = self.client.get("/kund/sms/").content.decode()
+        self.assertIn('name="kalla"', html)
+        self.assertIn("Svar i Inkorgen", html)
+        self.assertNotIn("reference t12", html)
+        only_replies = self.client.get("/kund/sms/?kalla=svar").content.decode()
+        self.assertIn("Tack för svaret", only_replies)
+        self.assertIn("Du får inga fler sms", only_replies)
+        self.assertNotIn("Från API:t", only_replies)
+        only_api = self.client.get("/kund/sms/?kalla=api").content.decode()
+        self.assertIn("Från API:t", only_api)
+        self.assertNotIn("Tack för svaret", only_api)
+
+    def test_labels_fall_back_per_source(self):
+        from . import hooks
+
+        rows = [
+            self.message(source="api"),
+            self.message(source="test"),
+            self.message(source="utskick"),
+        ]
+        labels = hooks.labels(rows)
+        self.assertNotIn(rows[0].pk, labels)
+        self.assertEqual(labels[rows[1].pk], "Test")
+        self.assertEqual(labels[rows[2].pk], "Utskick")
+
+
+class ElksListTests(TestCase):
+    """elks.list_messages: 46elks sms-historik för utskickens avstämning av
+    inkommande sms (apps/utskick README G.1 punkt 4)."""
+
+    def pages(self, *pages):
+        bodies = iter([json.dumps(page).encode() for page in pages])
+        seen = []
+
+        def fake_urlopen(request, timeout):
+            seen.append(request.full_url)
+            return _Response(next(bodies))
+
+        patcher = mock.patch("apps.sms.elks.urlopen", side_effect=fake_urlopen)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return seen
+
+    @override_settings(**TEST_SETTINGS)
+    def test_pages_until_older_than_since(self):
+        since = datetime(2026, 10, 9, 8, 0, tzinfo=pricing.STOCKHOLM)
+        row = {"direction": "incoming", "to": "+46766860046", "from": FICTIONAL}
+        seen = self.pages(
+            {
+                "data": [
+                    {**row, "id": "s3", "message": "STOPP", "created": "2026-10-09T09:00:00.1"},
+                    {**row, "id": "s2", "direction": "outgoing", "created": "2026-10-09T08:30:00"},
+                ],
+                "next": "2026-10-09T08:30:00",
+            },
+            {
+                "data": [
+                    {**row, "id": "s1", "message": "Hej", "created": "2026-10-09T06:30:00"},
+                    {**row, "id": "s0", "message": "Gammal", "created": "2026-10-01T06:00:00"},
+                ],
+                "next": "2026-10-01T06:00:00",
+            },
+            {"data": [], "next": None},
+        )
+        found = elks.list_messages(since, to="+46766860046")
+        self.assertEqual([m["id"] for m in found], ["s3", "s1"])
+        self.assertEqual(found[0]["message"], "STOPP")
+        self.assertEqual(found[0]["created"].tzinfo is not None, True)
+        # Andra sidan var äldre än since: ingen tredje fråga.
+        self.assertEqual(len(seen), 2)
+        self.assertIn(f"{elks.LIST_PAGE_PARAM}=2026-10-09T08%3A30%3A00", seen[1])
+        self.assertTrue(seen[0].startswith(elks.API_URL + "?"))
+
+    @override_settings(**TEST_SETTINGS)
+    def test_the_deadline_stops_paging_and_bounds_each_call(self):
+        """Utskickens avstämning har en tidsgräns (apps/utskick, tickens fas 2):
+        inga fler sidor efter den, och varje anrop får högst tiden som är kvar."""
+        import time
+
+        page = {
+            "data": [{"id": "s1", "direction": "incoming", "created": "2026-10-09T09:00:00"}],
+            "next": "2026-10-09T08:00:00",
+        }
+        timeouts = []
+
+        def fake_urlopen(request, timeout):
+            timeouts.append(timeout)
+            return _Response(json.dumps(page).encode())
+
+        since = datetime(2026, 10, 9, 0, 0, tzinfo=pricing.STOCKHOLM)
+        with mock.patch("apps.sms.elks.urlopen", side_effect=fake_urlopen):
+            found = elks.list_messages(since, deadline=time.monotonic() - 1)
+            self.assertEqual((list(found), found.complete, timeouts), ([], False, []))
+            found = elks.list_messages(since, deadline=time.monotonic() + 3)
+        self.assertTrue(found.complete)
+        self.assertEqual([m["id"] for m in found], ["s1"])
+        self.assertLessEqual(timeouts[0], 3)
+        # Utan tidsgräns som förut: hela listan, 10 s per anrop.
+        self.assertTrue(elks.Messages().complete)
+
+    @override_settings(**TEST_SETTINGS)
+    def test_a_repeated_page_stops_the_loop(self):
+        page = {
+            "data": [{"id": "s1", "direction": "incoming", "created": "2026-10-09T09:00:00"}],
+            "next": "2026-10-09T09:00:00",
+        }
+        seen = self.pages(page, page, page)
+        since = datetime(2026, 10, 9, 0, 0, tzinfo=pricing.STOCKHOLM)
+        self.assertEqual(len(elks.list_messages(since)), 1)
+        self.assertEqual(len(seen), 2)
+
+    @override_settings(**TEST_SETTINGS)
+    def test_errors_are_elks_errors(self):
+        import io
+
+        error = HTTPError(elks.API_URL, 429, "Too Many", {}, io.BytesIO(b""))
+        with mock.patch("apps.sms.elks.urlopen", side_effect=error):
+            with self.assertRaises(elks.ElksError) as ctx:
+                elks.list_messages(timezone.now())
+        self.assertTrue(ctx.exception.throttled)
+        with override_settings(ELKS_API_PASSWORD=""):
+            with self.assertRaises(elks.ElksError):
+                elks.list_messages(timezone.now())

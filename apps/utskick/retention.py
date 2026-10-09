@@ -7,6 +7,12 @@ Hur länge utskickens data sparas (README E.7), och dygnets städning
     purge_consent_logs(now)         samtyckesloggen för borttagna kontakter, efter 36 månader
     purge_exports(now)              ExportLog äldre än 25 månader
     flag_inactive(now)              kontakter utan grund och två år utan aktivitet
+    refresh_stats(now)              S2: Utskick.stats för utskick klara de senaste 30
+                                    dagarna (leveransrapporter, klick och svar kommer sent)
+    purge_s2(now)                   S2: mottagare, klick, sms-koder och inkommande sms;
+                                    stats räknas om först för utskicken som tappar
+                                    sina mottagare
+    (links.rollup)                  S2: länkarnas summor, också de dygn ticken vilat
     disk_check(now)                 larm till byrån under 15 % ledigt på disken
     table_sizes()                   utskickstabellernas storlek i byte (loggas)
 
@@ -118,6 +124,119 @@ def flag_inactive(now=None):
     return {"flagged": flagged, "cleared": cleared}
 
 
+# ---------------------------------------------------------------------------
+# S2 (sändningsmotorn): utskickens rader (E.7)
+# ---------------------------------------------------------------------------
+
+#: Mottagare, klick och klickkoder sparas så här länge efter att utskicket
+#: blev klart; personkoderna tappar mottagaren då och tas bort efter 36
+#: månader; bekräftelsekoderna efter sju dagar; skannrarna efter 14 dagar;
+#: inkommande sms efter 90 dagar (texten töms redan när de routas).
+RECIPIENT_MONTHS = 13
+CLICK_MONTHS = 13
+PERSON_CODE_MONTHS = 36
+CONFIRM_CODE_DAYS = 7
+SCANNER_DAYS = 14
+INBOUND_DAYS = 90
+
+
+#: Utskick.stats räknas om varje dygn så här länge efter att utskicket blev
+#: klart (leveransrapporter, klick, svar och förfrågningar kommer efteråt).
+STATS_REFRESH_DAYS = 30
+
+
+def _store_stats(rows):
+    """Utskick.stats ur mottagarna nu (sending.tick.final_stats, som behåller
+    pausernas anteckningar). Antalet utskick."""
+    from .models import Utskick
+    from .sending.tick import final_stats
+
+    done = 0
+    for utskick in rows.select_related("account").order_by("pk").iterator(chunk_size=100):
+        Utskick.objects.filter(pk=utskick.pk).update(stats=final_stats(utskick))
+        done += 1
+    return done
+
+
+def refresh_stats(now=None):
+    """Summorna för utskick som blev klara de senaste STATS_REFRESH_DAYS,
+    så att rapporten och listan har de sena siffrorna också när mottagarna
+    tagits bort (E.7). Antalet utskick."""
+    from datetime import timedelta
+
+    from .models import Recipient, Utskick
+
+    now = now or timezone.now()
+    rows = Utskick.objects.filter(
+        status=Utskick.Status.SENT, finished_at__gte=now - timedelta(days=STATS_REFRESH_DAYS)
+    ).filter(Exists(Recipient.objects.filter(utskick=OuterRef("pk"))))
+    return _store_stats(rows)
+
+
+def purge_s2(now=None):
+    """Utskickens rader enligt E.7, i omgångar. Utskick.stats räknas om ur
+    mottagarna precis innan de tas bort (och innan klicken tas bort), så
+    att rapporten finns kvar med de sista siffrorna. {"stats",
+    "recipients", "clicks", "codes", "inbound"}."""
+    from datetime import timedelta
+
+    from .models import Click, InboundMessage, LinkCode, Recipient, Utskick
+
+    now = now or timezone.now()
+    old = months_ago(now, RECIPIENT_MONTHS)
+    counts = {}
+    counts["stats"] = _store_stats(
+        Utskick.objects.filter(finished_at__lt=old).filter(
+            Exists(Recipient.objects.filter(utskick=OuterRef("pk")))
+        )
+    )
+    counts["clicks"] = _delete_in_batches(
+        Click.objects.filter(kind=Click.Kind.HUMAN, at__lt=months_ago(now, CLICK_MONTHS))
+    ) + _delete_in_batches(
+        Click.objects.filter(kind=Click.Kind.SCANNER, at__lt=now - timedelta(days=SCANNER_DAYS))
+    )
+    codes = _delete_in_batches(
+        LinkCode.objects.filter(kind=LinkCode.Kind.LINK, link__utskick__finished_at__lt=old)
+    )
+    codes += _delete_in_batches(
+        LinkCode.objects.filter(
+            kind=LinkCode.Kind.CONFIRM, created_at__lt=now - timedelta(days=CONFIRM_CODE_DAYS)
+        )
+    )
+    codes += _delete_in_batches(
+        LinkCode.objects.filter(
+            kind=LinkCode.Kind.PERSON,
+            created_at__lt=months_ago(now, PERSON_CODE_MONTHS),
+        )
+    )
+    LinkCode.objects.filter(
+        kind=LinkCode.Kind.PERSON, recipient__isnull=False, created_at__lt=old
+    ).update(recipient=None)
+    counts["codes"] = codes
+    counts["recipients"] = _delete_in_batches(
+        Recipient.objects.filter(utskick__finished_at__lt=old)
+    )
+    counts["inbound"] = _delete_in_batches(
+        InboundMessage.objects.filter(received_at__lt=now - timedelta(days=INBOUND_DAYS))
+    )
+    return {k: v for k, v in counts.items() if v}
+
+
+def _rollup(now):
+    """Länkarnas summor (links.rollup) en gång om dygnet också: ticken räknar
+    bara upp när den har annat att göra, och fönstret på två dygn gör att
+    dygnskörningen fångar varje klick."""
+    from . import links
+
+    return links.rollup(now)
+
+
+def _month_end(now):
+    from .sending import recover
+
+    return recover.month_end_check(now)
+
+
 def disk_check(now=None, path=None):
     """Ledigt utrymme på disken där sajten ligger. Under 15 % larmas byrån
     högst en gång per dygn. Returnerar andelen ledigt (0 till 1)."""
@@ -166,6 +285,10 @@ def daily(now=None):
         ("consent_logs", lambda: purge_consent_logs(now)),
         ("exports", lambda: purge_exports(now)),
         ("inactive", lambda: flag_inactive(now)),
+        ("stats", lambda: refresh_stats(now)),
+        ("s2", lambda: purge_s2(now)),
+        ("links", lambda: _rollup(now)),
+        ("reserved", lambda: _month_end(now)),
         ("disk_free", lambda: round(disk_check(now), 3)),
     )
     for name, step in steps:

@@ -1,0 +1,29 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+Skalet för varje sida under Utskick (/flamingo/app/utskick/...). Vyerna
+ritar med app_views.render_utskick(request, mall, flik, kontext), som sätter
+app_active "utskick" och ut_nav (flikraden: Utskick, Inställningar; fler
+flikar i S3 till S5).
+
+Sidan fyller:
+  {% block app_title %}   fönstrets rubrik
+  {% block ut_head %}     sidans egen css (flamingo-app-utskick-views.css)
+                          och js (flamingo-app-utskick.js), med ?v={{ static_version }}
+  {% block ut_header %}   rubriken och knapparna överst (.fl-app-head)
+  {% block ut_content %}  resten
+
+Flikraden ritas av samma mall som i Kontakter (kontakter/_tabs.html, README
+I.1a). Guidens steg och rapporten kan låta bli flikraden genom att sätta
+ut_nav till None i kontexten. Inga style-attribut och inga inline-skript:
+css i static/css, js i static/js. data-label på varje tabellcell.
+{% endcomment %}
+{% block app_head %}
+<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick.css' %}?v={{ static_version }}">
+{% block ut_head %}{% endblock %}
+{% endblock %}
+{% block app_content %}
+{% block ut_header %}{% endblock %}
+{% include "flamingo/app/kontakter/_tabs.html" with nav=ut_nav %}
+{% block ut_content %}{% endblock %}
+{% endblock %}

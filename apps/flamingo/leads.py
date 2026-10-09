@@ -17,6 +17,14 @@ läses aldrig: Lead.ad_consent står tomt tills sidan frågar på riktigt.
 
 Inga mejl och inga sms skickas härifrån; landningssidan anropar
 sms.notify_new_lead() efter create_lead().
+
+Utskick (apps/utskick, README C.2, E.4): ett besök från ett sms-utskick bär
+?ut=<token> (UT_KEY). Token läses med ut_from och prövas av
+utskick.attribution.resolve mot sidans konto; ut står aldrig i
+TRACKING_KEYS och hamnar alltså aldrig i Lead.utm. Med ett klick (click=)
+får förfrågan utskicket och spåret (attribution.attach) innan
+konverteringen köas, och en sådan förfrågan går aldrig till Google
+(Lead.can_send_to_google).
 """
 
 import logging
@@ -48,8 +56,12 @@ UTM_KEYS = ("utm_source", "utm_medium", "utm_campaign", "utm_term", "utm_content
 TRACKING_KEYS = CLICK_ID_KEYS + UTM_KEYS
 #: Sökordet kan också komma som ?keyword= (Googles {keyword} i spårningsmallen).
 KEYWORD_KEY = "keyword"
+#: Utskickets token (apps/utskick, E.2): klickets id och en signatur. Inte
+#: med i TRACKING_KEYS: den får aldrig hamna i Lead.utm.
+UT_KEY = "ut"
 
 _CLICK_ID_RE = re.compile(r"[A-Za-z0-9_\-]{1,200}")  # fullmatch
+_UT_RE = re.compile(r"[A-Za-z0-9]{1,12}\.[A-Za-z0-9]{10}")  # fullmatch
 
 #: Statusarna inkorgen erbjuder som knappar (Ny sätts bara när förfrågan kommer in).
 INBOX_STATUSES = (
@@ -111,6 +123,31 @@ def tracking_from(*sources):
     return found
 
 
+def ut_from(*sources):
+    """Utskickets token (?ut= eller det dolda fältet), om den ser ut som en;
+    annars "". Det första giltiga värdet vinner. Om den är äkta och hör
+    till sidans konto avgör utskick.attribution.resolve."""
+    for source in sources:
+        if not source:
+            continue
+        raw = source.get(UT_KEY, "")
+        if isinstance(raw, list | tuple):
+            raw = raw[0] if raw else ""
+        raw = str(raw or "").strip()
+        if raw and _UT_RE.fullmatch(raw):
+            return raw
+    return ""
+
+
+def _attach(lead, click):
+    """Utskickets spår på förfrågan (apps/utskick). Före konverteringen."""
+    if click is None:
+        return
+    from apps.utskick import attribution
+
+    attribution.attach(lead, click)
+
+
 def _keyword(tracking, *sources):
     """Sökordet: utm_term, annars ?keyword= ur formuläret eller adressen."""
     keyword = tracking.get("utm_term", "")
@@ -134,14 +171,15 @@ def _clean_answers(answers):
     return cleaned
 
 
-def create_lead(campaign, data, request=None, ip_hash=""):
+def create_lead(campaign, data, request=None, ip_hash="", click=None):
     """En förfrågan från kampanjens landningssida (källa: formulär).
 
     data: name, phone, email, message, answers ({fråga: svar}) och de dolda
     spårningsfälten (gclid, gbraid, wbraid, utm_*). Saknas spårningen i data läses
     den ur adressen (request.GET), så att den följer med även om de dolda
     fälten skulle tappas. ip_hash kommer från limits.ip_hash (spärren på
-    /lp/); landningssidan skapar förfrågan via limits.create_form_lead."""
+    /lp/); landningssidan skapar förfrågan via limits.create_form_lead.
+    click är utskickets klick (samma konto, attribution.resolve) eller None."""
     query = request.GET if request is not None else None
     tracking = tracking_from(data, query)
     utm = {key: tracking[key] for key in UTM_KEYS if key in tracking}
@@ -162,19 +200,21 @@ def create_lead(campaign, data, request=None, ip_hash=""):
         keyword=_keyword(tracking, data, query),
         ip_hash=(ip_hash or "")[:64],
     )
+    _attach(lead, click)
     lead.queue_arrival_conversion()
     logger.info("Flamingo: ny förfrågan %s på kampanj %s", lead.pk, campaign.pk)
     return lead
 
 
-def create_call_click_lead(campaign, data, ip_hash=""):
+def create_call_click_lead(campaign, data, ip_hash="", click=None):
     """Ett klick på telefonnumret på kampanjens landningssida (källa: klick
     på telefonnumret). Inget namn och inget nummer: ägaren får samtalet och
     sätter status när hen vet hur det gick.
 
     data är det flamingo-lp.js skickar: klick-id:n och utm ur adressen och
-    keyword. Spärrarna och dubbletterna sköts av
-    limits.create_call_click_lead, som anropar den här."""
+    keyword (och utskickets ut). Spärrarna och dubbletterna sköts av
+    limits.create_call_click_lead, som anropar den här. click är
+    utskickets klick eller None: förfrågan får spåret och klicket called."""
     tracking = tracking_from(data)
     utm = {key: tracking[key] for key in UTM_KEYS if key in tracking}
     lead = Lead.objects.create(
@@ -189,6 +229,11 @@ def create_call_click_lead(campaign, data, ip_hash=""):
         keyword=_keyword(tracking, data),
         ip_hash=(ip_hash or "")[:64],
     )
+    if click is not None:
+        from apps.utskick import attribution
+
+        _attach(lead, click)
+        attribution.mark_called(click)
     lead.queue_arrival_conversion()
     logger.info("Flamingo: klick på numret %s på kampanj %s", lead.pk, campaign.pk)
     return lead

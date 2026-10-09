@@ -1,0 +1,71 @@
+{% extends "utskick/links/_base.html" %}{% load website_tags %}
+{% comment %}
+k.adx.se/p/<kod> (link_views.sms_preferences, README E.5, H.6). Samma
+rader som Mina utskick: "Sms med erbjudanden" och "E-post med erbjudanden"
+(med kundens pref_email_note), raden om information (dold när allt är
+avregistrerat) och "Avregistrera mig från allt". En kanal utan adress (bara
+e-post här) visar "Anmäl dig" med ett fält för adressen. Att stänga av går
+alltid; att slå på startar en bekräftelse (sms med en länk, eller ett mejl)
+och kräver botskyddet. Bara maskerade uppgifter, aldrig ett namn. Aldrig
+Djangos CSRF-tagg här: formulären bär fn (tokens.form_nonce).
+
+Kontext: rader [{kanal, rubrik, not, tillstand (on, pending, off),
+kan_andras, anmal, sparrad}], maskerat, allt_sparrat, kan_spara, klart,
+klart_text, sms_till, mejl_till, avregistrering_text, fel, fn, botcheck.
+{% endcomment %}
+{% block title %}Dina val{% endblock %}
+{% block content %}
+<h1 class="up-h1">Vad vill du få från {{ foretag }}?</h1>
+{% if maskerat %}<p class="up-masked">{{ maskerat }}</p>{% endif %}
+{% if fel %}<div class="up-alert" role="alert"><p>{{ fel }}</p></div>{% endif %}
+{% if klart == "sms" or klart == "mejl" or klart == "sms-mejl" %}
+<div class="up-done" role="status">
+  {% if sms_till %}<p>Du får ett sms till {{ sms_till }} med en länk. Klicka på länken för att börja få sms.</p>{% endif %}
+  {% if mejl_till %}<p>Du får ett mejl till {{ mejl_till }} med en länk. Klicka på länken för att börja få e-post.</p>{% elif klart != "sms" %}<p>Om du inte redan får e-post från {{ foretag }} får du ett mejl med en länk. Klicka på länken för att börja få e-post.</p>{% endif %}
+</div>
+{% elif klart_text %}
+<div class="up-done" role="status">
+  <p>{{ klart_text }}</p>
+  {% if klart == "avregistrerad" %}<p>Du får inga fler utskick från {{ foretag }}.</p>{% if avregistrering_text %}<p>{{ avregistrering_text }}</p>{% endif %}{% endif %}
+</div>
+{% endif %}
+{% if rader or not allt_sparrat %}
+<form class="up-form" method="post" action="{{ request.path }}" {% botcheck_attr %}>
+  <input type="hidden" name="fn" value="{{ fn }}">
+  {% if rader %}
+  <ul class="up-rows">
+    {% for rad in rader %}
+    <li class="up-row{% if rad.anmal %} up-row--signup{% endif %}">
+      <div class="up-row__text">
+        {% if rad.anmal %}<label class="up-row__title" for="up-epost">{{ rad.rubrik }}</label>{% elif rad.kan_andras %}<label class="up-row__title" for="up-{{ rad.kanal }}">{{ rad.rubrik }}</label>{% else %}<span class="up-row__title">{{ rad.rubrik }}</span>{% endif %}
+        {% if rad.not %}<p class="up-row__note">{{ rad.not }}</p>{% endif %}
+        {% if rad.anmal %}<p class="up-row__note">Anmäl dig: skriv din e-post, så får du ett mejl med en länk att bekräfta.</p>
+        <input class="up-input up-row__input" id="up-epost" name="epost" type="email" autocomplete="email" maxlength="254" placeholder="namn@exempel.se">
+        {% elif rad.tillstand == "pending" %}<p class="up-row__note">{% if rad.kanal == "sms" %}Väntar på att du klickar på länken i sms:et.{% else %}Väntar på att du klickar på länken i mejlet.{% endif %}</p>
+        {% elif rad.sparrad %}<p class="up-row__note">Du har avregistrerat dig.{% if rad.kan_andras %} Slår du på får du en länk att bekräfta med.{% endif %}</p>
+        {% elif not rad.kan_andras %}<p class="up-row__note">Går inte att slå på här.</p>{% endif %}
+      </div>
+      {% if rad.anmal %}{% elif rad.kan_andras %}
+      <input class="up-switch" id="up-{{ rad.kanal }}" name="{{ rad.kanal }}" type="checkbox" value="1" role="switch"{% if rad.tillstand != "off" %} checked{% endif %}>
+      {% else %}
+      <span class="up-row__state">Av</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+    {% if not allt_sparrat %}
+    <li class="up-row up-row--info"><p class="up-row__note">Information om dina bokningar skickas så länge du inte avregistrerar dig från allt.</p></li>
+    {% endif %}
+  </ul>
+  {% else %}
+  <p class="up-lead">Du kan avregistrera numret från allt som {{ foretag }} skickar.</p>
+  {% endif %}
+  {% if rader %}{% botcheck_fields %}{% endif %}
+  <div class="up-actions">
+    {% if kan_spara %}<button class="up-btn up-btn--primary" type="submit" name="action" value="spara">Spara</button>{% endif %}
+    {% if not allt_sparrat %}<button class="up-btn up-btn--outline" type="submit" name="action" value="allt">Avregistrera mig från allt</button>{% endif %}
+  </div>
+</form>
+{% elif klart != "avregistrerad" %}
+<p class="up-lead">Du får inga utskick från {{ foretag }} till det här numret.</p>
+{% endif %}
+{% endblock %}

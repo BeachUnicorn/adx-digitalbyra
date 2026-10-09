@@ -38,6 +38,8 @@ from cryptography.fernet import Fernet, InvalidToken
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models, transaction
+from django.db.models import Value
+from django.db.models.functions import Now
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -1446,11 +1448,15 @@ class Lead(models.Model):
     SOURCE_CALL = "call"
     SOURCE_MANUAL = "manual"
     SOURCE_CALL_CLICK = "call_click"
+    #: Ett svar på ett utskick: förfrågan är svarstrådens rad i Inkorgen
+    #: (apps/utskick, Thread.lead). Kanalen står på tråden.
+    SOURCE_REPLY = "reply"
     SOURCE_CHOICES = [
         (SOURCE_FORM, "Formulär"),
         (SOURCE_CALL, "Samtal"),
         (SOURCE_MANUAL, "Manuell"),
         (SOURCE_CALL_CLICK, "Klick på telefonnumret"),
+        (SOURCE_REPLY, "Svar på utskick"),
     ]
 
     #: Besökarens samtycke till att Google får använda uppgifterna för
@@ -1510,6 +1516,36 @@ class Lead(models.Model):
         related_name="leads",
         verbose_name="Kontakt",
     )
+    #: Utskicket och mottagaren förfrågan kom via (apps/utskick, E.4). Sådana
+    #: förfrågningar går aldrig till Google (D11, can_send_to_google).
+    utskick = models.ForeignKey(
+        "utskick.Utskick",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="leads",
+        verbose_name="Utskick",
+    )
+    utskick_recipient = models.ForeignKey(
+        "utskick.Recipient",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="leads",
+    )
+    #: Ögonblicksbild av spåret: klickets id, utskickets id och namn, kanal,
+    #: länkens etikett, clicked_at, contact_matched och late
+    #: (utskick/attribution.attach). db_default: den förra versionen skriver
+    #: förfrågningar utan fältet (README B.0).
+    attribution = models.JSONField(
+        "Spår från utskick",
+        default=dict,
+        blank=True,
+        db_default=Value({}, output_field=models.JSONField()),
+    )
+    #: Senaste händelsen: när förfrågan kom, eller senaste svaret i en
+    #: svarstråd. Inkorgen sorteras på den. db_default som ovan.
+    activity_at = models.DateTimeField("Senast", default=timezone.now, db_default=Now())
     source = models.CharField("Källa", max_length=10, choices=SOURCE_CHOICES, default=SOURCE_FORM)
     name = models.CharField("Namn", max_length=120, blank=True)
     phone = models.CharField("Telefon", max_length=40, blank=True)
@@ -1546,6 +1582,7 @@ class Lead(models.Model):
         verbose_name_plural = "Förfrågningar"
         indexes = [
             models.Index(fields=["account", "status", "-created_at"], name="flamingo_lead_status"),
+            models.Index(fields=["account", "-activity_at", "-id"], name="flamingo_lead_activity"),
         ]
 
     def __str__(self):
@@ -1553,7 +1590,12 @@ class Lead(models.Model):
 
     @property
     def display_name(self):
-        fallback = "Klick på telefonnumret" if self.source == self.SOURCE_CALL_CLICK else "Okänd"
+        if self.source == self.SOURCE_CALL_CLICK:
+            fallback = "Klick på telefonnumret"
+        elif self.source == self.SOURCE_REPLY:
+            fallback = "Svar på utskick"
+        else:
+            fallback = "Okänd"
         return self.name or self.phone or self.email or fallback
 
     @property
@@ -1583,8 +1625,9 @@ class Lead(models.Model):
         (PROCESSING_ERROR_REASON_ONE_PER_CLICK_CONVERSION_ACTION_NOT_PERMITTED_WITH_BRAID).
         De sparas på förfrågan men laddas inte upp. Samtycket (ad_consent)
         avgör inte: konverteringarna skickas utan fråga på sidan (beslut
-        2026-10-03)."""
-        return bool(self.gclid)
+        2026-10-03). En förfrågan via ett utskick går aldrig till Google
+        (apps/utskick, D11), också om sidan råkade ha ett gclid."""
+        return bool(self.gclid) and not self.utskick_id
 
     @property
     def arrival_kind(self):

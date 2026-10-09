@@ -1,4 +1,4 @@
-{% load flamingo_app %}{% comment %}
+{% load flamingo_app utskick_tags %}{% comment %}
 Kundkortets del för Kontakter och utskick (apps/utskick, README I.1), inne i
 Flamingo-panelen. Kontexten ut kommer från utskick_tags.utskick_card
 (manage_views.card_context): account, settings, saved, enabled, flamingo_on,
@@ -16,6 +16,23 @@ på. Ingenting här mejlar kunden.
   <p class="tv-prop__note">{{ ut.contact_count|tal }} av högst {{ ut.settings.contact_limit|tal }} kontakter. {{ ut.dpa_line }}</p>
   <p class="tv-prop__note">{{ ut.sms_line }}{% if ut.export_line %} {{ ut.export_line }}.{% endif %}</p>
   {% if ut.enabled and ut.settings.enabled_at %}<p class="tv-muted">Aktiverat {{ ut.settings.enabled_at|date:"j b Y" }}{% if ut.enabled_by %} av {{ ut.enabled_by }}{% endif %}.</p>{% elif not ut.settings.is_enabled and ut.settings.disabled_at %}<p class="tv-muted">Avstängt {{ ut.settings.disabled_at|date:"j b Y" }}.</p>{% endif %}
+  {% endif %}
+  {% comment %}S2 (länk-byggaren): externa länkvärdar som väntar på ADX eller är nekade (E.8, manage_links.card_hosts).{% endcomment %}
+  {% utskick_hosts customer as ut_hosts %}
+  {% if ut_hosts %}
+  <div class="mu-hosts">
+    <p class="tv-prop__note"><b>Länkar till andra webbplatser.</b> Utskicket kan inte skickas förrän länken är godkänd. Kunden mejlas inte.</p>
+    {% for r in ut_hosts %}
+    <form method="post" action="{% url 'manage:utskick_host_decide' r.host.pk %}" class="tv-row">{% csrf_token %}
+      <span><b>{{ r.host.host }}</b>: {% if r.host.status == "refused" %}nekad{% if r.host.note %} ({{ r.host.note }}){% endif %}{% else %}väntar på beslut{% endif %}, begärd {{ r.host.requested_at|date:"j b Y" }}{% if r.requested_by %} av {{ r.requested_by }}{% endif %}</span>
+      <input type="hidden" name="next" value="{% url 'manage:customer_detail' customer.pk %}#utskick">
+      <label class="m-sr-only" for="ut-host-note-{{ r.host.pk }}">Anteckning för {{ r.host.host }} (krävs för att neka)</label>
+      <input id="ut-host-note-{{ r.host.pk }}" name="note" maxlength="200" class="tv-input" placeholder="Anteckning" autocomplete="off">
+      <button type="submit" name="action" value="approve" class="m-btn m-btn--small">Godkänn</button>
+      {% if r.host.status != "refused" %}<button type="submit" name="action" value="refuse" class="m-btn m-btn--small m-btn--ghost">Neka</button>{% endif %}
+    </form>
+    {% endfor %}
+  </div>
   {% endif %}
   <form method="post" action="{% url 'manage:utskick_customer_update' customer.pk %}" class="tv-toggles">{% csrf_token %}
     <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="is_enabled"{% if ut.settings.is_enabled %} checked{% endif %}{% if not ut.flamingo_on and not ut.settings.is_enabled %} disabled{% endif %}> Aktiverat: kunden ser Kontakter i Flamingo</label>

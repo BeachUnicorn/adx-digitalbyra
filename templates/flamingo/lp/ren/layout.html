@@ -18,7 +18,9 @@ preview, is_staff, status_label, review_url, call_beacon, tracking, action,
 draft_url och published_url.
 
 Varje tel:-länk har data-fl-call; static/js/flamingo-lp.js räknar klicket
-utan att hålla upp samtalet. I redigeringsläget (editing) laddas inget
+utan att hålla upp samtalet. data-fl-visit (visit_beacon) finns bara för
+ett besök från ett utskick hos samma konto (apps/utskick, E.4): skriptet
+skickar då tiden på sidan dit, utan kakor. I redigeringsläget (editing) laddas inget
 skript, och dokumentet förbjuder skript (render.EDITING_CSP). Inte heller med
 no_scripts (förhandsvisningen på fliken Sidan, en ram med sandbox utan
 skript). CSRF-nyckeln finns i en dold ruta när klicken räknas, också på en
@@ -34,7 +36,7 @@ Sidhuvudet ligger fast överst från 720 px. I mobilen, när ringremsan finns,
 <style>{{ palette_style }}</style>
 {% block scripts %}{% if not editing and not no_scripts %}<script src="{% static 'js/flamingo-lp.js' %}?v={{ static_version }}" defer></script>{% endif %}{% endblock %}
 </head>
-<body class="rn{% if has_callbar %} rn--callbar{% endif %}{% if editing %} rn--editing{% endif %}"{% if call_beacon %} data-fl-beacon="{{ call_beacon }}"{% endif %}>
+<body class="rn{% if has_callbar %} rn--callbar{% endif %}{% if editing %} rn--editing{% endif %}"{% if call_beacon %} data-fl-beacon="{{ call_beacon }}"{% endif %}{% if visit_beacon %} data-fl-visit="{{ visit_beacon }}"{% endif %}>
 {% include "flamingo/lp/ren/_sprite.html" %}
 {% if call_beacon %}<div hidden>{% csrf_token %}</div>{% endif %}
 {% if is_staff and not editing %}

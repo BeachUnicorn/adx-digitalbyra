@@ -13,6 +13,7 @@ urlpatterns = [
     re_path(r"^v1/messages/(?P<pk>\d+)/?$", api.message_detail, name="message"),
     re_path(r"^v1/usage/?$", api.usage, name="usage"),
     re_path(r"^v1/senders/?$", api.senders, name="senders"),
+    re_path(r"^v1/suppressions/?$", api.suppressions, name="suppressions"),
     re_path(
         r"^46elks/dlr/(?P<pk>\d+)/(?P<signature>[0-9a-f]{32})/$",
         api.dlr,

@@ -88,6 +88,11 @@ def _spec(request):
             {"method": "GET", "path": "/messages/<id>/", "what": "Ett sms och dess status."},
             {"method": "GET", "path": "/usage/", "what": "Månadens förbrukning, tak och gränser."},
             {"method": "GET", "path": "/senders/", "what": "Kontots godkända avsändare."},
+            {
+                "method": "GET",
+                "path": "/suppressions/?to=<nummer>",
+                "what": "Har numret svarat STOPP hos kunden (kräver Flamingos utskick).",
+            },
         ],
         "fields": [{"name": n, "required": r == "ja", "what": w} for n, r, w in FIELDS],
         "statuses": [{"status": s, "what": w} for s, w in STATUSES],
@@ -212,7 +217,18 @@ Ger månadens antal, kostnad (`cost_sek`), taket (`cap_sek`), vad som är kvar
 (`remaining_sek`), `cap_reached`, avsändaren (`from`), tillåtna länder
 (`allowed_countries`) och gränserna. Kunden sätter taket själv i portalen;
 när det är nått svarar API:t `monthly_cap_reached` (402) tills nästa månad
-eller tills taket höjs.
+eller tills taket höjs. Skickar kunden också sms med ADX Flamingos utskick
+delar de taket med API:t: kostnaden räknas ihop.
+
+## Spärrlistan (STOPP)
+
+    GET {api}/suppressions/?to=+46701234567
+
+Ger `{{"to": "+46701234567", "suppressed": true|false}}`. Finns bara för
+kunder som också använder ADX Flamingos utskick (annars `not_found`). Har
+mottagaren svarat STOPP eller avregistrerat sig från kundens utskick gäller
+det all kundens marknadsföring: fråga innan ni skickar reklam via API:t, och
+skicka inte när svaret är `true`.
 
 ## Felkoder
 
@@ -226,7 +242,9 @@ eller tills taket höjs.
   exempel order-id plus syfte). Då är ett omförsök ofarligt: samma reference
   ger samma sms tillbaka, aldrig ett till.
 - `429 rate_limited`: vänta det antal sekunder som `Retry-After` säger, och
-  försök igen med samma reference.
+  försök igen med samma reference. Det gäller också när leverantören har
+  för många sms från ADX just den minuten: inget skickades och inget
+  debiterades.
 - `500 internal_error`, `502 provider_error` eller ett nätverksfel: försök
   igen senare med samma reference. `provider_error` har inte debiterats.
 - `202` med `status: "unknown"`: skicka INTE igen med en ny reference. Sms:et

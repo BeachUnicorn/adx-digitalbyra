@@ -32,6 +32,7 @@ from .models import (
     ListMembership,
     Suppression,
     Tag,
+    Utskick,
     UtskickSettings,
 )
 from .testing import PHONE_ANNA, PHONE_BO, PHONE_CILLA, UtskickFixture, make_contact
@@ -65,6 +66,11 @@ def _routes():
 
 
 def _model_for(name):
+    # S2: utskicken och svaren i Inkorgen (app_views/utskick.py, inbox_reply.py).
+    if name.startswith("app_utskick"):
+        return Utskick
+    if name.startswith("app_lead"):
+        return Lead
     if "import" in name:
         return ImportJob
     if name == "app_list":
@@ -100,20 +106,37 @@ class ViewsFixture(UtskickFixture):
         self.foreign_field = FieldDef.objects.create(
             account=self.other_account, key="hemligt", label="Hemligt"
         )
+        # S2: ett utskick och en svarsförfrågan per konto.
+        self.utskick = Utskick.objects.create(account=self.account, name="Höstservice")
+        self.foreign_utskick = Utskick.objects.create(account=self.other_account, name="Hemligt")
+        self.reply_lead = Lead.objects.create(account=self.account, source=Lead.SOURCE_REPLY)
+        self.foreign_lead = Lead.objects.create(
+            account=self.other_account, source=Lead.SOURCE_REPLY
+        )
 
     def own_pk(self, name):
-        model = _model_for(name)
-        return {Contact: self.kontakt, ContactList: self.lista, ImportJob: self.import_job}[
-            model
-        ].pk
+        rows = {
+            Contact: self.kontakt,
+            ContactList: self.lista,
+            ImportJob: self.import_job,
+            Utskick: self.utskick,
+            Lead: self.reply_lead,
+        }
+        return rows[_model_for(name)].pk
 
     def foreign_pk(self, name):
-        model = _model_for(name)
-        return {Contact: self.foreign, ContactList: self.foreign_list, ImportJob: self.foreign_job}[
-            model
-        ].pk
+        rows = {
+            Contact: self.foreign,
+            ContactList: self.foreign_list,
+            ImportJob: self.foreign_job,
+            Utskick: self.foreign_utskick,
+            Lead: self.foreign_lead,
+        }
+        return rows[_model_for(name)].pk
 
     def url(self, name, pk=None):
+        if name == "app_utskick_step":
+            return reverse(f"flamingo:{name}", kwargs={"pk": pk, "step": "granska"})
         return reverse(f"flamingo:{name}", args=[pk] if pk is not None else [])
 
 

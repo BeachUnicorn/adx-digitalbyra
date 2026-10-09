@@ -28,6 +28,22 @@ Sändningen, steg för steg (README: Så går en sändning till).
 En reference från kunden gör anropet idempotent: samma reference ger samma
 sms tillbaka, utan ny sändning. Prövningen görs igen under låset.
 
+46elks 429 (byråns konto skickar för många sms i minuten) släpper
+reservationen: raden blir rejected med felkod rate_limited och pris 0,
+anroparen får rate_limited (429, Retry-After 60) och byrån larmas inte.
+
+Två vägar in, samma väg ut (apps/utskick/README.md, C.1):
+
+    send(api_key, data)                       kundens API (source "api")
+    send_for_account(account, data, source=)  Flamingos utskick: kontot utan
+                                              nyckel, källan på raden, och
+                                              svarsnumret som avsändare bara
+                                              med allow_reply_number
+
+Taket, underlagen och portalen gäller båda (D5). En leveransrapport eller
+byråns avstämning meddelar hooks.status_changed (utskicken följer sina
+mottagare så).
+
 Här kastas inga fel vidare från 46elks: varje utfall blir ett Outcome. Inga
 mejl till kunden, aldrig.
 """
@@ -44,7 +60,7 @@ from django.db import IntegrityError, transaction
 from django.urls import reverse
 from django.utils import timezone
 
-from . import alerts, elks, encoding, numbers, pricing, ratelimit
+from . import alerts, elks, encoding, hooks, numbers, pricing, ratelimit
 from .models import SmsAccount, SmsMessage
 
 logger = logging.getLogger(__name__)
@@ -53,6 +69,14 @@ logger = logging.getLogger(__name__)
 MAX_PARTS = 6
 #: Prövas med fullmatch: "$" i match släpper igenom ett radbrytningstecken sist.
 REFERENCE_RE = re.compile(r"[A-Za-z0-9._:\-]{1,64}")
+#: Flamingos egna referenser (utskick, svar, bekräftelser, test) börjar med
+#: "~", som REFERENCE_RE aldrig släpper igenom från API:t: kundens och
+#: Flamingos referenser kan alltså aldrig krocka (send_for_account,
+#: internal_reference).
+INTERNAL_PREFIX = "~"
+INTERNAL_REFERENCE_RE = re.compile(r"~[A-Za-z0-9._:\-]{1,63}")
+#: Retry-After när 46elks svarade 429: deras gräns gäller per minut.
+THROTTLED_RETRY_AFTER = 60
 #: En leveransrapport för ett sms utan 46elks id är yngre än så här: 46elks
 #: svar på sändningen är troligen på väg, och rapporten får 409 (46elks
 #: försöker igen). Äldre: svaret kom aldrig, och rapportens id tas över.
@@ -260,6 +284,7 @@ def apply_delivery_report(message_id, provider_id, status, delivered=None, now=N
         if _RANK.get(status, 0) <= _RANK.get(message.status, 0):
             if adopted:
                 message.save(update_fields=[*adopted, "status", "updated_at"])
+                hooks.status_changed(message)
                 return 200, "uppdaterad"
             return 200, "oförändrad"
         message.status = status
@@ -273,6 +298,7 @@ def apply_delivery_report(message_id, provider_id, status, delivered=None, now=N
             message.error = "Operatören kunde inte leverera sms:et."
             fields += ["error_code", "error"]
         message.save(update_fields=fields)
+        hooks.status_changed(message)
     return 200, "uppdaterad"
 
 
@@ -342,14 +368,15 @@ def _replay(existing, to, body):
     return fail("reference_conflict", message=existing)
 
 
-def _record(account, api_key, *, status, to, body, sender, now, **extra):
+def _record(account, api_key, *, status, to, body, sender, now, source=None, **extra):
     return SmsMessage.objects.create(
         account=account,
         api_key=api_key,
+        source=source or SmsMessage.Source.API,
         status=status,
         to=str(to)[:32],
         body=body,
-        sender=sender[:11],
+        sender=sender[:16],
         created_at=now,
         **extra,
     )
@@ -374,14 +401,20 @@ def _reject(account, api_key, code, detail, *, to, body, sender, now, dryrun, **
     return fail(code, detail, message=message)
 
 
-def estimate_cost(country, parts, sender, to, body, now=None):
+def estimate_cost(country, parts, sender, to, body, now=None, part_cost_hint=None):
     """(46elks pris i tiotusendels krona, varifrån). Kastar ElksError om
     46elks behöver tillfrågas och inte svarar. Ett pris på 0 (46elks
     provkörning utan estimated_cost) blir FALLBACK_PART_COST per del: ett sms
-    får aldrig se gratis ut för taket."""
+    får aldrig se gratis ut för taket.
+
+    part_cost_hint: pris per del som anroparen redan fått ur en provkörning
+    (utskickens tick, en per land och omgång). Används bara när historiken
+    saknas, så att 2 000 mottagare inte ger 2 000 provkörningar."""
     per_part = pricing.recent_part_cost(country, now)
     if per_part is not None and per_part > 0:
         return per_part * parts, "history"
+    if part_cost_hint and int(part_cost_hint) > 0:
+        return int(part_cost_hint) * max(int(parts or 0), 1), "hint"
     if not elks.is_configured():
         raise elks.ElksError("SMS-leverantören är inte inkopplad.")
     result = elks.estimate(sender, to, body)
@@ -390,13 +423,57 @@ def estimate_cost(country, parts, sender, to, body, now=None):
     return result.cost, "dryrun"
 
 
+def reply_number():
+    """Det delade svarsnumret (UTSKICK_REPLY_NUMBER), eller ""."""
+    return str(getattr(settings, "UTSKICK_REPLY_NUMBER", "") or "").strip()
+
+
 def send(api_key, data, now=None):
-    """Hela sändningen för ett API-anrop. Returnerar alltid ett Outcome."""
-    now = now or timezone.now()
-    account = api_key.account
+    """Hela sändningen för ett API-anrop. Returnerar alltid ett Outcome.
+    now finns kvar för de äldre testerna; allt annat använder klockan."""
+    return send_for_account(
+        api_key.account, data, source=SmsMessage.Source.API, api_key=api_key, _now=now
+    )
+
+
+def send_for_account(
+    account,
+    data,
+    *,
+    source,
+    api_key=None,
+    allow_reply_number=False,
+    headroom=0,
+    global_headroom=0,
+    part_cost_hint=None,
+    internal_reference="",
+    _now=None,
+):
+    """Sändningen för ett SmsAccount (API:t och Flamingos utskick).
+    Returnerar alltid ett Outcome.
+
+    internal_reference: Flamingos egen reference ("~u12:345"), bara för
+    andra källor än API:t. Den börjar med INTERNAL_PREFIX, som API:ts
+    reference aldrig får göra, och ersätter data["reference"].
+
+    source: SmsMessage.Source på raden ("api", "utskick", "flow", "reply",
+    "system", "test"). allow_reply_number: avsändaren får vara det delade
+    svarsnumret (UTSKICK_REPLY_NUMBER); annars bara kontots godkända namn,
+    så en API-nyckel kan aldrig skicka från numret. headroom och
+    global_headroom: marginalen i minutgränserna (ratelimit.headroom).
+    part_cost_hint: se estimate_cost. Tiden är alltid klockans (created_at
+    och minutfönstret ska vara verkliga); _now är bara för send() och dess
+    äldre tester."""
+    now = _now or timezone.now()
     fields, error = _clean_input(data)
     if error:
         return error
+    if internal_reference:
+        if source == SmsMessage.Source.API or not INTERNAL_REFERENCE_RE.fullmatch(
+            str(internal_reference)
+        ):
+            return fail("invalid_request", "Intern reference ska börja med ~.")
+        fields["reference"] = internal_reference
     to_raw, body, reference, dryrun = (
         fields["to"],
         fields["body"],
@@ -404,8 +481,11 @@ def send(api_key, data, now=None):
         fields["dryrun"],
     )
     # from utelämnad: standardavsändaren. Annars ett av kontots godkända
-    # namn (SmsAccount.senders), exakt som det står där.
+    # namn (SmsAccount.senders), exakt som det står där, eller (bara för
+    # utskicken) svarsnumret.
     sender = fields["sender"] or account.sender_name
+    shared = reply_number()
+    from_reply_number = bool(allow_reply_number and shared and sender == shared)
 
     # Samma reference som ett tidigare sms: samma svar, ingen ny prövning.
     if reference and not dryrun:
@@ -420,19 +500,23 @@ def send(api_key, data, now=None):
         "now": now,
         "dryrun": dryrun,
         "reference": reference,
+        "source": source,
     }
-    if not account.sender_name:
-        return _reject(account, api_key, "sender_not_allowed", "Kontot saknar avsändare.", **common)
-    allowed = account.senders
-    if sender not in allowed:
-        common["sender"] = account.sender_name
-        return _reject(
-            account,
-            api_key,
-            "sender_not_allowed",
-            "Avsändaren ska vara en av: " + ", ".join(allowed) + " (eller utelämnas).",
-            **common,
-        )
+    if not from_reply_number:
+        if not account.sender_name:
+            return _reject(
+                account, api_key, "sender_not_allowed", "Kontot saknar avsändare.", **common
+            )
+        allowed = account.senders
+        if sender not in allowed:
+            common["sender"] = account.sender_name
+            return _reject(
+                account,
+                api_key,
+                "sender_not_allowed",
+                "Avsändaren ska vara en av: " + ", ".join(allowed) + " (eller utelämnas).",
+                **common,
+            )
     try:
         number = numbers.parse(to_raw)
     except numbers.InvalidNumber as exc:
@@ -466,8 +550,18 @@ def send(api_key, data, now=None):
 
     # Uppskattningen, före låset: ett anrop till 46elks ska aldrig hålla det.
     try:
-        estimate, _source = estimate_cost(number.country, analysis.parts, sender, number.e164, body)
+        estimate, _source = estimate_cost(
+            number.country,
+            analysis.parts,
+            sender,
+            number.e164,
+            body,
+            part_cost_hint=part_cost_hint,
+        )
     except elks.ElksError as exc:
+        if exc.throttled:
+            # 46elks gräns per minut: inget skickades, ingen rad, inget larm.
+            return fail("rate_limited", retry_after=THROTTLED_RETRY_AFTER)
         return _provider_failure(account, api_key, str(exc), common, extra, dryrun)
     markup = pricing.markup_for(account, analysis.parts)
 
@@ -494,7 +588,9 @@ def send(api_key, data, now=None):
                 existing = _held_reference(locked, reference)
                 if existing is not None:
                     return _replay(existing, to_raw, body)
-            retry = ratelimit.check_account_minute(locked, now)
+            retry = ratelimit.check_account_minute(
+                locked, now, headroom=headroom, global_headroom=global_headroom
+            )
             if retry:
                 return fail("rate_limited", retry_after=retry)
             spent = pricing.month_to_date_units(locked, now)
@@ -509,6 +605,7 @@ def send(api_key, data, now=None):
                     body=body,
                     sender=sender,
                     now=now,
+                    source=source,
                     reference=reference,
                     error_code="monthly_cap_reached",
                     error=(
@@ -528,6 +625,7 @@ def send(api_key, data, now=None):
                     body=body,
                     sender=sender,
                     now=now,
+                    source=source,
                     reference=reference,
                     estimated_cost=estimate,
                     markup=markup,
@@ -568,6 +666,7 @@ def _provider_failure(account, api_key, detail, common, extra, dryrun):
         body=common["body"],
         sender=common["sender"],
         now=common["now"],
+        source=common["source"],
         reference=common["reference"],
         error_code="provider_error",
         error=detail[:300],
@@ -592,6 +691,8 @@ def _deliver(account, message, now):
             ambiguous = True
         if ambiguous:
             return _hold_unknown(account, message, detail)
+        if getattr(exc, "throttled", False):
+            return _release_throttled(message, detail)
         message.status = SmsMessage.Status.FAILED
         message.error_code = "provider_error"
         message.error = detail[:300]
@@ -624,6 +725,32 @@ def _deliver(account, message, now):
         ]
     )
     return Outcome(message=message, created=True)
+
+
+def _release_throttled(message, detail):
+    """46elks svarade 429: inget skickades. Reservationen släpps i en
+    transaktion: raden blir rejected med felkod rate_limited och pris 0 (ett
+    stoppat sms håller ingen reference och kostar inget; raden sparas som
+    alla andra). Anroparen försöker igen om en minut. Inget larm."""
+    with transaction.atomic():
+        locked = SmsMessage.objects.select_for_update().get(pk=message.pk)
+        locked.status = SmsMessage.Status.REJECTED
+        locked.error_code = "rate_limited"
+        locked.error = detail[:300]
+        locked.markup = 0
+        locked.customer_price = 0
+        locked.save(
+            update_fields=[
+                "status",
+                "error_code",
+                "error",
+                "markup",
+                "customer_price",
+                "updated_at",
+            ]
+        )
+    logger.warning("SMS: 46elks svarade 429 (sms %s); försöker igen om en minut", message.pk)
+    return fail("rate_limited", message=locked, retry_after=THROTTLED_RETRY_AFTER)
 
 
 def _hold_unknown(account, message, detail):
@@ -676,4 +803,5 @@ def resolve_check(message, sent, now=None):
             message.customer_price = 0
             fields += ["status", "error_code", "error", "markup", "customer_price"]
         message.save(update_fields=fields)
+        hooks.status_changed(message)
     return True

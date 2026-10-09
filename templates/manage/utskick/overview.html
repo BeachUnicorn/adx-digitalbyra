@@ -2,8 +2,10 @@
 {% load static flamingo_app %}
 {% comment %}
 Byråns översikt för Kontakter och utskick (apps/utskick/manage_views.overview,
-README I.1): kunderna, kön, ticken, nycklarna, nödstoppet med
-klarmarkeringarna och biträdesavtalet. Ingenting här mejlar någon kund.
+README I.1): kunderna, kön, ticken, nycklarna, sändningen med
+informationsutskicken och provsms:et (S2), inkommande sms som väntar,
+länkvärdarna att godkänna, nödstoppet med klarmarkeringarna och
+biträdesavtalet. Ingenting här mejlar någon kund.
 {% endcomment %}
 {% block title %}Utskick{% endblock %}
 {% block extra_head %}<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/manage-utskick.css' %}?v={{ static_version }}">{% endblock %}
@@ -13,6 +15,9 @@ klarmarkeringarna och biträdesavtalet. Ingenting här mejlar någon kund.
   <h1 class="m-page-head__title">Utskick</h1>
   <p class="m-page-head__subtitle mu-head-actions">
     <a href="#kunder" class="m-btn m-btn--ghost m-btn--small">Kunderna</a>
+    <a href="#sandning" class="m-btn m-btn--ghost m-btn--small">Sändningen</a>
+    <a href="#inkommande" class="m-btn m-btn--ghost m-btn--small">Inkommande sms</a>
+    <a href="#vardar" class="m-btn m-btn--ghost m-btn--small">Länkar</a>
     <a href="#nodstopp" class="m-btn m-btn--ghost m-btn--small">Nödstopp</a>
     <a href="#avtal" class="m-btn m-btn--ghost m-btn--small">Biträdesavtal</a>
     <a href="{% url 'manage:flamingo_overview' %}" class="m-btn m-btn--ghost m-btn--small">Flamingo</a>
@@ -58,6 +63,10 @@ klarmarkeringarna och biträdesavtalet. Ingenting här mejlar någon kund.
     </tbody>
   </table>
 </div>
+
+{% include "manage/utskick/_overview_sending.html" %}
+{% include "manage/utskick/_overview_inbound.html" %}
+{% include "manage/utskick/_overview_hosts.html" %}
 
 <p class="m-section-title" id="nodstopp">Nödstopp och klarmarkeringar</p>
 <div class="m-panel tv-panel tv-panel--read">

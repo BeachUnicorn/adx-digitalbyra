@@ -6,9 +6,11 @@ inget kopieras till Event (disken).
 
 Källor i S1: samtyckesloggen, händelserna (importerad, anmälan, förfrågan
 utan egen rad) och förfrågningarna i Inkorgen (med "Öppna i Inkorgen").
-Senare steg lägger till sina källor i SOURCES (sms och mejl, klick, besök
-på landningssidan, svar, STOPP, flöden): en funktion (contact, limit) ->
-lista med Item, nyast först.
+S2: sms ur Recipient (skickat, levererat, gick inte fram, med länk till
+rapporten), mänskliga klick ur Click (med tiden på sidan), svar och STOPP
+ur ThreadMessage (med "Öppna i Inkorgen") och besöken på landningssidan
+(Event lp_visit). Senare steg lägger till sina källor i SOURCES (mejl,
+flöden): en funktion (contact, limit) -> lista med Item, nyast först.
 
 Varje källa filtrerar på kontaktens konto, också förfrågningarna (H.1).
 """
@@ -147,8 +149,134 @@ def _lead_items(contact, limit):
     return items
 
 
+# --- S2 (utskick-ui-byggaren): sms, klick och svar -------------------------
+# Läses ur Recipient, Click och ThreadMessage (inget kopieras till Event).
+# Besöket på landningssidan är en Event (lp_visit, attribution.py).
+
+EVENT_TITLES.update(
+    {
+        Event.LP_VISIT: "Besökte landningssidan",
+        Event.CALL_CLICK: "Ringde från landningssidan",
+        Event.REPLY: "Svarade på ett sms",
+        Event.STOP: "Svarade STOPP",
+        Event.START: "Svarade START",
+    }
+)
+
+
+def _recipient_items(contact, limit):
+    from .models import Recipient
+
+    S = Recipient.Status
+    rows = (
+        Recipient.objects.filter(
+            utskick__account_id=contact.account_id,
+            contact=contact,
+            status__in=(*Recipient.SENT_LIKE, S.FAILED),
+        )
+        .select_related("utskick")
+        .order_by("-sent_at", "-pk")[:limit]
+    )
+    items = []
+    for row in rows:
+        if row.status == S.DELIVERED:
+            detail = "Levererat"
+        elif row.status in (S.FAILED, S.BOUNCED):
+            detail = "Gick inte fram"
+        else:
+            detail = "Skickat"
+        at = row.delivered_at or row.sent_at or row.created_at
+        channel = "Sms" if row.channel == CHANNEL_SMS else "E-post"
+        items.append(
+            Item(
+                at=at,
+                kind="utskick",
+                title=f"{channel}: {row.utskick.name}",
+                detail=detail,
+                url=reverse("flamingo:app_utskick", args=[row.utskick_id]),
+                link_label="Rapporten",
+            )
+        )
+    return items
+
+
+def _engaged(seconds):
+    minutes, rest = divmod(int(seconds or 0), 60)
+    if minutes:
+        return f"{minutes} min {rest} s" if rest else f"{minutes} min"
+    return f"{rest} s"
+
+
+#: Klickets enhet (analytics.utils.parse_user_agent, DeviceType) som den
+#: skrivs i tidslinjen; okänd och bot visas inte.
+DEVICE_LABELS = {"mobile": "mobil", "desktop": "dator", "tablet": "surfplatta"}
+
+
+def _click_items(contact, limit):
+    from .models import Click
+
+    rows = (
+        Click.objects.filter(account_id=contact.account_id, contact=contact, kind=Click.Kind.HUMAN)
+        .select_related("utskick")
+        .order_by("-at", "-pk")[:limit]
+    )
+    items = []
+    for row in rows:
+        parts = [row.utskick.name if row.utskick_id else ""]
+        if row.engaged_seconds:
+            parts.append(f"stannade {_engaged(row.engaged_seconds)} på sidan")
+        if row.device in DEVICE_LABELS:
+            parts.append(DEVICE_LABELS[row.device])
+        items.append(
+            Item(
+                at=row.at,
+                kind="click",
+                title="Klickade på länken",
+                detail=" · ".join(p for p in parts if p),
+            )
+        )
+    return items
+
+
+def _reply_items(contact, limit):
+    from .models import Thread, ThreadMessage
+
+    rows = (
+        ThreadMessage.objects.filter(
+            thread__account_id=contact.account_id,
+            thread__contact=contact,
+            direction=ThreadMessage.Direction.IN,
+        )
+        .select_related("thread")
+        .order_by("-at", "-pk")[:limit]
+    )
+    items = []
+    for row in rows:
+        thread = row.thread
+        stop = thread.kind == Thread.Kind.STOP
+        text = " ".join(str(row.body or "").split())
+        items.append(
+            Item(
+                at=row.at,
+                kind="reply",
+                title="Svarade STOPP" if stop else "Svarade",
+                detail=text[:120],
+                url=reverse("flamingo:app_lead", args=[thread.lead_id]) if thread.lead_id else "",
+                link_label="Öppna i Inkorgen" if thread.lead_id else "",
+            )
+        )
+    return items
+
+
 #: Tidslinjens källor. Varje steg lägger till sina (README I.7).
-SOURCES = [_consent_items, _event_items, _lead_items]
+SOURCES = [
+    _consent_items,
+    _event_items,
+    _lead_items,
+    _recipient_items,
+    _click_items,
+    _reply_items,
+]
 
 
 def for_contact(contact, page=1, per_page=PER_PAGE):

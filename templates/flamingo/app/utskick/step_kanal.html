@@ -1,0 +1,68 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Guidens steg 2: Kanal (README I.8, H.5, D4). Kontext från
+app_views/utskick._step_kanal: utskick, wizard, errors, sms (konto,
+enabled, senders, ready), sms_only (siffrorna för Bara sms), reasons
+(skälen för information), reply_number ("0766 86 00 46"),
+names_locked_text, sms_disabled_text, sms_off_text, form (valen som de
+ritas), display_name.
+
+I S2 finns bara kanalen Bara sms; e-postens lägen visas inte förrän S3.
+Information: skälet krävs, texten krävs för Annat. Avsändaren är
+svarsnumret (svar och STOPP hamnar i Inkorgen) eller ett avsändarnamn som
+ADX godkänt (inga svar, avregistrering med länk).
+{% endcomment %}
+{% block app_title %}{{ utskick.name }}: Kanal{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_header %}{% include "flamingo/app/utskick/_step_header.html" %}{% endblock %}
+{% block ut_content %}
+<form id="ut-kanal" class="fl-form fl-ut-form" data-ut-guard method="post" action="{% url 'flamingo:app_utskick_step' utskick.pk 'kanal' %}">
+  {% csrf_token %}
+  <fieldset class="fl-field{% if errors.syfte %} is-error{% endif %}">
+    <legend class="fl-field__label">Typ av utskick</legend>
+    <div class="fl-ut-options">
+      <label class="fl-ut-option"><input type="radio" name="syfte" value="reklam"{% if form.syfte == "reklam" %} checked{% endif %} data-ut-toggle="ut-info"><span class="fl-ut-option__body"><span class="fl-ut-option__title">Reklam</span><span class="fl-ut-option__text">Erbjudanden, kampanjer och nyheter. Bara till de som sagt ja eller är befintliga kunder, och alltid med avregistrering.</span></span></label>
+      <label class="fl-ut-option"><input type="radio" name="syfte" value="information"{% if form.syfte == "information" %} checked{% endif %} data-ut-toggle="ut-info"><span class="fl-ut-option__body"><span class="fl-ut-option__title">Information</span><span class="fl-ut-option__text">Bokningar, ärenden, ändrade öppettider och driftstörningar. Kräver inget samtycke, men får inte innehålla erbjudanden eller priser. Avregistrerade får aldrig sms.</span></span></label>
+    </div>
+    {% if errors.syfte %}<p class="fl-field__error">{{ errors.syfte }}</p>{% endif %}
+  </fieldset>
+
+  <div class="fl-form__row fl-ut-info" id="ut-info" data-ut-show-when="syfte=information">
+    <div class="fl-field{% if errors.info_reason %} is-error{% endif %}">
+      <label class="fl-field__label" for="ut-info-reason">Varför skickar du information?</label>
+      <select class="fl-input" id="ut-info-reason" name="info_reason">
+        <option value="">Välj skäl</option>
+        {% for value, label in reasons %}<option value="{{ value }}"{% if form.info_reason == value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      {% if errors.info_reason %}<p class="fl-field__error">{{ errors.info_reason }}</p>{% endif %}
+      <p class="fl-field__help">Skälet syns i rapporten och för ADX.</p>
+    </div>
+    <div class="fl-field{% if errors.info_reason_text %} is-error{% endif %}">
+      <label class="fl-field__label" for="ut-info-text">Om du valde Annat: vad gäller det?</label>
+      <input class="fl-input" id="ut-info-text" type="text" name="info_reason_text" value="{{ form.info_reason_text|default:'' }}" maxlength="200" autocomplete="off">
+      {% if errors.info_reason_text %}<p class="fl-field__error">{{ errors.info_reason_text }}</p>{% endif %}
+    </div>
+  </div>
+
+  <fieldset class="fl-field">
+    <legend class="fl-field__label">Kanal</legend>
+    <div class="fl-ut-options">
+      <label class="fl-ut-option{% if not sms.enabled and not is_demo %} is-locked{% endif %}"><input type="radio" name="kanal" value="sms_only" checked{% if not sms.enabled and not is_demo %} disabled{% endif %}><span class="fl-ut-option__body"><span class="fl-ut-option__title">Bara sms</span><span class="fl-ut-option__text">{{ sms_only.sms|tal }} mottagare{% if sms_only.skipped %} · {{ sms_only.skipped|tal }} hoppas över{% endif %}</span>{% if not sms.enabled and not is_demo %}<span class="fl-ut-lock">{{ sms_disabled_text }}</span>{% endif %}</span></label>
+    </div>
+    {% if sms.enabled and not sms.ready and not is_demo %}<p class="fl-notice fl-notice--warn"><span>{{ sms_off_text }} Du kan förbereda utskicket ändå.</span></p>{% endif %}
+  </fieldset>
+
+  <fieldset class="fl-field{% if errors.avsandare %} is-error{% endif %}">
+    <legend class="fl-field__label">Sms-avsändare</legend>
+    <div class="fl-ut-options">
+      <label class="fl-ut-option"><input type="radio" name="avsandare" value="reply"{% if form.avsandare == "reply" %} checked{% endif %}><span class="fl-ut-option__body"><span class="fl-ut-option__title">Svarsnumret {{ reply_number }}</span><span class="fl-ut-option__text">Mottagaren kan svara, och svar och STOPP hamnar i Inkorgen. Numret delas av alla ADX-kunder, så skriv {{ display_name }} i texten.</span></span></label>
+      {% for name in sms.senders %}<label class="fl-ut-option"><input type="radio" name="avsandare" value="name:{{ name }}"{% if form.avsandare == "name:"|add:name %} checked{% endif %}><span class="fl-ut-option__body"><span class="fl-ut-option__title">Avsändarnamnet {{ name }}</span><span class="fl-ut-option__text">Mottagaren ser namnet men kan inte svara. Avregistreringen sker med en länk i sms:et.</span></span></label>{% endfor %}
+    </div>
+    {% if not sms.senders %}<p class="fl-field__help">Avsändarnamn: {{ names_locked_text }}</p>{% endif %}
+    {% if errors.avsandare %}<p class="fl-field__error">{{ errors.avsandare }}</p>{% endif %}
+  </fieldset>
+  {% include "flamingo/app/utskick/_step_actions.html" %}
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>{% endblock %}

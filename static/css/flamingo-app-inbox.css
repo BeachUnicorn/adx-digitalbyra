@@ -107,6 +107,15 @@
 .fl-lead-sms .fl-list__item{flex-wrap:wrap}
 .fl-lead-sms .fl-list__main{flex:1 1 220px}
 
+/* ---------- S2: svar på utskick (apps/utskick, README C.2) ----------
+   Med utskick på blir chipsen en rad med typer och antal, och statusen ett
+   val med en Visa-knapp under (utan JavaScript). Under 560 px radbryter
+   raden och valet tar hela bredden. STOPP-kanalen på kortet är varm. */
+.fl-inbox-statusform{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;min-width:0}
+.fl-inbox-statusform__label{font-size:15px;font-weight:600;color:var(--fl-ink)}
+.fl-inbox-statusform__select{width:auto;min-width:0;max-width:100%;flex:0 1 260px}
+.fl-inbox-card__channel.is-stop{color:#B34A2A;font-weight:600}
+
 /* I bred skärm står formuläret redan bredvid listan. */
 @media (min-width:1101px){
   .fl-inbox-addlink{display:none}
@@ -123,6 +132,7 @@
 /* ---------- Telefon ---------- */
 @media (max-width:560px){
   .fl-inbox-filter{min-height:36px;padding:6px 11px;font-size:14px}
+  .fl-inbox-statusform__select{flex:1 1 160px}
   .fl-inbox-card__link{padding:12px 14px}
   .fl-leadcard{gap:18px}
   .fl-leadcard__actions{width:100%}

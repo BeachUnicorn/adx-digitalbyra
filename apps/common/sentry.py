@@ -120,13 +120,19 @@ _PATTERNS = [
     # bekräftelsen och Mina utskick, 46elks inkommande, k.adx.se och klick.adx.se.
     (re.compile(r"(/utskick/(?:bekrafta|val)/)[A-Za-z0-9._-]{16,}"), r"\1" + FILTERED),
     (re.compile(r"(/api/utskick/46elks/inkommande/)[A-Za-z0-9_-]{24,}"), r"\1" + FILTERED),
-    (re.compile(r"(https?://(?:k|klick)\.adx\.se/)[^\s\"'<>]+"), r"\1" + FILTERED),
+    # Länkarna på k.adx.se och klick.adx.se, också utan schema som de står i
+    # sms:en (k.adx.se/a8Kf2X, S2).
+    (
+        re.compile(r"((?:https?://)?\b(?:k|klick)\.adx\.se/)[^\s\"'<>]+"),
+        r"\1" + FILTERED,
+    ),
     # Svarsadressen per mottagare (Reply-To) och utskickens API-nycklar.
     (re.compile(r"\bs\+[a-z0-9.]+@svar\.utskick\.adx\.se\b"), FILTERED),
     (re.compile(r"adxut_[A-Za-z0-9_\-]{8,}"), FILTERED),
-    # Mottagarens token (ut=, adx=) och kontaktsökningen (q=) i query-strängar.
-    # Sentry sparar query_string utan "?", därav ^.
-    (re.compile(r"((?:^|[?&\s\"'])(?:ut|adx|q)=)[^&\s\"']+"), r"\1" + FILTERED),
+    # Mottagarens token (ut=, adx=) och kontaktsökningarna (q= i Kontakter,
+    # sok= bland utskickets mottagare) i query-strängar. Sentry sparar
+    # query_string utan "?", därav ^.
+    (re.compile(r"((?:^|[?&\s\"'])(?:ut|adx|q|sok)=)[^&\s\"']+"), r"\1" + FILTERED),
     # Kontakternas nummer och adresser, var de än står: E.164, svenska
     # mobilnummer som de skrivs och e-postadresser.
     (re.compile(r"\+\d{8,15}"), FILTERED),

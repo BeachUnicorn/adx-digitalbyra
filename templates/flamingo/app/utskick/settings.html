@@ -1,0 +1,132 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load flamingo_app %}
+{% comment %}
+Inställningar för utskick (README I.9, raderna för S2). Kontext från
+app_views/utskick.utskick_settings: errors, sms (konto, enabled, senders),
+reply_number ("0766 86 00 46"), usage (pricing.usage eller None),
+usage_text ("Oktober 1 186 kr av 3 000 kr"), cap_text, tight (schemalagda
+utskick som inte ryms i taket), hours, caps, weekday och weekend ((start,
+slut)), cap_sms, cap_email, email_live (raden för mejl syns först när
+e-posten är byggd och påslagen; annars följer det sparade värdet med dolt,
+stored_cap_email), notify_on_reply, names_locked_text, window_rule.
+
+Läses: svarsnumret (ett för alla ADX-kunder), avsändarnamnen (ADX godkänner
+dem) och kostnadstaket (Höj taket när kunden själv sköter sms-API:t, annars
+Be ADX ändra taket, som larmar byrån). Ändras här: tidsfönstret för sms
+(inom 08.00 till 21.00), taket per kontakt och vecka (1 till 7) och Meddela
+mig om svar.
+{% endcomment %}
+{% block app_title %}Inställningar för utskick{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Inställningar för utskick</h1>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+{% for utskick in tight %}<p class="fl-notice fl-notice--warn"><span>{{ utskick.name }} ryms inte i taket.</span><a href="{% url 'flamingo:app_utskick' utskick.pk %}">Öppna</a></p>{% endfor %}
+
+<section class="fl-panel" aria-labelledby="ut-set-sms">
+  <h2 class="fl-panel__title" id="ut-set-sms">Sms</h2>
+  <ul class="fl-list fl-ut-setrows">
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Svarsnummer</span>
+        <span class="fl-list__meta">{{ reply_number }} · delas av alla ADX-kunder · svar och STOPP hamnar i Inkorgen</span>
+      </div>
+    </li>
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Avsändarnamn</span>
+        <span class="fl-list__meta">{% if sms.senders %}{{ sms.senders|join:", " }} · godkända av ADX. Be ADX lägga till fler.{% else %}{{ names_locked_text }}{% endif %}</span>
+      </div>
+    </li>
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Kostnadstak per månad</span>
+        {% if usage %}
+        <span class="fl-list__meta">{{ cap_text }}</span>
+        <span class="fl-ut-usage"><span class="fl-ut-usage__text">{{ usage_text }}</span><meter class="fl-ut-usage__bar" min="0" max="100" value="{{ usage.cap_pct }}" high="80" optimum="0">{{ usage.cap_pct }} procent</meter></span>
+        {% else %}
+        <span class="fl-list__meta">Sms är inte aktiverat för dig. Be ADX slå på det.</span>
+        {% endif %}
+      </div>
+      {% if usage %}
+      {% if sms.account.customer_manages_api %}
+      <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'sms:dashboard' %}">Höj taket</a>
+      {% else %}
+      <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_settings' %}">
+        {% csrf_token %}<button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="be_om_tak">Be ADX ändra taket</button>
+      </form>
+      {% endif %}
+      {% endif %}
+    </li>
+  </ul>
+</section>
+
+<form class="fl-form" method="post" action="{% url 'flamingo:app_utskick_settings' %}">
+  {% csrf_token %}
+  <section class="fl-panel" aria-labelledby="ut-set-window">
+    <h2 class="fl-panel__title" id="ut-set-window">Tidsfönster för sms</h2>
+    <p class="fl-panel__text">Sms från utskick går bara i väg inom fönstret. Helgdagar räknas som helger. Det som inte hinner i väg fortsätter när fönstret öppnar igen. Just nu: {{ window_rule }}</p>
+    <div class="fl-form__row">
+      <fieldset class="fl-field{% if errors.weekday %} is-error{% endif %}">
+        <legend class="fl-field__label">Vardagar</legend>
+        <span class="fl-ut-hours">
+          <label class="fl-sr" for="ut-weekday-start">Vardagar från</label>
+          <select class="fl-input" id="ut-weekday-start" name="weekday_start">{% for h in hours %}<option value="{{ h }}"{% if h == weekday.0 %} selected{% endif %}>{{ h|stringformat:"02d" }}.00</option>{% endfor %}</select>
+          <span>till</span>
+          <label class="fl-sr" for="ut-weekday-end">Vardagar till</label>
+          <select class="fl-input" id="ut-weekday-end" name="weekday_end">{% for h in hours %}<option value="{{ h }}"{% if h == weekday.1 %} selected{% endif %}>{{ h|stringformat:"02d" }}.00</option>{% endfor %}</select>
+        </span>
+        {% if errors.weekday %}<p class="fl-field__error">{{ errors.weekday }}</p>{% endif %}
+      </fieldset>
+      <fieldset class="fl-field{% if errors.weekend %} is-error{% endif %}">
+        <legend class="fl-field__label">Helger och helgdagar</legend>
+        <span class="fl-ut-hours">
+          <label class="fl-sr" for="ut-weekend-start">Helger från</label>
+          <select class="fl-input" id="ut-weekend-start" name="weekend_start">{% for h in hours %}<option value="{{ h }}"{% if h == weekend.0 %} selected{% endif %}>{{ h|stringformat:"02d" }}.00</option>{% endfor %}</select>
+          <span>till</span>
+          <label class="fl-sr" for="ut-weekend-end">Helger till</label>
+          <select class="fl-input" id="ut-weekend-end" name="weekend_end">{% for h in hours %}<option value="{{ h }}"{% if h == weekend.1 %} selected{% endif %}>{{ h|stringformat:"02d" }}.00</option>{% endfor %}</select>
+        </span>
+        {% if errors.weekend %}<p class="fl-field__error">{{ errors.weekend }}</p>{% endif %}
+      </fieldset>
+    </div>
+  </section>
+
+  <section class="fl-panel" aria-labelledby="ut-set-caps">
+    <h2 class="fl-panel__title" id="ut-set-caps">Tak per kontakt</h2>
+    <p class="fl-panel__text">Så många reklamutskick får en kontakt högst per vecka. Den som redan fått så många hoppas över. Information räknas inte.</p>
+    <div class="fl-form__row">
+      <div class="fl-field{% if errors.weekly_cap_sms %} is-error{% endif %}">
+        <label class="fl-field__label" for="ut-cap-sms">Reklam-sms per vecka</label>
+        <select class="fl-input" id="ut-cap-sms" name="weekly_cap_sms">{% for n in caps %}<option value="{{ n }}"{% if n == cap_sms %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+        {% if errors.weekly_cap_sms %}<p class="fl-field__error">{{ errors.weekly_cap_sms }}</p>{% endif %}
+      </div>
+      {% if email_live %}
+      <div class="fl-field{% if errors.weekly_cap_email %} is-error{% endif %}">
+        <label class="fl-field__label" for="ut-cap-email">Reklammejl per vecka</label>
+        <select class="fl-input" id="ut-cap-email" name="weekly_cap_email">{% for n in caps %}<option value="{{ n }}"{% if n == cap_email %} selected{% endif %}>{{ n }}</option>{% endfor %}</select>
+        {% if errors.weekly_cap_email %}<p class="fl-field__error">{{ errors.weekly_cap_email }}</p>{% endif %}
+      </div>
+      {% else %}
+      <input type="hidden" name="weekly_cap_email" value="{{ stored_cap_email }}">
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="fl-panel" aria-labelledby="ut-set-notify">
+    <h2 class="fl-panel__title" id="ut-set-notify">Svar</h2>
+    <label class="fl-check"><input type="checkbox" name="notify_on_reply" value="1"{% if notify_on_reply %} checked{% endif %}><span>Meddela mig om svar med ett sms till mitt nummer för förfrågningar, högst ett var 30:e minut</span></label>
+  </section>
+
+  <div class="fl-form__actions">
+    <p class="fl-form__note">Ändringarna gäller direkt, också för utskick som redan är schemalagda.</p>
+    <button type="submit" class="fl-btn">Spara inställningarna</button>
+  </div>
+</form>
+{% endblock %}

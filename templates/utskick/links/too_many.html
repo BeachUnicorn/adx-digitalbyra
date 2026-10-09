@@ -1,0 +1,13 @@
+{% extends "utskick/links/_base.html" %}
+{% comment %}
+429 på länkvärdarna (link_views._too_many, README E.2): för många koder som
+inte finns från samma uppkoppling den senaste timmen. Samma svar för allt
+från besökaren, så att sidan inte avslöjar vilka koder som finns. Inga
+uppgifter om någon kund.
+{% endcomment %}
+{% block title %}För många försök{% endblock %}
+{% block content %}
+<h1 class="up-h1">För många försök</h1>
+<p class="up-lead">Det har kommit många felaktiga länkar från din uppkoppling. Försök igen senare.</p>
+{% endblock %}
+{% block footer %}{% endblock %}

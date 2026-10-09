@@ -1,0 +1,9 @@
+{% comment %}
+Knapparna längst ned i ett steg. Nästa står först i koden (Enter i ett fält
+går dit) och placeras sist med css; under 560 px är den bred och längst ned.
+Varje knapp sparar steget först (nasta= säger vart sedan).
+{% endcomment %}<div class="fl-ut-actions">
+  {% if wizard.next %}<button type="submit" class="fl-btn fl-ut-actions__next" name="nasta" value="{{ wizard.next.key }}">Nästa: {{ wizard.next.label }}</button>{% endif %}
+  {% if wizard.prev %}<button type="submit" class="fl-btn fl-btn--ghost fl-ut-actions__prev" name="nasta" value="{{ wizard.prev.key }}">Tillbaka</button>{% endif %}
+  <button type="submit" class="fl-btn fl-btn--ghost fl-ut-actions__save" name="nasta" value="lista">Spara utkast</button>
+</div>

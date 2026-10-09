@@ -1,5 +1,5 @@
 {% extends "flamingo/app/base.html" %}
-{% load flamingo_app %}
+{% load static flamingo_app %}
 {% comment %}
 En förfrågan (kundresan steg 11, som mockupens högra halva): vem, vad,
 "Var kom hen ifrån?", ringknappen och status. Vunnen kräver ett belopp;
@@ -7,9 +7,17 @@ fältet visas när Vunnen är vald (CSS :has, annars alltid). Till vänster i
 bred skärm: de senaste förfrågningarna. Ett klick på telefonnumret
 (is_call_click) har inget namn eller nummer: kortet säger när någon
 klickade, så att ägaren kan para ihop det med samtalet. Kontext från
-app_views/inbox.py.
+app_views/inbox.py. Ett svar på utskick (is_reply, S2) visar svarstråden
+(flamingo/app/utskick/_thread.html, kontexten th_* från
+apps/utskick/app_views/inbox_reply.thread_context) i stället för
+meddelandet och "Var kom hen ifrån?" i kort form. Räknaren i svarsrutan
+kommer från flamingo-app-utskick.js.
 {% endcomment %}
 {% block app_title %}{{ lead.display_name }}{% endblock %}
+{% block app_head %}{% if thread %}
+<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick-thread.css' %}?v={{ static_version }}">
+<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>
+{% endif %}{% endblock %}
 {% block app_content %}
 <p class="fl-inbox-back"><a href="{% url 'flamingo:app_inbox' %}">Inkorgen</a></p>
 <div class="fl-inbox-split">
@@ -23,17 +31,19 @@ app_views/inbox.py.
   <article class="fl-panel fl-leadcard" aria-labelledby="fl-lead-name">
     <header class="fl-leadcard__head">
       <div class="fl-leadcard__who">
-        <p class="fl-kicker">Förfrågan</p>
+        <p class="fl-kicker">{% if is_reply %}{{ channel }}{% else %}Förfrågan{% endif %}</p>
         <h1 class="fl-leadcard__name" id="fl-lead-name">{{ lead.display_name }}</h1>
         <p class="fl-leadcard__meta">{% if lead.phone %}<span>{{ lead.phone }}</span>{% endif %}{% if lead.email %}<a href="mailto:{{ lead.email }}">{{ lead.email }}</a>{% endif %}<span>{% if is_call_click %}Klickade {{ lead.created_at|date:"j b H:i" }}{% else %}Kom in {{ received }}{% endif %}</span></p>
       </div>
       <div class="fl-leadcard__actions">
-        <span class="fl-badge fl-badge--{{ lead.status }}">{{ lead.get_status_display }}</span>
+        <span class="fl-badge fl-badge--{{ lead.status }}">{{ lead_status|default:lead.get_status_display }}</span>
         {% if tel %}<a class="fl-btn fl-btn--sm" href="{{ tel }}">Ring{% if first_name %} {{ first_name }}{% endif %}</a>{% endif %}
       </div>
     </header>
 
-    {% if is_call_click %}
+    {% if is_reply %}
+    {% if thread %}{% include "flamingo/app/utskick/_thread.html" %}{% endif %}
+    {% elif is_call_click %}
     <section class="fl-leadcard__block" aria-labelledby="fl-lead-call">
       <h2 class="fl-leadcard__label" id="fl-lead-call">Någon klickade på numret</h2>
       <p class="fl-leadcard__message">Någon tryckte på ditt nummer på sidan{% if lead.service_name %} om {{ lead.service_name|lower }}{% endif %} {{ received }}. Samtalet går direkt till dig, så vi vet inte vem som ringde eller om samtalet kom fram. Sätt status när du vet hur det gick: Vunnen med belopp räknas som en affär.</p>
@@ -51,6 +61,16 @@ app_views/inbox.py.
     </section>
     {% endif %}
 
+    {% if is_reply %}
+    <section class="fl-leadcard__source" aria-labelledby="fl-lead-from">
+      <h2 class="fl-leadcard__label" id="fl-lead-from">Var kom hen ifrån?</h2>
+      <dl class="fl-kv">
+        <div><dt>Kanal</dt><dd>{{ channel }}</dd></div>
+        {% if thread.utskick %}<div><dt>Utskick</dt><dd>{% if th_enabled %}<a href="{% url 'flamingo:app_utskick' thread.utskick.pk %}">{{ thread.utskick.name }}</a>{% else %}{{ thread.utskick.name }}{% endif %}</dd></div>{% endif %}
+        <div><dt>Till Google</dt><dd>Nej, svar på utskick skickas aldrig till Google</dd></div>
+      </dl>
+    </section>
+    {% else %}
     <section class="fl-leadcard__source" aria-labelledby="fl-lead-from">
       <h2 class="fl-leadcard__label" id="fl-lead-from">Var kom hen ifrån?</h2>
       <dl class="fl-kv">
@@ -63,6 +83,7 @@ app_views/inbox.py.
         {% if lead.campaign %}<div><dt>Sidan</dt><dd>{% if lead.campaign.is_public %}<a href="{{ lead.campaign.landing_url }}">{{ lead.campaign.landing_url }}</a>{% else %}{{ lead.campaign.landing_url }}, stängd medan kampanjen inte är live{% endif %}</dd></div>{% endif %}
       </dl>
     </section>
+    {% endif %}
 
     <section class="fl-leadcard__block" aria-labelledby="fl-lead-status-title">
       <h2 class="fl-leadcard__label" id="fl-lead-status-title">Blev det något?</h2>
@@ -79,7 +100,7 @@ app_views/inbox.py.
         <div class="fl-field fl-lead-value{% if error %} is-error{% endif %}">
           <label class="fl-field__label" for="fl-lead-value">Affärens värde i kronor</label>
           <input class="fl-input fl-lead-value__input" id="fl-lead-value" name="value_kr" type="text" inputmode="numeric" autocomplete="off" maxlength="16" value="{{ value_input }}" placeholder="Till exempel 25 000"{% if read_only %} disabled{% endif %}>
-          <p class="fl-field__help">Krävs för Vunnen. {% if to_google %}Beloppet går till Google som en konvertering, så att annonserna letar fler kunder som {% if first_name and not is_call_click %}{{ first_name }}{% else %}den här{% endif %}.{% elif google_note == "braid" %}Klicket kom via en app på iPhone, och sådana klick kan Flamingo inte skicka vidare. Beloppet räknas i översikten men skickas inte till Google.{% else %}Förfrågan har inget klick-id från Google, så beloppet räknas i översikten men kopplas inte till en annons.{% endif %}</p>
+          <p class="fl-field__help">Krävs för Vunnen. {% if is_reply %}Svar på utskick skickas aldrig till Google.{% elif to_google %}Beloppet går till Google som en konvertering, så att annonserna letar fler kunder som {% if first_name and not is_call_click %}{{ first_name }}{% else %}den här{% endif %}.{% elif google_note == "braid" %}Klicket kom via en app på iPhone, och sådana klick kan Flamingo inte skicka vidare. Beloppet räknas i översikten men skickas inte till Google.{% else %}Förfrågan har inget klick-id från Google, så beloppet räknas i översikten men kopplas inte till en annons.{% endif %}</p>
         </div>
         {% if error %}<p class="fl-notice fl-notice--error" role="alert">{{ error }}</p>{% endif %}
         {% for conversion in conversions %}<p class="fl-lead-conv">Till Google, {{ conversion.get_kind_display|lower }}{% if conversion.value_kr is not None %} {{ conversion.value_kr|kr }}{% endif %}: <span class="fl-badge fl-badge--{{ conversion.status }}">{{ conversion.get_status_display }}</span></p>{% endfor %}

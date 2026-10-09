@@ -29,6 +29,10 @@ class FlamingoGateMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Utskickens länkvärdar (k.adx.se, klick.adx.se) har sin egen
+        # adresstabell; grinden får aldrig byta den mot config.urls_public.
+        if getattr(request, "is_link_host", False):
+            return self.get_response(request)
         # path_info, inte path: det är den resolvern matchar (path innehåller
         # SCRIPT_NAME om appen någon gång körs under ett prefix).
         if not is_flamingo_path(request.path_info):

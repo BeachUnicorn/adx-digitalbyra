@@ -1,0 +1,12 @@
+{% extends "utskick/links/_base.html" %}
+{% comment %}
+404 på länkvärdarna (config/urls_links.py handler404, README E.3): samma
+text för en okänd, gammal eller felskriven kod, och inga uppgifter om
+någon kund.
+{% endcomment %}
+{% block title %}Länken har gått ut{% endblock %}
+{% block content %}
+<h1 class="up-h1">Länken har gått ut</h1>
+<p class="up-lead">Länken finns inte längre, eller så är den felskriven.</p>
+{% endblock %}
+{% block footer %}{% endblock %}

@@ -11,3 +11,14 @@ class UtskickConfig(AppConfig):
     name = "apps.utskick"
     label = "utskick"
     verbose_name = "Utskick"
+
+    def ready(self):
+        # apps/sms meddelar ändrade sms-lägen och frågar efter portalens
+        # etiketter via sina krokar; sms-appen importerar inget härifrån
+        # (README C.1).
+        from apps.sms import hooks
+
+        from . import smsbridge
+
+        hooks.register_status_callback(smsbridge.sync_from_message)
+        hooks.register_labeler(smsbridge.labels_for)

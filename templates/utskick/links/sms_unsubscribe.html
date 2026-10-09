@@ -1,0 +1,57 @@
+{% extends "utskick/links/_base.html" %}
+{% comment %}
+k.adx.se/s/<kod> (link_views.sms_unsubscribe, README E.5, H.6). Ett GET
+ändrar ingenting: knappen "Avregistrera mig" postar. Efter avregistreringen:
+Ångra (30 minuter, engångsvärde) och frågan om e-posten. Bara det maskerade
+numret och den maskerade e-posten, aldrig ett namn. Aldrig Djangos
+CSRF-tagg här: formulären bär fn (tokens.form_nonce).
+
+Kontext: tillstand (fraga, klar, angrad), maskerat, fn, fel, angra
+({sparr, nonce} eller None), epost_fraga (maskerad e-post att fråga om),
+epost_klar, extra_text (kundens text på avregistreringssidan), foretag,
+integritet_url.
+{% endcomment %}
+{% block title %}Avregistrering{% endblock %}
+{% block content %}
+{% if fel %}<div class="up-alert" role="alert"><p>{{ fel }}</p></div>{% endif %}
+{% if tillstand == "fraga" %}
+<h1 class="up-h1">Vill du sluta få sms från {{ foretag }}?</h1>
+{% if maskerat %}<p class="up-masked">{{ maskerat }}</p>{% endif %}
+<p class="up-lead">Du får inga fler sms från {{ foretag }} till numret. Du kan anmäla dig igen senare.</p>
+<form class="up-form" method="post" action="{{ request.path }}">
+  <input type="hidden" name="fn" value="{{ fn }}">
+  <button class="up-btn up-btn--primary up-btn--block" type="submit" name="action" value="avregistrera">Avregistrera mig</button>
+</form>
+{% elif tillstand == "angrad" %}
+<h1 class="up-h1">Du får sms från {{ foretag }} igen</h1>
+{% if maskerat %}<p class="up-masked">{{ maskerat }}</p>{% endif %}
+<p class="up-lead">Avregistreringen är ångrad. Allt är som innan.</p>
+{% else %}
+<h1 class="up-h1">Du får inga fler sms från {{ foretag }}.</h1>
+{% if maskerat %}<p class="up-masked">{{ maskerat }}</p>{% endif %}
+{% if extra_text %}<p class="up-lead">{{ extra_text }}</p>{% endif %}
+{% if angra %}
+<form class="up-form" method="post" action="{{ request.path }}">
+  <input type="hidden" name="fn" value="{{ fn }}">
+  <input type="hidden" name="sparr" value="{{ angra.sparr }}">
+  <input type="hidden" name="un" value="{{ angra.nonce }}">
+  <button class="up-btn up-btn--outline" type="submit" name="action" value="angra">Ångra</button>
+  <p class="up-help">Du kan ångra dig i 30 minuter.</p>
+</form>
+{% endif %}
+{% if epost_klar %}
+<div class="up-done" role="status"><p>Du får ingen e-post från {{ foretag }} heller.</p></div>
+{% elif epost_fraga %}
+<div class="up-box">
+  <h2 class="up-h2 up-box__title">Vill du sluta få e-post från {{ foretag }} också?</h2>
+  <p class="up-masked">{{ epost_fraga }}</p>
+  <form class="up-form" method="post" action="{{ request.path }}">
+    <input type="hidden" name="fn" value="{{ fn }}">
+    {% if angra %}<input type="hidden" name="sparr" value="{{ angra.sparr }}">
+    <input type="hidden" name="un" value="{{ angra.nonce }}">{% endif %}
+    <button class="up-btn up-btn--outline" type="submit" name="action" value="epost">Avregistrera e-posten också</button>
+  </form>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

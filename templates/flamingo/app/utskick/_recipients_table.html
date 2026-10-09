@@ -1,0 +1,33 @@
+{% comment %}
+Mottagarnas tabell (README I.8): rapporten (de första raderna) och
+mottagarsidan. Kontext: rows (Recipient med ut_name, ut_delivered,
+ut_clicked, ut_engaged, ut_reply, ut_result, ut_tone och contact, från
+app_views/utskick.decorate_recipients). Under 760 px blir raderna kort
+(flamingo-app.css läser data-label); tomma celler skrivs utan blanksteg så
+att de döljs i kortläget.
+{% endcomment %}<div class="fl-ut-tablebox"><div class="fl-table-wrap">
+  <table class="fl-table fl-ut-table">
+    <thead>
+      <tr>
+        <th scope="col">Kontakt</th>
+        <th scope="col">Levererat</th>
+        <th scope="col">Klick</th>
+        <th scope="col">Tid på sidan</th>
+        <th scope="col">Svar</th>
+        <th scope="col">Resultat</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for mottagare in rows %}
+      <tr>
+        <td class="is-primary" data-label="Kontakt">{% if mottagare.contact %}<a class="fl-ut-name" href="{% url 'flamingo:app_contact' mottagare.contact.pk %}">{{ mottagare.ut_name }}</a>{% else %}{{ mottagare.ut_name }}{% endif %}</td>
+        <td data-label="Levererat">{{ mottagare.ut_delivered }}</td>
+        <td data-label="Klick">{{ mottagare.ut_clicked }}</td>
+        <td data-label="Tid på sidan">{{ mottagare.ut_engaged }}</td>
+        <td data-label="Svar">{{ mottagare.ut_reply }}</td>
+        <td data-label="Resultat"><span class="fl-ut-status fl-ut-status--{{ mottagare.ut_tone }}">{{ mottagare.ut_result }}</span></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>

@@ -1,7 +1,8 @@
 {% extends "utskick/public/_base.html" %}{% load website_tags %}
 {% comment %}
 Anmälningssidan /utskick/<public_slug>/ (public_views.signup, README I.7
-"Anmälan"). I S1 bara e-post (README L, Security 13). Kryssrutans etikett
+"Anmälan"). E-post, och från S2 sms (README L, Security 13, K.2.5):
+mobilen och en egen ruta, bekräftad med en länk i ett sms. Kryssrutans etikett
 är hela samtyckestexten (texter, med företagets namn ifyllt): det är exakt
 den som sparas som bevis. Rutan är aldrig förkryssad. Botskyddet:
 botcheck_attr på formuläret, botcheck_fields (honungsfält, tidsstämpel,
@@ -43,6 +44,19 @@ integritet_url.
   </div>
   {% if form.consent_email.errors %}<div id="up-consent-fel">{% for error in form.consent_email.errors %}<p class="up-error">{{ error }}</p>{% endfor %}</div>{% endif %}
   <p class="up-help" id="up-consent-help">Du får ett mejl med en länk. Klicka på länken för att börja få e-post. Du kan avregistrera dig när du vill.</p>
+  {% endif %}
+  {% if "sms" in kanaler %}
+  <div class="up-field{% if form.phone.errors %} is-error{% endif %}">
+    <label class="up-label" for="up-phone">Mobil</label>
+    <input class="up-input" id="up-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" value="{{ form.phone.value|default_if_none:"" }}"{% if form.phone.errors %} aria-invalid="true" aria-describedby="up-phone-fel"{% endif %}>
+    {% if form.phone.errors %}<div id="up-phone-fel">{% for error in form.phone.errors %}<p class="up-error">{{ error }}</p>{% endfor %}</div>{% endif %}
+  </div>
+  <div class="up-check{% if form.consent_sms.errors %} is-error{% endif %}">
+    <input class="up-check__box" id="up-consent-sms" name="consent_sms" type="checkbox" value="1"{% if form.is_bound and form.consent_sms.value %} checked{% endif %} aria-describedby="up-consent-sms-help{% if form.consent_sms.errors %} up-consent-sms-fel{% endif %}"{% if form.consent_sms.errors %} aria-invalid="true"{% endif %}>
+    <label class="up-check__label" for="up-consent-sms">{{ texter.sms }}</label>
+  </div>
+  {% if form.consent_sms.errors %}<div id="up-consent-sms-fel">{% for error in form.consent_sms.errors %}<p class="up-error">{{ error }}</p>{% endfor %}</div>{% endif %}
+  <p class="up-help" id="up-consent-sms-help">Du får ett sms med en länk. Klicka på länken för att börja få sms. Du kan avregistrera dig när du vill.</p>
   {% endif %}
   {% botcheck_fields %}
   <button class="up-btn up-btn--primary up-btn--block" type="submit"{% if stangd %} disabled{% endif %}>Anmäl mig</button>

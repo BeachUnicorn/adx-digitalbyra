@@ -80,6 +80,22 @@ def _is_oauth_path(path):
     return any(path.startswith(p) for p in _OAUTH_PREFIXES)
 
 
+def _not_found():
+    """404 utan kropp (MCP och OAuth på utskickens länkvärdar)."""
+
+    async def app(scope, receive, send):
+        await send(
+            {
+                "type": "http.response.start",
+                "status": 404,
+                "headers": [(b"content-length", b"0")],
+            }
+        )
+        await send({"type": "http.response.body", "body": b""})
+
+    return app
+
+
 class AuthenticatedMCPApp:
     """
     Släpper igenom två sorters åtkomst till verktygen:
@@ -181,9 +197,14 @@ def build_application():
     # igenom men själva MCP-anropet stoppades ("Couldn't connect to the
     # server", 2026-08-22). Värdarna hämtas ur Djangos ALLOWED_HOSTS så
     # listan har EN källa; SDK:t vill ha dem med och utan port.
+    # Utskickens länkvärdar (k.adx.se, klick.adx.se) står också i
+    # ALLOWED_HOSTS men ska aldrig nå MCP (apps/utskick/README.md, C.3).
+    from apps.utskick.links import link_hosts
+
+    no_mcp = link_hosts()
     allowed_hosts = ["localhost", "127.0.0.1"]
     for host in getattr(settings, "ALLOWED_HOSTS", []):
-        if host and host != "*" and not host.startswith("."):
+        if host and host != "*" and not host.startswith(".") and host.lower() not in no_mcp:
             allowed_hosts.append(host)
     allowed_hosts += [f"{h}:80" for h in allowed_hosts if ":" not in h]
     allowed_hosts += [f"{h}:443" for h in allowed_hosts if ":" not in h]
@@ -217,13 +238,26 @@ def build_application():
         )
     )
 
+    from apps.utskick.links import host_of_scope, link_host_kind
+
     async def application(scope, receive, send):
         path = scope.get("path", "")
+        is_mcp = path == MCP_PATH or path.startswith(MCP_PATH + "/")
+        # På utskickens länkvärdar finns varken MCP eller OAuth: 404 innan
+        # något av dem nås. Resten går till Django, där bara
+        # config.urls_links svarar (links.LinkHostMiddleware).
+        if (
+            scope["type"] == "http"
+            and (is_mcp or _is_oauth_path(path))
+            and link_host_kind(host_of_scope(scope))
+        ):
+            await _not_found()(scope, receive, send)
+            return
         # OAuth-endpointerna ligger i MCP-appens rot, inte under /mcp/.
         if scope["type"] == "http" and _is_oauth_path(path):
             await mcp_app(scope, receive, send)
             return
-        if scope["type"] == "http" and (path == MCP_PATH or path.startswith(MCP_PATH + "/")):
+        if scope["type"] == "http" and is_mcp:
             # SDK:ts route är exakt "/mcp". En klient som skickar "/mcp/" får
             # annars en 307 från Starlette, och en omdirigerad POST tappar
             # innehållstypen hos vissa klienter. Normalisera i stället, så

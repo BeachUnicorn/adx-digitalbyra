@@ -11,6 +11,16 @@
 
    Sidan frågar inte om samtycke och skickar inget svar om det (beslut
    2026-10-03). Inga kakor, ingen lagring i webbläsaren.
+
+   Utskick (apps/utskick, README C.2, E.4): ett besök från ett sms bär
+   ?ut=<token>. Skriptet läser den en gång, tar bort den ur adressfältet med
+   history.replaceState (en kopierad länk ska inte bära mottagarens token)
+   och skickar den med klicket på numret. Formuläret har den redan som dolt
+   fält från servern. Med body[data-fl-visit] (bara besök från ett utskick
+   hos samma konto, aldrig för byrån eller demot) skickas tiden sidan varit
+   synlig (document.visibilityState och performance.now) med sendBeacon när
+   sidan döljs eller lämnas, högst tre gånger per sidvisning. Ingen kaka,
+   ingen lagring.
    ========================================================================== */
 (function () {
   "use strict";
@@ -45,6 +55,61 @@
     }).observe(heroActions);
   }
 
+  /* Adressens parametrar som de var när sidan öppnades (innan ut tas bort). */
+  var params = new URLSearchParams(window.location.search);
+  var ut = params.get("ut") || "";
+  if (!/^[A-Za-z0-9]{1,12}\.[A-Za-z0-9]{10}$/.test(ut)) {
+    ut = "";
+  }
+  if (params.has("ut") && window.history && window.history.replaceState) {
+    var rest = new URLSearchParams(window.location.search);
+    rest.delete("ut");
+    var query = rest.toString();
+    try {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        window.location.pathname + (query ? "?" + query : "") + window.location.hash
+      );
+    } catch (e) {
+      /* adressen står kvar, inget annat händer */
+    }
+  }
+
+  /* Tiden på sidan för ett besök från ett utskick. */
+  var visit = document.body.getAttribute("data-fl-visit") || "";
+  if (ut && visit && navigator.sendBeacon && window.performance) {
+    var shown = 0;
+    var since = document.visibilityState === "visible" ? performance.now() : null;
+    var visits = 0;
+    var flush = function () {
+      if (since !== null) {
+        shown += performance.now() - since;
+        since = null;
+      }
+      if (visits >= 3) {
+        return;
+      }
+      visits += 1;
+      var body = new URLSearchParams();
+      body.append("ut", ut);
+      body.append("s", String(Math.min(Math.round(shown / 1000), 1800)));
+      try {
+        navigator.sendBeacon(visit, body);
+      } catch (e) {
+        /* tiden räknas inte, sidan fungerar ändå */
+      }
+    };
+    document.addEventListener("visibilitychange", function () {
+      if (document.visibilityState === "hidden") {
+        flush();
+      } else if (since === null) {
+        since = performance.now();
+      }
+    });
+    window.addEventListener("pagehide", flush);
+  }
+
   var beacon = document.body.getAttribute("data-fl-beacon") || "";
   var TRACKING = [
     "gclid",
@@ -56,6 +121,7 @@
     "utm_term",
     "utm_content",
     "keyword",
+    "ut",
   ];
 
   if (!beacon || !navigator.sendBeacon || !window.FormData) {
@@ -74,9 +140,8 @@
     if (token) {
       data.append("csrfmiddlewaretoken", token.value);
     }
-    var params = new URLSearchParams(window.location.search);
     TRACKING.forEach(function (name) {
-      var value = params.get(name);
+      var value = name === "ut" ? ut : params.get(name);
       if (value) {
         data.append(name, value.slice(0, 200));
       }

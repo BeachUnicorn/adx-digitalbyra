@@ -224,11 +224,18 @@ class ScrubTextTests(TestCase):
             ),
             "se https://k.adx.se/a8Kf2X nu": "se https://k.adx.se/[Filtered] nu",
             "https://klick.adx.se/a/abc.def": "https://klick.adx.se/[Filtered]",
+            # Som länkarna står i sms:en, utan schema (S2).
+            "Boka: k.adx.se/a8Kf2X Svara STOPP": "Boka: k.adx.se/[Filtered] Svara STOPP",
+            "Avregistrera: k.adx.se/s/Ab12Cd": "Avregistrera: k.adx.se/[Filtered]",
+            "https://adx.se/lp/rorjour/": "https://adx.se/lp/rorjour/",
             "svar till s+ab12.cd34@svar.utskick.adx.se": "svar till [Filtered]",
             "nyckel adxut_abcdefgh12345": "nyckel [Filtered]",
             "ut=AbC123.def4567890&x=1": "ut=[Filtered]&x=1",
             "/lp/rorjour/?adx=abc123": "/lp/rorjour/?adx=[Filtered]",
             "q=anna&sida=2": "q=[Filtered]&sida=2",
+            # Sökningen bland utskickets mottagare (Mottagare, ?sok=).
+            "sok=Anna+Lindqvist": "sok=[Filtered]",
+            "/steg/mottagare/?sok=anna&sida=2": "/steg/mottagare/?sok=[Filtered]&sida=2",
             "till +46701740605 i går": "till [Filtered] i går",
             "ring 070-174 06 05 nu": "ring [Filtered] nu",
             "från anna.lindqvist@exempelror.example": "från [Filtered]",

@@ -53,6 +53,9 @@ urlpatterns = [
     path("api/v1/", include("apps.projects.api_urls")),
     # SMS-API:t för kunderna och 46elks leveransrapporter (apps/sms/api.py).
     path("api/sms/", include("apps.sms.api_urls")),
+    # Utskickens adresser för andra tjänster: 46elks inkommande sms till
+    # svarsnumret (apps/utskick/webhook_urls.py). Hemligheten står i adressen.
+    path("api/utskick/", include("apps.utskick.webhook_urls")),
     # Öppen dokumentation av SMS-API:t för AI-assistenter i andra projekt.
     path("smsz/", sms_ai_docs.smsz, name="smsz"),
     # Offertlänkarna till kund. Före sajtens slug-catchall.

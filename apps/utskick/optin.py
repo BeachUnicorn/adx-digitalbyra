@@ -1,6 +1,7 @@
 """
 Bekräftelsen av e-post: dubbel opt-in (README J S1 "DOI in S1", E.2, E.5,
-D.8, H.5, H.6). Bekräftelse-sms (S2) kommer hit också.
+D.8, H.5, H.6), och från S2 bekräftelse-sms:en med en länk k.adx.se/b/
+(längst ned i modulen).
 
     doi_ready() -> bool                 byrån har klarmarkerat bekräftelsemejlen
     offers_email(user=None) -> bool     får anmälan och Mina utskick erbjuda e-post?
@@ -63,7 +64,7 @@ from . import consent as consents
 from . import keys, limits, tokens
 from .access import PERSON, can_collect, dpa_ok, settings_for
 from .email import transport
-from .models import CHANNEL_EMAIL, Consent, Switchboard
+from .models import CHANNEL_EMAIL, CHANNEL_SMS, Consent, Switchboard
 
 logger = logging.getLogger(__name__)
 
@@ -347,3 +348,250 @@ def confirm(consent, *, ip_hash="", now=None):
         proved=True,
         now=now,
     )
+
+
+# ---------------------------------------------------------------------------
+# S2 (länk-byggaren): bekräftelse-sms med en länk k.adx.se/b/<kod> för
+# anmälan med sms (anmälningssidan, K.2.5) och "slå på sms" på Mina utskick
+# och k.adx.se/p/. Kön är samma som för mejlen: ett väntande samtycke
+# (pending) utan confirm_sent_at, nu på kanalen sms. Ticken (fas 3) skickar.
+#
+#   offers_sms() -> bool                få sidorna erbjuda sms? (Switchboard.sms_enabled)
+#   sms_signup_block(account) -> str    varför anmälningssidan inte kan erbjuda sms, eller ""
+#   sms_ready(now) -> bool              får ticken skicka bekräftelse-sms just nu?
+#   requeue_sms(consent, now) -> bool   personen bad igen
+#   sms_queued(now) -> QuerySet         kön (sändbara konton, äldst först)
+#   sms_work_exists(now) -> bool
+#   send_due_sms(now, deadline, limit) -> {"sent", "skipped", "failed", "waiting"}
+#   confirm_sms_text(name, link) -> str
+#
+# Sms:et går från svarsnumret (källa system, referens b<kod>), räknas på
+# kundens sms-konto och tak som allt annat (apps/sms), och skickas inte när
+# taket är nått (raden räknas som hanterad, skipped). Gränser som för
+# mejlen: 1 per adress och konto per svenskt dygn, 3 per adress i hela ADX,
+# PER_ACCOUNT_HOUR per konto och timme (byrån larmas), PER_HOUR i hela ADX.
+# Inte i tidsfönstret (personen bad nyss om det), men nödbromsen
+# (Switchboard.sms_paused_until) och sms_enabled gäller (D.4, D.8). Aldrig
+# demokontot.
+# ---------------------------------------------------------------------------
+
+
+def offers_sms(user=None):
+    """Får anmälningssidan, Mina utskick och k.adx.se/p/ erbjuda sms? När
+    byrån slagit på sms-utskicken (Switchboard.sms_enabled, som kräver
+    länkvärdarna och inkommande sms): annars kommer bekräftelse-sms:et aldrig
+    fram. user tas emot för samma form som offers_email."""
+    return Switchboard.objects.filter(
+        pk=Switchboard.SOLO_PK, sms_enabled=True, links_ready_at__isnull=False
+    ).exists()
+
+
+#: Varför sms inte kan erbjudas (I.3: säger varför och hur det låses upp).
+SMS_SWITCH_OFF_TEXT = "Sms-utskick är inte påslagna än."
+SMS_NOT_ENABLED_TEXT = "Sms är inte aktiverat för dig. Be ADX slå på det."
+
+
+def sms_signup_block(account):
+    """ "" när anmälningssidan kan erbjuda sms för kontot, annars texten
+    om varför: byrån har inte slagit på sms-utskicken, eller kundens sms
+    är inte aktiverat (bekräftelse-sms:et går på kundens sms-konto)."""
+    if not offers_sms():
+        return SMS_SWITCH_OFF_TEXT
+    from .sending import sms_wrapper
+
+    sms_account = sms_wrapper.sms_account_for(account)
+    if sms_account is None or not sms_account.is_enabled:
+        return SMS_NOT_ENABLED_TEXT
+    return ""
+
+
+def sms_ready(now=None):
+    """Får ticken skicka bekräftelse-sms nu? sms_enabled och ingen nödbroms."""
+    now = now or timezone.now()
+    return (
+        Switchboard.objects.filter(pk=Switchboard.SOLO_PK, sms_enabled=True)
+        .filter(Q(sms_paused_until__isnull=True) | Q(sms_paused_until__lte=now))
+        .exists()
+    )
+
+
+def requeue_sms(consent, now=None):
+    """Personen bad om sms igen medan sms:et redan väntar: lägg raden i kön
+    igen om adressen inte redan fått sitt sms i dag. True om ett sms väntar."""
+    if consent.status != consents.PENDING or consent.channel != CHANNEL_SMS:
+        return False
+    if consent.confirm_sent_at is None:
+        return True
+    now = now or timezone.now()
+    account_id = consent.contact.account_id
+    if _sms_address_limited(account_id, consent.value_hash, limits.day_window(now)):
+        return False
+    updated = Consent.objects.filter(pk=consent.pk, status=consents.PENDING).update(
+        confirm_sent_at=None, changed_at=now
+    )
+    if updated:
+        consent.confirm_sent_at = None
+        consent.changed_at = now
+    return bool(updated)
+
+
+def _sms_address_limited(account_id, value_hash, day):
+    if limits.count("optin_sms_addr", f"{account_id}:{value_hash}", day) >= ADDR_PER_ACCOUNT_DAY:
+        return True
+    return limits.count("optin_sms_addr_all", value_hash, day) >= ADDR_ALL_DAY
+
+
+def sms_queued(now=None):
+    """Väntande sms utan skickat bekräftelse-sms hos konton som får skicka,
+    äldst först (samma villkor som queued() för mejlen)."""
+    now = now or timezone.now()
+    return (
+        Consent.objects.filter(
+            channel=CHANNEL_SMS,
+            status=consents.PENDING,
+            confirm_sent_at__isnull=True,
+            changed_at__gte=now - QUEUE_MAX_AGE,
+            contact__account__is_enabled=True,
+            contact__account__is_demo=False,
+            contact__account__utskick__is_enabled=True,
+            contact__account__utskick__sending_blocked=False,
+        )
+        .filter(
+            Q(contact__account__customer__isnull=True)
+            | Q(contact__account__customer__is_active=True)
+        )
+        .exclude(value_hash="")
+        .order_by("changed_at", "pk")
+    )
+
+
+def sms_work_exists(now=None):
+    """Finns bekräftelse-sms för fas 3? Falskt när sms inte får skickas."""
+    return sms_ready(now) and sms_queued(now).exists()
+
+
+def confirm_sms_text(name, link):
+    """Bekräftelse-sms:et (GSM-7 när företagets namn är det)."""
+    return f"Klicka för att få sms från {name}: {link} Var det inte du kan du strunta i sms:et."
+
+
+def _sms_account_full(account_id, hour):
+    if limits.count("optin_sms_acct_hour", str(account_id), hour) < PER_ACCOUNT_HOUR:
+        return False
+    from . import alerts
+
+    logger.warning("Utskick: bekräftelse-sms för konto %s når timgränsen", account_id)
+    alerts.agency(
+        "Utskick: många bekräftelse-sms från en kund",
+        [
+            f"Konto {account_id} har fått {PER_ACCOUNT_HOUR} bekräftelse-sms den här timmen.",
+            "Resten väntar i kön till nästa timme. Titta på anmälningarna om det ser konstigt ut.",
+        ],
+        once=f"optin_sms_acct_hour:{account_id}",
+        window="hour",
+    )
+    return True
+
+
+def _cap_reached(account):
+    """Är kundens sms-tak nått (eller sms avstängt)? Prövas före sms:et, så
+    att inget BLOCKED_CAP-sms skrivs för en bekräftelse (D.4)."""
+    from apps.sms import pricing
+
+    from .sending import sms_wrapper
+
+    sms_account = sms_wrapper.sms_account_for(account)
+    if sms_account is None or not sms_account.is_enabled:
+        return True
+    return bool(pricing.usage(sms_account)["cap_reached"])
+
+
+def send_due_sms(now=None, deadline=None, limit=BATCH):
+    """Tickens fas 3 för sms: skicka bekräftelse-sms:en som väntar.
+    deadline är time.monotonic() då fasen ska sluta. Returnerar antal
+    {"sent", "skipped", "failed", "waiting"} (inga nummer)."""
+    from . import codes, links
+    from .models import LinkCode
+    from .sending import sms_wrapper
+
+    now = now or timezone.now()
+    summary = {"sent": 0, "skipped": 0, "failed": 0, "waiting": 0}
+    if not sms_ready(now):
+        return summary
+    if not keys.check_fingerprints():
+        return summary
+    hour = limits.hour_window(now)
+    day = limits.day_window(now)
+    collect_ok = {}
+    full = set()
+    rows = sms_queued(now).values_list("pk", "contact__account_id")
+    for pk, account_id in list(rows[:limit]):
+        if deadline is not None and time.monotonic() > deadline:
+            break
+        if limits.count("optin_sms_hour", "", hour) >= PER_HOUR:
+            summary["waiting"] += 1
+            break
+        if account_id in full or _sms_account_full(account_id, hour):
+            full.add(account_id)
+            summary["waiting"] += 1
+            continue
+        consent = _claim(pk, now)
+        if consent is None:
+            continue
+        contact = consent.contact
+        account = contact.account
+        if account.pk not in collect_ok:
+            collect_ok[account.pk] = dpa_ok(account) and not _cap_reached(account)
+        if (
+            not collect_ok[account.pk]
+            or keys.value_hash(CHANNEL_SMS, contact.phone) != consent.value_hash
+            or _sms_address_limited(account.pk, consent.value_hash, day)
+        ):
+            summary["skipped"] += 1
+            continue
+        purpose = (
+            LinkCode.Purpose.SIGNUP
+            if consent.source == Consent.Source.SIGNUP
+            else LinkCode.Purpose.PREF_ON
+        )
+        try:
+            code = codes.create_confirm(
+                account, value_hash=consent.value_hash, purpose=purpose, contact=contact, now=now
+            )
+        except codes.CodeCollision:
+            _release(pk)
+            summary["waiting"] += 1
+            break
+        row = settings_for(account)
+        body = confirm_sms_text(row.display_name, links.sms_link(code.code, "b"))
+        try:
+            out = sms_wrapper.send(
+                account,
+                to=contact.phone,
+                body=body,
+                sender=settings.UTSKICK_REPLY_NUMBER,
+                source="system",
+                reference=f"b{code.pk}",
+            )
+        except (sms_wrapper.DemoRefused, keys.KeyMismatch):
+            code.delete()
+            summary["skipped"] += 1
+            continue
+        if out.ok or out.unknown:
+            limits.hit(
+                "optin_sms_addr", f"{account.pk}:{consent.value_hash}", day, ADDR_PER_ACCOUNT_DAY
+            )
+            limits.hit("optin_sms_addr_all", consent.value_hash, day, ADDR_ALL_DAY)
+            limits.hit("optin_sms_hour", "", hour, PER_HOUR)
+            limits.hit("optin_sms_acct_hour", str(account.pk), hour, PER_ACCOUNT_HOUR)
+            Consent.objects.filter(pk=pk).update(confirm_count=F("confirm_count") + 1)
+            summary["sent"] += 1
+            continue
+        code.delete()
+        if out.error == "rate_limited":
+            _release(pk)
+            summary["waiting"] += 1
+            break
+        logger.info("Utskick: bekräftelse-sms för samtycke %s nekades (%s)", pk, out.error)
+        summary["failed"] += 1
+    return summary

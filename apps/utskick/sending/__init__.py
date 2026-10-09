@@ -1,5 +1,6 @@
 """
-Sändningsmotorn (README D). S1: ticken (tick.py) med bekräftelsemejlen och
-importerna. Frysningen, sms- och e-postslingorna och återhämtningen kommer
-med S2 och S3.
+Sändningsmotorn (README D). Ticken (tick.py) med faserna; S2: frysningen
+(freeze.py), kontrollerna (checks.py), tillståndsmaskinen (state.py),
+sms-slingan (sms.py), återhämtningen (recover.py) och den enda vägen till
+apps/sms (sms_wrapper.py). E-postslingan kommer med S3.
 """

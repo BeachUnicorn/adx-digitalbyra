@@ -1,0 +1,96 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app utskick_tags %}
+{% comment %}
+Guidens steg 1: Mottagare (README I.8). Kontext från
+app_views/utskick._step_mottagare: utskick, wizard, chosen (urvalet ur
+audience.stored), lists och tags (med n medlemmar), kontakter_valda,
+kontakter_hittade (sökningen ?sok=), search, recent_days, counted
+(audience.count), count_text, weekly_text, empty.
+
+Fälten heter som audience.clean läser dem: lists, tags, contacts,
+exclude_lists, exclude_tags och exclude_recent (14 dagar). Sök-knappen
+sparar urvalet och öppnar sidan igen med träffarna (inget försvinner, inget
+skript behövs). flamingo-app-utskick.js räknar om rutan till höger medan
+kunden kryssar (data-ut-count, app_utskick_count med det osparade urvalet).
+{% endcomment %}
+{% block app_title %}{{ utskick.name }}: Mottagare{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_header %}{% include "flamingo/app/utskick/_step_header.html" %}{% endblock %}
+{% block ut_content %}
+<form id="ut-mottagare" class="fl-form fl-ut-form" data-ut-guard method="post" action="{% url 'flamingo:app_utskick_step' utskick.pk 'mottagare' %}" data-ut-count="{% url 'flamingo:app_utskick_count' utskick.pk %}">
+  {% csrf_token %}
+  <div class="fl-ut-cols">
+    <div class="fl-ut-cols__main">
+      <div class="fl-field">
+        <label class="fl-field__label" for="ut-namn">Namn på utskicket</label>
+        <input class="fl-input" id="ut-namn" type="text" name="namn" value="{{ utskick.name }}" maxlength="120" required autocomplete="off" aria-describedby="ut-namn-help">
+        <p class="fl-field__help" id="ut-namn-help">Syns bara för dig.</p>
+      </div>
+
+      <fieldset class="fl-field fl-ut-group">
+        <legend class="fl-field__label">Skicka till</legend>
+        {% if lists %}
+        <p class="fl-ut-group__title">Listor</p>
+        <div class="fl-ut-picks">
+          {% for lista in lists %}<label class="fl-check"><input type="checkbox" name="lists" value="{{ lista.pk }}"{% if lista.pk in chosen.lists %} checked{% endif %}><span>{{ lista.name }} <span class="fl-ut-muted">{{ lista.n|tal }}</span></span></label>{% endfor %}
+        </div>
+        {% endif %}
+        {% if tags %}
+        <p class="fl-ut-group__title">Taggar</p>
+        <div class="fl-ut-picks">
+          {% for tag in tags %}<label class="fl-check"><input type="checkbox" name="tags" value="{{ tag.pk }}"{% if tag.pk in chosen.tags %} checked{% endif %}><span>{{ tag.name }} <span class="fl-ut-muted">{{ tag.n|tal }}</span></span></label>{% endfor %}
+        </div>
+        {% endif %}
+        {% if not lists and not tags %}
+        <p class="fl-field__help">Du har inga listor eller taggar än. Skapa en under <a href="{% url 'flamingo:app_lists' %}">Kontakter, Listor</a>, eller välj enstaka kontakter nedanför.</p>
+        {% endif %}
+      </fieldset>
+
+      <fieldset class="fl-field fl-ut-group" id="ut-kontakter">
+        <legend class="fl-field__label">Enstaka kontakter</legend>
+        {% if kontakter_valda %}
+        <div class="fl-ut-picks">
+          {% for kontakt in kontakter_valda %}<label class="fl-check"><input type="checkbox" name="contacts" value="{{ kontakt.pk }}" checked><span>{{ kontakt.display_name }}{% if kontakt.phone %} <span class="fl-ut-muted">{{ kontakt.phone|nummer }}</span>{% endif %}</span></label>{% endfor %}
+        </div>
+        {% endif %}
+        <div class="fl-ut-search">
+          <label class="fl-sr" for="ut-sok">Sök en kontakt</label>
+          <input class="fl-input" id="ut-sok" type="search" name="sok" value="{{ search }}" placeholder="Sök namn, telefon eller e-post" autocomplete="off">
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="sok">Sök</button>
+        </div>
+        {% if search %}
+          {% if kontakter_hittade %}
+          <p class="fl-ut-group__title">Träffar för {{ search }}</p>
+          <div class="fl-ut-picks">
+            {% for kontakt in kontakter_hittade %}<label class="fl-check"><input type="checkbox" name="contacts" value="{{ kontakt.pk }}"><span>{{ kontakt.display_name }}{% if kontakt.phone %} <span class="fl-ut-muted">{{ kontakt.phone|nummer }}</span>{% endif %}</span></label>{% endfor %}
+          </div>
+          <p class="fl-field__help">Kryssa i de du vill lägga till och spara.</p>
+          {% else %}
+          <p class="fl-field__help">Ingen kontakt matchar {{ search }}.</p>
+          {% endif %}
+        {% endif %}
+      </fieldset>
+
+      <fieldset class="fl-field fl-ut-group">
+        <legend class="fl-field__label">Uteslut</legend>
+        <div class="fl-ut-picks">
+          <label class="fl-check"><input type="checkbox" name="exclude_recent" value="1"{% if chosen.exclude.recent_days %} checked{% endif %}><span>Fick ett utskick senaste {{ recent_days }} dagarna</span></label>
+          {% for lista in lists %}<label class="fl-check"><input type="checkbox" name="exclude_lists" value="{{ lista.pk }}"{% if lista.pk in chosen.exclude.lists %} checked{% endif %}><span>Listan {{ lista.name }}</span></label>{% endfor %}
+          {% for tag in tags %}<label class="fl-check"><input type="checkbox" name="exclude_tags" value="{{ tag.pk }}"{% if tag.pk in chosen.exclude.tags %} checked{% endif %}><span>Taggen {{ tag.name }}</span></label>{% endfor %}
+        </div>
+      </fieldset>
+    </div>
+
+    <aside class="fl-ut-cols__side" aria-label="Mottagare">
+      <div class="fl-panel fl-panel--soft fl-ut-countbox" aria-live="polite">
+        <p class="fl-kpi__label">Mottagare</p>
+        <p class="fl-ut-countbox__value"><span data-ut-count-total>{{ counted.total|tal }}</span> kontakter</p>
+        <p class="fl-ut-countbox__text" data-ut-count-text>{{ count_text }}</p>
+        <p class="fl-panel__note">Avregistrerade, studsade och (för reklam) kontakter utan samtycke räknas aldrig med. <span data-ut-count-weekly>{{ weekly_text }}</span></p>
+      </div>
+    </aside>
+  </div>
+  {% include "flamingo/app/utskick/_step_actions.html" %}
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>{% endblock %}

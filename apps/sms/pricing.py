@@ -27,6 +27,11 @@ underlag. Byrån stämmer av dem först (service.resolve_check).
 
 Månaderna är svenska kalendermånader (Europe/Stockholm). Beloppen är utan
 moms; byrån fakturerar med moms ovanpå.
+
+Flamingos utskick skickar genom samma tjänst (SmsMessage.source), så taket
+och underlaget gäller alla källor tillsammans. Underlagets by_source och
+usage()["by_source"] visar fördelningen per källa; den är bara information
+och ändrar inga summor, rader per land eller CSV.
 """
 
 import logging
@@ -163,6 +168,16 @@ def usage(account, now=None):
     )
     stopped = qs.filter(status__in=SmsMessage.STOPPED).count()
     provider_failed = qs.filter(error_code="provider_error").count()
+    by_source = {
+        r["source"] or SmsMessage.Source.API: {
+            "sms": r["sms"],
+            "parts": int(r["parts"] or 0),
+            "cost": int(r["cost"] or 0),
+        }
+        for r in accepted.values("source")
+        .annotate(sms=Count("pk"), parts=Sum("parts"), cost=Sum("customer_price"))
+        .order_by("source")
+    }
     cost = int(row["cost"] or 0)
     test_cost = int(row["test"] or 0)
     # Det taket prövas mot (month_to_date_units): utan provkörningar i drift.
@@ -187,6 +202,8 @@ def usage(account, now=None):
         "remaining": max(cap - cap_used, 0),
         "cap_pct": min(100, round(100 * cap_used / cap)) if cap else 100,
         "cap_reached": cap_used >= cap,
+        #: Per källa (API, utskick, svar ...): {"sms", "parts", "cost"}.
+        "by_source": by_source,
     }
 
 
@@ -284,6 +301,16 @@ def build_statement(account, period):
                 "total": int(row["total"] or 0),
             }
         )
+    by_source = {
+        row["source"] or SmsMessage.Source.API: {
+            "sms": row["sms"],
+            "parts": int(row["parts"] or 0),
+            "total": int(row["total"] or 0),
+        }
+        for row in qs.values("source")
+        .annotate(sms=Count("pk"), parts=Sum("parts"), total=Sum("customer_price"))
+        .order_by("source")
+    }
     sms_count = sum(line["sms"] for line in lines)
     provider_cost = sum(line["provider_cost"] for line in lines)
     markup = sum(line["markup"] for line in lines)
@@ -298,6 +325,7 @@ def build_statement(account, period):
         fee=fee,
         total=provider_cost + markup + fee,
         lines=lines,
+        by_source=by_source,
         markup_ore_per_part=account.markup_ore_per_part,
         yearly_fee_kr=account.yearly_fee_kr if fee else 0,
     )

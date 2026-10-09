@@ -1,0 +1,99 @@
+{% load flamingo_app %}{% comment %}
+Översiktens del för sändningen (#sandning, README D.4, D.9, H.5, J S2 steg 6).
+Kontexten kommer från manage_sending.panel_context(now) via manage_views.overview:
+sending_breaker_until, sending_sms_on, sending_rows (pågående och pausade utskick
+med n_queued, n_sent, n_failed, next_at, label och note), sending_paused,
+sending_info (informationsutskick de senaste 30 dagarna med undantaget),
+sending_payers och sending_reply_number. Tabellerna har thead (kort under 760 px
+via manage-tables.js); inga style-attribut. Inget här mejlar någon kund.
+{% endcomment %}
+<p class="m-section-title" id="sandning">Sändningen</p>
+<div class="m-panel tv-panel tv-panel--read">
+  {% if sending_breaker_until %}
+  <p class="mu-alert" role="alert"><b>Nödbromsen är dragen.</b> Tre sms fick oklara svar eller fel från 46elks inom två minuter. All sms-sändning från utskicken väntar till {{ sending_breaker_until|date:"H:i" }}. Kundernas API påverkas inte.</p>
+  {% endif %}
+  <p class="tv-prop__note">Sms-utskick är {% if sending_sms_on %}påslagna{% else %}avstängda: inget skickas förutom provsms{% endif %}. Ticken skickar högst 45 sms i minuten per kund och 60 för alla kunder tillsammans, inom kundens tidsfönster. {% if sending_paused %}{{ sending_paused|tal }} utskick är pausade.{% endif %}</p>
+  {% if sending_rows %}
+  <div class="m-table-wrap">
+    <table class="m-table mu-table">
+      <thead><tr><th>Utskick</th><th>Kund</th><th>Läge</th><th class="m-num">I kö</th><th class="m-num">Skickade</th><th class="m-num">Fel</th><th>Nästa</th></tr></thead>
+      <tbody>
+      {% for row in sending_rows %}
+      <tr{% if row.is_paused %} class="is-off"{% endif %}>
+        <td><span><b>{{ row.name }}</b>{% if row.is_information %} <span class="m-badge">Information</span>{% endif %}</span></td>
+        <td><span><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}#utskick">{{ row.account.customer.name }}</a>{% if row.account.is_demo %} <span class="m-badge">Demo</span>{% endif %}</span></td>
+        <td><span>{% if row.is_paused %}<span class="m-badge m-badge--alert">{{ row.label }}</span>{% if row.note %} {{ row.note }}{% endif %}{% else %}{{ row.label }}{% endif %}</span></td>
+        <td class="m-num">{{ row.n_queued|tal }}</td>
+        <td class="m-num">{{ row.n_sent|tal }}</td>
+        <td class="m-num">{{ row.n_failed|tal }}</td>
+        <td><span>{% if row.status == "scheduled" %}{{ row.scheduled_at|date:"j b H:i" }}{% elif row.next_at %}{{ row.next_at|date:"j b H:i" }}{% elif row.n_queued and not row.is_paused %}nu{% else %}<span class="tv-muted">inget</span>{% endif %}</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="tv-muted">Inga utskick är schemalagda, pågår eller är pausade.</p>
+  {% endif %}
+</div>
+
+<p class="m-section-title" id="sandning-information">Informationsutskick</p>
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Information kräver inget samtycke och följer inte veckotaket. Granska blockerar texter som ser ut som reklam; byrån kan göra ett undantag med skäl (loggas). Undantaget gäller bara orden i texten det gavs för, aldrig länkar till andra webbplatser eller fältvärden. Ändrar kunden texten gäller det inte längre. Kunden granskar och bekräftar utskicket igen.</p>
+  {% if sending_info %}
+  <div class="m-table-wrap">
+    <table class="m-table mu-table">
+      <thead><tr><th>Utskick</th><th>Kund</th><th>Skäl</th><th class="m-num">Mottagare</th><th>Läge</th><th>Undantag</th></tr></thead>
+      <tbody>
+      {% for row in sending_info %}
+      <tr>
+        <td><b>{{ row.name }}</b></td>
+        <td>{{ row.account.customer.name }}</td>
+        <td><span>{{ row.get_info_reason_display|default:"saknas" }}{% if row.info_reason_text %}: {{ row.info_reason_text }}{% endif %}</span></td>
+        <td class="m-num">{{ row.n_recipients|tal }}</td>
+        <td>{{ row.get_status_display }}</td>
+        <td><div>
+          {% if row.override_reason %}<p>{{ row.override_reason }}{% if row.override_by %} ({{ row.override_by }}){% endif %}{% if row.override_stale %}. Texten har ändrats sedan dess, så undantaget gäller inte.{% endif %}</p>{% endif %}
+          {% if row.can_override %}
+          {% if row.override_reason and not row.override_stale %}
+          <form method="post" action="{% url 'manage:utskick_info_override' row.pk %}" class="mu-form">{% csrf_token %}
+            <input type="hidden" name="action" value="remove">
+            <button type="submit" class="m-btn m-btn--small m-btn--ghost">Ta bort undantaget</button>
+          </form>
+          {% else %}
+          <form method="post" action="{% url 'manage:utskick_info_override' row.pk %}" class="mu-form">{% csrf_token %}
+            <label class="m-sr-only" for="mu-se-reason-{{ row.pk }}">Skäl för undantaget (krävs)</label>
+            <input id="mu-se-reason-{{ row.pk }}" name="reason" maxlength="200" class="tv-input" placeholder="Skäl (krävs)" required autocomplete="off">
+            <button type="submit" class="m-btn m-btn--small m-btn--ghost">Gör undantag</button>
+          </form>
+          {% endif %}
+          {% else %}<span class="tv-muted">inget</span>{% endif %}
+        </div></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="tv-muted">Inga informationsutskick de senaste 30 dagarna.</p>
+  {% endif %}
+</div>
+
+<p class="m-section-title" id="sandning-prov">Provsms till mig</p>
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Ett sms från svarsnumret {{ sending_reply_number }} till numret du skriver, också innan sms-utskick är påslagna. Svaret hamnar i Inkorgen hos kunden som betalar, så att svar, STOPP och START går att prova. Välj ADX interna testkund. Högst tio i timmen.</p>
+  {% if sending_payers %}
+  <form method="post" action="{% url 'manage:utskick_probe' %}" class="mu-form">{% csrf_token %}
+    <label class="m-sr-only" for="mu-se-probe-to">Mobilnummer</label>
+    <input id="mu-se-probe-to" name="to" class="tv-input" placeholder="Mobilnummer" inputmode="tel" required autocomplete="off">
+    <label class="m-sr-only" for="mu-se-probe-payer">Betalas av</label>
+    <select id="mu-se-probe-payer" name="customer" class="tv-input" required>
+      <option value="">Betalas av</option>
+      {% for pk, name in sending_payers %}<option value="{{ pk }}">{{ name }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="m-btn m-btn--small">Skicka provsms</button>
+  </form>
+  {% else %}
+  <p class="tv-muted">Ingen kund har aktiverat SMS. Aktivera SMS för ADX interna testkund på kundkortet först.</p>
+  {% endif %}
+</div>

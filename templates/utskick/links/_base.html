@@ -1,0 +1,11 @@
+{% extends "utskick/public/_base.html" %}
+{% comment %}
+Skalet för sidorna på länkvärdarna k.adx.se och klick.adx.se
+(apps/utskick/link_views.py, README E.1 och E.5). Samma kort och stilmall som
+de publika sidorna på adx.se (static/css/utskick-public.css), men aldrig
+csrf_token här: länkvärdarna sätter inga kakor. Formulären bär i
+stället en signerad nonce (E.1) och vyerna är csrf_exempt.
+
+Kontext som för utskick/public/_base.html: foretag (kundens display_name,
+eller "ADX Flamingo" på startsidan) och integritet_url.
+{% endcomment %}

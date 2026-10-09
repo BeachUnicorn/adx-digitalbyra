@@ -7,6 +7,8 @@ Demot får ligga i produktion (beslut 2026-10-03). Därför:
     DemoLandingTests      /lp/ är 404 för alla utom byråns förhandsvisning
     DemoScanTests         hemsidan läses aldrig av
     DemoSmsTests          inga sms, oavsett inställningar och 46elks
+    DemoUtskickS2Tests    utskicken (S2): skickat och simulerat, klick, förfrågningar,
+                          svar och STOPP i Inkorgen; ticken och knapparna skickar inget
     DemoConversionTests   affärerna exporteras aldrig
     DemoGoogleTests       byråns knappar och Google-modulerna når aldrig Google
 
@@ -33,18 +35,28 @@ from django.urls import get_resolver, reverse
 from apps.projects.access import VIEW_AS_KEY
 from apps.projects.auth import contact_for_email
 from apps.projects.models import Customer
+from apps.sms.models import SmsAccount, SmsMessage
 from apps.utskick import access as utskick_access
-from apps.utskick import optin
+from apps.utskick import optin, reports
 from apps.utskick.models import (
+    Click,
     Consent,
     ConsentLog,
     Contact,
     ContactList,
     Event,
     FieldDef,
+    InboundMessage,
+    LinkCode,
+    Recipient,
     SignupForm,
     Suppression,
+    Switchboard,
     Tag,
+    Thread,
+    ThreadMessage,
+    TrackedLink,
+    Utskick,
     UtskickSettings,
 )
 
@@ -118,7 +130,23 @@ def counts():
         "importer": account.utskick_imports.count(),
         "anmälningssidor": SignupForm.objects.filter(account=account).count(),
         "kopplade förfrågningar": account.leads.filter(contact__isnull=False).count(),
+        # Utskicken (S2).
+        "utskicken": Utskick.objects.filter(account=account).count(),
+        "mottagare": Recipient.objects.filter(utskick__account=account).count(),
+        "länkar": TrackedLink.objects.filter(account=account).count(),
+        "sms-koder": LinkCode.objects.filter(account=account).count(),
+        "klick": Click.objects.filter(account=account).count(),
+        "trådar": Thread.objects.filter(account=account).count(),
+        "meddelanden i trådar": ThreadMessage.objects.filter(thread__account=account).count(),
+        "inkommande sms": InboundMessage.objects.filter(account=account).count(),
+        "svar i inkorgen": account.leads.filter(source=Lead.SOURCE_REPLY).count(),
+        "via utskick": account.leads.filter(utskick__isnull=False).count(),
     }
+
+
+def no_elks(fields):
+    """Står i för apps.sms.elks._post: demot får aldrig nå 46elks."""
+    raise AssertionError("Demot försökte skicka ett sms via 46elks.")
 
 
 class _Response:
@@ -295,13 +323,16 @@ class DemoCommandTests(TestCase):
             override_settings(**CONFIGURED, **ELKS),
             mock.patch.object(google_ads, "urlopen") as google,
             mock.patch.object(sms, "urlopen") as elks,
+            mock.patch("apps.sms.elks._post", side_effect=no_elks) as api,
             mock.patch.object(scan, "fetch") as fetch,
         ):
             run_demo("--prod")
         google.assert_not_called()
         elks.assert_not_called()
+        api.assert_not_called()
         fetch.assert_not_called()
         self.assertEqual(mail.outbox, [])
+        self.assertFalse(SmsMessage.objects.exists())
 
 
 # ---------------------------------------------------------------------------
@@ -368,8 +399,11 @@ class DemoContentTests(DemoFixture, TestCase):
     def test_leads_in_every_status_with_a_call_click_and_a_won_deal(self):
         leads = self.account.leads.all()
         self.assertEqual({lead.status for lead in leads}, {v for v, _ in Lead.STATUS_CHOICES})
+        # Svar på utskick (källan reply) skapas av utskick.demo.seed med
+        # svarstrådarna (S2).
         self.assertEqual({lead.source for lead in leads}, {v for v, _ in Lead.SOURCE_CHOICES})
-        click = leads.get(source=Lead.SOURCE_CALL_CLICK)
+        # Klicket från Google (det andra kom via utskicket, DemoUtskickS2Tests).
+        click = leads.get(source=Lead.SOURCE_CALL_CLICK, utskick__isnull=True)
         self.assertEqual(click.display_name, "Klick på telefonnumret")
         self.assertTrue(click.has_click_id)
         won = leads.filter(status=Lead.STATUS_WON)
@@ -464,8 +498,28 @@ class DemoContentTests(DemoFixture, TestCase):
             reverse("flamingo:app_import_job", args=[j.pk])
             for j in self.account.utskick_imports.all()
         ]
-        for url in urls:
-            self.assertEqual(client.get(url).status_code, 200, url)
+        # Utskick (S2, utskick-ui-byggaren): listan, inställningarna, varje
+        # utskicks rapport och mottagare, och guidens steg för de som går
+        # att ändra (de andra skickar till rapporten).
+        urls += [reverse("flamingo:app_utskick_list"), reverse("flamingo:app_utskick_settings")]
+        for utskick in self.account.utskick_set.all():
+            urls += [
+                reverse("flamingo:app_utskick", args=[utskick.pk]),
+                reverse("flamingo:app_utskick_recipients", args=[utskick.pk]),
+            ]
+            if utskick.status in utskick.EDITABLE:
+                urls += [
+                    reverse("flamingo:app_utskick_step", args=[utskick.pk, step])
+                    for step in ("mottagare", "kanal", "innehall", "tid", "granska")
+                ]
+        # Svarstrådarna (S2) står bland förfrågningarna ovan; trådens sidor
+        # renderas med utskickets sms, svaren och STOPP-bekräftelsen.
+        self.assertTrue(self.account.leads.filter(source=Lead.SOURCE_REPLY).exists())
+        # Ingen sida får nå 46elks (J S2): ett anrop fäller testet.
+        with mock.patch("apps.sms.elks._post", side_effect=no_elks) as api:
+            for url in urls:
+                self.assertEqual(client.get(url).status_code, 200, url)
+        api.assert_not_called()
 
     def test_staff_pages_render(self):
         client = self.staff_client()
@@ -710,6 +764,138 @@ class DemoSmsTests(DemoFixture, TestCase):
             rows = sms.notify_new_lead(lead)
         elks.assert_not_called()
         self.assertEqual({r.error for r in rows}, {sms.NOTE_DEMO})
+
+
+@override_settings(**ELKS)
+class DemoUtskickS2Tests(DemoFixture, TestCase):
+    """Utskicken i demot (S2): de går genom samma kod som en riktig kunds,
+    men demot skickar aldrig (D12)."""
+
+    def staff_as_customer(self):
+        client = self.staff_client()
+        session = client.session
+        session[VIEW_AS_KEY] = self.customer.pk
+        session.save()
+        return client
+
+    def sent(self):
+        return Utskick.objects.get(account=self.account, status=Utskick.Status.SENT)
+
+    def test_one_sent_one_scheduled_and_one_draft(self):
+        statuses = sorted(
+            Utskick.objects.filter(account=self.account).values_list("status", flat=True)
+        )
+        self.assertEqual(statuses, ["draft", "scheduled", "sent"])
+        scheduled = Utskick.objects.get(account=self.account, status=Utskick.Status.SCHEDULED)
+        self.assertIsNotNone(scheduled.confirmed_at)
+        self.assertGreater(scheduled.scheduled_at, scheduled.confirmed_at)
+
+    def test_the_sent_one_is_simulated_with_clicks_leads_replies_and_a_stop(self):
+        sent = self.sent()
+        recipients = Recipient.objects.filter(utskick=sent)
+        self.assertEqual(
+            set(recipients.exclude(status="skipped").values_list("status", "simulated")),
+            {("delivered", True)},
+        )
+        self.assertTrue(all(r.sms_message_id is None for r in recipients))
+        self.assertFalse(SmsMessage.objects.exists())
+        numbers = reports.summary(sent)
+        self.assertEqual(numbers["delivered"], 5)
+        self.assertEqual(numbers["clicked"], 3)
+        self.assertEqual(numbers["leads"], 2)
+        self.assertEqual(numbers["replied"], 2)
+        self.assertEqual(numbers["stopped"], 1)
+        self.assertEqual(sent.stats["delivered"], 5)
+        stop = Suppression.objects.get(account=self.account, reason="stop")
+        self.assertEqual(stop.utskick, sent)
+        via = self.account.leads.filter(utskick=sent)
+        self.assertEqual(via.count(), 2)
+        self.assertFalse(ConversionUpload.objects.filter(lead__in=via).exists())
+        self.assertTrue(all(not lead.can_send_to_google for lead in via))
+        link = TrackedLink.objects.get(utskick=sent)
+        self.assertEqual((link.human_clicks, link.leads), (3, 2))
+
+    def test_the_inbox_shows_the_replies_and_the_stop(self):
+        client = self.staff_as_customer()
+        inbox = client.get(reverse("flamingo:app_inbox"))
+        for text in ("Sms-svar", "STOPP", "Avregistrerad automatiskt", "Klar"):
+            self.assertContains(inbox, text)
+        self.assertContains(inbox, "Utskick: Spolning inför vintern")
+        threads = Thread.objects.filter(account=self.account)
+        self.assertEqual(sorted(threads.values_list("kind", flat=True)), ["reply", "reply", "stop"])
+        for thread in threads:
+            page = client.get(reverse("flamingo:app_lead", args=[thread.lead_id]))
+            self.assertContains(page, "Utskick: Spolning inför vintern")
+        stop = threads.get(kind="stop")
+        page = client.get(reverse("flamingo:app_lead", args=[stop.lead_id]))
+        self.assertContains(page, "Demokontot skickar aldrig.")
+        self.assertEqual(
+            {m.status for m in InboundMessage.objects.filter(account=self.account)},
+            {"routed", "stop"},
+        )
+
+    def test_the_tick_simulates_the_scheduled_one_without_46elks(self):
+        """Med allt påslaget (brytaren, kundens SMS, 46elks): demots schemalagda
+        utskick går när tiden kommer, utan ett enda anrop."""
+        from django.utils import timezone
+
+        from apps.utskick.sending import tick
+
+        SmsAccount.objects.create(customer=self.customer, is_enabled=True, sender_name="Exempel")
+        Switchboard.objects.update_or_create(
+            pk=Switchboard.SOLO_PK,
+            defaults={
+                "sms_enabled": True,
+                "links_ready_at": timezone.now(),
+                "sms_inbound_ready_at": timezone.now(),
+            },
+        )
+        scheduled = Utskick.objects.get(account=self.account, status=Utskick.Status.SCHEDULED)
+        moment = timezone.now()
+        Utskick.objects.filter(pk=scheduled.pk).update(scheduled_at=moment)
+        with (
+            mock.patch("apps.sms.elks._post", side_effect=no_elks) as api,
+            mock.patch.object(sms, "urlopen") as owner,
+            mock.patch("apps.utskick.sending.sms.time.sleep"),
+        ):
+            summary = tick.run(now=moment, budget=20)
+        api.assert_not_called()
+        owner.assert_not_called()
+        self.assertNotIn("failed", summary)
+        scheduled.refresh_from_db()
+        self.assertEqual(scheduled.status, Utskick.Status.SENT)
+        sent = Recipient.objects.filter(utskick=scheduled).exclude(status="skipped")
+        self.assertTrue(sent.exists())
+        self.assertEqual(set(sent.values_list("simulated", flat=True)), {True})
+        self.assertFalse(SmsMessage.objects.exists())
+
+    def test_the_buttons_that_send_refuse_the_demo(self):
+        from django.utils import timezone
+
+        SmsAccount.objects.create(customer=self.customer, is_enabled=True, sender_name="Exempel")
+        Switchboard.objects.update_or_create(
+            pk=Switchboard.SOLO_PK,
+            defaults={
+                "sms_enabled": True,
+                "links_ready_at": timezone.now(),
+                "sms_inbound_ready_at": timezone.now(),
+            },
+        )
+        client = self.staff_as_customer()
+        draft = Utskick.objects.get(account=self.account, status=Utskick.Status.DRAFT)
+        reply = Thread.objects.filter(account=self.account, kind="reply").first()
+        with mock.patch("apps.sms.elks._post", side_effect=no_elks) as api:
+            client.post(
+                reverse("flamingo:app_utskick_test", args=[draft.pk]),
+                {"till": "kunden", "som_adx": "1"},
+            )
+            response = client.post(
+                reverse("flamingo:app_lead_reply", args=[reply.lead_id]),
+                {"text": "Hej", "staff_ok": "1"},
+            )
+            self.assertContains(response, "Demokontot skickar aldrig.")
+        api.assert_not_called()
+        self.assertFalse(SmsMessage.objects.exists())
 
 
 class DemoConversionTests(DemoFixture, TestCase):

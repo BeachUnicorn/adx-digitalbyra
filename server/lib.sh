@@ -131,6 +131,80 @@ install_service() {
     sudo systemctl restart "$SERVICE_NAME"
 }
 
+# Länkvärdarna (apps/utskick, README C.5): LINK_DOMAINS och LINK_CERT_NAME i
+# sites.d/<slug>.conf. Tomt LINK_BLOCK för sajter utan länkvärdar. Port 80
+# skickar till https; 443-blocket ritas först när certifikatet finns
+# (certs.sh skapar linjen LINK_CERT_NAME), så att nginx -t inte faller före
+# det. Ingen access-logg (koderna i adresserna är behörigheter), MCP och
+# OAuth svarar 404, bara /static/ och appen (inget /media/). Varje svar får
+# X-Robots-Tag noindex (appen sätter den också), och nginx släpper aldrig
+# igenom en kaka (D10: inga kakor på länkvärdarna, appen sätter inga).
+build_link_block() {
+    LINK_BLOCK=""
+    if ! declare -p LINK_DOMAINS >/dev/null 2>&1 || [ "${#LINK_DOMAINS[@]}" -eq 0 ]; then
+        return 0
+    fi
+    local names="${LINK_DOMAINS[*]}"
+    local cert="${LINK_CERT_NAME:-${SITE_SLUG}-links}"
+    LINK_BLOCK="$(cat <<NGINX
+
+# Länkvärdarna för utskick: HTTP -> HTTPS på samma värd.
+server {
+    listen 80;
+    server_name ${names};
+    access_log off;
+    return 301 https://\$host\$request_uri;
+}
+NGINX
+)"
+    if sudo test -f "/etc/letsencrypt/live/${cert}/fullchain.pem"; then
+        LINK_BLOCK+="$(cat <<NGINX
+
+# Länkvärdarna för utskick (k.adx.se i sms, klick.adx.se i mejl).
+server {
+    listen 443 ssl;
+    server_name ${names};
+
+    ssl_certificate /etc/letsencrypt/live/${cert}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${cert}/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    client_max_body_size 64k;
+    access_log off;
+    add_header X-Robots-Tag "noindex, nofollow" always;
+
+    location ~ ^/(mcp|authorize|token|register|revoke|\.well-known/oauth) {
+        return 404;
+    }
+
+    location /static/ {
+        alias ${STATIC_DIR}/;
+        expires 30d;
+        add_header Cache-Control "public";
+        add_header X-Robots-Tag "noindex, nofollow" always;
+    }
+
+    location / {
+        proxy_pass http://unix:${SOCKET};
+        proxy_hide_header Set-Cookie;
+        # Appens egen X-Robots-Tag: nginx sätter samma för hela blocket.
+        proxy_hide_header X-Robots-Tag;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+    }
+
+    error_log /var/log/nginx/${SITE_SLUG}_links_error.log;
+}
+NGINX
+)"
+    else
+        warn "Inget certifikat för länkvärdarna än (${cert}): bara port 80 ritas. Kör certs.sh ${SITE_SLUG} och sedan nginx-only.sh ${SITE_SLUG}."
+    fi
+}
+
 # Render the nginx vhost from the template and (re)install + reload it.
 install_nginx() {
     local conf="/etc/nginx/sites-available/${SITE_SLUG}.conf"
@@ -165,12 +239,14 @@ NGINX
         SECONDARY_REDIRECT_BLOCK=""
     fi
 
+    build_link_block
+
     log "Rendering nginx vhost -> ${conf}"
     export SITE_SLUG PRIMARY_DOMAIN ALL_DOMAINS SECONDARY_DOMAINS \
-        CERT_NAME SOCKET STATIC_DIR MEDIA_DIR SECONDARY_REDIRECT_BLOCK
+        CERT_NAME SOCKET STATIC_DIR MEDIA_DIR SECONDARY_REDIRECT_BLOCK LINK_BLOCK
     # Restrict substitution to OUR vars so nginx runtime vars ($host, $scheme,
     # $request_uri, $remote_addr, $proxy_add_x_forwarded_for) stay literal.
-    envsubst '$SITE_SLUG $PRIMARY_DOMAIN $ALL_DOMAINS $CERT_NAME $SOCKET $STATIC_DIR $MEDIA_DIR $SECONDARY_REDIRECT_BLOCK' \
+    envsubst '$SITE_SLUG $PRIMARY_DOMAIN $ALL_DOMAINS $CERT_NAME $SOCKET $STATIC_DIR $MEDIA_DIR $SECONDARY_REDIRECT_BLOCK $LINK_BLOCK' \
         < "${SERVER_DIR}/templates/nginx.conf.template" \
         | sudo tee "$conf" >/dev/null
 

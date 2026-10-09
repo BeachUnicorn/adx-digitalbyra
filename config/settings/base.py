@@ -61,6 +61,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Utskickens länkvärdar k.adx.se och klick.adx.se: där svarar bara
+    # config.urls_links (apps/utskick/links.py, README E.1).
+    "apps.utskick.links.LinkHostMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -372,6 +375,35 @@ UTSKICK_AWS_EXTERNAL_ID = env.str("UTSKICK_AWS_EXTERNAL_ID", default="")
 # inkommande post), skild från ADX egen post i eu-north-1.
 UTSKICK_SES_REGION = env.str("UTSKICK_SES_REGION", default="") or "eu-west-1"
 UTSKICK_ADX_MAIL_DOMAIN = env.str("UTSKICK_ADX_MAIL_DOMAIN", default="") or "utskick.adx.se"
+
+
+def _host_list(name, default):
+    """Kommaseparerade värdnamn i gemener; en tom rad ger standardvärdet."""
+    hosts = [h.strip().lower() for h in env.list(name, default=[]) if h.strip()]
+    return hosts or list(default)
+
+
+# S2: sms-utskicken (README C.4). Värdarna som bara svarar på utskickens
+# länkar (apps/utskick/links.py, LinkHostMiddleware): k.adx.se i sms,
+# klick.adx.se i mejl. Lokalt k.localhost och klick.localhost
+# (development.py). I produktion läggs de också sist i ALLOWED_HOSTS och
+# CSRF_TRUSTED_ORIGINS (lankrapport läser den första värden).
+UTSKICK_LINK_HOSTS = _host_list("UTSKICK_LINK_HOSTS", ["k.adx.se", "klick.adx.se"])
+# Länkarnas bas: i sms skrivs den utan schema (k.adx.se/a8Kf2X).
+UTSKICK_SMS_LINK_BASE = env.str("UTSKICK_SMS_LINK_BASE", default="") or "https://k.adx.se"
+UTSKICK_EMAIL_LINK_BASE = env.str("UTSKICK_EMAIL_LINK_BASE", default="") or "https://klick.adx.se"
+# Det delade svarsnumret hos 46elks (D4): svar och STOPP hamnar i Inkorgen
+# hos kunden som senast skickade från det till numret.
+UTSKICK_REPLY_NUMBER = env.str("UTSKICK_REPLY_NUMBER", default="") or "+46766860046"
+# Hemligheten i adressen 46elks skickar inkommande sms till
+# (/api/utskick/46elks/inkommande/<token>/), minst 32 tecken. Tomt = inkommande
+# sms är av. I produktion vägrar adressen också när SMS_DLR_ALLOWED_IPS är tom.
+UTSKICK_ELKS_INBOUND_TOKEN = env.str("UTSKICK_ELKS_INBOUND_TOKEN", default="")
+# Utskickens del av minutgränserna i apps/sms: per kund (resten, 60 - 45,
+# lämnas åt kundens API) och för hela byrån (80 - 60 åt API:t; Flamingos
+# egna sms räknas också av, D.4).
+UTSKICK_SMS_ACCOUNT_PER_MINUTE = env.int("UTSKICK_SMS_ACCOUNT_PER_MINUTE", default=45)
+UTSKICK_SMS_GLOBAL_PER_MINUTE = env.int("UTSKICK_SMS_GLOBAL_PER_MINUTE", default=60)
 
 # Testerna når aldrig nätet: bara loopback och unix-socklar (Postgres), och
 # inga sms eller mejl skickas på riktigt även om .env säger det.

@@ -130,3 +130,15 @@ body.up{
 
 /* Botskyddets honungsfält: utanför skärmen, aldrig display:none (apps/common/botcheck.py). */
 .bc-field{position:absolute !important;left:-9999px !important;top:auto !important;width:1px;height:1px;overflow:hidden}
+
+/* ==========================================================================
+   S2, länkvärdarna k.adx.se (templates/utskick/links/, länk-byggaren):
+   avregistreringen /s/, valen /p/ och bekräftelsen /b/. Samma kort som
+   ovan; här bara det som är nytt.
+   ========================================================================== */
+.up-box{border:1px solid var(--up-line);border-radius:var(--up-r-sm);padding:16px 14px;background:var(--up-soft)}
+.up-box > * + *{margin-top:10px}
+.up-card > .up-box{margin-top:24px}
+.up-h2.up-box__title{margin-top:0;font-size:17px}
+.up-row--signup{flex-wrap:wrap}
+.up-row__input{margin-top:10px}
