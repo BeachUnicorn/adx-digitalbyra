@@ -51,6 +51,7 @@
             </li>
 
             <li><a href="{% url 'manage:flamingo_overview' %}" class="m-nav__link {% if active == 'flamingo' %}is-active{% endif %}">Flamingo</a></li>
+            <li><a href="{% url 'manage:sms_overview' %}" class="m-nav__link {% if active == 'sms' %}is-active{% endif %}">SMS{% if sms_to_check %} <span class="m-badge m-badge--alert" title="Sms att stämma av mot 46elks">{{ sms_to_check }}</span>{% endif %}</a></li>
             <li><a href="{% url 'manage:assistant_chat' %}" class="m-nav__link {% if active == 'assistant' %}is-active{% endif %}">{% include "manage/assistant/_orb.html" with orb_class="m-orb--sm" %}AI{% if pending_drafts %} <span class="m-badge m-badge--alert">{{ pending_drafts }}</span>{% endif %}</a></li>
             <li class="m-nav__dropdown">
                 <button class="m-nav__link m-nav__dropdown-toggle {% if active == 'settings' or active == 'menus' %}is-active{% endif %}">Inställningar ▾</button>
@@ -107,6 +108,7 @@ innehåll och inställningar i ett rutnät under.
         <a href="{% url 'manage:customer_list' %}"{% if active == 'customers' %} class="is-active" aria-current="page"{% endif %}>Kunder</a>
         <a href="{% url 'manage:drift' %}"{% if active == 'drift' %} class="is-active" aria-current="page"{% endif %}>Drift</a>
         <a href="{% url 'manage:flamingo_overview' %}"{% if active == 'flamingo' %} class="is-active" aria-current="page"{% endif %}>Flamingo</a>
+        <a href="{% url 'manage:sms_overview' %}"{% if active == 'sms' %} class="is-active" aria-current="page"{% endif %}><span>SMS{% if sms_to_check %}<span class="m-badge m-badge--alert">{{ sms_to_check }}</span>{% endif %}</span></a>
         <a href="{% url 'manage:assistant_chat' %}"{% if active == 'assistant' %} class="is-active" aria-current="page"{% endif %}><span>AI{% if pending_drafts %}<span class="m-badge m-badge--alert">{{ pending_drafts }}</span>{% endif %}</span></a>
     </nav>
 

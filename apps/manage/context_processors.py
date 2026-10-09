@@ -2,6 +2,7 @@
 
 from apps.assistant.models import DraftChange
 from apps.inquiries.models import Inquiry
+from apps.sms.pricing import needs_check_messages
 
 
 def inquiry_badge(request):
@@ -28,6 +29,9 @@ def inquiry_badge(request):
         "pending_drafts": DraftChange.objects.filter(
             job__user=user, status=DraftChange.Status.PENDING
         ).count(),
+        # Sms med oklart läge hos 46elks: siffran på SMS i menyn (samma
+        # urval som "Kontrollera mot 46elks" på /manage/sms/).
+        "sms_to_check": needs_check_messages().count(),
         "show_admin_dock": True,
     }
 

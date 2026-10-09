@@ -281,7 +281,7 @@ def overview(request):
         request,
         "manage/sms/overview.html",
         {
-            "active": "customers",
+            "active": "sms",
             "title": "SMS-API",
             "accounts": accounts,
             "totals": totals,
