@@ -147,8 +147,8 @@ body.fl.mob-menu-open{overflow:hidden}
 .fl-brand{display:inline-flex;align-items:center;gap:12px;flex:none;min-height:44px;color:var(--fl-ink);text-decoration:none}
 .fl-brand:hover{color:var(--fl-ink)}
 .fl-brand__adx{display:block;height:18px;width:auto}
-.fl-brand__name{display:inline-flex;align-items:center;gap:7px;padding-left:12px;border-left:1px solid var(--fl-line);font-size:21px;font-weight:600;letter-spacing:-.03em;line-height:1}
-.fl-brand__mark{display:block;flex:none;width:24px;height:24px}
+.fl-brand__name{display:inline-flex;align-items:center;padding-left:12px;border-left:1px solid var(--fl-line)}
+.fl-brand__logo{display:block;height:20px;width:auto}
 .fl-nav{display:flex;flex-wrap:wrap;align-items:center;gap:4px 24px;min-width:0}
 .fl-nav a{padding:6px 0;font-size:16px;white-space:nowrap;color:var(--fl-body);text-decoration:none;background:var(--fl-band) no-repeat left bottom/0 2px;transition:background-size .2s ease,color .15s ease}
 .fl-nav a:hover{color:var(--fl-ink);background-size:100% 2px}
@@ -411,7 +411,8 @@ body.fl.mob-menu-open{overflow:hidden}
   .fl-lead{font-size:18px}
   .fl-brand{gap:10px}
   .fl-brand__adx{height:16px}
-  .fl-brand__name{padding-left:10px;font-size:19px}
+  .fl-brand__name{padding-left:10px}
+  .fl-brand__logo{height:17px}
   .fl-sec-head{margin-bottom:28px}
   .fl-card{padding:24px}
   .fl-step{padding:24px}

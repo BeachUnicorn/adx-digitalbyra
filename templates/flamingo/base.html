@@ -39,7 +39,7 @@ innan en Flamingo-404 kan visas - därav reserven.
   <div class="fl-wrap fl-header__in">
     <a href="{{ home_url }}" class="fl-brand" aria-label="ADX Flamingo, startsidan">
       <img class="fl-brand__adx" src="{% static 'images/adx-logo.png' %}" alt="" width="1502" height="518">
-      <span class="fl-brand__name"><svg class="fl-brand__mark" width="26" height="26" viewBox="0 0 30 30" aria-hidden="true" focusable="false"><defs><linearGradient id="fl-mark-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9EC3FF"/><stop offset=".4" stop-color="#8365F3"/><stop offset=".7" stop-color="#F27AD9"/><stop offset="1" stop-color="#FE9F30"/></linearGradient></defs><path d="M4 3 C 14 8, 18 14, 26 27 L 20 27 C 14 17, 10 12, 4 9 Z" fill="url(#fl-mark-grad)"/></svg>Flamingo</span>
+      <span class="fl-brand__name"><img class="fl-brand__logo" src="{% static 'images/flamingo/flamingo-logo.png' %}" alt="" width="403" height="55"></span>
     </a>
     {% if flamingo_nav %}
     <nav class="fl-nav" aria-label="ADX Flamingo">
@@ -71,7 +71,7 @@ portalen); stängs med Stäng, Esc eller en länk.
 {% endcomment %}
 <div class="fl-mob-menu" id="fl-mob-menu" role="dialog" aria-modal="true" aria-label="Meny" hidden>
   <div class="fl-mob-menu__head">
-    <span class="fl-brand fl-brand--menu"><img class="fl-brand__adx" src="{% static 'images/adx-logo.png' %}" alt="ADX" width="1502" height="518"><span class="fl-brand__name"><svg class="fl-brand__mark" width="26" height="26" viewBox="0 0 30 30" aria-hidden="true" focusable="false"><path d="M4 3 C 14 8, 18 14, 26 27 L 20 27 C 14 17, 10 12, 4 9 Z" fill="url(#fl-mark-grad)"/></svg>Flamingo</span></span>
+    <span class="fl-brand fl-brand--menu"><img class="fl-brand__adx" src="{% static 'images/adx-logo.png' %}" alt="ADX" width="1502" height="518"><span class="fl-brand__name"><img class="fl-brand__logo" src="{% static 'images/flamingo/flamingo-logo.png' %}" alt="Flamingo" width="403" height="55"></span></span>
     <button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-menu-close>Stäng</button>
   </div>
   {% if fa.customer %}<p class="fl-kicker fl-mob-menu__kicker">{{ fa.customer.name }}</p>{% endif %}
