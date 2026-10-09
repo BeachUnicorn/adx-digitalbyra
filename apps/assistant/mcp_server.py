@@ -20,9 +20,9 @@ och ångringsbar batch.
 import logging
 
 import mcp.types as types
-from asgiref.sync import sync_to_async
 from mcp.server.lowlevel import Server
 
+from .db import db_sync
 from .operations import OperationError
 from .runtime import job_for_session, run_operation, tool_descriptions
 
@@ -203,7 +203,7 @@ async def _on_call_tool(context, params):
     session_id = getattr(request, "headers", {}).get("mcp-session-id") if request else None
 
     try:
-        text = await sync_to_async(run_operation, thread_sensitive=True)(
+        text = await db_sync(run_operation)(
             user,
             lambda: job_for_session(user, session_id),
             params.name,

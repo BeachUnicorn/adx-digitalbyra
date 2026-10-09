@@ -18,12 +18,12 @@ skript, som kan skicka egna headers och därför inte behöver OAuth.
 import logging
 from urllib.parse import urlencode
 
-from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.urls import reverse
 from mcp.server.auth.provider import AccessToken, AuthorizationCode, RefreshToken
 from mcp.shared.auth import OAuthClientInformationFull, OAuthToken
 
+from .db import db_sync
 from .oauth_models import ACCESS_TOKEN_TTL, DEFAULT_SCOPE, OAuthClient
 from .oauth_models import AuthorizationCode as CodeRow
 from .oauth_models import OAuthToken as TokenRow
@@ -54,9 +54,7 @@ class DjangoOAuthProvider:
     # --- Klientregistrering -------------------------------------------------
 
     async def get_client(self, client_id):
-        row = await sync_to_async(
-            OAuthClient.objects.filter(client_id=client_id).first, thread_sensitive=True
-        )()
+        row = await db_sync(OAuthClient.objects.filter(client_id=client_id).first)()
         return _to_client_info(row) if row else None
 
     async def register_client(self, client_info):
@@ -89,7 +87,7 @@ class DjangoOAuthProvider:
             row.set_secret(secret)
             row.save(update_fields=["client_secret_encrypted"])
 
-        await sync_to_async(_create, thread_sensitive=True)()
+        await db_sync(_create)()
 
     # --- Auktorisering ------------------------------------------------------
 
@@ -136,7 +134,7 @@ class DjangoOAuthProvider:
                 resource=row.resource or None,
             )
 
-        return await sync_to_async(_load, thread_sensitive=True)()
+        return await db_sync(_load)()
 
     async def exchange_authorization_code(self, client, authorization_code):
         from django.utils import timezone
@@ -174,7 +172,7 @@ class DjangoOAuthProvider:
                 refresh_token=refresh_raw,
             )
 
-        return await sync_to_async(_exchange, thread_sensitive=True)()
+        return await db_sync(_exchange)()
 
     # --- Refresh ------------------------------------------------------------
 
@@ -190,7 +188,7 @@ class DjangoOAuthProvider:
                 expires_at=int(row.expires_at.timestamp()),
             )
 
-        return await sync_to_async(_load, thread_sensitive=True)()
+        return await db_sync(_load)()
 
     async def exchange_refresh_token(self, client, refresh_token, scopes):
         """
@@ -222,7 +220,7 @@ class DjangoOAuthProvider:
                 refresh_token=refresh_raw,
             )
 
-        return await sync_to_async(_exchange, thread_sensitive=True)()
+        return await db_sync(_exchange)()
 
     # --- Access-token -------------------------------------------------------
 
@@ -243,7 +241,7 @@ class DjangoOAuthProvider:
                 subject=str(row.user_id),
             )
 
-        return await sync_to_async(_load, thread_sensitive=True)()
+        return await db_sync(_load)()
 
     async def verify_token(self, token):
         return await self.load_access_token(token)
@@ -256,7 +254,7 @@ class DjangoOAuthProvider:
                     row.revoke()
                     return
 
-        await sync_to_async(_revoke, thread_sensitive=True)()
+        await db_sync(_revoke)()
 
     async def exchange_identity_assertion(self, client, params):
         raise NotImplementedError("Identity assertion används inte här.")

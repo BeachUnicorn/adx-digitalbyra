@@ -16,7 +16,7 @@ import reversion
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
 from django.core.management.base import CommandError
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.urls import reverse
 from django.utils import timezone
 from reversion.models import Version
@@ -3601,3 +3601,19 @@ class StaffOnlyToolsTests(TestCase):
         staff.refresh_from_db()
         with self.assertRaises(OperationError):
             run_operation(staff, lambda: None, "lista_sidor", {})
+
+
+class DbSyncTests(TransactionTestCase):
+    """MCP-servern går utanför Djangos förfrågningar. En anslutning som dött
+    när Postgres startades om (2026-10-09) ska inte fälla nästa anrop."""
+
+    def test_overlever_att_databasen_startas_om(self):
+        from asgiref.sync import async_to_sync
+        from django.db import connection
+
+        from .db import db_sync
+
+        connection.ensure_connection()
+        connection.connection.close()  # som när Postgres startas om
+        count = async_to_sync(db_sync(get_user_model().objects.count))()
+        self.assertEqual(count, 0)

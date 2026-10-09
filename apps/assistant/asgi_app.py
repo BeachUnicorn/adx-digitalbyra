@@ -10,7 +10,7 @@ bearer-token når aldrig MCP-lagret.
 
 import os
 
-from asgiref.sync import sync_to_async
+from .db import db_sync
 
 MCP_PATH = "/mcp"
 
@@ -91,7 +91,7 @@ class AuthenticatedMCPApp:
     Båda landar i samma sak: en Django-användare i `scope["assistant_user"]`.
     Resten av systemet bryr sig inte om vilken väg som användes.
 
-    Databasslagningen är synkron, så den går via sync_to_async - ASGI-appen
+    Databasslagningen är synkron, så den går via db_sync - ASGI-appen
     körs i en händelseloop.
     """
 
@@ -144,7 +144,7 @@ class AuthenticatedMCPApp:
             # staff - en kundkontakt, ett nedgraderat konto - öppnar inget.
             return user if user is not None and is_agency_user(user) else None
 
-        return await sync_to_async(_lookup, thread_sensitive=True)()
+        return await db_sync(_lookup)()
 
 
 def build_application():
