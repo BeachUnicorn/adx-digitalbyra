@@ -15,6 +15,9 @@
 # väljer annars development). Raden i loggen skrivs bara när ticken gjorde
 # något, och bär bara antal.
 #
+# Pythonen är sajtens ../.venv (den som deploy.sh synkar och tjänsten kör),
+# inte app/.venv som några äldre cron-rader använder.
+#
 # utskick_daily 02.45, före sms_close_month 03.10 den första.
-* * * * *  /usr/bin/flock -n /home/djangouser/sites/adx/run/utskick.lock /usr/bin/choom -n 800 -- /bin/sh -c 'cd /home/djangouser/sites/adx/app && MALLOC_ARENA_MAX=2 DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python manage.py utskick_tick >> /home/djangouser/sites/adx/backups/utskick.log 2>&1'
-45 2 * * *  /usr/bin/flock -w 300 /home/djangouser/sites/adx/run/utskick-daily.lock /usr/bin/choom -n 800 -- /bin/sh -c 'cd /home/djangouser/sites/adx/app && MALLOC_ARENA_MAX=2 DJANGO_SETTINGS_MODULE=config.settings.production .venv/bin/python manage.py utskick_daily >> /home/djangouser/sites/adx/backups/utskick-daily.log 2>&1'
+* * * * *  /usr/bin/flock -n /home/djangouser/sites/adx/run/utskick.lock /usr/bin/choom -n 800 -- /bin/sh -c 'cd /home/djangouser/sites/adx/app && MALLOC_ARENA_MAX=2 DJANGO_SETTINGS_MODULE=config.settings.production /home/djangouser/sites/adx/.venv/bin/python manage.py utskick_tick >> /home/djangouser/sites/adx/backups/utskick.log 2>&1'
+45 2 * * *  /usr/bin/flock -w 300 /home/djangouser/sites/adx/run/utskick-daily.lock /usr/bin/choom -n 800 -- /bin/sh -c 'cd /home/djangouser/sites/adx/app && MALLOC_ARENA_MAX=2 DJANGO_SETTINGS_MODULE=config.settings.production /home/djangouser/sites/adx/.venv/bin/python manage.py utskick_daily >> /home/djangouser/sites/adx/backups/utskick-daily.log 2>&1'
