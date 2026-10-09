@@ -1,0 +1,92 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static %}
+{% comment %}
+Inställningar för kontakter (README I.9, raderna för S1). Kontext från
+app_views/settings.contacts_settings: form (ContactSettingsForm),
+utskick_settings (raden: display_name, public_slug), signup_url,
+privacy_page_url (bara när den genererade sidan finns), privacy_ok,
+privacy_text, lp_on, lp_text (kryssrutornas läge just nu), dpa_ok, dpa_text, export_text,
+contact_count, contact_limit. Namnet och adressen sätter ADX ("Be ADX
+ändra det."); resten ändrar kunden här.
+{% endcomment %}
+{% block app_title %}Inställningar för kontakter{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Inställningar för kontakter</h1>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<section class="fl-panel" aria-labelledby="kt-set-fixed">
+  <h2 class="fl-panel__title" id="kt-set-fixed">Namn, adress och avtal</h2>
+  <ul class="fl-list fl-kt-setrows">
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Företagsnamn i utskick</span>
+        <span class="fl-list__meta">{{ utskick_settings.display_name }} · Be ADX ändra det.</span>
+      </div>
+    </li>
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Adress för anmälan</span>
+        <span class="fl-list__meta fl-kt-url">{% if signup_url %}{{ signup_url }}{% else %}Inte satt än.{% endif %} · Be ADX ändra det.</span>
+      </div>
+      {% if signup_url %}<button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-kt-copy="{{ signup_url }}" hidden>Kopiera</button>{% endif %}
+    </li>
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Biträdesavtal</span>
+        <span class="fl-list__meta">{{ dpa_text }}</span>
+      </div>
+      <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_dpa' %}">{% if dpa_ok %}Visa{% else %}Godkänn{% endif %}</a>
+    </li>
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Senast exporterad</span>
+        <span class="fl-list__meta">{{ export_text }}</span>
+      </div>
+    </li>
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Antal kontakter</span>
+        <span class="fl-list__meta">{{ contact_count }} av högst {{ contact_limit }}. Be ADX höja gränsen om du behöver fler.</span>
+      </div>
+    </li>
+  </ul>
+</section>
+
+<form class="fl-form" method="post" action="{% url 'flamingo:app_contacts_settings' %}">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<p class="fl-notice fl-notice--error" role="alert"><span>{% for error in form.non_field_errors %}{{ error }} {% endfor %}</span></p>{% endif %}
+  <section class="fl-panel" aria-labelledby="kt-set-consent">
+    <h2 class="fl-panel__title" id="kt-set-consent">Samtyckestexter</h2>
+    <p class="fl-panel__text">Texten bredvid kryssrutan på anmälningssidan och landningssidorna. Den sparas med varje ja, som bevis på vad personen såg.</p>
+    {% include "flamingo/app/kontakter/_field.html" with field=form.consent_text_sms help="Med ditt företagsnamn, så att personen vet vem som skickar." %}
+    {% include "flamingo/app/kontakter/_field.html" with field=form.consent_text_email help="Med ditt företagsnamn, så att personen vet vem som skickar." %}
+  </section>
+
+  <section class="fl-panel" aria-labelledby="kt-set-lp">
+    <h2 class="fl-panel__title" id="kt-set-lp">Landningssidor och integritet</h2>
+    <label class="fl-check"><input type="checkbox" name="lp_consent" value="1"{% if form.lp_consent.value %} checked{% endif %}><span>Kryssrutor för erbjudanden i formulären på landningssidorna</span></label>
+    <p class="fl-notice{% if lp_on %} fl-notice--ok{% else %} fl-notice--warn{% endif %}"><span>{{ lp_text }}</span></p>
+    <p class="fl-field__help">Kryssrutorna visas bara när biträdesavtalet är godkänt och det finns en integritetstext: din egen länk nedan, eller den genererade sidan. Rutorna är aldrig ikryssade från början.</p>
+    {% include "flamingo/app/kontakter/_field.html" with field=form.privacy_url help="Lämna tomt för att använda den genererade sidan." %}
+    {% if privacy_page_url %}<p class="fl-panel__note">Den genererade sidan: <a class="fl-panel__link fl-kt-url" href="{{ privacy_page_url }}" target="_blank" rel="noopener">{{ privacy_page_url }}</a></p>{% elif not privacy_ok %}<p class="fl-panel__note">Ingen integritetstext finns än.{% if lp_text != privacy_text %} {{ privacy_text }}{% endif %}</p>{% endif %}
+  </section>
+
+  <section class="fl-panel" aria-labelledby="kt-set-pages">
+    <h2 class="fl-panel__title" id="kt-set-pages">Mina utskick och avregistrering</h2>
+    {% include "flamingo/app/kontakter/_field.html" with field=form.pref_email_note help="Står under E-post med erbjudanden på sidan där mottagaren väljer vad hen vill få. Tomt från början." %}
+    {% include "flamingo/app/kontakter/_field.html" with field=form.unsubscribe_text help="En extra rad på sidan efter en avregistrering." %}
+  </section>
+
+  <div class="fl-form__actions">
+    <p class="fl-form__note">Ändringarna gäller direkt för nya anmälningar.</p>
+    <button type="submit" class="fl-btn">Spara inställningarna</button>
+  </div>
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>{% endblock %}

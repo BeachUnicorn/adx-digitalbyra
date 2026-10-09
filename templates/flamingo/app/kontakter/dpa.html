@@ -1,0 +1,82 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static %}
+{% comment %}
+Biträdesavtalet (README D6, B.1, I.4). Kontext från app_views/dpa.dpa: dpa
+(aktuell DpaVersion eller None), published_text, acceptance (senaste
+godkännandet), accepted_current, accepted_who, accepted_text, old_version
+(versionen kunden godkände, när den inte är den aktuella), dpa_ok, form
+(DpaForm), is_staff_actor (byrån i kundvyn: vem hos kunden godkände och
+hur), nasta, missing_text.
+{% endcomment %}
+{% block app_title %}Biträdesavtal{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{% url 'flamingo:app_contacts_settings' %}">Inställningar</a></p>
+    <h1 class="fl-app-title">Biträdesavtal</h1>
+    <p class="fl-app-lead">Du ansvarar för dina kontakters uppgifter. ADX hanterar dem åt dig, och avtalet säger hur. Det behöver godkännas innan du lägger till eller importerar kontakter.</p>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+{% if not dpa %}
+{% if account.is_demo %}
+<p class="fl-notice"><span>Demokontot behöver inget godkännande.</span></p>
+{% else %}
+<p class="fl-notice fl-notice--warn" role="status"><span>{{ missing_text }}</span></p>
+{% endif %}
+{% else %}
+
+{% if accepted_current %}
+<p class="fl-notice fl-notice--ok"><span>Godkänt av {{ accepted_who }} {{ accepted_text }} (version {{ dpa.version }}).{% if acceptance.staff_statement %} {{ acceptance.staff_statement }}{% endif %}</span></p>
+{% elif old_version %}
+<p class="fl-notice fl-notice--warn"><span>En ny version av avtalet finns. Du godkände version {{ old_version.version }} {{ accepted_text }}. Godkänn den nya för att lägga till nya kontakter; det du redan har fungerar som vanligt.</span></p>
+{% elif account.is_demo %}
+<p class="fl-notice"><span>Demokontot behöver inget godkännande.</span></p>
+{% endif %}
+
+<section class="fl-panel" aria-labelledby="kt-dpa-text-title">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="kt-dpa-text-title">Avtalet</h2>
+    <span class="fl-panel__note">Version {{ dpa.version }}, publicerad {{ published_text }}</span>
+  </div>
+  <div class="fl-kt-dpa" role="region" tabindex="0" aria-label="Avtalets text">{{ dpa.text|linebreaks }}</div>
+</section>
+
+{% if old_version %}
+<details class="fl-panel fl-panel--soft fl-kt-more">
+  <summary class="fl-btn fl-btn--ghost fl-btn--sm">Visa versionen du godkände ({{ old_version.version }})</summary>
+  <div class="fl-kt-dpa" role="region" tabindex="0" aria-label="Den tidigare versionens text">{{ old_version.text|linebreaks }}</div>
+</details>
+{% endif %}
+
+{% if form and not accepted_current %}
+<section class="fl-panel fl-panel--accent" aria-labelledby="kt-dpa-accept">
+  <h2 class="fl-panel__title" id="kt-dpa-accept">Godkänn avtalet</h2>
+  <form class="fl-form" method="post" action="{% url 'flamingo:app_dpa' %}">
+    {% csrf_token %}
+    {{ form.version }}
+    {% if nasta %}<input type="hidden" name="nasta" value="{{ nasta }}">{% endif %}
+    {% if form.non_field_errors %}<p class="fl-notice fl-notice--error" role="alert"><span>{% for error in form.non_field_errors %}{{ error }} {% endfor %}</span></p>{% endif %}
+    {% if is_staff_actor %}
+    <div class="fl-field{% if form.staff_statement.errors %} is-error{% endif %}">
+      <label class="fl-field__label" for="kt-dpa-staff_statement">Vem hos {{ customer.name }} godkände avtalet, och hur?</label>
+      <input class="fl-input" id="kt-dpa-staff_statement" type="text" name="staff_statement" value="{{ form.staff_statement.value|default:'' }}" maxlength="300" required autocomplete="off" placeholder="Till exempel: Anna Lindqvist, i mejl 2 okt">
+      {% for error in form.staff_statement.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+      <p class="fl-field__help">Du godkänner som ADX åt kunden. Det sparas med ditt namn och det du skriver här.</p>
+    </div>
+    {% endif %}
+    <div class="fl-field{% if form.accept.errors %} is-error{% endif %}">
+      <label class="fl-check"><input type="checkbox" name="accept" value="1" required{% if form.accept.value %} checked{% endif %}><span>{% if is_staff_actor %}{{ customer.name }} har läst biträdesavtalet och godkänner det.{% else %}Jag har läst biträdesavtalet och godkänner det för {{ customer.name }}.{% endif %}</span></label>
+      {% for error in form.accept.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+    </div>
+    <div class="fl-form__actions">
+      <p class="fl-form__note">Godkännandet sparas med tid och version.</p>
+      <button type="submit" class="fl-btn">Godkänn avtalet</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

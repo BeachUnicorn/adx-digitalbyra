@@ -72,6 +72,9 @@ On disk each site gets its own isolated checkout, venv, DB and service:
 | `superuser.sh <slug>` | per site | Creates the Django admin user. |
 | `deploy.sh <slug>` / `--all` | every update | Pull → `uv sync` → migrate → static → graceful reload → **health check + auto-rollback**. |
 | `backup.sh <slug>` | cron | `pg_dump` → S3 (+ local retention). |
+| `crontab.d/adx-utskick` | cron (adx) | Utskickens tick varje minut och dygnsstädningen 02.45 (`apps/utskick/README.md` D.1). |
+| `logrotate.d/adx-utskick` | logrotate (adx) | `backups/utskick*.log`, veckovis, åtta rotationer. |
+| `aws-utskick-role.sh` | once, workstation | Rollen `adx-utskick` för SES i eu-west-1 och instansrollens `utskick-assume` (H.8). |
 
 ## First-time setup of a new server
 
@@ -106,6 +109,22 @@ For more sites on this box, add another `sites.d/<slug>.conf` (with its own
 
 While the customer's old site is still live you typically start on a beta
 subdomain and switch at launch - see "Going from beta to live" below.
+
+## Utskick (adx): cron och loggar
+
+Kontakter och utskick (`apps/utskick`) behöver två cron-rader och en
+logrotate-fil, installerade som ubuntu efter S1-deployen (README J S1, steg 5):
+
+```bash
+sudo install -d -o djangouser -g djangouser /home/djangouser/sites/adx/run
+(sudo crontab -u djangouser -l 2>/dev/null; grep -v '^#' server/crontab.d/adx-utskick) \
+    | sudo crontab -u djangouser -
+sudo install -m 0644 server/logrotate.d/adx-utskick /etc/logrotate.d/adx-utskick
+```
+
+`deploy.sh` håller tickens lås (`run/utskick.lock`) från pull till omladdning.
+Hjärtslaget syns på `/manage/utskick/`, och `monitor_check` larmar byrån när
+ticken stannat medan något väntar.
 
 ## Day-to-day deploys
 

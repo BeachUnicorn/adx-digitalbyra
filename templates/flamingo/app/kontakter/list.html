@@ -1,0 +1,171 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Kontakter: listan (README I.7). Kontext från app_views/contacts.contact_list:
+kontakter (sidans rader), page, matching_count, total, sms_ok, email_ok
+("kan få" = får reklam), filters, filter_hidden, lists, tags,
+consent_filters, channel_filters, kind_filters, can_collect, collect_reason,
+dpa_missing, inactive_count, bulk_max, new_value.
+
+Sökningen och filtren är ett vanligt GET-formulär. Massändringen är ett
+POST-formulär runt tabellen: kryssrutorna (högst bulk_max), eller
+"Markera alla som matchar" (alla=1 plus filtret som dolda fält).
+flamingo-app-kontakter.js räknar de markerade och visar bara de val som
+hör till åtgärden; utan skript syns allt och fungerar ändå.
+{% endcomment %}
+{% block app_title %}Kontakter{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Kontakter</h1>
+    {% if total %}<p class="fl-app-lead">{{ total|tal }} {% if total == 1 %}kontakt{% else %}kontakter{% endif %} · {{ sms_ok|tal }} kan få sms · {{ email_ok|tal }} kan få e-post</p>{% endif %}
+  </div>
+  <div class="fl-app-head__actions">
+    {% if total %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contacts_export' %}{% if filters.active %}?{{ filters.query }}{% endif %}">Exportera</a>{% endif %}
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_import' %}">Importera</a>
+    <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_contact_new' %}">Lägg till kontakt</a>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+{% if inactive_count %}
+<p class="fl-notice fl-notice--warn"><span>{{ inactive_count|tal }} {% if inactive_count == 1 %}kontakt saknar{% else %}kontakter saknar{% endif %} samtycke och har inte hörts av på två år.</span><a href="{% url 'flamingo:app_contacts_prune' %}">Rensa inaktiva kontakter</a></p>
+{% endif %}
+{% if total and not can_collect %}
+<p class="fl-notice fl-notice--warn"><span>{{ collect_reason }}</span><a href="{% url 'flamingo:app_dpa' %}">Till biträdesavtalet</a></p>
+{% endif %}
+
+{% if total %}
+<form class="fl-kt-filters" method="get" action="{% url 'flamingo:app_contacts' %}" role="search" data-kt-autosubmit>
+  <div class="fl-kt-filters__search">
+    <label class="fl-sr" for="kt-q">Sök bland kontakterna</label>
+    <input class="fl-input" id="kt-q" type="search" name="q" value="{{ filters.q }}" placeholder="Sök namn, telefon, e-post, regnummer" autocomplete="off">
+  </div>
+  <div class="fl-kt-filters__selects">
+    {% if lists %}
+    <label class="fl-sr" for="kt-f-list">Lista</label>
+    <select class="fl-input fl-kt-select" id="kt-f-list" name="lista">
+      <option value="">Lista: alla</option>
+      {% for lista in lists %}<option value="{{ lista.pk }}"{% if filters.lista.pk == lista.pk %} selected{% endif %}>Lista: {{ lista.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    {% if tags %}
+    <label class="fl-sr" for="kt-f-tag">Tagg</label>
+    <select class="fl-input fl-kt-select" id="kt-f-tag" name="tagg">
+      <option value="">Tagg: alla</option>
+      {% for tag in tags %}<option value="{{ tag.pk }}"{% if filters.tagg.pk == tag.pk %} selected{% endif %}>Tagg: {{ tag.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    <label class="fl-sr" for="kt-f-consent">Samtycke</label>
+    <select class="fl-input fl-kt-select" id="kt-f-consent" name="samtycke">
+      <option value="">Samtycke: alla</option>
+      {% for value, label in consent_filters %}<option value="{{ value }}"{% if filters.samtycke == value %} selected{% endif %}>Samtycke: {{ label }}</option>{% endfor %}
+    </select>
+    <label class="fl-sr" for="kt-f-channel">Kanal</label>
+    <select class="fl-input fl-kt-select" id="kt-f-channel" name="kanal">
+      <option value="">Kanal: båda</option>
+      {% for value, label in channel_filters %}<option value="{{ value }}"{% if filters.kanal == value %} selected{% endif %}>Kanal: {{ label }}</option>{% endfor %}
+    </select>
+    <label class="fl-sr" for="kt-f-kind">Typ</label>
+    <select class="fl-input fl-kt-select" id="kt-f-kind" name="typ">
+      <option value="">Typ: alla</option>
+      {% for value, label in kind_filters %}<option value="{{ value }}"{% if filters.typ == value %} selected{% endif %}>Typ: {{ label }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="fl-kt-filters__actions">
+    <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Visa</button>
+    {% if filters.active %}<a class="fl-kt-filters__clear" href="{% url 'flamingo:app_contacts' %}">Rensa filtret</a>{% endif %}
+  </div>
+</form>
+{% endif %}
+
+{% if kontakter %}
+<form id="kt-bulk" class="fl-kt-bulk" method="post" action="{% url 'flamingo:app_contacts_bulk' %}" data-kt-bulk data-kt-total="{{ matching_count }}" data-kt-max="{{ bulk_max }}">
+  {% csrf_token %}
+  {% for name, value in filter_hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+  <p class="fl-kt-result">{% if filters.active %}{{ matching_count|tal }} matchar {{ filters.summary }}{% else %}{{ matching_count|tal }} {% if matching_count == 1 %}kontakt{% else %}kontakter{% endif %}{% endif %}{% if page.paginator.num_pages > 1 %} · sida {{ page.number }} av {{ page.paginator.num_pages }}{% endif %}</p>
+  {% include "flamingo/app/kontakter/_table.html" with selectable=True %}
+
+  <div class="fl-kt-bulkbar" data-kt-bulkbar>
+    <p class="fl-kt-bulkbar__count" data-kt-count aria-live="polite">Markera kontakter för att lägga dem i en lista, tagga, exportera eller ta bort dem.</p>
+    {% if matching_count > kontakter|length %}
+    <label class="fl-check fl-kt-bulkbar__all" data-kt-all-wrap><input type="checkbox" name="alla" value="1" data-kt-all><span>Markera alla {{ matching_count|tal }} som matchar</span></label>
+    {% endif %}
+    <div class="fl-kt-bulkbar__controls">
+      <label class="fl-sr" for="kt-action">Vad ska göras med de markerade</label>
+      <select class="fl-input fl-kt-select" id="kt-action" name="action" data-kt-action>
+        <option value="">Välj vad som ska göras</option>
+        <option value="list_add">Lägg i lista</option>
+        <option value="tag_add">Tagga</option>
+        <option value="tag_remove">Ta bort tagg</option>
+        <option value="export">Exportera</option>
+        <option value="delete">Ta bort</option>
+      </select>
+      <span class="fl-kt-bulkbar__opt" data-kt-for="list_add">
+        <label class="fl-sr" for="kt-bulk-list">Lista</label>
+        <select class="fl-input fl-kt-select" id="kt-bulk-list" name="lista_id" data-kt-new="kt-bulk-newlist">
+          <option value="">Välj lista</option>
+          {% for lista in lists %}<option value="{{ lista.pk }}">{{ lista.name }}</option>{% endfor %}
+          <option value="{{ new_value }}">Ny lista</option>
+        </select>
+        <label class="fl-sr" for="kt-bulk-newlist">Namn på den nya listan</label>
+        <input class="fl-input" id="kt-bulk-newlist" type="text" name="ny_lista" maxlength="80" placeholder="Namn på ny lista" autocomplete="off">
+      </span>
+      <span class="fl-kt-bulkbar__opt" data-kt-for="tag_add tag_remove">
+        <label class="fl-sr" for="kt-bulk-tag">Tagg</label>
+        <select class="fl-input fl-kt-select" id="kt-bulk-tag" name="tagg_id" data-kt-new="kt-bulk-newtag">
+          <option value="">Välj tagg</option>
+          {% for tag in tags %}<option value="{{ tag.pk }}">{{ tag.name }}</option>{% endfor %}
+          <option value="{{ new_value }}" data-kt-only="tag_add">Ny tagg</option>
+        </select>
+        <label class="fl-sr" for="kt-bulk-newtag">Namn på den nya taggen</label>
+        <input class="fl-input" id="kt-bulk-newtag" type="text" name="ny_tagg" maxlength="40" placeholder="Namn på ny tagg" autocomplete="off">
+      </span>
+      <button type="submit" class="fl-btn fl-btn--sm">Utför</button>
+    </div>
+  </div>
+</form>
+
+{% if page.has_other_pages %}
+<nav class="fl-kt-pages" aria-label="Fler kontakter">
+  {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if filters.active %}{{ filters.query }}&amp;{% endif %}sida={{ page.previous_page_number }}">Föregående</a>{% endif %}
+  <span class="fl-kt-pages__at">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?{% if filters.active %}{{ filters.query }}&amp;{% endif %}sida={{ page.next_page_number }}">Nästa</a>{% endif %}
+</nav>
+{% endif %}
+
+{% elif total %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Ingen kontakt matchar</p>
+  <p class="fl-empty__text">Inga kontakter matchar {{ filters.summary }}.</p>
+  <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contacts' %}">Rensa filtret</a>
+</div>
+
+{% elif not can_collect and dpa_missing %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Avtalssidan saknas</p>
+  <p class="fl-empty__text">Biträdesavtalet behöver vara godkänt innan du lägger till kontakter, men ADX har inte publicerat det än. Kontakta ADX.</p>
+</div>
+
+{% elif not can_collect %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Godkänn biträdesavtalet för att lägga till kontakter.</p>
+  <p class="fl-empty__text">Avtalet beskriver hur ADX hanterar dina kontakters uppgifter åt dig. Det behövs innan den första kontakten läggs till eller importeras.</p>
+  <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_dpa' %}?nasta=ny">Till biträdesavtalet</a>
+</div>
+
+{% else %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Inga kontakter än</p>
+  <p class="fl-empty__text">Importera dina kunder från en fil, lägg till dem en och en, eller låt dem anmäla sig själva på din anmälningssida.</p>
+  <div class="fl-kt-empty-actions">
+    <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_import' %}">Importera</a>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contact_new' %}">Lägg till kontakt</a>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_signup' %}">Anmälan</a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>{% endblock %}

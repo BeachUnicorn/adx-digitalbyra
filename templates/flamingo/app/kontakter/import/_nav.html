@@ -1,0 +1,18 @@
+{% comment %}
+Tillbaka (när back är satt) och Avbryt importen, under stegets formulär.
+Egna formulär, så att Enter i stegets fält alltid betyder Fortsätt.
+{% endcomment %}
+<div class="fl-im-nav">
+  {% if back %}
+  <form method="post" action="{{ job_url }}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="back">
+    <button class="fl-btn fl-btn--ghost fl-btn--sm" type="submit">Tillbaka</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ job_url }}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="cancel">
+    <button class="fl-btn fl-btn--ghost fl-btn--sm" type="submit">Avbryt importen</button>
+  </form>
+</div>

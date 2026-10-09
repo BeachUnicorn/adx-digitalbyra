@@ -95,7 +95,10 @@ class BlockPageForm(forms.ModelForm):
     #: /flamingo/app/ är verktyget och /lp/ är Flamingo-kundernas
     #: landningssidor.
     RESERVED_SLUGS = {
-        BlockPage.DESIGN_ADX: {BlockPage.FLAMINGO_HOME_SLUG, "lp"},
+        # /utskick/ är utskickens publika sidor (apps/utskick/public_urls.py),
+        # som går före sajtens sidor. bitradesavtal reserveras inte: avtalssidan
+        # (/bitradesavtal/, apps/utskick/README.md D6) är just en ADX-sida.
+        BlockPage.DESIGN_ADX: {BlockPage.FLAMINGO_HOME_SLUG, "lp", "utskick"},
         BlockPage.DESIGN_FLAMINGO: {"app"},
     }
 

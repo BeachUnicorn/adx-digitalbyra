@@ -14,6 +14,13 @@ Kontext utöver blockets: form (public_views.LeadForm, bunden efter en POST
 med fel), questions (med fältet i bound), spec (blocks.FormSpec),
 honeypot, tracking (klick-id och utm som följer med i dolda fält), action
 och preview. Svaren sparas som Lead.answers[frågans etikett].
+
+lp_consent (public_views._lp_consent, apps/utskick) ger kryssrutorna för
+utskick under fälten: boxes (kanal och exakt text), privacy_url och
+display_name. Rutorna är aldrig förkryssade; efter en POST med fel står
+besökarens eget val kvar. Texten som visas är den som sparas som bevis.
+En ikryssad ruta vars adress inte duger (form.consent_error_channels) märks
+is-error och pekar på felet vid telefon- eller e-postfältet.
 {% endcomment %}<section class="rn-block rn-form rn-form--{{ b.variant }} rn-s--{{ surface }}" id="formular"{% pb_block %} aria-labelledby="formular-titel">
   <div class="rn-wrap rn-form__in">
     <div class="rn-form__card">
@@ -31,8 +38,8 @@ och preview. Svaren sparas som Lead.answers[frågans etikett].
         <div class="rn-row">
           <div class="rn-field{% if form.phone.errors %} is-error{% endif %}">
             <label class="rn-label" for="rn-phone">Mobil</label>
-            <input class="rn-input" id="rn-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" value="{{ form.phone.value|default_if_none:"" }}" required>
-            {% for error in form.phone.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+            <input class="rn-input" id="rn-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" value="{{ form.phone.value|default_if_none:"" }}" required{% if form.phone.errors %} aria-invalid="true" aria-describedby="rn-phone-fel"{% endif %}>
+            {% if form.phone.errors %}<div id="rn-phone-fel">{% for error in form.phone.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}</div>{% endif %}
           </div>
           <div class="rn-field{% if form.name.errors %} is-error{% endif %}">
             <label class="rn-label" for="rn-name">Namn <span class="rn-opt">(valfritt)</span></label>
@@ -74,8 +81,8 @@ och preview. Svaren sparas som Lead.answers[frågans etikett].
           </div>
           <div class="rn-field{% if form.phone.errors %} is-error{% endif %}">
             <label class="rn-label" for="rn-phone">Telefon</label>
-            <input class="rn-input" id="rn-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" value="{{ form.phone.value|default_if_none:"" }}" required>
-            {% for error in form.phone.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+            <input class="rn-input" id="rn-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40" value="{{ form.phone.value|default_if_none:"" }}" required{% if form.phone.errors %} aria-invalid="true" aria-describedby="rn-phone-fel"{% endif %}>
+            {% if form.phone.errors %}<div id="rn-phone-fel">{% for error in form.phone.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}</div>{% endif %}
           </div>
         </div>
         {% endif %}
@@ -83,9 +90,22 @@ och preview. Svaren sparas som Lead.answers[frågans etikett].
         {% if spec.asks_email %}
         <div class="rn-field{% if form.email.errors %} is-error{% endif %}">
           <label class="rn-label" for="rn-email">E-post <span class="rn-opt">(valfritt)</span></label>
-          <input class="rn-input" id="rn-email" name="email" type="email" autocomplete="email" maxlength="254" value="{{ form.email.value|default_if_none:"" }}">
-          {% for error in form.email.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+          <input class="rn-input" id="rn-email" name="email" type="email" autocomplete="email" maxlength="254" value="{{ form.email.value|default_if_none:"" }}"{% if form.email.errors %} aria-invalid="true" aria-describedby="rn-email-fel"{% endif %}>
+          {% if form.email.errors %}<div id="rn-email-fel">{% for error in form.email.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}</div>{% endif %}
         </div>
+        {% endif %}
+
+        {% if lp_consent %}
+        <fieldset class="rn-consent">
+          <legend class="rn-consent__legend">Erbjudanden från {{ lp_consent.display_name }} <span class="rn-opt">(valfritt)</span></legend>
+          {% for box in lp_consent.boxes %}
+          <div class="rn-check{% if box.channel in form.consent_error_channels %} is-error{% endif %}">
+            <input class="rn-check__box" id="rn-consent-{{ box.channel }}" name="consent_{{ box.channel }}" type="checkbox" value="1"{% if box.channel == "sms" and form.consent_sms.value %} checked{% elif box.channel == "email" and form.consent_email.value %} checked{% endif %}{% if box.channel in form.consent_error_channels %} aria-invalid="true" aria-describedby="rn-{% if box.channel == "sms" %}phone{% else %}email{% endif %}-fel"{% endif %}>
+            <label class="rn-check__label" for="rn-consent-{{ box.channel }}">{{ box.text }}</label>
+          </div>
+          {% endfor %}
+          {% if lp_consent.privacy_url %}<p class="rn-small rn-consent__privacy"><a href="{{ lp_consent.privacy_url }}" target="_blank" rel="noopener">Så hanterar {{ lp_consent.display_name }} dina uppgifter</a></p>{% endif %}
+        </fieldset>
         {% endif %}
 
         <div class="rn-hp" aria-hidden="true">

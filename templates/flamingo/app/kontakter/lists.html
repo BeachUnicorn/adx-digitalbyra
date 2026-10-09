@@ -1,0 +1,119 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Listor och taggar (README I.1). Kontext från app_views/lists.list_index:
+lists (med size), tags (med size), ny_lista (?ny=1: formuläret Ny lista
+står öppet). Listor fyller kunden själv; kontakter
+läggs i en lista från Kontakter (markera, Lägg i lista), från kortet eller
+vid importen. Att ta bort en lista eller tagg tar aldrig bort kontakterna.
+{% endcomment %}
+{% block app_title %}Listor och taggar{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Listor och taggar</h1>
+    <p class="fl-app-lead">Listor och taggar delar in dina kontakter, så att ett utskick går till rätt personer.</p>
+  </div>
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--sm" href="?ny=1#ny-lista">Ny lista</a>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<section class="fl-panel" aria-labelledby="kt-lists-title">
+  <h2 class="fl-panel__title" id="kt-lists-title">Listor</h2>
+  {% if lists %}
+  <ul class="fl-list fl-kt-rows">
+    {% for lista in lists %}
+    <li class="fl-list__item">
+      <a class="fl-list__main" href="{% url 'flamingo:app_list' lista.pk %}">
+        <span class="fl-list__title">{{ lista.name }}</span>
+        <span class="fl-list__meta">{% if lista.description %}{{ lista.description }}{% else %}Lista{% endif %}</span>
+      </a>
+      <span class="fl-kt-count">{{ lista.size|tal }} {% if lista.size == 1 %}kontakt{% else %}kontakter{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="fl-panel__note">Inga listor än. Skapa en här, eller välj Lägg i lista när du markerat kontakter.</p>
+  {% endif %}
+  <details class="fl-kt-more" id="ny-lista"{% if not lists or ny_lista %} open{% endif %}>
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ny lista</summary>
+    <form class="fl-form fl-kt-subform" method="post" action="{% url 'flamingo:app_lists' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="list_new">
+      <div class="fl-form__row">
+        <div class="fl-field">
+          <label class="fl-field__label" for="kt-list-name">Namn</label>
+          <input class="fl-input" id="kt-list-name" type="text" name="namn" maxlength="80" required autocomplete="off" placeholder="Till exempel Däckhotell">
+        </div>
+        <div class="fl-field">
+          <label class="fl-field__label" for="kt-list-desc">Beskrivning <span class="fl-kt-muted">(valfri)</span></label>
+          <input class="fl-input" id="kt-list-desc" type="text" name="beskrivning" maxlength="200" autocomplete="off">
+        </div>
+      </div>
+      <div class="fl-form__actions">
+        <p class="fl-form__note">Listan är tom tills du lägger kontakter i den.</p>
+        <button type="submit" class="fl-btn fl-btn--sm">Skapa listan</button>
+      </div>
+    </form>
+  </details>
+</section>
+
+<section class="fl-panel" id="taggar" aria-labelledby="kt-tags-title">
+  <h2 class="fl-panel__title" id="kt-tags-title">Taggar</h2>
+  {% if tags %}
+  <ul class="fl-list fl-kt-rows">
+    {% for tag in tags %}
+    <li class="fl-list__item" id="tagg-{{ tag.pk }}">
+      <a class="fl-list__main" href="{% url 'flamingo:app_contacts' %}?tagg={{ tag.pk }}">
+        <span class="fl-list__title">{{ tag.name }}</span>
+        <span class="fl-list__meta">{{ tag.size|tal }} {% if tag.size == 1 %}kontakt{% else %}kontakter{% endif %}</span>
+      </a>
+      <div class="fl-kt-rowactions">
+        <details class="fl-kt-more">
+          <summary class="fl-btn fl-btn--ghost fl-btn--sm">Byt namn<span class="fl-sr"> på {{ tag.name }}</span></summary>
+          <form class="fl-kt-addrow" method="post" action="{% url 'flamingo:app_lists' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="tag_rename">
+            <input type="hidden" name="tagg_id" value="{{ tag.pk }}">
+            <label class="fl-sr" for="kt-tag-name-{{ tag.pk }}">Nytt namn</label>
+            <div class="fl-kt-addrow__row">
+              <input class="fl-input" id="kt-tag-name-{{ tag.pk }}" type="text" name="namn" value="{{ tag.name }}" maxlength="40" required autocomplete="off">
+              <button type="submit" class="fl-btn fl-btn--sm">Spara</button>
+            </div>
+          </form>
+        </details>
+        <details class="fl-kt-more">
+          <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ta bort<span class="fl-sr"> {{ tag.name }}</span></summary>
+          <form class="fl-kt-confirm" method="post" action="{% url 'flamingo:app_lists' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="tag_delete">
+            <input type="hidden" name="tagg_id" value="{{ tag.pk }}">
+            <p class="fl-panel__note">Taggen tas bort från {{ tag.size|tal }} {% if tag.size == 1 %}kontakt{% else %}kontakter{% endif %}. Kontakterna finns kvar.</p>
+            <button type="submit" class="fl-btn fl-btn--sm">Ta bort taggen</button>
+          </form>
+        </details>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="fl-panel__note">Inga taggar än. En tagg är ett kort ord på kontakten, till exempel Bromma eller Företagskund.</p>
+  {% endif %}
+  <details class="fl-kt-more"{% if not tags %} open{% endif %}>
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ny tagg</summary>
+    <form class="fl-kt-addrow" method="post" action="{% url 'flamingo:app_lists' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="tag_new">
+      <label class="fl-field__label" for="kt-tag-new">Namn</label>
+      <div class="fl-kt-addrow__row">
+        <input class="fl-input" id="kt-tag-new" type="text" name="namn" maxlength="40" required autocomplete="off">
+        <button type="submit" class="fl-btn fl-btn--sm">Skapa taggen</button>
+      </div>
+    </form>
+  </details>
+</section>
+{% endblock %}

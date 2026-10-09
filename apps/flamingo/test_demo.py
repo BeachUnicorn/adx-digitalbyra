@@ -33,6 +33,20 @@ from django.urls import get_resolver, reverse
 from apps.projects.access import VIEW_AS_KEY
 from apps.projects.auth import contact_for_email
 from apps.projects.models import Customer
+from apps.utskick import access as utskick_access
+from apps.utskick import optin
+from apps.utskick.models import (
+    Consent,
+    ConsentLog,
+    Contact,
+    ContactList,
+    Event,
+    FieldDef,
+    SignupForm,
+    Suppression,
+    Tag,
+    UtskickSettings,
+)
 
 from . import checks, google_ads, pagebuilder, scan, sms
 from .manage_review import queued_uploads
@@ -91,6 +105,19 @@ def counts():
         "förfrågningar": account.leads.count(),
         "konverteringar": ConversionUpload.objects.filter(lead__account=account).count(),
         "sms": account.sms_log.count(),
+        # Kontakter och utskick (apps/utskick/demo.py).
+        "utskick": UtskickSettings.objects.filter(account=account).count(),
+        "kontakter": Contact.objects.filter(account=account).count(),
+        "samtycken": Consent.objects.filter(contact__account=account).count(),
+        "samtyckeslogg": ConsentLog.objects.filter(account=account).count(),
+        "spärrar": Suppression.objects.filter(account=account).count(),
+        "listor": ContactList.objects.filter(account=account).count(),
+        "taggar": Tag.objects.filter(account=account).count(),
+        "fält": FieldDef.objects.filter(account=account).count(),
+        "händelser": Event.objects.filter(account=account).count(),
+        "importer": account.utskick_imports.count(),
+        "anmälningssidor": SignupForm.objects.filter(account=account).count(),
+        "kopplade förfrågningar": account.leads.filter(contact__isnull=False).count(),
     }
 
 
@@ -413,11 +440,30 @@ class DemoContentTests(DemoFixture, TestCase):
             "flamingo:app_settings",
             "flamingo:app_campaigns",
             "flamingo:app_inbox",
+            # Kontakter (apps/utskick), på för demot.
+            "flamingo:app_contacts",
+            "flamingo:app_contact_new",
+            "flamingo:app_lists",
+            "flamingo:app_import",
+            "flamingo:app_fields",
+            "flamingo:app_signup",
+            "flamingo:app_contacts_settings",
+            "flamingo:app_dpa",
+            "flamingo:app_contacts_prune",
         ]
         urls = [reverse(name) for name in names]
         campaigns = self.account.campaigns.all()
         urls += [reverse("flamingo:app_campaign", args=[c.pk]) for c in campaigns]
         urls += [reverse("flamingo:app_lead", args=[x.pk]) for x in self.account.leads.all()]
+        kontakter = Contact.objects.filter(account=self.account)
+        urls += [reverse("flamingo:app_contact", args=[k.pk]) for k in kontakter]
+        urls += [reverse("flamingo:app_contact_edit", args=[k.pk]) for k in kontakter]
+        lists = ContactList.objects.filter(account=self.account)
+        urls += [reverse("flamingo:app_list", args=[x.pk]) for x in lists]
+        urls += [
+            reverse("flamingo:app_import_job", args=[j.pk])
+            for j in self.account.utskick_imports.all()
+        ]
         for url in urls:
             self.assertEqual(client.get(url).status_code, 200, url)
 
@@ -427,6 +473,8 @@ class DemoContentTests(DemoFixture, TestCase):
             reverse("manage:flamingo_overview"),
             reverse("manage:flamingo_queue"),
             reverse("manage:customer_detail", args=[self.customer.pk]),
+            reverse("manage:utskick_overview"),
+            reverse("manage:utskick_customer_end", args=[self.customer.pk]),
         ]
         urls += [
             reverse("manage:flamingo_review", args=[c.pk]) for c in self.account.campaigns.all()
@@ -562,6 +610,71 @@ class DemoScanTests(DemoFixture, TestCase):
 
 
 @override_settings(**ELKS)
+class DemoUtskickTests(DemoFixture, TestCase):
+    """Kontakter och utskick i demot (apps/utskick/demo.py)."""
+
+    def test_utskick_is_on_and_the_demo_needs_no_dpa(self):
+        self.assertTrue(utskick_access.is_enabled(self.account))
+        self.assertTrue(utskick_access.dpa_ok(self.account))
+        self.assertTrue(utskick_access.can_collect(self.account))
+        self.assertIsNone(utskick_access.current_dpa())
+
+    def test_every_number_and_address_is_fictional(self):
+        for kontakt in Contact.objects.filter(account=self.account):
+            if kontakt.phone:
+                self.assertRegex(kontakt.phone, FICTIONAL_PHONE)
+            if kontakt.email:
+                self.assertRegex(kontakt.email, r"@[\w.-]*example(\.com)?$")
+
+    def test_consent_in_every_state_with_proof(self):
+        statuses = set(
+            Consent.objects.filter(contact__account=self.account).values_list("status", flat=True)
+        )
+        for status in ("yes", "existing", "company", "pending", "missing", "declined"):
+            self.assertIn(status, statuses)
+        self.assertIn("unsubscribed", statuses)
+        self.assertTrue(Suppression.objects.filter(account=self.account).exists())
+        self.assertTrue(
+            ConsentLog.objects.filter(account=self.account, source="lp_form")
+            .exclude(text_shown="")
+            .exists()
+        )
+
+    def test_leads_with_a_ticked_box_are_linked_to_their_contact(self):
+        linked = self.account.leads.filter(contact__isnull=False)
+        self.assertGreaterEqual(linked.count(), 4)
+        for lead in linked:
+            self.assertEqual(lead.contact.account_id, self.account.pk)
+
+    def test_the_pending_email_is_never_queued_for_the_demo(self):
+        self.assertTrue(
+            Consent.objects.filter(contact__account=self.account, status="pending").exists()
+        )
+        self.assertFalse(optin.due().filter(contact__account=self.account).exists())
+
+    def test_the_signup_page_is_off(self):
+        self.assertFalse(SignupForm.objects.get(account=self.account).is_active)
+
+    def test_a_rerun_removes_suppressions_and_consent_logs_added_since(self):
+        before = counts()
+        kontakt = Contact.objects.filter(account=self.account, email__endswith=".example").first()
+        from apps.utskick import suppression
+
+        suppression.suppress(self.account, "email", kontakt.email, "manual", "manual")
+        self.assertNotEqual(counts(), before)
+        with override_settings(DEBUG=False):
+            run_demo("--prod")
+        self.assertEqual(counts(), before)
+
+    def test_reset_refuses_a_real_account(self):
+        from apps.utskick import demo as utskick_demo
+
+        real = Customer.objects.create(name="Riktig AB")
+        account = FlamingoAccount.objects.create(customer=real, is_enabled=True)
+        with self.assertRaises(ValueError):
+            utskick_demo.reset(account)
+
+
 class DemoSmsTests(DemoFixture, TestCase):
     def test_a_new_lead_on_the_demo_sends_nothing(self):
         lead = Lead.objects.create(
@@ -637,8 +750,9 @@ class DemoGoogleTests(DemoFixture, TestCase):
     (google_ads.ensure_not_demo)."""
 
     #: Byråns adresser som inte ska svepas: de ändrar bara aktiveringen eller
-    #: kundvyn, och skulle stänga av demot för resten av svepet.
-    SKIP_ROUTES = {"flamingo_customer_update", "flamingo_view_as"}
+    #: kundvyn, och skulle stänga av demot för resten av svepet. Samma sak
+    #: med utskickens del av kundkortet (en ruta som inte skickas är av).
+    SKIP_ROUTES = {"flamingo_customer_update", "flamingo_view_as", "utskick_customer_update"}
     ACTIONS = ("", "publish", "pause", "resume", "link", "create", "sync", "upload")
 
     def setUp(self):
@@ -670,14 +784,22 @@ class DemoGoogleTests(DemoFixture, TestCase):
         self.assertEqual(self.google.urls(), [])
 
     def _flamingo_routes(self):
-        """Byråns Flamingo-adresser med ett id: (namn, mönster)."""
+        """Byråns Flamingo- och utskicksadresser med ett id: (namn, mönster)."""
         manage = get_resolver().namespace_dict["manage"][1]
-        for pattern in manage.url_patterns:
+        for pattern in self._patterns(manage.url_patterns):
             name = getattr(pattern, "name", None) or ""
             converters = getattr(pattern.pattern, "converters", {})
-            if name.startswith("flamingo_") and list(converters) == ["pk"]:
+            if name.startswith(("flamingo_", "utskick_")) and list(converters) == ["pk"]:
                 if name not in self.SKIP_ROUTES:
                     yield name, str(pattern.pattern)
+
+    def _patterns(self, patterns):
+        """Mönstren, också de i include() utan eget namnrum (sms, utskick)."""
+        for pattern in patterns:
+            if hasattr(pattern, "url_patterns"):
+                yield from self._patterns(pattern.url_patterns)
+            else:
+                yield pattern
 
     def test_no_staff_route_on_the_demo_reaches_google(self):
         """Varje Flamingo-adress i panelen med ett id, med demokundens,
@@ -688,6 +810,7 @@ class DemoGoogleTests(DemoFixture, TestCase):
         client = self.staff_client(raise_request_exception=False)
         routes = list(self._flamingo_routes())
         self.assertIn("flamingo_publish", {name for name, _ in routes})
+        self.assertIn("utskick_customer_end", {name for name, _ in routes})
         with (
             mock.patch.object(sms, "urlopen") as elks,
             mock.patch.object(scan, "fetch") as fetch,

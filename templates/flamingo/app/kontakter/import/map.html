@@ -1,0 +1,56 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Import steg 2, Kolumner (README I.2 och I.7): ett kort per kolumn i filen
+med rubriken, ett exempel och valet "Blir". Förvalen är importerns
+gissningar (rubriken, sedan värdena); okända kolumner blir nya extrafält.
+En kolumn som ser ut som personnummer hoppas alltid över och visar inget
+exempel. Vy: app_views/imports.import_job (status mapping), POST
+action=map. cards kommer från importer.column_cards.
+{% endcomment %}
+{% block app_title %}Koppla kolumner{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-import.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}{% include "flamingo/app/kontakter/import/_head.html" with title="Importera kontakter" %}{% endblock %}
+{% block kt_content %}
+{% include "flamingo/app/kontakter/import/_steps.html" %}
+{% include "flamingo/app/kontakter/import/_block.html" %}
+
+<form method="post" action="{{ job_url }}" class="fl-form fl-panel fl-im-form" novalidate>
+  {% csrf_token %}
+  <input type="hidden" name="action" value="map">
+  <div class="fl-panel__head"><h2 class="fl-panel__title">Koppla kolumnerna</h2></div>
+  <p class="fl-panel__text"><strong>{{ job.original_name }}</strong> · {{ job.row_count|tal }} {% if job.row_count == 1 %}rad{% else %}rader{% endif %} · {{ column_count }} {% if column_count == 1 %}kolumn{% else %}kolumner{% endif %}</p>
+  <p class="fl-panel__note">Förvalen är gissningar. Rätta det som blev fel. Kolumner vi inte känner igen blir extrafält, så att inget försvinner.</p>
+  {% if form_error %}<p class="fl-notice fl-notice--error" role="alert">{{ form_error }}</p>{% endif %}
+  {% if field_limit %}<p class="fl-notice fl-notice--warn">{{ field_limit_text }}</p>{% endif %}
+
+  <div class="fl-im-map">
+    <div class="fl-im-map__head" aria-hidden="true"><span>I filen</span><span>Exempel</span><span>Blir</span></div>
+    {% for card in cards %}
+    <div class="fl-im-col{% if card.error %} is-error{% endif %}">
+      <p class="fl-im-col__name">{{ card.name }}</p>
+      <p class="fl-im-col__example">
+        {% if card.pnr %}Personnummer sparas inte i Kontakter.{% else %}<span class="fl-sr">Exempel: </span>{% if card.example %}{{ card.example }}{% else %}Inget värde i de första raderna{% endif %}{% if card.empty %} <span class="fl-im-col__empty">(tom på {{ card.empty|tal }} {% if card.empty == 1 %}rad{% else %}rader{% endif %})</span>{% endif %}{% endif %}
+      </p>
+      <div class="fl-im-col__pick">
+        {% if card.pnr %}
+        <p class="fl-im-col__locked">Hoppa över</p>
+        {% else %}
+        <label class="fl-sr" for="im-col-{{ card.index }}">{{ card.name }} blir</label>
+        <select id="im-col-{{ card.index }}" name="col-{{ card.index }}">
+          {% for value, label in card.options %}<option value="{{ value }}"{% if value == card.value %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        {% if card.error %}<p class="fl-field__error">{{ card.error }}</p>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="fl-form__actions">
+    <p class="fl-form__note">Nästa steg: hur kontakterna har sagt ja.</p>
+    <div class="fl-form__buttons"><button class="fl-btn" type="submit">Fortsätt</button></div>
+  </div>
+</form>
+{% include "flamingo/app/kontakter/import/_nav.html" %}
+{% endblock %}

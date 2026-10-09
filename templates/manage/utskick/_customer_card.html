@@ -1,0 +1,38 @@
+{% load flamingo_app %}{% comment %}
+Kundkortets del för Kontakter och utskick (apps/utskick, README I.1), inne i
+Flamingo-panelen. Kontexten ut kommer från utskick_tags.utskick_card
+(manage_views.card_context): account, settings, saved, enabled, flamingo_on,
+display_name, suggested_slug, och när raden finns contact_count, dpa_line,
+sms_line, export_line, enabled_by.
+
+Av från början och bara byrån slår på det (D2). Att slå på kräver Flamingo
+på. Ingenting här mejlar kunden.
+{% endcomment %}
+<div class="tv-toggles mu-card" id="utskick">
+  <div class="tv-sec-title">Kontakter och utskick{% if ut.enabled %} <span class="m-badge m-badge--published">Aktiverat</span>{% elif ut.saved %} <span class="m-badge">Avstängt</span>{% endif %}{% if ut.settings.sending_blocked %} <span class="m-badge m-badge--alert">Sändningen stoppad</span>{% endif %}</div>
+  <p class="tv-prop__note">Kundens kontaktregister, import, anmälningssida och kryssrutor på landningssidorna. Av från början; bara byrån slår på det. Kunden mejlas inte.</p>
+  {% if not ut.flamingo_on %}<p class="tv-prop__note"><b>Slå på ADX Flamingo först.</b> Utskick kräver det.</p>{% endif %}
+  {% if ut.saved %}
+  <p class="tv-prop__note">{{ ut.contact_count|tal }} av högst {{ ut.settings.contact_limit|tal }} kontakter. {{ ut.dpa_line }}</p>
+  <p class="tv-prop__note">{{ ut.sms_line }}{% if ut.export_line %} {{ ut.export_line }}.{% endif %}</p>
+  {% if ut.enabled and ut.settings.enabled_at %}<p class="tv-muted">Aktiverat {{ ut.settings.enabled_at|date:"j b Y" }}{% if ut.enabled_by %} av {{ ut.enabled_by }}{% endif %}.</p>{% elif not ut.settings.is_enabled and ut.settings.disabled_at %}<p class="tv-muted">Avstängt {{ ut.settings.disabled_at|date:"j b Y" }}.</p>{% endif %}
+  {% endif %}
+  <form method="post" action="{% url 'manage:utskick_customer_update' customer.pk %}" class="tv-toggles">{% csrf_token %}
+    <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="is_enabled"{% if ut.settings.is_enabled %} checked{% endif %}{% if not ut.flamingo_on and not ut.settings.is_enabled %} disabled{% endif %}> Aktiverat: kunden ser Kontakter i Flamingo</label>
+    <div class="tv-form__pair">
+      <div class="m-field"><label for="ut-name">Företagsnamn i utskick (kunden ser det men kan inte ändra det)</label><input id="ut-name" name="display_name" value="{{ ut.display_name }}" maxlength="80" class="tv-input" autocomplete="off"></div>
+      <div class="m-field"><label for="ut-slug">Adress för anmälan på adx.se/utskick/</label><input id="ut-slug" name="public_slug" value="{{ ut.suggested_slug }}" maxlength="40" pattern="[a-z0-9\-]+" class="tv-input" autocomplete="off"></div>
+    </div>
+    <div class="tv-form__pair">
+      <div class="m-field"><label for="ut-limit">Högsta antal kontakter</label><input id="ut-limit" type="number" name="contact_limit" min="1" max="1000000" value="{{ ut.settings.contact_limit|default:25000 }}" class="tv-input"></div>
+      <div class="m-field"><label for="ut-cap">Mejl per dag (0 = upptrappningen)</label><input id="ut-cap" type="number" name="email_daily_cap" min="0" max="1000000" value="{{ ut.settings.email_daily_cap|default:0 }}" class="tv-input"></div>
+    </div>
+    <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="sending_blocked"{% if ut.settings.sending_blocked %} checked{% endif %}> Stoppa all sändning för kunden</label>
+    <div class="m-field"><label for="ut-reason">Varför sändningen stoppas, krävs när du stoppar sändningen (kunden ser bara att ADX stoppat den)</label><input id="ut-reason" name="blocked_reason" value="{{ ut.settings.blocked_reason|default:'' }}" maxlength="200" class="tv-input" autocomplete="off"></div>
+    <div class="tv-logfoot">
+      <button type="submit" class="m-btn m-btn--small">Spara inställningarna</button>
+      <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:utskick_overview' %}">Alla kunder med utskick</a>
+      {% if ut.saved %}<a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:utskick_customer_end' customer.pk %}">Avsluta utskick och radera allt</a>{% endif %}
+    </div>
+  </form>
+</div>

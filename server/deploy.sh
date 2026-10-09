@@ -11,6 +11,10 @@
 #   pull -> uv sync (locked) -> migrate -> collectstatic [-> seeds]
 #   -> daemon-reload + graceful reload -> service aktiv OCH /healthz 200,
 #   annars rollback till förra commit och fel.
+# Från pull till och med hälsogrinden (och en eventuell rollback) hålls
+# utskickens tick-lås (run/utskick.lock, samma fil som cron-raden i
+# crontab.d/adx-utskick), så att ticken aldrig kör en halvt uppdaterad
+# checkout.
 
 source "$(dirname "$0")/lib.sh"
 
@@ -40,6 +44,19 @@ deploy_one() {
     [ "$(id -u)" -eq 0 ] || die "kör som root: sudo $0 $*"
 
     log "=== Deploy ${SITE_SLUG} ==="
+
+    # Utskickens tick (apps/utskick, README C.5) körs varje minut under flock
+    # på run/utskick.lock. Deployen tar samma lås (högst 90 s väntan) och
+    # släpper det efter hälsogrinden. Utan run/ (före cron-raderna) finns
+    # ingen tick att vänta på.
+    local tick_lock="${PROJECT_DIR}/run/utskick.lock"
+    local tick_locked=0
+    if [ -d "${PROJECT_DIR}/run" ]; then
+        exec 9>>"$tick_lock"
+        chown "$SYSTEM_USER" "$tick_lock" 2>/dev/null || true
+        flock -w 90 9 || die "utskickens tick släppte inte låset på 90 s; försök igen"
+        tick_locked=1
+    fi
 
     local before after
     before="$(run_as_app git rev-parse HEAD)"
@@ -82,6 +99,9 @@ deploy_one() {
     systemctl reload "$SERVICE_NAME" || systemctl restart "$SERVICE_NAME"
 
     # --- hälsogrind -----------------------------------------------------------
+    # Tick-låset hålls kvar genom hälsogrinden: en rollback (git reset, uv
+    # sync, migrate) körs då också under låset, och die() stänger fd 9 när
+    # skriptet avslutas.
     sleep 3
     systemctl is-active --quiet "$SERVICE_NAME" || rollback "$before" "tjänsten nere"
 
@@ -91,6 +111,11 @@ deploy_one() {
         log "${SITE_SLUG} frisk på ${after:0:8} ✔"
     else
         rollback "$before" "healthz svarade inte 200"
+    fi
+
+    if [ "$tick_locked" -eq 1 ]; then
+        flock -u 9
+        exec 9>&-
     fi
 }
 

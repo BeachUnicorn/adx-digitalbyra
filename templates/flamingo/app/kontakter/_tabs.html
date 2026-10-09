@@ -1,0 +1,18 @@
+{% comment %}
+Flikraden i Kontakter (README I.1a). nav kommer från nav.contacts_tabs(flik):
+{"tabs": [{"key", "url", "label", "current"}], "part", "current_label"}.
+I bred skärm en .fl-tabs-rad; under 560 px en <details> med länkarna som
+lista, så att ingen flik klipps och inget JS behövs
+(flamingo-app-utskick.css).
+{% endcomment %}
+{% if nav %}
+<nav class="fl-tabs fl-ut-tabs" aria-label="{{ nav.part }}">
+  {% for tab in nav.tabs %}<a class="fl-tabs__tab" href="{{ tab.url }}"{% if tab.current %} aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}
+</nav>
+<details class="fl-subnav">
+  <summary class="fl-subnav__summary">{{ nav.part }}{% if nav.current_label %}: {{ nav.current_label }}{% endif %}</summary>
+  <ul class="fl-subnav__list">
+    {% for tab in nav.tabs %}<li><a class="fl-subnav__link" href="{{ tab.url }}"{% if tab.current %} aria-current="page"{% endif %}>{{ tab.label }}</a></li>{% endfor %}
+  </ul>
+</details>
+{% endif %}

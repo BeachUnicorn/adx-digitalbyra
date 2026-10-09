@@ -1,0 +1,18 @@
+{% extends "utskick/public/_base.html" %}
+{% comment %}
+Tack-sidan efter en anmälan (public_views.signup_thanks, README I.7).
+Samma text vad som än hände med samtycket: sidan får inte avslöja om
+adressen redan får erbjudanden. maskerad_epost är adressen personen skrev,
+maskerad (a***@e***.example), aldrig i klartext; tom utan hänvisning (och
+vid botskyddets låtsade framgång). dagar är bekräftelselänkens giltighet.
+{% endcomment %}
+{% block title %}Tack{% endblock %}
+{% block content %}
+<h1 class="up-h1">Tack</h1>
+{% if maskerad_epost %}
+<p class="up-lead">Om {{ maskerad_epost }} inte redan får erbjudanden från {{ foretag }} får du ett mejl dit. Klicka på länken i mejlet för att börja få e-post.</p>
+{% else %}
+<p class="up-lead">Klicka på länken i mejlet från {{ foretag }} för att börja få e-post.</p>
+{% endif %}
+<p class="up-help">Hittar du inte mejlet? Titta i skräpposten. Länken gäller i {{ dagar }} dagar.</p>
+{% endblock %}

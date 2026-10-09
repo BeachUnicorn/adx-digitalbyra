@@ -1,0 +1,48 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Exportera kontakter (README H.3): bekräftelsen före filen. Kontext från
+app_views/contacts._render_export: selection (count, filters, everything),
+hidden (urvalet som dolda fält), back_url, field_labels, exports_used,
+exports_max, exports_left, last_export_text.
+
+Filen kommer först när formuläret skickas (POST med bekrafta=1). Varje
+export loggas, och högst exports_max får göras per dygn.
+{% endcomment %}
+{% block app_title %}Exportera kontakter{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{{ back_url }}">Kontakter</a></p>
+    <h1 class="fl-app-title">Exportera kontakter</h1>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<section class="fl-panel fl-kt-narrow" aria-labelledby="kt-exp-title">
+  <h2 class="fl-panel__title" id="kt-exp-title">{% if selection.everything and not selection.filters.active %}Alla {{ selection.count|tal }} {% if selection.count == 1 %}kontakt{% else %}kontakter{% endif %}{% else %}{{ selection.count|tal }} {% if selection.count == 1 %}kontakt{% else %}kontakter{% endif %}{% endif %} som en CSV-fil</h2>
+  {% if selection.everything and selection.filters.active %}<p class="fl-panel__note">Urvalet: {{ selection.filters.summary }}.</p>{% endif %}
+  <p class="fl-panel__text">Filen innehåller namn, typ, företag, organisationsnummer, mobil, e-post, samtycke per kanal, listor, taggar{% if field_labels %}, extrafälten ({{ field_labels|join:", " }}){% endif %}, källa och när kontakten lades till. Den öppnas i Excel och andra kalkylprogram.</p>
+  <p class="fl-notice fl-notice--warn"><span>Filen innehåller personuppgifter. Spara den där bara de som behöver den kommer åt den, och ta bort den när du är klar.</span></p>
+  <dl class="fl-kv">
+    <div><dt>I dag</dt><dd>{{ exports_used }} av {{ exports_max }} exporter</dd></div>
+    {% if last_export_text %}<div><dt>Senast</dt><dd>{{ last_export_text }}</dd></div>{% endif %}
+  </dl>
+  {% if exports_left and selection.count %}
+  <form class="fl-form" method="post" action="{% url 'flamingo:app_contacts_export' %}">
+    {% csrf_token %}
+    <input type="hidden" name="bekrafta" value="1">
+    {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    <div class="fl-form__actions">
+      <a class="fl-btn fl-btn--ghost" href="{{ back_url }}">Avbryt</a>
+      <button type="submit" class="fl-btn">Exportera {{ selection.count|tal }} {% if selection.count == 1 %}kontakt{% else %}kontakter{% endif %}</button>
+    </div>
+  </form>
+  {% elif not selection.count %}
+  <p class="fl-panel__text">Det finns inga kontakter att exportera.</p>
+  {% else %}
+  <p class="fl-panel__text">Du har exporterat {{ exports_max }} gånger i dag, som är gränsen. Gränsen börjar om vid midnatt.</p>
+  {% endif %}
+</section>
+{% endblock %}

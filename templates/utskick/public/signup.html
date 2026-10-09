@@ -1,0 +1,50 @@
+{% extends "utskick/public/_base.html" %}{% load website_tags %}
+{% comment %}
+Anmälningssidan /utskick/<public_slug>/ (public_views.signup, README I.7
+"Anmälan"). I S1 bara e-post (README L, Security 13). Kryssrutans etikett
+är hela samtyckestexten (texter, med företagets namn ifyllt): det är exakt
+den som sparas som bevis. Rutan är aldrig förkryssad. Botskyddet:
+botcheck_attr på formuläret, botcheck_fields (honungsfält, tidsstämpel,
+tomt bevis) och static/js/utskick-public.js som fyller i beviset.
+
+Kontext: sida (SignupForm: title, intro), form (SignupFields), kanaler,
+texter, forhandsvisning (byrån ser sidan innan bekräftelsemejlen är
+klarmarkerade), stangd (förhandsgranskning av en stängd sida med
+?forhandsgranska=1: knappen är av och inget tas emot), foretag,
+integritet_url.
+{% endcomment %}
+{% block title %}{{ sida.title|default:"Anmälan" }}{% endblock %}
+{% block content %}
+{% if stangd %}<p class="up-note" role="note"><b>Förhandsgranskning.</b> Sidan är stängd för besökarna, och anmälningar tas inte emot härifrån.</p>
+{% elif forhandsvisning %}<p class="up-note" role="note"><b>Förhandsvisning för ADX.</b> Bekräftelsemejlen är inte klarmarkerade, så sidan är stängd för alla andra.</p>{% endif %}
+<h1 class="up-h1">{{ sida.title|default:"Anmälan" }}</h1>
+{% if sida.intro %}<p class="up-lead">{{ sida.intro|linebreaksbr }}</p>{% endif %}
+<form class="up-form" method="post" action="{{ request.path }}" {% botcheck_attr %}>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="up-alert" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
+  {% elif form.errors %}
+  <div class="up-alert" role="alert"><p>Något behöver rättas, se nedan.</p></div>
+  {% endif %}
+  <div class="up-field{% if form.first_name.errors %} is-error{% endif %}">
+    <label class="up-label" for="up-first-name">Förnamn <span class="up-opt">(valfritt)</span></label>
+    <input class="up-input" id="up-first-name" name="first_name" type="text" autocomplete="given-name" maxlength="40" value="{{ form.first_name.value|default_if_none:"" }}"{% if form.first_name.errors %} aria-invalid="true" aria-describedby="up-first-name-fel"{% endif %}>
+    {% if form.first_name.errors %}<div id="up-first-name-fel">{% for error in form.first_name.errors %}<p class="up-error">{{ error }}</p>{% endfor %}</div>{% endif %}
+  </div>
+  {% if "email" in kanaler %}
+  <div class="up-field{% if form.email.errors %} is-error{% endif %}">
+    <label class="up-label" for="up-email">E-post</label>
+    <input class="up-input" id="up-email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="254" value="{{ form.email.value|default_if_none:"" }}"{% if form.email.errors %} aria-invalid="true" aria-describedby="up-email-fel"{% endif %}>
+    {% if form.email.errors %}<div id="up-email-fel">{% for error in form.email.errors %}<p class="up-error">{{ error }}</p>{% endfor %}</div>{% endif %}
+  </div>
+  <div class="up-check{% if form.consent_email.errors %} is-error{% endif %}">
+    <input class="up-check__box" id="up-consent-email" name="consent_email" type="checkbox" value="1"{% if form.is_bound and form.consent_email.value %} checked{% endif %} aria-describedby="up-consent-help{% if form.consent_email.errors %} up-consent-fel{% endif %}"{% if form.consent_email.errors %} aria-invalid="true"{% endif %}>
+    <label class="up-check__label" for="up-consent-email">{{ texter.email }}</label>
+  </div>
+  {% if form.consent_email.errors %}<div id="up-consent-fel">{% for error in form.consent_email.errors %}<p class="up-error">{{ error }}</p>{% endfor %}</div>{% endif %}
+  <p class="up-help" id="up-consent-help">Du får ett mejl med en länk. Klicka på länken för att börja få e-post. Du kan avregistrera dig när du vill.</p>
+  {% endif %}
+  {% botcheck_fields %}
+  <button class="up-btn up-btn--primary up-btn--block" type="submit"{% if stangd %} disabled{% endif %}>Anmäl mig</button>
+</form>
+{% endblock %}

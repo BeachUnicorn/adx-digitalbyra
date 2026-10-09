@@ -103,7 +103,33 @@ Byråns sidor:
 | `/manage/flamingo/google/` | ADX:s inloggning hos Google: vad som saknas, adressen att registrera, koppla, testa, koppla från, konverteringarnas väg och om de får skickas ("Koppla om med Google för att skicka konverteringar" när behörigheten saknas, "Försök ladda upp igen"), alla kunders Google-läge |
 | `/manage/flamingo/google/tillbaka/` | Googles omdirigering efter inloggningen (OAuth) |
 | `/manage/kunder/<pk>/flamingo/google/api/` (POST) | Kundkortets knappar: kopplingsförfrågan, nytt konto, läget från Google |
-| Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering, knapparna med API:t), kampanjerna |
+| Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering, knapparna med API:t), kampanjerna, och sist Kontakter och utskick (`#utskick`, apps/utskick) |
+| `/manage/utskick/` | Kontakter och utskick för byrån: kunderna, kön för bekräftelsemejl, ticken, nödstoppet och biträdesavtalet (apps/utskick/README.md) |
+
+## Kontakter och utskick (`apps/utskick`)
+
+Flamingo 2.0 bor i en egen app: kontaktregistret, importen, samtyckena,
+anmälningssidan och (från S2) utskicken. Kontraktet och läget står i
+`apps/utskick/README.md`; här bara det som rör Flamingo:
+
+- Menyn visar Kontakter efter Kampanjer bara när byrån aktiverat utskick
+  för kunden (`utskick.nav.nav_for`, kundkortet `#utskick`). Sidorna ligger
+  under `app/kontakter/` och går genom `utskick.access.utskick_view`
+  (Flamingos `app_view` plus kravet att utskick är på, annars 404).
+- Inställningarnas rubrik heter "Inloggningar hos <kunden>": i Flamingo
+  betyder Kontakter nu registret, inte portalens användare.
+- Landningssidans formulär får kryssrutorna "Ja, jag vill få erbjudanden
+  från <företaget> via sms." (och via e-post, när formuläret frågar efter
+  e-post och byrån klarmarkerat bekräftelsemejlen) när utskick är på,
+  biträdesavtalet godkänt, kryssrutorna påslagna och en integritetstext
+  finns (`utskick.capture.lp_consent_channels`). Aldrig förkryssade, med
+  länken "Så hanterar <företaget> dina uppgifter" under. Efter förfrågan
+  sparar `capture.from_lead_form` beviset och kopplar förfrågan till
+  kontakten (`Lead.contact`); utan ikryssad ruta kopplas förfrågan bara
+  till en befintlig kontakt med exakt samma nummer eller e-post. Inga kakor.
+- Demokunden har kontakter, listor, taggar, extrafält, en klar import och
+  samtycken i varje läge (`utskick.demo`), och skickar aldrig något.
+- Inkorgens ändringar (svar på utskick, chips per typ) kommer med S2.
 
 ## Sidbyggaren (`pagebuilder/`)
 
@@ -807,8 +833,13 @@ påhittad Google-profil med omdömen (intygad som demots egen; den hämtas
 aldrig från Google), och en påhittad profil på Reco (id:t 0000000, ingen
 länk till reco.se, inga omdömen): blocket Omdömen från Reco ritar en
 exempelruta i stället för Recos ruta och för utvalda omdömen, och laddar
-ingenting från Reco. Kör det igen så byggs innehållet
-om; inget dubbleras.
+ingenting från Reco. Kontakter och utskick är på för demot
+(`apps/utskick/demo.py`): kontakter med samtycken i varje läge, en spärr,
+listor, taggar, extrafält, en klar import, en avstängd anmälningssida och
+förfrågningar kopplade till sina kontakter; organisationsnumret 559999-0000
+har fel kontrollsiffra och kan inte vara ett riktigt företags. Demot behöver
+inget biträdesavtal. Kör det igen så byggs innehållet om (också demots
+spärrlista och samtyckeslogg); inget dubbleras.
 En annan kund med samma namn rörs aldrig.
 
 I produktion finns ingen användare som kan logga in på demokunden. Byrån

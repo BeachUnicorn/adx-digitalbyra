@@ -636,6 +636,8 @@ def _form_context(state):
         "honeypot": HONEYPOT,
         "tracking": state.extra.get("tracking") or {},
         "action": state.extra.get("action") or "",
+        # Kryssrutorna för utskick (public_views._lp_consent), eller None.
+        "lp_consent": state.extra.get("lp_consent"),
     }
 
 

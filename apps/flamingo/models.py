@@ -1499,6 +1499,17 @@ class Lead(models.Model):
     service = models.ForeignKey(
         Service, null=True, blank=True, on_delete=models.SET_NULL, related_name="leads"
     )
+    #: Kontakten i kundens register (apps/utskick) när förfrågan hör till en.
+    #: Sätts bara när utskick är på för kontot och kan samla in (capture.py);
+    #: förfrågningar från före aktiveringen kopplas aldrig i efterhand.
+    contact = models.ForeignKey(
+        "utskick.Contact",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="leads",
+        verbose_name="Kontakt",
+    )
     source = models.CharField("Källa", max_length=10, choices=SOURCE_CHOICES, default=SOURCE_FORM)
     name = models.CharField("Namn", max_length=120, blank=True)
     phone = models.CharField("Telefon", max_length=40, blank=True)

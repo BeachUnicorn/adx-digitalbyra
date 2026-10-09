@@ -1,0 +1,35 @@
+{% load utskick_tags %}{% comment %}
+Kontakternas tabell: listan, en lista och rensningen. Kontext: kontakter
+(rader från app_views.contacts.decorate, med kt_sub, kt_chips, kt_last och
+kt_lists), selectable (kryssrutor name="ids" för formuläret runt tabellen).
+Under 760 px blir varje rad ett kort (flamingo-app.css) och cellen visar sin
+data-label; kryssrutan ligger då uppe till höger (flamingo-app-kontakter.css).
+Kortläget börjar redan när tabellens yta är smalare än 820 px (en
+container-fråga på .fl-kt-tablebox), så att sex kolumner aldrig trängs.
+Tomma celler skrivs utan blanksteg så att de döljs i kortläget.
+{% endcomment %}<div class="fl-kt-tablebox"><div class="fl-table-wrap">
+  <table class="fl-table fl-kt-table{% if selectable %} fl-kt-table--select{% endif %}">
+    <thead>
+      <tr>
+        {% if selectable %}<th scope="col" class="fl-kt-table__check"><label class="fl-kt-check"><input type="checkbox" data-kt-select-page><span class="fl-sr">Markera alla på sidan</span></label></th>{% endif %}
+        <th scope="col">Kontakt</th>
+        <th scope="col">Kontaktvägar</th>
+        <th scope="col">Samtycke</th>
+        <th scope="col">Listor och taggar</th>
+        <th scope="col">Senast</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for kontakt in kontakter %}
+      <tr>
+        {% if selectable %}<td class="fl-kt-table__check" data-label=""><label class="fl-kt-check"><input type="checkbox" name="ids" value="{{ kontakt.pk }}" data-kt-select><span class="fl-sr">Markera {{ kontakt.display_name }}</span></label></td>{% endif %}
+        <td class="is-primary" data-label="Kontakt"><a class="fl-kt-name" href="{% url 'flamingo:app_contact' kontakt.pk %}">{{ kontakt.display_name }}</a><span class="fl-kt-sub">{{ kontakt.kt_sub }}</span></td>
+        <td class="fl-kt-waycell" data-label="Kontaktvägar"><span class="fl-kt-ways">{% if kontakt.phone %}<span>{{ kontakt.phone|nummer }}</span>{% endif %}{% if kontakt.email %}<span>{{ kontakt.email }}</span>{% endif %}{% if not kontakt.phone and not kontakt.email %}<span class="fl-kt-muted">Ingen adress</span>{% endif %}</span></td>
+        <td data-label="Samtycke"><span class="fl-kt-chips">{% for chip in kontakt.kt_chips %}<span class="fl-kt-chip fl-kt-chip--{{ chip.tone }}">{{ chip.text }}</span>{% endfor %}</span></td>
+        <td data-label="Listor och taggar">{% if kontakt.kt_lists or kontakt.tags.all %}<span class="fl-kt-chips">{% for lista in kontakt.kt_lists %}<span class="fl-kt-tag fl-kt-tag--list">{{ lista.name }}</span>{% endfor %}{% for tag in kontakt.tags.all %}<span class="fl-kt-tag">{{ tag.name }}</span>{% endfor %}</span>{% endif %}</td>
+        <td class="fl-kt-last" data-label="Senast">{{ kontakt.kt_last }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div></div>

@@ -1577,8 +1577,29 @@ class SentryTests(SmsTestCase):
         options["event_scrubber"].scrub_event(event)
         out = sentry.scrub_event(event)
         kept = out["exception"]["values"][0]["stacktrace"]["frames"]
-        self.assertEqual(kept[0]["vars"], {})
-        self.assertEqual(kept[1]["vars"]["count"], 3)  # resten av rapporten är kvar
+        # Med en ram från apps.sms töms VARJE rams variabler (apps/utskick
+        # README C.3): ramarna under bär frågans params och formulärens data.
+        self.assertEqual([frame["vars"] for frame in kept], [{}, {}])
+        dump = json.dumps(out, default=str)
+        self.assertNotIn("46701740605", dump)
+        self.assertNotIn("Hemlig text", dump)
+        self.assertNotIn("ab" * 16, dump)
+        # Utan en sådan ram är resten av rapporten kvar, och hemligheterna maskas.
+        alone = {
+            "exception": {
+                "values": [
+                    {
+                        "stacktrace": {
+                            "frames": [{"module": "apps.projects.views", "vars": dict(other_vars)}]
+                        }
+                    }
+                ]
+            }
+        }
+        options["event_scrubber"].scrub_event(alone)
+        out = sentry.scrub_event(alone)
+        frame = out["exception"]["values"][0]["stacktrace"]["frames"][0]
+        self.assertEqual(frame["vars"]["count"], 3)
         dump = json.dumps(out, default=str)
         self.assertNotIn("46701740605", dump)
         self.assertNotIn("Hemlig text", dump)

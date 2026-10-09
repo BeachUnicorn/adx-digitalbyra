@@ -33,6 +33,7 @@ from functools import wraps
 from django.db.models import Count, Q
 from django.shortcuts import render
 
+from apps.utskick.nav import nav_for
 from apps.website.models import SiteSettings
 
 from ..access import CONTACT
@@ -40,7 +41,8 @@ from ..models import Campaign, FlamingoAccount, Lead
 from ..rules import onboarding_for
 from ..views import flamingo_pages, flamingo_required
 
-#: Sidomenyns punkter i ordning: (app_active, url-namn, rubrik).
+#: Sidomenyns punkter i ordning: (app_active, url-namn, rubrik). Standarden;
+#: ett konto med utskick får Kontakter efter Kampanjer (apps.utskick.nav).
 APP_NAV = (
     ("overview", "flamingo:app", "Översikt"),
     ("inbox", "flamingo:app_inbox", "Inkorg"),
@@ -105,7 +107,7 @@ def app_context(request, active):
         {
             "account": account,
             "app_active": active,
-            "app_nav": APP_NAV,
+            "app_nav": nav_for(account),
             "new_lead_count": (
                 account.leads.filter(status=Lead.STATUS_NEW).count() if account else 0
             ),

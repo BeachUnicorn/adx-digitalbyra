@@ -1,0 +1,42 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Importens resultat: klar (Nya, Uppdaterade, Avregistrerade, Fel, felfilen
+och vägen till kontakterna), misslyckad (förklaringen, och det som hann
+importeras) eller avbruten. Vy: app_views/imports.import_job (status done,
+failed eller cancelled). counts kommer från importer.result.
+{% endcomment %}
+{% block app_title %}{% if job.status == "done" %}Importen är klar{% elif job.status == "failed" %}Importen stoppades{% else %}Importen är avbruten{% endif %}{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-import.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}{% include "flamingo/app/kontakter/import/_head.html" with title="Importera kontakter" %}{% endblock %}
+{% block kt_content %}
+{% if job.status == "done" %}{% include "flamingo/app/kontakter/import/_steps.html" %}{% endif %}
+
+<section class="fl-panel">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title">{% if job.status == "done" %}Importen är klar{% elif job.status == "failed" %}Importen stoppades{% else %}Importen är avbruten{% endif %}</h2>
+  </div>
+  <p class="fl-panel__text"><strong>{{ job.original_name }}</strong> · {{ job.row_count|tal }} {% if job.row_count == 1 %}rad{% else %}rader{% endif %}{% if job.finished_at %} · {{ job.finished_at|date:"j b Y H.i" }}{% endif %}</p>
+  {% if failure %}<p class="fl-notice fl-notice--error">{{ failure }}</p>{% endif %}
+  {% if job.status == "done" or handled %}
+  {% if job.status != "done" %}<p class="fl-panel__note">Det här hann importeras innan importen stoppades.</p>{% endif %}
+  <div class="fl-kpis fl-im-kpis">
+    <div class="fl-kpi"><p class="fl-kpi__label">Nya</p><p class="fl-kpi__value">{{ counts.new|tal }}</p></div>
+    <div class="fl-kpi"><p class="fl-kpi__label">Uppdaterade</p><p class="fl-kpi__value">{{ counts.updated|tal }}</p></div>
+    <div class="fl-kpi"><p class="fl-kpi__label">Avregistrerade</p><p class="fl-kpi__value">{{ counts.suppressed|tal }}</p><p class="fl-kpi__note">Stannar avregistrerade</p></div>
+    <div class="fl-kpi"><p class="fl-kpi__label">Fel</p><p class="fl-kpi__value">{{ fel|tal }}</p>{% if counts.conflicts %}<p class="fl-kpi__note">Varav {{ counts.conflicts|tal }} {% if counts.conflicts == 1 %}krock{% else %}krockar{% endif %}</p>{% endif %}</div>
+  </div>
+  {% if counts.company_freemail %}<p class="fl-panel__note">{{ counts.company_freemail|tal }} företag med privat e-postadress får inte e-post utan samtycke.</p>{% endif %}
+  {% if varningar %}<p class="fl-panel__note">{{ varningar|tal }} {% if varningar == 1 %}värde i ett extrafält sparades{% else %}värden i extrafält sparades{% endif %} inte: fel format eller för lång text. Felrapporten visar var.</p>{% endif %}
+  {% if job.target_list or job.target_tag %}
+  <p class="fl-panel__text">{% if job.target_list %}Lagda i listan <a class="fl-panel__link" href="{% url 'flamingo:app_list' job.target_list.pk %}">{{ job.target_list.name }}</a>{% if job.target_tag %} och taggade {{ job.target_tag.name }}{% endif %}.{% else %}Taggade {{ job.target_tag.name }}.{% endif %}</p>
+  {% endif %}
+  {% endif %}
+  <div class="fl-panel__actions">
+    <a class="fl-btn" href="{% url 'flamingo:app_contacts' %}">Till kontakterna</a>
+    {% if varningar %}<a class="fl-btn fl-btn--ghost" href="{{ errors_url }}">Ladda ner felrapporten</a>{% elif fel %}<a class="fl-btn fl-btn--ghost" href="{{ errors_url }}">Ladda ner {% if fel == 1 %}felet{% else %}de {{ fel|tal }} felen{% endif %}</a>{% endif %}
+    <a class="fl-btn fl-btn--ghost" href="{% url 'flamingo:app_import' %}">Importera fler</a>
+  </div>
+  {% if fel or varningar %}{% if job.file_deleted_at %}<p class="fl-panel__note">Filen är borttagen. Felfilen visar rad, kolumn och orsak, men inte värdena.</p>{% else %}<p class="fl-panel__note">Felfilen visar radernas värden i ett dygn. Sedan tas filen bort.</p>{% endif %}{% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,92 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static %}
+{% comment %}
+Anmälan: inställningarna för den publika anmälningssidan (README I.7
+"Anmälan", app_views/signup.signup_settings). Ägs av agenten för de
+publika sidorna.
+
+Kontext: sida (SignupForm eller None innan första sparningen), form
+(SignupSettingsForm: title, intro, is_active), listor och taggar (kontots),
+vald_lista, valda_taggar, publik_url, oppen, skal (varför sidan är stängd
+för besökarna), kan_forhandsgranska och forhandsgranska_url (fungerar
+också när sidan är stängd). Kopiera-knappen använder
+flamingo-app-kontakter.js (data-kt-copy, dold utan skript). Kanalen är
+e-post; QR-koden finns inte än och nämns inte.
+{% endcomment %}
+{% block app_title %}Anmälan{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Anmälan</h1>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<section class="fl-panel" aria-labelledby="kt-an-page">
+  <h2 class="fl-panel__title" id="kt-an-page">Sidan där kunderna anmäler sig</h2>
+  <p class="fl-panel__text">Länka till sidan från din webbplats, kvitton eller sociala medier. Den som anmäler sig får ett mejl och klickar på en länk innan e-posten räknas.</p>
+  {% if oppen %}
+  <p class="fl-notice fl-notice--ok" role="status"><span>Sidan är öppen.</span></p>
+  {% else %}
+  <p class="fl-notice fl-notice--warn" role="status"><span><b>Sidan är stängd för besökarna.</b>{% for reason in skal %}<br>{{ reason }}{% endfor %}</span></p>
+  {% endif %}
+  <ul class="fl-list">
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Adress</span>
+        <span class="fl-list__meta fl-kt-url">{% if publik_url %}{{ publik_url }}{% else %}Inte satt än. Be ADX sätta den.{% endif %}</span>
+      </div>
+      {% if publik_url %}<button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-kt-copy="{{ publik_url }}" hidden>Kopiera länk</button>{% endif %}
+      {% if kan_forhandsgranska %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ forhandsgranska_url }}" target="_blank" rel="noopener">Förhandsgranska</a>{% endif %}
+    </li>
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Kanal</span>
+        <span class="fl-list__meta">E-post</span>
+      </div>
+    </li>
+  </ul>
+</section>
+
+<form class="fl-form" method="post" action="{% url 'flamingo:app_signup' %}">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<p class="fl-notice fl-notice--error" role="alert"><span>{% for error in form.non_field_errors %}{{ error }} {% endfor %}</span></p>{% endif %}
+  <section class="fl-panel" aria-labelledby="kt-an-text">
+    <h2 class="fl-panel__title" id="kt-an-text">Text på sidan</h2>
+    {% include "flamingo/app/kontakter/_field.html" with field=form.title help="Till exempel Få våra erbjudanden." %}
+    {% include "flamingo/app/kontakter/_field.html" with field=form.intro help="Vad personen får, till exempel påminnelser om service och erbjudanden." %}
+    <p class="fl-field__help">Texten vid kryssrutan är samtyckestexten för e-post under Inställningar.</p>
+  </section>
+
+  <section class="fl-panel" aria-labelledby="kt-an-where">
+    <h2 class="fl-panel__title" id="kt-an-where">Var de nya kontakterna hamnar</h2>
+    <p class="fl-panel__text">De läggs i listan och får taggarna när de har klickat på länken i mejlet.</p>
+    <div class="fl-field">
+      <label class="fl-field__label" for="kt-an-list">Lista</label>
+      <select class="fl-input" id="kt-an-list" name="add_to_list">
+        <option value="">Ingen lista</option>
+        {% for lista in listor %}<option value="{{ lista.pk }}"{% if lista.pk == vald_lista %} selected{% endif %}>{{ lista.name }}</option>{% endfor %}
+      </select>
+      {% if not listor %}<p class="fl-field__help">Du har inga listor än. <a href="{% url 'flamingo:app_lists' %}">Skapa en under Listor</a>.</p>{% endif %}
+    </div>
+    {% if taggar %}
+    <fieldset class="fl-field">
+      <legend class="fl-field__label">Taggar</legend>
+      {% for tagg in taggar %}<label class="fl-check"><input type="checkbox" name="add_tags" value="{{ tagg.pk }}"{% if tagg.pk in valda_taggar %} checked{% endif %}><span>{{ tagg.name }}</span></label>{% endfor %}
+    </fieldset>
+    {% endif %}
+  </section>
+
+  <section class="fl-panel" aria-labelledby="kt-an-on">
+    <h2 class="fl-panel__title" id="kt-an-on">På eller av</h2>
+    <label class="fl-check"><input type="checkbox" name="is_active" value="1"{% if form.is_active.value %} checked{% endif %}><span>Sidan tar emot anmälningar</span></label>
+  </section>
+
+  <div class="fl-form__actions">
+    <button type="submit" class="fl-btn">Spara anmälningssidan</button>
+  </div>
+</form>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>{% endblock %}

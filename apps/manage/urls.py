@@ -339,4 +339,6 @@ urlpatterns = [
     path("import/", import_views.import_view, name="import_view"),
     # SMS-API:t (apps/sms/manage_urls.py): namnen blir manage:sms_...
     path("", include("apps.sms.manage_urls")),
+    # Kontakter och Utskick (apps/utskick/manage_urls.py): manage:utskick_...
+    path("", include("apps.utskick.manage_urls")),
 ]

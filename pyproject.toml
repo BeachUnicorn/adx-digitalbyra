@@ -26,6 +26,12 @@ dependencies = [
     "dnspython>=2.8.0",
     "cryptography>=46",
     "phonenumbers>=9.0.40",
+    # Kontakter och Utskick (apps/utskick): Excel-importen läser xlsx med
+    # openpyxl, som tolkar XML med defusedxml när det finns; boto3 för SES
+    # API:t (bekräftelsemejlen) direkt, inte bara via anthropic[bedrock].
+    "openpyxl>=3.1",
+    "defusedxml>=0.7",
+    "boto3>=1.40",
 ]
 
 [dependency-groups]

@@ -1,0 +1,46 @@
+{% load static %}<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+{% comment %}
+Skalet för de publika sidorna under /utskick/ (apps/utskick/public_views.py):
+anmälan, tack, integritet, bekräfta e-post och Mina utskick. Sidorna är i
+kundens namn (foretag är byråns display_name), inte i ADX eller Flamingos
+design. Typsnittet (Figtree, OFL) är självhostat; inget hämtas från andra
+domäner, ingen statistik och inga kakor utöver CSRF-nyckeln.
+
+Kontext: foretag, integritet_url (tom när länken inte ska visas) och
+botcheck (sidan har ett formulär med botskydd: då laddas
+static/js/utskick-public.js, som bara fyller i botskyddets bevis).
+
+Sidan fyller {% block title %}, {% block content %}. Inga style-attribut och
+inga inline-skript (vakten i test_s1_guards): css i
+static/css/utskick-public.css, js i static/js/utskick-public.js.
+{% endcomment %}
+<title>{% block title %}{% endblock %} | {{ foretag }}</title>
+<link rel="preload" href="{% static 'fonts/files/figtree-latin.woff2' %}" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{% static 'css/utskick-public.css' %}?v={{ static_version }}">
+{% if botcheck %}<script src="{% static 'js/utskick-public.js' %}?v={{ static_version }}" defer></script>{% endif %}
+</head>
+<body class="up">
+<header class="up-top">
+  <div class="up-wrap">
+    <p class="up-brand">{{ foretag }}</p>
+  </div>
+</header>
+<main class="up-main" id="innehall">
+  <div class="up-wrap">
+    <div class="up-card">
+{% block content %}{% endblock %}
+    </div>
+  </div>
+</main>
+<footer class="up-foot">
+  <div class="up-wrap">
+    {% block footer %}{% if integritet_url %}<p><a class="up-link" href="{{ integritet_url }}">Så hanterar {{ foretag }} dina uppgifter</a></p>{% endif %}{% endblock %}
+  </div>
+</footer>
+</body>
+</html>

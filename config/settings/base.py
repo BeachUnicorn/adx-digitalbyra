@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     "apps.cloud",
     "apps.flamingo",
     "apps.sms",
+    # Flamingo 2.0: kontakter och utskick (apps/utskick/README.md).
+    "apps.utskick",
     "reversion",
     "apps.assistant",
 ]
@@ -326,6 +328,54 @@ SMS_RATE_PER_SECOND = env.int("SMS_RATE_PER_SECOND", default=20)
 SMS_RATE_PER_MINUTE = env.int("SMS_RATE_PER_MINUTE", default=60)
 SMS_GLOBAL_PER_MINUTE = env.int("SMS_GLOBAL_PER_MINUTE", default=80)
 SMS_DAILY_MAX_PER_KEY = env.int("SMS_DAILY_MAX_PER_KEY", default=5000)
+
+# Flamingo 2.0: kontakter och utskick (apps/utskick/README.md, C.4). Allt
+# är av tills byrån aktiverat kunden och slagit på brytarna på
+# /manage/utskick/nodstopp/; en deploy startar aldrig någon sändning.
+
+
+def _utskick_dev_key(purpose):
+    """Lokalt och i testerna: en nyckel härledd ur SECRET_KEY. Produktionen
+    startar inte utan de riktiga (production.py)."""
+    import hashlib
+
+    return hashlib.sha256(f"{purpose}:{SECRET_KEY}".encode()).hexdigest()
+
+
+# Nyckeln för spärrlistan och samtyckena: HMAC av varje telefonnummer och
+# e-postadress (keys.value_hash). Stabil för alltid: byts den hittar ingen
+# spärr sin adress längre. Krävs i produktion (production.py), finns i
+# lösenordshanteraren och i anteckningarna för databasens backup.
+UTSKICK_HASH_KEY = env.str("UTSKICK_HASH_KEY", default="") or _utskick_dev_key("utskick-hash")
+# Nyckeln som signerar avregistrerings-, val- och bekräftelselänkar,
+# Reply-To och formulärens engångsvärden (E.2). Aldrig SECRET_KEY, så att
+# ett byte av den inte bryter länkarna i redan skickade sms och mejl. Samma
+# regler som nyckeln ovan.
+UTSKICK_LINK_KEY = env.str("UTSKICK_LINK_KEY", default="") or _utskick_dev_key("utskick-link")
+# Avsändaren för bekräftelsemejlen (dubbel opt-in); namnet är kundens
+# display_name. Tomma rader i .env ger standardvärdena.
+UTSKICK_DOI_FROM = env.str("UTSKICK_DOI_FROM", default="") or "bekrafta@utskick.adx.se"
+# Tidsbudget per tick (utskick_tick, varje minut) och tickens minnestak i MB
+# (RLIMIT_AS). Taket sätts från en uppmätt topp plus 30 % i S1-kontrollen.
+UTSKICK_TICK_SECONDS = env.int("UTSKICK_TICK_SECONDS", default=50)
+UTSKICK_TICK_MAX_MB = env.int("UTSKICK_TICK_MAX_MB", default=700)
+# Av = ingen post alls från utskick: bekräftelsemejl och e-postkanalen nekas.
+# Av med DEBUG skrivs mejlen som .eml-filer i PRIVATE_MEDIA_ROOT/utskick-mail/
+# (aldrig i produktion). Slås på i produktionens .env när SES i eu-west-1
+# har gett produktionsåtkomst.
+UTSKICK_EMAIL_LIVE = env.bool("UTSKICK_EMAIL_LIVE", default=False)
+# Rollen adx-utskick som antas från cloud.aws.base_session() (H.8). Tomt =
+# ingen AWS; lokalt används ADX_AWS_PROFILE.
+UTSKICK_AWS_ROLE_ARN = env.str("UTSKICK_AWS_ROLE_ARN", default="")
+UTSKICK_AWS_EXTERNAL_ID = env.str("UTSKICK_AWS_EXTERNAL_ID", default="")
+# All post från utskick går från SES i eu-west-1 (samma EU-region som
+# inkommande post), skild från ADX egen post i eu-north-1.
+UTSKICK_SES_REGION = env.str("UTSKICK_SES_REGION", default="") or "eu-west-1"
+UTSKICK_ADX_MAIL_DOMAIN = env.str("UTSKICK_ADX_MAIL_DOMAIN", default="") or "utskick.adx.se"
+
+# Testerna når aldrig nätet: bara loopback och unix-socklar (Postgres), och
+# inga sms eller mejl skickas på riktigt även om .env säger det.
+TEST_RUNNER = "config.test_runner.NoNetworkRunner"
 
 LOGGING = {
     "version": 1,

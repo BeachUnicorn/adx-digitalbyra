@@ -1,0 +1,92 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static %}
+{% comment %}
+Lägg till kontakt och Redigera (README I.1). Kontext från
+app_views/contacts.contact_new och contact_edit: form (ContactForm, med
+extra_fields() för kundens extrafält), kontakt (None för en ny),
+kind_choices. Samtycket väljs bara för en ny kontakt; på en befintlig
+ändras det på kortet (Ändra samtycke).
+{% endcomment %}
+{% block app_title %}{% if kontakt %}Redigera {{ kontakt.display_name }}{% else %}Lägg till kontakt{% endif %}{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{% if kontakt %}{% url 'flamingo:app_contact' kontakt.pk %}{% else %}{% url 'flamingo:app_contacts' %}{% endif %}">{% if kontakt %}{{ kontakt.display_name }}{% else %}Kontakter{% endif %}</a></p>
+    <h1 class="fl-app-title">{% if kontakt %}Redigera kontakt{% else %}Lägg till kontakt{% endif %}</h1>
+    {% if not kontakt %}<p class="fl-app-lead">Fyll i det du vet. Ett namn, ett mobilnummer eller en e-post räcker.</p>{% endif %}
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<form class="fl-form fl-kt-form" method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}<p class="fl-notice fl-notice--error" role="alert"><span>{% for error in form.non_field_errors %}{{ error }} {% endfor %}</span></p>{% endif %}
+
+  <section class="fl-panel" aria-labelledby="kt-form-who">
+    <h2 class="fl-panel__title" id="kt-form-who">Vem</h2>
+    <fieldset class="fl-field">
+      <legend class="fl-field__label">Typ</legend>
+      <div class="fl-seg">
+        {% for value, label in kind_choices %}<label class="fl-seg__opt"><input type="radio" name="kind" value="{{ value }}"{% if form.kind.value == value %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+      </div>
+      {% for error in form.kind.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+    </fieldset>
+    <div class="fl-form__row">
+      {% include "flamingo/app/kontakter/_field.html" with field=form.first_name %}
+      {% include "flamingo/app/kontakter/_field.html" with field=form.last_name %}
+    </div>
+    <div class="fl-form__row">
+      {% include "flamingo/app/kontakter/_field.html" with field=form.company_name %}
+      {% include "flamingo/app/kontakter/_field.html" with field=form.org_number help="Bara för företag. Ett personnummer (enskild firma) sparas inte." %}
+    </div>
+  </section>
+
+  <section class="fl-panel" aria-labelledby="kt-form-ways">
+    <h2 class="fl-panel__title" id="kt-form-ways">Kontaktvägar</h2>
+    <div class="fl-form__row">
+      {% include "flamingo/app/kontakter/_field.html" with field=form.phone help="Ett mobilnummer. Ett fast nummer sparas i fältet Telefon." %}
+      {% include "flamingo/app/kontakter/_field.html" with field=form.email %}
+    </div>
+    {% if kontakt %}<p class="fl-panel__note">Byter du mobilnummer eller e-post gäller inte samtycket för den gamla adressen längre: kanalen får Inget samtycke tills ett nytt sparas.</p>{% endif %}
+  </section>
+
+  {% if not kontakt %}
+  <section class="fl-panel" aria-labelledby="kt-form-consent">
+    <h2 class="fl-panel__title" id="kt-form-consent">Samtycke till erbjudanden</h2>
+    <p class="fl-panel__text">Har personen sagt ja till att få erbjudanden, eller är hen redan kund hos dig? Annars får kontakten bara information, inga erbjudanden.</p>
+    <div class="fl-form__row">
+      <fieldset class="fl-field{% if form.consent_sms.errors %} is-error{% endif %}">
+        <legend class="fl-field__label">Sms</legend>
+        <div class="fl-kt-options">
+          {% for value, label in form.fields.consent_sms.choices %}<label class="fl-check"><input type="radio" name="consent_sms" value="{{ value }}"{% if form.consent_sms.value|default:"" == value %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+        </div>
+      </fieldset>
+      <fieldset class="fl-field{% if form.consent_email.errors %} is-error{% endif %}">
+        <legend class="fl-field__label">E-post</legend>
+        <div class="fl-kt-options">
+          {% for value, label in form.fields.consent_email.choices %}<label class="fl-check"><input type="radio" name="consent_email" value="{{ value }}"{% if form.consent_email.value|default:"" == value %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+        </div>
+      </fieldset>
+    </div>
+    {% include "flamingo/app/kontakter/_field.html" with field=form.evidence help="Behövs för Har sagt ja och Befintlig kund. Till exempel: i kassan, mars 2024." %}
+    <p class="fl-panel__note">Företag med organisationsnummer och en e-postadress på företagets domän får e-post utan samtycke, alltid med avregistreringslänk.</p>
+  </section>
+  {% endif %}
+
+  {% if form.extra %}
+  <section class="fl-panel" aria-labelledby="kt-form-fields">
+    <h2 class="fl-panel__title" id="kt-form-fields">Extrafält</h2>
+    <div class="fl-form__row">
+      {% for field, definition in form.extra_fields %}{% include "flamingo/app/kontakter/_field.html" with field=field %}{% endfor %}
+    </div>
+    <p class="fl-panel__note">Spara inte personnummer, hälsouppgifter eller liknande i extrafält.</p>
+  </section>
+  {% endif %}
+
+  <div class="fl-form__actions">
+    <a class="fl-btn fl-btn--ghost" href="{% if kontakt %}{% url 'flamingo:app_contact' kontakt.pk %}{% else %}{% url 'flamingo:app_contacts' %}{% endif %}">Avbryt</a>
+    <button type="submit" class="fl-btn">{% if kontakt %}Spara ändringarna{% else %}Lägg till kontakten{% endif %}</button>
+  </div>
+</form>
+{% endblock %}

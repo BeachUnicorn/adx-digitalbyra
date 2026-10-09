@@ -45,6 +45,10 @@ urlpatterns = [
     # Flamingo-kundernas landningssidor (apps/flamingo/public_urls.py). Alltid
     # öppna, men noindex och nekade i robots.txt. Före sajtens slug-catchall.
     path("lp/", include("apps.flamingo.public_urls")),
+    # Utskickens publika sidor (apps/utskick/public_urls.py): anmälan, tack,
+    # integritet, bekräfta e-post och Mina utskick. Noindex, nekade i
+    # robots.txt. Före sajtens slug-catchall.
+    path("utskick/", include("apps.utskick.public_urls")),
     # JSON-API för Mac-appen ADX Fokus (apps/projects/api.py).
     path("api/v1/", include("apps.projects.api_urls")),
     # SMS-API:t för kunderna och 46elks leveransrapporter (apps/sms/api.py).

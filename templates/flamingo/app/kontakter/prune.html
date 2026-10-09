@@ -1,0 +1,46 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Rensa inaktiva kontakter (README E.7): kontakter som saknar samtycke och inte
+hörts av på två år, flaggade av utskick_daily. Kunden bestämmer; inget tas
+bort av sig självt. Kontext från app_views/contacts.contacts_prune: count,
+kontakter (de tio första, som tabellens rader), delete_max, over_max.
+{% endcomment %}
+{% block app_title %}Rensa inaktiva kontakter{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{% url 'flamingo:app_contacts' %}">Kontakter</a></p>
+    <h1 class="fl-app-title">Rensa inaktiva kontakter</h1>
+    <p class="fl-app-lead">Kontakter som saknar samtycke och inte har hörts av på två år. Du behöver inte spara uppgifter du inte använder.</p>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+{% if count %}
+<section class="fl-panel fl-panel--accent" aria-labelledby="kt-prune-title">
+  <h2 class="fl-panel__title" id="kt-prune-title">{{ count|tal }} {% if count == 1 %}kontakt kan tas bort{% else %}kontakter kan tas bort{% endif %}</h2>
+  <p class="fl-panel__text">De tas bort ur Kontakter. Förfrågningarna i Inkorgen och samtyckesloggen finns kvar. Adresserna läggs inte på spärrlistan, så kontakterna kan importeras igen.</p>
+  {% if over_max %}<p class="fl-notice fl-notice--warn"><span>Högst {{ delete_max|tal }} tas bort åt gången. Gör samma sak igen för resten.</span></p>{% endif %}
+  <form class="fl-form" method="post" action="{% url 'flamingo:app_contacts_prune' %}">
+    {% csrf_token %}
+    <input type="hidden" name="bekrafta" value="1">
+    <div class="fl-form__actions">
+      <a class="fl-btn fl-btn--ghost" href="{% url 'flamingo:app_contacts' %}">Avbryt</a>
+      <button type="submit" class="fl-btn">Ta bort {% if over_max %}{{ delete_max|tal }}{% else %}{{ count|tal }}{% endif %} {% if count == 1 %}kontakt{% else %}kontakter{% endif %}</button>
+    </div>
+  </form>
+</section>
+<section aria-labelledby="kt-prune-list">
+  <h2 class="fl-kt-section-title" id="kt-prune-list">{% if count > kontakter|length %}De {{ kontakter|length }} som varit tysta längst{% else %}Kontakterna{% endif %}</h2>
+  {% include "flamingo/app/kontakter/_table.html" with selectable=False %}
+</section>
+{% else %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Inga inaktiva kontakter</p>
+  <p class="fl-empty__text">Ingen kontakt saknar samtycke och har varit tyst i två år.</p>
+  <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contacts' %}">Till Kontakter</a>
+</div>
+{% endif %}
+{% endblock %}

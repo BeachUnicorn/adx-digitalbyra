@@ -1,0 +1,63 @@
+{% extends "utskick/public/_base.html" %}
+{% comment %}
+Den genererade integritetstexten /utskick/<public_slug>/integritet/
+(public_views.privacy, README H.5, H.9, E.7): företaget med
+organisationsnummer och kontaktuppgifter ur de bekräftade uppgifterna under
+Företaget, ändamålen, hur länge uppgifterna sparas, ADX som
+personuppgiftsbiträde och underbiträdena. Används bara när kunden inte har
+en egen policy (privacy_url). Texten ska granskas av en jurist innan en
+riktig kund går live (README K.1, punkt 15).
+
+Kontext: foretag, uppgifter (capture.PrivacyFacts: org_number, phone,
+email, address, website).
+{% endcomment %}
+{% block title %}Så hanterar {{ foretag }} dina uppgifter{% endblock %}
+{% block content %}
+<h1 class="up-h1">Så hanterar {{ foretag }} dina uppgifter</h1>
+<p class="up-lead">Den här sidan gäller utskicken från {{ foretag }}: erbjudanden och information via e-post och sms.</p>
+
+<h2 class="up-h2">Vem som ansvarar</h2>
+<p>{{ foretag }} är personuppgiftsansvarig, organisationsnummer {{ uppgifter.org_number }}.</p>
+<dl class="up-facts">
+  {% if uppgifter.email %}<div class="up-facts__row"><dt>E-post</dt><dd>{{ uppgifter.email }}</dd></div>{% endif %}
+  {% if uppgifter.phone %}<div class="up-facts__row"><dt>Telefon</dt><dd>{{ uppgifter.phone }}</dd></div>{% endif %}
+  {% if uppgifter.address %}<div class="up-facts__row"><dt>Adress</dt><dd>{{ uppgifter.address }}</dd></div>{% endif %}
+  {% if uppgifter.website %}<div class="up-facts__row"><dt>Webbplats</dt><dd>{{ uppgifter.website }}</dd></div>{% endif %}
+</dl>
+
+<h2 class="up-h2">Vilka uppgifter som sparas</h2>
+<ul class="up-list">
+  <li>Det du själv lämnar: förnamn, e-post och mobilnummer.</li>
+  <li>Vad du har sagt ja eller nej till: den exakta texten du såg, var och när.</li>
+  <li>Vad som händer med utskicken: om de kommer fram, om du klickar på en länk, hur länge du stannar på sidan som länken leder till, och om du svarar eller skickar en förfrågan.</li>
+</ul>
+
+<h2 class="up-h2">Varför</h2>
+<ul class="up-list">
+  <li>För att skicka erbjudanden till dig som har sagt ja, eller som redan är kund hos {{ foretag }} och inte har sagt nej.</li>
+  <li>För att skicka information om dina bokningar och ärenden.</li>
+  <li>För att se vilka utskick som ger resultat. Länkarna i utskicken är personliga, så {{ foretag }} ser vem som klickade. Landningssidorna som länkarna leder till sätter ingen kaka för spårning, bara den som formuläret behöver för att kunna skickas.</li>
+  <li>För att kunna svara när du svarar på ett utskick.</li>
+</ul>
+
+<h2 class="up-h2">Hur länge</h2>
+<ul class="up-list">
+  <li>Uppgifter om vilka utskick du fått och vad du klickat på sparas i 13 månader.</li>
+  <li>Andra händelser, till exempel besök via en länk, sparas i 25 månader.</li>
+  <li>Dina kontaktuppgifter och dina val sparas så länge du finns i registret. Tas du bort sparas beviset om vad du sagt ja eller nej till i 36 månader, utan dina kontaktuppgifter.</li>
+  <li>Avregistrerar du dig sparas en spärr, så att du inte får utskick igen. Spärren innehåller inte din adress, bara en kod som räknas fram ur den.</li>
+</ul>
+
+<h2 class="up-h2">Vilka mer som hanterar uppgifterna</h2>
+<p>ADX (adx.se) sköter tjänsten ADX Flamingo åt {{ foretag }} som personuppgiftsbiträde, enligt ett biträdesavtal. ADX använder i sin tur:</p>
+<ul class="up-list">
+  <li>Amazon Web Services: servern och databasen i Stockholm, e-posten i Irland.</li>
+  <li>46elks: sms, i Sverige.</li>
+  <li>Sentry: felrapporter, utan dina kontaktuppgifter.</li>
+</ul>
+
+<h2 class="up-h2">Dina rättigheter</h2>
+<p>Du kan när som helst sluta få erbjudanden, eller avregistrera dig från allt, med länken i varje mejl. Du har rätt att få veta vilka uppgifter som finns om dig och att få dem rättade eller borttagna. Kontakta {{ foretag }} för det.</p>
+<p>Du kan också klaga hos Integritetsskyddsmyndigheten, imy.se.</p>
+{% endblock %}
+{% block footer %}{% endblock %}

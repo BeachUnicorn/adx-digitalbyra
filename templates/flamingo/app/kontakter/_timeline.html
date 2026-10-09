@@ -1,0 +1,29 @@
+{% comment %}
+Kontaktkortets tidslinje (README I.7, timeline.for_contact): nyast först,
+30 per sida med ?sida=. Kontext: timeline_items ([{"item": Item, "when":
+"8 okt 14.32"}]), timeline_page (Page med has_next och has_previous).
+Förfrågningar länkar "Öppna i Inkorgen". Senare steg lägger till sina
+källor i timeline.SOURCES; mallen ritar dem likadant.
+{% endcomment %}{% if timeline_items %}
+<ol class="fl-timeline fl-kt-timeline">
+  {% for row in timeline_items %}
+  <li class="fl-timeline__item fl-kt-tl fl-kt-tl--{{ row.item.kind }}">
+    <span class="fl-timeline__dot" aria-hidden="true"></span>
+    <div class="fl-timeline__body">
+      <span class="fl-kt-tl__when">{{ row.when }}</span>
+      <span class="fl-kt-tl__title">{{ row.item.title }}</span>
+      {% if row.item.detail %}<span class="fl-timeline__meta">{{ row.item.detail }}</span>{% endif %}
+      {% if row.item.url %}<a class="fl-panel__link" href="{{ row.item.url }}">{{ row.item.link_label|default:"Öppna" }}</a>{% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ol>
+{% if timeline_page.has_next or timeline_page.has_previous %}
+<nav class="fl-kt-pages" aria-label="Mer av tidslinjen">
+  {% if timeline_page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?sida={{ timeline_page.previous_page_number }}#tidslinje">Nyare</a>{% endif %}
+  {% if timeline_page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?sida={{ timeline_page.next_page_number }}#tidslinje">Äldre</a>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<p class="fl-panel__note">Inget har hänt än. Ändringar av samtycket, importer, anmälningar och förfrågningar hamnar här.</p>
+{% endif %}

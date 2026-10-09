@@ -5,8 +5,14 @@
     manage.py monitor_check --daily    # dygnskontroll: cert, domän, e-post, säkerhet, Sentry,
                                        # PageSpeed och Googles data (CrUX, Search Console, GBP)
     manage.py monitor_check --domain nordanbygg.se [--daily] [--skip-slow]
+
+Snabbkontrollen tittar också på utskickens tick (apps/utskick): har den inte
+gått på fem minuter medan något väntar larmas byrån, högst en gång i timmen.
 """
 
+import logging
+
+from django.apps import apps
 from django.core.management.base import BaseCommand
 
 from apps.monitor.models import MonitoredDomain
@@ -36,3 +42,19 @@ class Command(BaseCommand):
         self.stdout.write(f"{count} domän(er) kontrollerade.")
         for domain, text in attention:
             self.stdout.write(f"  {domain.name}: {text}")
+        if not options["daily"] and domains is None:
+            _utskick_heartbeat(self.stdout)
+
+
+def _utskick_heartbeat(out):
+    """Utskickens tick (apps/utskick/sending/tick.check_heartbeat). Ingenting
+    när appen inte finns, och ett fel här fäller aldrig övervakningen."""
+    if not apps.is_installed("apps.utskick"):
+        return
+    try:
+        from apps.utskick.sending.tick import check_heartbeat
+
+        if check_heartbeat():
+            out.write("  Utskick: ticken har stannat, byrån är larmad.")
+    except Exception:  # noqa: BLE001 - övervakningen ska alltid gå klart
+        logging.getLogger(__name__).exception("Utskickens hjärtslag kunde inte kontrolleras")

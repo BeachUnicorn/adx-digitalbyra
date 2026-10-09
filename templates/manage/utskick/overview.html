@@ -1,0 +1,123 @@
+{% extends "manage/base.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Byråns översikt för Kontakter och utskick (apps/utskick/manage_views.overview,
+README I.1): kunderna, kön, ticken, nycklarna, nödstoppet med
+klarmarkeringarna och biträdesavtalet. Ingenting här mejlar någon kund.
+{% endcomment %}
+{% block title %}Utskick{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/manage-utskick.css' %}?v={{ static_version }}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+  <h1 class="m-page-head__title">Utskick</h1>
+  <p class="m-page-head__subtitle mu-head-actions">
+    <a href="#kunder" class="m-btn m-btn--ghost m-btn--small">Kunderna</a>
+    <a href="#nodstopp" class="m-btn m-btn--ghost m-btn--small">Nödstopp</a>
+    <a href="#avtal" class="m-btn m-btn--ghost m-btn--small">Biträdesavtal</a>
+    <a href="{% url 'manage:flamingo_overview' %}" class="m-btn m-btn--ghost m-btn--small">Flamingo</a>
+  </p>
+</div>
+
+{% if not keys_ok %}
+<p class="mu-alert" role="alert"><b>Nycklarna stämmer inte.</b> Den här processens UTSKICK_HASH_KEY eller UTSKICK_LINK_KEY är inte den som skrev spärrlistan. Samtycken, spärrar och mejl nekas tills processerna har samma .env och adx har startats om.</p>
+{% endif %}
+{% if tick.stale and tick.work %}
+<p class="mu-alert" role="alert"><b>Ticken går inte.</b> {% if tick.last_at %}Senast {{ tick.last_at|date:"j b H:i" }}{% else %}Den har aldrig gått{% endif %}, och det finns arbete som väntar. Kontrollera djangousers crontab (server/crontab.d/adx-utskick).</p>
+{% endif %}
+
+<section class="mu-kpis" aria-label="Läget">
+  <a class="m-stat mu-kpi" href="#kunder"><span class="m-stat__label">Kunder med utskick</span><span class="m-stat__value">{{ enabled_count|tal }}</span><span class="mu-kpi__sub">utan demokontot</span></a>
+  <div class="m-stat mu-kpi"><span class="m-stat__label">Kontakter</span><span class="m-stat__value">{{ contact_total|tal }}</span><span class="mu-kpi__sub">alla kunder</span></div>
+  <div class="m-stat mu-kpi"><span class="m-stat__label">Bekräftelsemejl i kö</span><span class="m-stat__value">{{ doi_queue|tal }}</span><span class="mu-kpi__sub">{% if not switch.doi_ready_at %}väntar på klarmarkeringen{% elif can_send_mail %}skickas av ticken{% else %}e-posten är av här{% endif %}</span></div>
+  <div class="m-stat mu-kpi"><span class="m-stat__label">Importer i bakgrunden</span><span class="m-stat__value">{{ import_jobs|tal }}</span><span class="mu-kpi__sub">konverteras eller importeras</span></div>
+</section>
+
+<div class="m-panel tv-panel tv-panel--read">
+  <div class="tv-sec-title">Ticken och e-posten</div>
+  <p class="tv-prop__note">{% if tick.last_at %}Senaste tick {{ tick.last_at|date:"j b Y H:i" }}{% if tick.summary.status == "worked" %}: arbetade{% if tick.summary.doi %}, bekräftelsemejl {{ tick.summary.doi.sent }} skickade{% endif %}{% if tick.summary.import %}, import {{ tick.summary.import.rows }} rader{% endif %}{% if tick.summary.seconds %} på {{ tick.summary.seconds }} s{% endif %}{% elif tick.summary.status == "idle" %}: inget att göra{% endif %}.{% else %}Ticken har aldrig gått här. Den körs varje minut från cron (server/crontab.d/adx-utskick).{% endif %}</p>
+  <p class="tv-prop__note">UTSKICK_EMAIL_LIVE är {% if email_live %}på: bekräftelsemejlen går via SES i eu-west-1{% if not aws_role %}, men UTSKICK_AWS_ROLE_ARN saknas{% endif %}{% elif can_send_mail %}av: mejlen skrivs som .eml-filer lokalt (DEBUG){% else %}av: inga mejl alls{% endif %}. Nycklarna {% if keys_ok %}stämmer med spärrlistan{% else %}stämmer inte{% endif %}.</p>
+</div>
+
+<p class="m-section-title" id="kunder">Kunder</p>
+<div class="m-panel m-table-wrap">
+  <table class="m-table mu-table">
+    <thead><tr><th>Kund</th><th>Läge</th><th class="m-num">Kontakter</th><th>Biträdesavtal</th><th>Aktiverat</th></tr></thead>
+    <tbody>
+    {% for row in accounts %}
+    <tr{% if not row.is_enabled %} class="is-off"{% endif %}>
+      <td><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}#utskick"><b>{{ row.account.customer.name }}</b></a>{% if row.account.is_demo %} <span class="m-badge">Demo</span>{% endif %}</td>
+      <td><span>{% if row.sending_blocked %}<span class="m-badge m-badge--alert">Stoppad</span>{% elif row.is_enabled %}<span class="m-badge m-badge--published">Aktiverat</span>{% else %}<span class="m-badge">Avstängt</span>{% endif %}</span></td>
+      <td class="m-num">{{ row.kontakter|tal }} av {{ row.contact_limit|tal }}</td>
+      <td>{{ row.dpa_text }}</td>
+      <td>{% if row.enabled_at %}{{ row.enabled_at|date:"j b Y" }}{% if row.enabled_by %} av {{ row.enabled_by.first_name|default:row.enabled_by.get_username }}{% endif %}{% else %}<span class="tv-muted">aldrig</span>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="m-empty">Ingen kund har utskick än. Slå på det på kundkortet, under Flamingo.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="m-section-title" id="nodstopp">Nödstopp och klarmarkeringar</p>
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Inget skickas förrän byrån slagit på brytarna. Varje klarmarkering kräver en anteckning om vad som är kontrollerat. Att stänga av går alltid och gäller direkt. Kunderna mejlas inte.</p>
+  <div class="mu-switches">
+    <div class="mu-switch">
+      <p><b>Sms-utskick: {% if switch.sms_enabled %}på{% else %}av{% endif %}.</b> Kräver länkvärdarna och inkommande sms.</p>
+      <form method="post" action="{% url 'manage:utskick_switch' %}" class="mu-form">{% csrf_token %}
+        {% if switch.sms_enabled %}<input type="hidden" name="action" value="sms_off"><button type="submit" class="m-btn m-btn--small">Stäng av sms-utskick</button>{% else %}<input type="hidden" name="action" value="sms_on"><label class="m-sr-only" for="mu-sms-note">Anteckning (krävs)</label><input id="mu-sms-note" name="note" maxlength="200" class="tv-input" placeholder="Anteckning (krävs)" required autocomplete="off"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Slå på sms-utskick</button>{% endif %}
+      </form>
+    </div>
+    <div class="mu-switch">
+      <p><b>E-postutskick: {% if switch.email_enabled %}på{% else %}av{% endif %}.</b> Kräver att e-posten är klarmarkerad och UTSKICK_EMAIL_LIVE.</p>
+      <form method="post" action="{% url 'manage:utskick_switch' %}" class="mu-form">{% csrf_token %}
+        {% if switch.email_enabled %}<input type="hidden" name="action" value="email_off"><button type="submit" class="m-btn m-btn--small">Stäng av e-postutskick</button>{% else %}<input type="hidden" name="action" value="email_on"><label class="m-sr-only" for="mu-email-note">Anteckning (krävs)</label><input id="mu-email-note" name="note" maxlength="200" class="tv-input" placeholder="Anteckning (krävs)" required autocomplete="off"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Slå på e-postutskick</button>{% endif %}
+      </form>
+    </div>
+    <form method="post" action="{% url 'manage:utskick_switch' %}" class="mu-stop">{% csrf_token %}
+      <input type="hidden" name="action" value="stop_all">
+      <button type="submit" class="m-btn m-btn--small mu-stop__btn">Stoppa all sändning nu</button>
+      <p class="tv-muted">Stoppar också bekräftelsemejlen: markeringen för dem tas bort.</p>
+    </form>
+  </div>
+
+  <ul class="mu-ready">
+    {% for r in ready_rows %}
+    <li class="mu-ready__row">
+      <div class="mu-ready__text">
+        <p class="mu-ready__title"><b>{{ r.label }}</b>: {% if r.at %}klar sedan {{ r.at|date:"j b Y H:i" }}{% else %}inte klar{% endif %}</p>
+        <p class="tv-muted">{{ r.help }}</p>
+      </div>
+      <form method="post" action="{% url 'manage:utskick_switch' %}" class="mu-form">{% csrf_token %}
+        <input type="hidden" name="field" value="{{ r.field }}">
+        <input type="hidden" name="action" value="{% if r.at %}unready{% else %}ready{% endif %}">
+        <label class="m-sr-only" for="mu-note-{{ r.field }}">Anteckning för {{ r.label }} (krävs)</label>
+        <input id="mu-note-{{ r.field }}" name="note" maxlength="200" class="tv-input" placeholder="Anteckning (krävs)" required autocomplete="off">
+        <button type="submit" class="m-btn m-btn--small m-btn--ghost">{% if r.at %}Ta bort markeringen{% else %}Markera som klar{% endif %}</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if switch.changed_at %}<p class="tv-muted">Senast ändrat {{ switch.changed_at|date:"j b Y H:i" }}{% if changed_by %} av {{ changed_by }}{% endif %}{% if switch.note %}: {{ switch.note }}{% endif %}</p>{% endif %}
+</div>
+
+<p class="m-section-title" id="avtal">Biträdesavtal</p>
+<div class="m-panel tv-panel tv-panel--read">
+  {% if dpa %}
+  <p class="tv-prop__note">Aktuell version: <b>{{ dpa.version }}</b>, publicerad {{ dpa.published_at|date:"j b Y" }}{% if dpa.published_by %} av {{ dpa.published_by.first_name|default:dpa.published_by.get_username }}{% endif %}. {{ dpa_accepted }} kund{{ dpa_accepted|pluralize:"er" }} har godkänt den.</p>
+  <details class="mu-details"><summary>Visa texten som kunderna godkänner</summary><div class="mu-dpa-text">{{ dpa.text|linebreaks }}</div></details>
+  {% else %}
+  <p class="tv-prop__note"><b>Ingen version är publicerad.</b> Kunderna kan inte lägga till kontakter förrän en finns (demokontot behöver ingen).</p>
+  {% endif %}
+  <p class="tv-prop__note">Publiceringen sparar texten på sidan /bitradesavtal/ som den ser ut nu. {% if dpa_page %}{% if dpa_page.is_published %}Sidan finns och är publicerad.{% else %}Sidan finns men är inte publicerad.{% endif %} <a class="tv-link" href="{% url 'manage:page_detail' dpa_page.pk %}">Redigera sidan</a>{% else %}Sidan finns inte än: skapa den under Innehåll, Blocksidor, med adressen bitradesavtal.{% endif %} Efter en ny version godkänner kunderna den nästa gång de lägger till kontakter; det de redan har fungerar som vanligt. Ingen mejlas.</p>
+  <form method="post" action="{% url 'manage:utskick_dpa_publish' %}" class="tv-toggles">{% csrf_token %}
+    <div class="m-field"><label for="mu-dpa-version">Version</label><input id="mu-dpa-version" name="version" value="{{ next_version }}" maxlength="20" class="tv-input" required autocomplete="off"></div>
+    <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="confirm" value="1" required> Sidan är granskad (jurist) och klar att godkännas av kunderna</label>
+    <div class="tv-logfoot"><button type="submit" class="m-btn m-btn--small">Publicera en ny version</button></div>
+  </form>
+  {% if dpa_versions|length > 1 %}
+  <p class="tv-muted">Tidigare: {% for v in dpa_versions %}{% if not v.is_current %}{{ v.version }} ({{ v.published_at|date:"j b Y" }}){% if not forloop.last %}, {% endif %}{% endif %}{% endfor %}</p>
+  {% endif %}
+</div>
+{% endblock %}

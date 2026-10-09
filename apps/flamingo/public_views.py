@@ -37,6 +37,20 @@ kundens kunder.
   inte emot något svar om samtycke, så inget kan hittas på. Inga kakor
   utöver formulärets CSRF-nyckel, ingen statistik från ADX, noindex.
 
+Kryssrutorna för utskick (apps/utskick, README C.2 och H.5): när kundens
+utskick är på, biträdesavtalet godkänt, kryssrutorna påslagna och en
+integritetstext finns, får formuläret "Ja, jag vill få erbjudanden från
+<företaget> via sms." (och via e-post när formuläret frågar efter e-post och
+byrån klarmarkerat bekräftelsemejlen), aldrig förkryssade, med länken "Så
+hanterar <företaget> dina uppgifter" under. Efter förfrågan sparar
+utskick.capture.from_lead_form samtycket med exakt text, sida, tid och
+besökarens ip_hash, och kopplar förfrågan till kontakten (Lead.contact).
+Utan ikryssad ruta skapas ingen kontakt; förfrågan kopplas bara till en
+befintlig kontakt med samma nummer eller e-post. Tack-sidan säger att ett
+mejl kommer när rutan för e-post var ikryssad (?epost=1, inget annat i
+adressen), oavsett om adressen redan fick e-post: sidan avslöjar inte vem
+som redan finns hos kunden.
+
 Skydd: CSRF, ett osynligt honungsfält (en bot som fyller det får samma
 tack-sida, men ingen förfrågan skapas), spärrarna i limits.py (högst
 RATE_LIMIT förfrågningar i timmen per besökare och kampanj och högst
@@ -69,6 +83,13 @@ CAMPAIGN_RATE_LIMIT = limits.LEADS_PER_CAMPAIGN
 HONEYPOT = "webbplats"
 #: ?utkast=1 visar byrån utkastet i stället för den publicerade sidan.
 DRAFT_PARAM = "utkast"
+#: ?epost=1 på tack-sidan: rutan för e-post var ikryssad (utskick). Samma
+#: text vad som än hände med samtycket.
+EMAIL_PENDING_PARAM = "epost"
+EMAIL_PENDING_TEXT = (
+    "Om du inte redan får e-post från oss skickar vi ett mejl till dig. "
+    "Klicka på länken i mejlet för att börja få e-post."
+)
 
 
 # ---------------------------------------------------------------------------
@@ -154,9 +175,14 @@ class LeadForm(forms.Form):
     )
     message = forms.CharField(label="Meddelande", max_length=leads.MESSAGE_MAX, required=False)
 
-    def __init__(self, *args, spec=None, **kwargs):
+    def __init__(self, *args, spec=None, consent=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.spec = spec or pagebuilder.FormSpec()
+        # Kryssrutorna för utskick (_lp_consent): bara kanalerna som visas.
+        self.consent = consent
+        self.consent_error_channels = set()
+        for channel in consent["channels"] if consent else ():
+            self.fields[f"consent_{channel}"] = forms.BooleanField(required=False)
         if self.spec.name_required:
             self.fields["name"].required = True
             self.fields["name"].error_messages["required"] = "Skriv ditt namn."
@@ -180,6 +206,21 @@ class LeadForm(forms.Form):
                 )
             field.widget.attrs.setdefault("id", f"rn-{name}")
 
+    def clean(self):
+        cleaned = super().clean()
+        #: Kanalerna vars ikryssade ruta fick ett fel (rutan märks i mallen).
+        self.consent_error_channels = set()
+        if self.consent:
+            from apps.utskick import capture
+
+            errors = capture.consent_errors(self.consent["channels"], cleaned)
+            for channel, field in capture.ERROR_FIELDS.items():
+                if field in errors:
+                    self.consent_error_channels.add(channel)
+                    if field in self.fields and field not in self.errors:
+                        self.add_error(field, errors[field])
+        return cleaned
+
     def lead_data(self):
         data = {
             "name": self.cleaned_data.get("name", ""),
@@ -196,6 +237,48 @@ class LeadForm(forms.Form):
         data.update({key: self.data.get(key, "") for key in leads.TRACKING_KEYS})
         data[leads.KEYWORD_KEY] = self.data.get(leads.KEYWORD_KEY, "")
         return data
+
+
+def _lp_consent(account, spec):
+    """Kryssrutorna för utskick i formuläret (apps/utskick/capture.py), eller
+    None när de inte ska visas: kanalerna, deras exakta texter och länken
+    till integritetstexten."""
+    from apps.utskick import capture
+    from apps.utskick.access import settings_for
+
+    row = settings_for(account)
+    channels = capture.lp_consent_channels(account, spec, row)
+    if not channels:
+        return None
+    texts = capture.consent_texts(account, row)
+    return {
+        "channels": channels,
+        "boxes": [{"channel": channel, "text": texts[channel]} for channel in channels],
+        "texts": {channel: texts[channel] for channel in channels},
+        "privacy_url": capture.privacy_url(account, row),
+        "display_name": row.display_name,
+    }
+
+
+def _capture(lead, form, request):
+    """Efter förfrågan: samtycket och kopplingen till kontakten (utskick).
+    Kastar aldrig. True när rutan för e-post var ikryssad (tack-sidans
+    ?epost=1), vad capture än gjorde med den."""
+    from apps.common.net import client_ip
+    from apps.utskick import capture
+
+    consent = form.consent or {}
+    try:
+        capture.from_lead_form(
+            lead,
+            form.cleaned_data,
+            consent.get("texts") or {},
+            request.path,
+            limits.ip_hash(client_ip(request)),
+        )
+    except Exception:  # noqa: BLE001 - förfrågan är redan sparad och ska fram
+        logger.exception("flamingo lp: utskick tog inte emot förfrågan %s", lead.pk)
+    return "email" in consent.get("channels", ()) and bool(form.cleaned_data.get("consent_email"))
 
 
 def _limit_message(site, reason):
@@ -261,6 +344,7 @@ def landing(request, slug):
     # det korta formulärets fält, så att ingen förfrågan tappas.
     spec = pagebuilder.form_spec(blocks) or pagebuilder.FormSpec()
     tracking = leads.tracking_from(request.GET)
+    consent = _lp_consent(account, spec)
     status = 200
 
     if request.method == "POST":
@@ -269,15 +353,19 @@ def landing(request, slug):
             # ska inte lära sig vad som stoppade den.
             logger.warning("flamingo lp: honungsfältet ifyllt (kampanj %s)", campaign.pk)
             return redirect("flamingo_public:thanks", slug=campaign.page_slug)
-        form = LeadForm(request.POST, spec=spec)
+        form = LeadForm(request.POST, spec=spec, consent=consent)
         if form.is_valid():
             if preview:
                 # Förhandsvisningen skapar ingen förfrågan och skickar inget.
                 return redirect("flamingo_public:thanks", slug=campaign.page_slug)
             lead, refused = limits.create_form_lead(campaign, form.lead_data(), request)
             if lead is not None:
+                email_ticked = _capture(lead, form, request)
                 sms.notify_new_lead(lead)
-                return redirect("flamingo_public:thanks", slug=campaign.page_slug)
+                thanks_url = reverse("flamingo_public:thanks", args=[campaign.page_slug])
+                if email_ticked:
+                    thanks_url += f"?{EMAIL_PENDING_PARAM}=1"
+                return redirect(thanks_url)
             logger.warning(
                 "flamingo lp: för många förfrågningar (%s, kampanj %s)", refused, campaign.pk
             )
@@ -286,11 +374,11 @@ def landing(request, slug):
             status = 429
         tracking = leads.tracking_from(request.POST, request.GET)
     else:
-        form = LeadForm(spec=spec)
+        form = LeadForm(spec=spec, consent=consent)
 
     extra = _layout_extra(request, campaign, preview, page, which)
     extra.update(_measure_context(request, campaign, preview))
-    extra.update({"tracking": tracking, "action": request.get_full_path()})
+    extra.update({"tracking": tracking, "action": request.get_full_path(), "lp_consent": consent})
     html = pagebuilder.render_page_html(
         page, account, campaign, which=which, request=request, form=form, extra=extra
     )
@@ -348,6 +436,9 @@ def thanks(request, slug):
     campaign, preview = _campaign_for(request, slug)
     page, which = _page_for(request, campaign, preview)
     extra = _layout_extra(request, campaign, preview, page, which)
+    extra["email_pending_text"] = (
+        EMAIL_PENDING_TEXT if request.GET.get(EMAIL_PENDING_PARAM) == "1" else ""
+    )
     context = pagebuilder.page_view_context(
         page, campaign.account, campaign, which=which, request=request, extra=extra
     )

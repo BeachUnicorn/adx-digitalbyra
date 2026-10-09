@@ -1,0 +1,39 @@
+{% extends "utskick/public/_base.html" %}
+{% comment %}
+Bekräfta e-post /utskick/bekrafta/<token>/ (public_views.confirm, README
+E.5). Ett GET bekräftar aldrig: sidan har en knapp, och bara POST
+bekräftar (länkförhandsvisningar och skannrar öppnar länkar). Visar bara
+den maskerade adressen, aldrig ett namn.
+
+tillstand: bekrafta (knappen), klar (bekräftat; val_url leder till Mina
+utskick), utgangen (länken har gått ut; anmalan_url när sidan är öppen),
+stangd (kontot tar inte emot nya bekräftelser) eller ogiltig (personen har
+ändrat sig sedan mejlet skickades). dagar är länkens giltighet.
+{% endcomment %}
+{% block title %}Bekräfta e-post{% endblock %}
+{% block content %}
+{% if tillstand == "bekrafta" %}
+<h1 class="up-h1">Bekräfta att du vill få <span class="up-nowrap">e-post</span> från {{ foretag }}</h1>
+<p class="up-masked">{{ maskerad_epost }}</p>
+<p class="up-lead">Du får erbjudanden från {{ foretag }} till den här adressen. Du kan avregistrera dig när du vill.</p>
+<form class="up-form" method="post" action="{{ request.path }}">
+  {% csrf_token %}
+  <button class="up-btn up-btn--primary up-btn--block" type="submit">Ja, bekräfta</button>
+</form>
+<p class="up-help">Var det inte du som anmälde dig? Då kan du stänga sidan. Inget händer om du inte klickar på knappen.</p>
+{% elif tillstand == "klar" %}
+<h1 class="up-h1">Klart</h1>
+<p class="up-lead">{{ maskerad_epost }} får erbjudanden från {{ foretag }} via e-post.</p>
+{% if val_url %}<p><a class="up-link" href="{{ val_url }}">Ändra vad du får</a></p>{% endif %}
+{% elif tillstand == "utgangen" %}
+<h1 class="up-h1">Länken har gått ut</h1>
+<p class="up-lead">Länken i mejlet gäller i {{ dagar }} dagar.{% if anmalan_url %} Anmäl dig igen så får du ett nytt mejl.{% endif %}</p>
+{% if anmalan_url %}<p><a class="up-btn up-btn--outline" href="{{ anmalan_url }}">Anmäl dig igen</a></p>{% endif %}
+{% elif tillstand == "stangd" %}
+<h1 class="up-h1">Det går inte att bekräfta just nu</h1>
+<p class="up-lead">{{ foretag }} tar inte emot nya anmälningar här just nu.</p>
+{% else %}
+<h1 class="up-h1">Länken gäller inte längre</h1>
+<p class="up-lead">Valet för {{ maskerad_epost }} har ändrats sedan mejlet skickades.</p>
+{% endif %}
+{% endblock %}

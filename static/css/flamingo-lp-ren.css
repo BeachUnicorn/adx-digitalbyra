@@ -264,6 +264,15 @@ textarea.rn-input--short{min-height:84px}
 .rn-preview-note{margin-bottom:16px;padding:10px 14px;border-radius:12px;background:#FEF7E0;color:#7A4A00;font-size:16px;line-height:1.45}
 .rn-fields .rn-btn{margin-top:6px}
 .rn-hp{position:absolute;left:-10000px;top:auto;width:1px;height:1px;overflow:hidden}
+/* Kryssrutorna för utskick (apps/utskick): aldrig förkryssade, och texten
+   står i sin helhet eftersom den är beviset på vad besökaren sa ja till. */
+.rn-consent{display:flex;flex-direction:column;gap:12px;min-width:0;margin:0;padding:0;border:0}
+.rn-consent__legend{margin-bottom:4px;padding:0;color:var(--rn-ink);font-size:16px;font-weight:600;line-height:1.35}
+.rn-check{display:flex;align-items:flex-start;gap:12px;min-width:0}
+.rn-check__box{flex:0 0 auto;width:22px;height:22px;margin:1px 0 0;accent-color:var(--rn-primary);cursor:pointer}
+.rn-check__label{flex:1 1 auto;min-width:0;color:var(--rn-body);font-size:16px;line-height:1.45;cursor:pointer;overflow-wrap:anywhere}
+.rn-check.is-error{padding:10px 12px;border:1px solid var(--rn-error);border-radius:14px;background:var(--rn-error-bg)}
+.rn-consent__privacy a{display:inline-block;padding-block:6px;margin-block:-6px}
 .rn-form__or{color:var(--rn-body);font-size:18px;text-align:center}
 .rn-form__or a{font-weight:600;white-space:nowrap}
 .rn-form__or a,.rn-review__meta a,.rn-thanks__back a{display:inline-block;padding-block:11px;margin-block:-11px}

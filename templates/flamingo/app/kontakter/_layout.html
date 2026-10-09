@@ -1,0 +1,27 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+Skalet för varje sida under Kontakter (/flamingo/app/kontakter/...).
+Vyerna ritar med app_views.render_contacts(request, mall, flik, kontext),
+som sätter app_active "contacts" och kt_nav (flikraden).
+
+Sidan fyller:
+  {% block app_title %}   fönstrets rubrik
+  {% block kt_head %}     sidans egen css (flamingo-app-kontakter.css,
+                          flamingo-app-import.css), med ?v={{ static_version }}
+  {% block kt_header %}   rubriken och knapparna överst (.fl-app-head)
+  {% block kt_content %}  resten
+
+Flikraden ligger mellan rubriken och innehållet (README I.1a). I mallar och
+kontexter heter en kontakt "kontakt", aldrig "contact". Inga style-attribut
+och inga inline-skript: css i static/css, js i static/js.
+{% endcomment %}
+{% block app_head %}
+<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick.css' %}?v={{ static_version }}">
+{% block kt_head %}{% endblock %}
+{% endblock %}
+{% block app_content %}
+{% block kt_header %}{% endblock %}
+{% include "flamingo/app/kontakter/_tabs.html" with nav=kt_nav %}
+{% block kt_content %}{% endblock %}
+{% endblock %}

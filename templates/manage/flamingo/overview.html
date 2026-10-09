@@ -17,6 +17,7 @@
         <a href="{% url 'flamingo:home' %}" class="m-btn m-btn--ghost m-btn--small">Öppna Flamingo ↗</a>
         <a href="{% url 'flamingo:app' %}" class="m-btn m-btn--ghost m-btn--small">Verktyget</a>
         <a href="{% url 'manage:flamingo_google' %}" class="m-btn m-btn--ghost m-btn--small">Google Ads</a>
+        <a href="{% url 'manage:utskick_overview' %}" class="m-btn m-btn--ghost m-btn--small">Utskick</a>
         {% if home_page %}<a href="{% url 'manage:page_detail' home_page.pk %}" class="m-btn m-btn--ghost m-btn--small">Redigera startsidan</a>{% endif %}
     </p>
 </div>

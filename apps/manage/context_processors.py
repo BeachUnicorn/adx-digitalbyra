@@ -100,6 +100,14 @@ def _css_mtime():
         "css/flamingo-pb.css",
         "css/flamingo-pb-ai.css",
         "css/manage-flamingo.css",
+        "css/sms.css",
+        "css/sms-nav.css",
+        # Kontakter och utskick (apps/utskick).
+        "css/flamingo-app-utskick.css",
+        "css/flamingo-app-kontakter.css",
+        "css/flamingo-app-import.css",
+        "css/utskick-public.css",
+        "css/manage-utskick.css",
         "js/dist/tiptap-editor.js",
         "js/manage-tables.js",
         "js/menu.js",
@@ -110,6 +118,10 @@ def _css_mtime():
         "js/flamingo-pb.js",
         "js/flamingo-pb-ai.js",
         "js/manage-flamingo.js",
+        "js/sms.js",
+        "js/flamingo-app-kontakter.js",
+        "js/flamingo-app-import.js",
+        "js/utskick-public.js",
     ):
         try:
             stamps.append(int((static / name).stat().st_mtime))

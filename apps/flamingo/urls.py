@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import include, path
 
 from . import views
 from .app_views import campaigns, inbox, onboarding, overview, page_ai, pages
@@ -49,5 +49,8 @@ urlpatterns = [
     path("app/omdomen/", reviews_views.reviews_view, name="app_reviews"),
     path("app/inkorg/", inbox.lead_list, name="app_inbox"),
     path("app/inkorg/<int:pk>/", inbox.lead_detail, name="app_lead"),
+    # Kontakter och Utskick (apps/utskick/app_urls.py), utan eget app_name:
+    # namnen blir flamingo:app_contacts och så vidare. Före <slug>/.
+    path("app/", include("apps.utskick.app_urls")),
     path("<slug:slug>/", views.flamingo_page, name="page"),
 ]

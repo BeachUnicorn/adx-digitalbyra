@@ -1,0 +1,11 @@
+{% comment %}
+När kontot inte får ta in kontakter (utskick av, eller biträdesavtalet inte
+godkänt): förklaringen och vägen till avtalet. collect_block är texten från
+access.collect_block_reason.
+{% endcomment %}
+{% if collect_block %}
+<p class="fl-notice fl-notice--warn" role="status">
+  <span>{{ collect_block }}</span>
+  <a href="{% url 'flamingo:app_dpa' %}">Biträdesavtalet</a>
+</p>
+{% endif %}

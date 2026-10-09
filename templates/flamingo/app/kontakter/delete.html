@@ -1,0 +1,49 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Ta bort en kontakt (README H.4), eller de markerade från listan. Kontext från
+app_views/contacts._render_delete: kontakt (en person) eller selection och
+hidden (massborttagning), count, leads (förfrågningar kopplade till
+urvalet), delete_max, over_max, back_url.
+
+Båda rutorna är ikryssade från början: förfrågningarna tas också bort, och
+adresserna läggs på spärrlistan så att personen inte importeras igen.
+Samtyckesloggen finns kvar utan namn, som bevis.
+{% endcomment %}
+{% block app_title %}Ta bort{% if kontakt %} {{ kontakt.display_name }}{% else %} kontakter{% endif %}{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{{ back_url }}">{% if kontakt %}{{ kontakt.display_name }}{% else %}Kontakter{% endif %}</a></p>
+    <h1 class="fl-app-title">{% if kontakt %}Ta bort kontakten{% else %}Ta bort {{ count|tal }} {% if count == 1 %}kontakt{% else %}kontakter{% endif %}{% endif %}</h1>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<section class="fl-panel fl-panel--accent fl-kt-narrow" aria-labelledby="kt-del-title">
+  <h2 class="fl-panel__title" id="kt-del-title">{% if kontakt %}{{ kontakt.display_name }} tas bort ur Kontakter{% else %}De markerade tas bort ur Kontakter{% endif %}</h2>
+  <p class="fl-panel__text">Uppgifterna, samtyckena, listorna och tidslinjen tas bort och går inte att få tillbaka. Samtyckesloggen finns kvar utan namn och adress, som bevis på vad personen sa ja eller nej till.</p>
+  {% if selection and selection.filters.active and selection.everything %}<p class="fl-panel__note">Urvalet: {{ selection.filters.summary }}.</p>{% endif %}
+  {% if over_max %}<p class="fl-notice fl-notice--warn"><span>Högst {{ delete_max|tal }} tas bort åt gången. Gör samma sak igen för resten.</span></p>{% endif %}
+  <form class="fl-form" method="post" action="{% if kontakt %}{% url 'flamingo:app_contact_delete' kontakt.pk %}{% else %}{% url 'flamingo:app_contacts_bulk' %}{% endif %}">
+    {% csrf_token %}
+    {% if not kontakt %}
+    <input type="hidden" name="action" value="delete">
+    <input type="hidden" name="bekrafta" value="1">
+    {% for name, value in hidden %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
+    {% endif %}
+    <div class="fl-kt-options">
+      {% if leads %}
+      <label class="fl-check"><input type="checkbox" name="forfragningar" value="1" checked><span>Ta också bort förfrågningar från {% if kontakt %}personen{% else %}personerna{% endif %} ({{ leads|tal }})</span></label>
+      {% endif %}
+      <label class="fl-check"><input type="checkbox" name="sparr" value="1" checked><span>Lägg på spärrlistan så att {% if kontakt %}personen{% else %}personerna{% endif %} inte importeras igen</span></label>
+    </div>
+    <p class="fl-panel__note">Spärrlistan sparar bara en kod för numret och adressen, inte själva uppgifterna. Ett utskick går aldrig till en spärrad adress.</p>
+    <div class="fl-form__actions">
+      <a class="fl-btn fl-btn--ghost" href="{{ back_url }}">Avbryt</a>
+      <button type="submit" class="fl-btn">{% if kontakt %}Ta bort kontakten{% elif over_max %}Ta bort {{ delete_max|tal }} kontakter{% else %}Ta bort {{ count|tal }} {% if count == 1 %}kontakt{% else %}kontakter{% endif %}{% endif %}</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

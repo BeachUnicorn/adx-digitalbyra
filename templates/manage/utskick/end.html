@@ -1,0 +1,38 @@
+{% extends "manage/base.html" %}
+{% load static %}
+{% comment %}
+"Avsluta utskick och radera allt" för en kund (apps/utskick/manage_views.
+customer_end, README E.7). Byrån skriver kundens namn för att bekräfta.
+Kontext: customer, counts (kontakter, listor, taggar, falt, importer),
+error, typed. Spärrlistan och samtyckesloggen finns kvar. Kunden mejlas inte.
+{% endcomment %}
+{% block title %}Avsluta utskick{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/manage-utskick.css' %}?v={{ static_version }}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+  <h1 class="m-page-head__title">Avsluta utskick för {{ customer.name }}</h1>
+  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}#utskick">Tillbaka till kundkortet</a></p>
+</div>
+
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Det här tar bort kundens kontaktregister för gott och stänger av utskick. Det går inte att ångra.</p>
+  <ul class="mu-list">
+    <li>{{ counts.kontakter }} kontakt{{ counts.kontakter|pluralize:"er" }} med samtycken, listor och händelser</li>
+    <li>{{ counts.listor }} list{{ counts.listor|pluralize:"a,or" }}, {{ counts.taggar }} tagg{{ counts.taggar|pluralize:"ar" }} och {{ counts.falt }} extrafält</li>
+    <li>{{ counts.importer }} import{{ counts.importer|pluralize:"er" }} med sina filer, och anmälningssidan</li>
+  </ul>
+  <p class="tv-prop__note">Spärrlistan och samtyckesloggen finns kvar som pseudonymt bevis (utan namn och kundens anteckningar), så att ingen som avregistrerat sig kan importeras igen. Förfrågningarna i Inkorgen finns kvar. Kunden mejlas inte.</p>
+  <form method="post" action="{% url 'manage:utskick_customer_end' customer.pk %}" class="tv-toggles">{% csrf_token %}
+    <div class="m-field{% if error %} is-error{% endif %}">
+      <label for="mu-end-name">Skriv kundens namn, {{ customer.name }}, för att bekräfta</label>
+      <input id="mu-end-name" name="namn" value="{{ typed }}" maxlength="200" class="tv-input" required autocomplete="off">
+      {% if error %}<p class="mu-error" role="alert">{{ error }}</p>{% endif %}
+    </div>
+    <div class="tv-logfoot">
+      <button type="submit" class="m-btn m-btn--small mu-stop__btn">Avsluta utskick och radera allt</button>
+      <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:customer_detail' customer.pk %}#utskick">Avbryt</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

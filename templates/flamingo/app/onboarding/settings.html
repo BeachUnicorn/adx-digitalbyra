@@ -63,7 +63,7 @@ contacts. Teckenräknaren uppdateras av static/js/flamingo-app-onboarding.js.
 
 <section class="fl-panel" aria-labelledby="fl-onb-contacts">
   <div class="fl-panel__head">
-    <h2 class="fl-panel__title" id="fl-onb-contacts">Kontakter hos {{ customer.name }}</h2>
+    <h2 class="fl-panel__title" id="fl-onb-contacts">Inloggningar hos {{ customer.name }}</h2>
   </div>
   <p class="fl-panel__note">De som kan logga in. Hör av dig till ADX om någon ska läggas till eller tas bort.</p>
   {% if contacts %}
@@ -78,7 +78,7 @@ contacts. Teckenräknaren uppdateras av static/js/flamingo-app-onboarding.js.
     {% endfor %}
   </ul>
   {% else %}
-  <p class="fl-panel__text">Inga kontakter är registrerade.</p>
+  <p class="fl-panel__text">Ingen kan logga in än.</p>
   {% endif %}
 </section>
 {% endblock %}

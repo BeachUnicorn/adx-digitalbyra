@@ -128,6 +128,31 @@ class SentryLeakTests(TestCase):
         self.assertNotIn(EMAIL, json.dumps(request))
         self.assertNotIn("abc123hemlig", self.dump())
 
+    def test_contact_and_utskick_pages_are_not_traced(self):
+        # Kontakternas sidor bär sökningar och namn, de publika sidorna tokens
+        # (apps/utskick, README C.3): de spåras inte alls.
+        call("/flamingo/app/kontakter/", query="q=anna.lindqvist")
+        call("/flamingo/app/utskick/")
+        call("/utskick/val/" + "a" * 40 + "/")
+        call("/utskick/bekrafta/" + "b" * 40 + "/")
+        call("/api/utskick/46elks/inkommande/" + "c" * 32 + "/")
+        call("/lp/rorjour/besok/", method="POST")
+        self.assertEqual(self.kinds(), [])
+
+    def test_link_hosts_are_not_traced(self):
+        link = {"wsgi_environ": {"PATH_INFO": "/", "HTTP_HOST": "k.adx.se"}}
+        with override_settings(UTSKICK_LINK_HOSTS=["k.adx.se", "klick.adx.se"]):
+            self.assertEqual(sentry.traces_sampler(link), 0.0)
+            self.assertEqual(
+                sentry.traces_sampler(
+                    {"asgi_scope": {"path": "/a8Kf2X", "headers": [(b"host", b"klick.adx.se")]}}
+                ),
+                0.0,
+            )
+        self.assertEqual(
+            sentry.traces_sampler({"wsgi_environ": {"PATH_INFO": "/", "HTTP_HOST": "adx.se"}}), 0.1
+        )
+
     def test_scrubber_never_breaks_a_report(self):
         class Broken(dict):
             def items(self):
@@ -139,7 +164,81 @@ class SentryLeakTests(TestCase):
         self.assertEqual(sentry.scrub_event(event), event)
 
 
+class DropLocalsTests(TestCase):
+    """Med en ram från utskick, sms, landningssidan eller inkorgen töms
+    variablerna i VARJE ram: databasens params och formulärens data ligger i
+    ramarna under (README C.3)."""
+
+    def event(self, module):
+        return {
+            "exception": {
+                "values": [
+                    {
+                        "stacktrace": {
+                            "frames": [
+                                {
+                                    "module": "django.db.backends.utils",
+                                    "vars": {"sql": "SELECT 1", "params": "['x']"},
+                                },
+                                {"module": "django.forms.forms", "vars": {"self": "<Form>"}},
+                                {"module": module, "vars": {"n": "1"}},
+                            ]
+                        }
+                    }
+                ]
+            }
+        }
+
+    def frames(self, event):
+        return event["exception"]["values"][0]["stacktrace"]["frames"]
+
+    def test_every_frame_loses_its_locals_under_an_utskick_frame(self):
+        for module in (
+            "apps.utskick.contacts",
+            "apps.sms.service",
+            "apps.flamingo.public_views",
+            "apps.flamingo.app_views.inbox",
+        ):
+            with self.subTest(module=module):
+                scrubbed = sentry.scrub_event(self.event(module))
+                self.assertEqual([f["vars"] for f in self.frames(scrubbed)], [{}, {}, {}])
+
+    def test_other_events_keep_their_locals(self):
+        scrubbed = sentry.scrub_event(self.event("apps.projects.views"))
+        self.assertEqual(self.frames(scrubbed)[2]["vars"], {"n": "1"})
+        self.assertEqual(self.frames(scrubbed)[0]["vars"]["sql"], "SELECT 1")
+
+    def test_utskick_names_are_in_the_denylist(self):
+        for name in ("address", "phone", "email", "text_shown", "evidence", "params", "raw"):
+            self.assertIn(name, sentry.SECRET_NAMES)
+
+
 class ScrubTextTests(TestCase):
+    def test_utskick_patterns(self):
+        token = "eyJhIjoxfQ.abcdefghijklmnopqrstuv"
+        cases = {
+            f"https://adx.se/utskick/bekrafta/{token}/": "https://adx.se/utskick/bekrafta/[Filtered]/",
+            f"/utskick/val/{token}/": "/utskick/val/[Filtered]/",
+            "/api/utskick/46elks/inkommande/" + "A" * 32 + "/": (
+                "/api/utskick/46elks/inkommande/[Filtered]/"
+            ),
+            "se https://k.adx.se/a8Kf2X nu": "se https://k.adx.se/[Filtered] nu",
+            "https://klick.adx.se/a/abc.def": "https://klick.adx.se/[Filtered]",
+            "svar till s+ab12.cd34@svar.utskick.adx.se": "svar till [Filtered]",
+            "nyckel adxut_abcdefgh12345": "nyckel [Filtered]",
+            "ut=AbC123.def4567890&x=1": "ut=[Filtered]&x=1",
+            "/lp/rorjour/?adx=abc123": "/lp/rorjour/?adx=[Filtered]",
+            "q=anna&sida=2": "q=[Filtered]&sida=2",
+            "till +46701740605 i går": "till [Filtered] i går",
+            "ring 070-174 06 05 nu": "ring [Filtered] nu",
+            "från anna.lindqvist@exempelror.example": "från [Filtered]",
+            # Inga falska träffar på det som inte är personuppgifter.
+            "GET /flamingo/app/kontakter/?sida=2": "GET /flamingo/app/kontakter/?sida=2",
+            "release adx@3cbdae0": "release adx@3cbdae0",
+        }
+        for raw, expected in cases.items():
+            self.assertEqual(sentry.scrub_text(raw), expected, raw)
+
     def test_patterns(self):
         cases = {
             f"https://adx.se/offert/{OFFER_TOKEN}/acceptera/": (

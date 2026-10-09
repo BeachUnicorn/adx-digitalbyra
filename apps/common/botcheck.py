@@ -25,12 +25,17 @@ och i vyn::
         return <exakt samma svar som vid framgång, utan sidoeffekter>
 
 Varje fällt lager loggas till loggern "security" så driften ser vågen.
+Sökvägen loggas tvättad (apps.common.sentry.scrub_text): en del adresser
+bär en behörighet (/utskick/val/<token>/), och sådana hör inte hemma i
+journalen.
 """
 
 import logging
 import time
 
 from django.core import signing
+
+from apps.common.sentry import scrub_text
 
 logger = logging.getLogger("security")
 
@@ -44,20 +49,25 @@ def issue_token():
     return signing.dumps({"t": int(time.time())}, salt=_SALT)
 
 
+def _path(request):
+    """Sökvägen för loggen, utan tokens, nummer eller adresser."""
+    return scrub_text(str(request.path))
+
+
 def botcheck_passes(request):
     """True om alla tre lagren är nöjda. Loggar vilket lager som föll."""
     if request.POST.get("bc_website", ""):
-        logger.warning("botcheck: honeypot ifylld (path=%s)", request.path)
+        logger.warning("botcheck: honeypot ifylld (path=%s)", _path(request))
         return False
 
     token = request.POST.get("bc_time", "")
     try:
         payload = signing.loads(token, salt=_SALT, max_age=MAX_AGE_SECONDS)
     except signing.BadSignature:
-        logger.warning("botcheck: ogiltig/utgången tidsstämpel (path=%s)", request.path)
+        logger.warning("botcheck: ogiltig/utgången tidsstämpel (path=%s)", _path(request))
         return False
     if time.time() - payload.get("t", 0) < MIN_SECONDS:
-        logger.warning("botcheck: för snabb submit (path=%s)", request.path)
+        logger.warning("botcheck: för snabb submit (path=%s)", _path(request))
         return False
 
     # Beviset är en EGEN signerad token (attributet och fälten renderas av
@@ -66,7 +76,7 @@ def botcheck_passes(request):
     try:
         signing.loads(request.POST.get("bc_proof", ""), salt=_SALT, max_age=MAX_AGE_SECONDS)
     except signing.BadSignature:
-        logger.warning("botcheck: JS-bevis saknas eller ogiltigt (path=%s)", request.path)
+        logger.warning("botcheck: JS-bevis saknas eller ogiltigt (path=%s)", _path(request))
         return False
 
     return True

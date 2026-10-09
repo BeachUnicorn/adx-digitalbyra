@@ -1,0 +1,10 @@
+{% comment %}
+Rubriken på importens sidor. title är sidans rubrik, lead en mening under.
+{% endcomment %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">{{ title }}</h1>
+    {% if lead %}<p class="fl-app-lead">{{ lead }}</p>{% endif %}
+  </div>
+</header>

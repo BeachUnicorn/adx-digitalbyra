@@ -1,0 +1,52 @@
+/* Kontakter och utskick i panelen (apps/utskick): översikten på
+   /manage/utskick/, kundkortets del och "Avsluta utskick". Bygger på
+   panelens tokens (manage-skin.css) och tavlans komponenter (tavla.css);
+   här finns bara det som är utskickens eget. Ingen status visas med färg
+   ensam: texten står alltid där. */
+
+.mu-head-actions{display:flex;flex-wrap:wrap;gap:8px}
+.mu-head-actions .m-btn{white-space:nowrap}
+
+.mu-alert{margin:0 0 18px;padding:12px 18px;border:1px solid var(--s-danger-soft);border-radius:16px;background:var(--s-danger-bg);font-size:16px;line-height:1.5;color:var(--m-text)}
+.mu-alert b{color:var(--s-danger)}
+.mu-error{margin:6px 0 0;font-size:14px;color:var(--s-danger)}
+
+/* ===== Siffrorna överst ===== */
+.mu-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:0 0 18px}
+.mu-kpi{display:flex;flex-direction:column;gap:6px;min-width:0;padding:20px 22px;text-decoration:none;color:inherit}
+.mu-kpi .m-stat__label{margin:0;order:-1}
+.mu-kpi .m-stat__value{font-size:30px;line-height:1.1;overflow-wrap:anywhere}
+.mu-kpi__sub{font-size:13.5px;line-height:1.45;color:var(--m-text-muted)}
+a.mu-kpi:hover{border-color:var(--m-text-muted)}
+
+/* ===== Brytarna och klarmarkeringarna ===== */
+.mu-switches{display:flex;flex-direction:column;gap:12px;margin:14px 0 18px}
+.mu-switch{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px}
+.mu-switch p{flex:1 1 280px;margin:0;font-size:16px;line-height:1.5}
+.mu-form{display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex:1 1 280px;min-width:0}
+.mu-form .tv-input{flex:1 1 180px;min-width:0}
+.mu-form .m-btn{white-space:normal}
+.mu-stop{display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;margin:4px 0 0}
+.mu-stop .tv-muted{margin:0}
+.mu-stop__btn{background:var(--s-danger);border-color:var(--s-danger);color:#fff}
+.mu-ready{list-style:none;margin:0;padding:0;border-top:1px solid var(--m-border)}
+.mu-ready__row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;padding:14px 0;border-bottom:1px solid var(--m-border)}
+.mu-ready__text{flex:1 1 320px;min-width:0}
+.mu-ready__text p{margin:0}
+.mu-ready__title{font-size:16px;line-height:1.5}
+
+/* ===== Avtalet ===== */
+.mu-details{margin:0 0 14px}
+.mu-details summary{cursor:pointer;font-weight:600}
+.mu-dpa-text{max-height:360px;overflow:auto;margin-top:10px;padding:12px 16px;border:1px solid var(--m-border);border-radius:12px;font-size:15px;line-height:1.55;overflow-wrap:anywhere}
+
+.mu-list{margin:0 0 14px;padding-left:20px;font-size:16px;line-height:1.6}
+
+/* Kundkortets del i Flamingo-panelen. */
+.mu-card{margin-top:18px}
+
+@media (max-width: 760px){
+  .mu-kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .mu-kpi{padding:16px 18px}
+  .mu-kpi .m-stat__value{font-size:26px}
+}

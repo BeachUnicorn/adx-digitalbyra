@@ -472,6 +472,22 @@ class OverviewTests(CoreFixture, TestCase):
         keys = [t.key for t in rules.onboarding_things(self.account, None)]
         self.assertIn("google_billing", keys)
 
+    def test_kontakter_is_in_the_menu_only_with_utskick(self):
+        """Flamingo 2.0 (apps/utskick, README C.2): Kontakter står efter
+        Kampanjer, och bara när byrån aktiverat utskick för kunden."""
+        from apps.utskick.testing import enable_utskick
+
+        def nav(html):
+            return html.split('<nav class="fl-app-nav"', 1)[1].split("</nav>", 1)[0]
+
+        link = f'href="{reverse("flamingo:app_contacts")}"'
+        html = self.client_for(self.anna).get(reverse("flamingo:app")).content.decode()
+        self.assertNotIn(link, nav(html))
+        enable_utskick(self.account, "core-test", "Testföretaget")
+        menu = nav(self.client_for(self.anna).get(reverse("flamingo:app")).content.decode())
+        self.assertIn(link, menu)
+        self.assertLess(menu.index(f'href="{reverse("flamingo:app_campaigns")}"'), menu.index(link))
+
     def test_the_inbox_badge_counts_new_leads(self):
         html = self.client_for(self.anna).get(reverse("flamingo:app")).content.decode()
         self.assertIn('class="fl-app-nav__badge" aria-label="1 nya"', html)

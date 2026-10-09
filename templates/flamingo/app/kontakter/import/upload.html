@@ -1,0 +1,88 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Import steg 1, Fil (README I.7): ladda upp en CSV- eller Excel-fil (högst
+10 MB och 50 000 rader) eller klistra in rader från ett kalkylark (högst
+2 000), plus exempelfilen. Under formulären de senaste importerna, med
+vägen tillbaka till en som inte är klar. Utan godkänt biträdesavtal visas
+varför i stället för formulären (access.can_collect).
+Vy: app_views/imports.import_upload.
+{% endcomment %}
+{% block app_title %}Importera kontakter{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-import.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}{% include "flamingo/app/kontakter/import/_head.html" with title="Importera kontakter" lead="Från en CSV-fil, Excel eller ditt kalkylark. Du ser vad som händer innan något sparas." %}{% endblock %}
+{% block kt_content %}
+{% include "flamingo/app/kontakter/import/_steps.html" %}
+
+{% if collect_block and dpa_missing %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Avtalssidan saknas</p>
+  <p class="fl-empty__text">Biträdesavtalet behöver vara godkänt innan du importerar, men ADX har inte publicerat det än. Kontakta ADX.</p>
+</div>
+{% elif collect_block %}
+<div class="fl-empty">
+  <p class="fl-empty__title">{{ collect_block }}</p>
+  <p class="fl-empty__text">Biträdesavtalet beskriver hur ADX hanterar dina kontakters uppgifter. Det behöver vara godkänt innan du importerar.</p>
+  <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_dpa' %}?nasta=import">Till biträdesavtalet</a>
+</div>
+{% else %}
+{% if error %}<p class="fl-notice fl-notice--error" role="alert">{{ error }}</p>{% endif %}
+
+<div class="fl-im-start">
+  <form class="fl-panel fl-form fl-im-drop" method="post" enctype="multipart/form-data" data-im-busy="Läser filen">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="upload">
+    <h2 class="fl-panel__title">Ladda upp en fil</h2>
+    <p class="fl-panel__text">CSV eller Excel (.xlsx), högst 10 MB och {{ max_rows|tal }} rader. Första raden ska vara rubriker, till exempel Namn, Mobil och E-post.</p>
+    <div class="fl-field">
+      <label class="fl-field__label" for="im-file">Fil</label>
+      <input class="fl-im-file" type="file" id="im-file" name="file" accept=".csv,.txt,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+    </div>
+    <div class="fl-panel__actions">
+      <button class="fl-btn" type="submit">Ladda upp</button>
+    </div>
+    <p class="fl-panel__note">Exempelfil att utgå från: <a class="fl-panel__link" href="{% static 'utskick/kontakter-mall.xlsx' %}" download>kontakter-mall.xlsx</a></p>
+  </form>
+
+  <form class="fl-panel fl-form fl-im-paste" method="post" data-im-busy="Läser raderna">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="paste">
+    <h2 class="fl-panel__title">Eller klistra in</h2>
+    <div class="fl-field">
+      <label class="fl-field__label" for="im-text">Rader från ditt kalkylark</label>
+      <textarea id="im-text" name="text" rows="8" spellcheck="false" autocomplete="off" data-im-count="im-text-count" data-max="{{ paste_max }}">{{ paste }}</textarea>
+      <p class="fl-field__help">Markera raderna i kalkylarket, med rubrikerna överst, och klistra in dem här. Högst {{ paste_max|tal }} rader.</p>
+      <p class="fl-count" id="im-text-count" aria-live="polite"></p>
+    </div>
+    <div class="fl-panel__actions">
+      <button class="fl-btn fl-btn--ghost" type="submit">Fortsätt</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% if jobs %}
+<section class="fl-panel">
+  <div class="fl-panel__head"><h2 class="fl-panel__title">Tidigare importer</h2></div>
+  <div class="fl-table-wrap">
+    <table class="fl-table">
+      <thead>
+        <tr><th scope="col">Fil</th><th scope="col">Datum</th><th scope="col">Rader</th><th scope="col">Läge</th><th scope="col">Resultat</th></tr>
+      </thead>
+      <tbody>
+        {% for job in jobs %}
+        <tr>
+          <td class="is-primary" data-label="Fil"><a href="{% url 'flamingo:app_import_job' job.pk %}">{{ job.original_name }}</a></td>
+          <td data-label="Datum">{{ job.created_at|date:"j b Y H.i" }}</td>
+          <td class="is-num" data-label="Rader">{{ job.row_count|tal }}</td>
+          <td data-label="Läge"><span class="fl-badge fl-im-badge--{{ job.status }}">{{ job.lage }}</span></td>
+          <td data-label="Resultat">{% if job.status == "done" or job.status == "importing" or job.result.new or job.result.updated %}{{ job.result.new|tal }} nya, {{ job.result.updated|tal }} uppdaterade{% elif job.open %}<a href="{% url 'flamingo:app_import_job' job.pk %}">Fortsätt</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endif %}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-import.js' %}?v={{ static_version }}" defer></script>{% endblock %}

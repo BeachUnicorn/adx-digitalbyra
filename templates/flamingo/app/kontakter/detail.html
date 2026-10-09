@@ -1,0 +1,185 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static %}
+{% comment %}
+Kontaktkortet (README I.7). Kontext från app_views/contacts._render_detail:
+kontakt, header_line, channels ([{"key", "word", "address", "href", "chip",
+"proof"}]), fields_shown ([(rubrik, värde)]), member_lists, own_tags,
+other_lists, other_tags, summary, timeline_page, timeline_items,
+consent_form (bara på kontakter/<pk>/samtycke/), new_value.
+
+Rutorna ligger till höger i bred skärm och ovanför tidslinjen under
+900 px, samtycket först. "Ändra samtycke" öppnar rutan på samma kort
+(kontakter/<pk>/samtycke/#samtycke); allt fungerar utan skript.
+{% endcomment %}
+{% block app_title %}{{ kontakt.display_name }}{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{% url 'flamingo:app_contacts' %}">Kontakter</a></p>
+    <h1 class="fl-app-title">{{ kontakt.display_name }}</h1>
+    <p class="fl-app-lead">{{ header_line }}</p>
+  </div>
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contact_edit' kontakt.pk %}">Redigera</a>
+    <form class="fl-kt-inline" method="post" action="{% url 'flamingo:app_contact_export' kontakt.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Exportera</button>
+    </form>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contact_delete' kontakt.pk %}">Ta bort</a>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<div class="fl-kt-card">
+  <div class="fl-kt-card__side">
+    {% if consent_form %}
+    <section class="fl-panel fl-panel--accent fl-kt-consent" id="samtycke" aria-labelledby="kt-consent-title">
+      <h2 class="fl-panel__title" id="kt-consent-title">Ändra samtycke</h2>
+      {% if consent_form.fields.channel.choices %}
+      <form class="fl-form" method="post" action="{% url 'flamingo:app_contact_consent' kontakt.pk %}">
+        {% csrf_token %}
+        {% if consent_form.non_field_errors %}<p class="fl-notice fl-notice--error" role="alert"><span>{% for error in consent_form.non_field_errors %}{{ error }} {% endfor %}</span></p>{% endif %}
+        <fieldset class="fl-field{% if consent_form.channel.errors %} is-error{% endif %}">
+          <legend class="fl-field__label">Kanal</legend>
+          <div class="fl-seg">
+            {% for value, label in consent_form.fields.channel.choices %}<label class="fl-seg__opt"><input type="radio" name="channel" value="{{ value }}"{% if consent_form.channel.value == value %} checked{% endif %} required><span>{{ label }}</span></label>{% endfor %}
+          </div>
+          {% for error in consent_form.channel.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+        </fieldset>
+        <fieldset class="fl-field{% if consent_form.status.errors %} is-error{% endif %}">
+          <legend class="fl-field__label">Samtycke</legend>
+          <div class="fl-kt-options">
+            {% for value, label in consent_form.fields.status.choices %}<label class="fl-check"><input type="radio" name="status" value="{{ value }}"{% if consent_form.status.value == value %} checked{% endif %} required><span>{{ label }}</span></label>{% endfor %}
+          </div>
+          {% for error in consent_form.status.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+        </fieldset>
+        <div class="fl-field{% if consent_form.evidence.errors %} is-error{% endif %}">
+          <label class="fl-field__label" for="{{ consent_form.evidence.id_for_label }}">Var och när?</label>
+          {{ consent_form.evidence }}
+          {% for error in consent_form.evidence.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+          <p class="fl-field__help">Behövs för Har sagt ja och Befintlig kund. Till exempel: i kassan, mars 2024.</p>
+        </div>
+        <p class="fl-panel__note">Har personen själv valt Vill inte ha erbjudanden, väntar på bekräftelse eller avregistrerat sig kan bara personen ändra det. Avregistrera lägger adressen på spärrlistan, så att inga utskick går dit, inte heller information.</p>
+        <div class="fl-form__actions">
+          <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contact' kontakt.pk %}">Avbryt</a>
+          <button type="submit" class="fl-btn fl-btn--sm">Spara samtycket</button>
+        </div>
+      </form>
+      {% else %}
+      <p class="fl-panel__text">Kontakten har varken mobilnummer eller e-post. Lägg till en adress under Redigera först.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section class="fl-panel fl-kt-box" id="kontaktvagar" aria-labelledby="kt-ways-title">
+      <h2 class="fl-kt-box__title" id="kt-ways-title">Kontaktvägar</h2>
+      <ul class="fl-kt-ways-list">
+        {% for ch in channels %}
+        <li class="fl-kt-way">
+          <span class="fl-kt-way__label">{{ ch.word }}</span>
+          {% if ch.address %}<a class="fl-kt-way__address" href="{{ ch.href }}">{{ ch.address }}</a>{% else %}<span class="fl-kt-muted">Saknas</span>{% endif %}
+          <span class="fl-kt-chip fl-kt-chip--{{ ch.chip.tone }}">{{ ch.chip.label }}</span>
+          {% if ch.address %}<a class="fl-panel__link fl-kt-way__change" href="{% url 'flamingo:app_contact_consent' kontakt.pk %}?kanal={{ ch.key }}#samtycke">Ändra samtycke<span class="fl-sr"> för {{ ch.word|lower }}</span></a>{% endif %}
+          {% if ch.proof %}
+          <details class="fl-kt-proof">
+            <summary class="fl-kt-proof__summary">Visa beviset<span class="fl-sr"> för {{ ch.word|lower }}</span></summary>
+            <dl class="fl-kv fl-kt-proof__list">
+              {% for label, value in ch.proof %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+            </dl>
+          </details>
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="fl-panel fl-kt-box" aria-labelledby="kt-fields-title">
+      <h2 class="fl-kt-box__title" id="kt-fields-title">Extrafält</h2>
+      {% if fields_shown %}
+      <dl class="fl-kv">
+        {% for label, value in fields_shown %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+      </dl>
+      {% else %}
+      <p class="fl-panel__note">Inga extrafält ifyllda. <a class="fl-panel__link" href="{% url 'flamingo:app_contact_edit' kontakt.pk %}">Redigera</a></p>
+      {% endif %}
+    </section>
+
+    <section class="fl-panel fl-kt-box" id="listor" aria-labelledby="kt-lists-title">
+      <h2 class="fl-kt-box__title" id="kt-lists-title">Listor och taggar</h2>
+      {% if member_lists or own_tags %}
+      <ul class="fl-kt-chips fl-kt-chips--list">
+        {% for lista in member_lists %}
+        <li class="fl-kt-tag fl-kt-tag--list">
+          <a href="{% url 'flamingo:app_list' lista.pk %}">{{ lista.name }}</a>
+          <form class="fl-kt-inline" method="post" action="{% url 'flamingo:app_contact' kontakt.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="list_remove">
+            <input type="hidden" name="lista_id" value="{{ lista.pk }}">
+            <button type="submit" class="fl-kt-tag__x"><span class="fl-sr">Ta bort ur listan {{ lista.name }}</span></button>
+          </form>
+        </li>
+        {% endfor %}
+        {% for tag in own_tags %}
+        <li class="fl-kt-tag">
+          <span>{{ tag.name }}</span>
+          <form class="fl-kt-inline" method="post" action="{% url 'flamingo:app_contact' kontakt.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="tag_remove">
+            <input type="hidden" name="tagg_id" value="{{ tag.pk }}">
+            <button type="submit" class="fl-kt-tag__x"><span class="fl-sr">Ta bort taggen {{ tag.name }}</span></button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="fl-panel__note">Inte med i någon lista och utan taggar.</p>
+      {% endif %}
+      <details class="fl-kt-more">
+        <summary class="fl-btn fl-btn--ghost fl-btn--sm">Lägg i lista eller tagga</summary>
+        <form class="fl-kt-addrow" method="post" action="{% url 'flamingo:app_contact' kontakt.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="list_add">
+          <label class="fl-field__label" for="kt-card-list">Lista</label>
+          <div class="fl-kt-addrow__row">
+            <select class="fl-input fl-kt-select" id="kt-card-list" name="lista_id" data-kt-new="kt-card-newlist">
+              <option value="">Välj lista</option>
+              {% for lista in other_lists %}<option value="{{ lista.pk }}">{{ lista.name }}</option>{% endfor %}
+              <option value="{{ new_value }}">Ny lista</option>
+            </select>
+            <label class="fl-sr" for="kt-card-newlist">Namn på den nya listan</label>
+            <input class="fl-input" id="kt-card-newlist" type="text" name="ny_lista" maxlength="80" placeholder="Namn på ny lista" autocomplete="off">
+            <button type="submit" class="fl-btn fl-btn--sm">Lägg i listan</button>
+          </div>
+        </form>
+        <form class="fl-kt-addrow" method="post" action="{% url 'flamingo:app_contact' kontakt.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="tag_add">
+          <label class="fl-field__label" for="kt-card-tag">Tagg</label>
+          <div class="fl-kt-addrow__row">
+            <select class="fl-input fl-kt-select" id="kt-card-tag" name="tagg_id" data-kt-new="kt-card-newtag">
+              <option value="">Välj tagg</option>
+              {% for tag in other_tags %}<option value="{{ tag.pk }}">{{ tag.name }}</option>{% endfor %}
+              <option value="{{ new_value }}">Ny tagg</option>
+            </select>
+            <label class="fl-sr" for="kt-card-newtag">Namn på den nya taggen</label>
+            <input class="fl-input" id="kt-card-newtag" type="text" name="ny_tagg" maxlength="40" placeholder="Namn på ny tagg" autocomplete="off">
+            <button type="submit" class="fl-btn fl-btn--sm">Tagga</button>
+          </div>
+        </form>
+      </details>
+    </section>
+
+    <section class="fl-panel fl-panel--soft fl-kt-box" aria-labelledby="kt-sum-title">
+      <h2 class="fl-kt-box__title" id="kt-sum-title">Sammanfattning</h2>
+      <p class="fl-panel__text">{{ summary|default:"Inga förfrågningar än." }}</p>
+    </section>
+  </div>
+
+  <section class="fl-panel fl-kt-card__main" id="tidslinje" aria-labelledby="kt-tl-title">
+    <h2 class="fl-panel__title" id="kt-tl-title">Tidslinje</h2>
+    {% include "flamingo/app/kontakter/_timeline.html" %}
+  </section>
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>{% endblock %}

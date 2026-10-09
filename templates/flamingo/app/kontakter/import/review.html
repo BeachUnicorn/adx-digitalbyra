@@ -1,0 +1,92 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Import steg 4, Granska (README I.7): vad importen gör innan något sparas.
+Rutorna Nya, Uppdateras, Avregistrerade (stannar avregistrerade) och Fel
+(krockar inräknade), företag med privat e-post, kontaktgränsen, värden i
+extrafält som hoppas över (varningar), de första felen och felfilen. Sedan lista och tagg och knappen "Importera 1 183
+kontakter". Vy: app_views/imports.import_job (status review), POST
+action=import. counts kommer från importer.preview.
+{% endcomment %}
+{% block app_title %}Granska importen{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-import.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}{% include "flamingo/app/kontakter/import/_head.html" with title="Importera kontakter" %}{% endblock %}
+{% block kt_content %}
+{% include "flamingo/app/kontakter/import/_steps.html" %}
+{% include "flamingo/app/kontakter/import/_block.html" %}
+
+<section class="fl-panel">
+  <div class="fl-panel__head"><h2 class="fl-panel__title">Granska importen</h2></div>
+  <p class="fl-panel__text"><strong>{{ job.original_name }}</strong> · {{ job.row_count|tal }} {% if job.row_count == 1 %}rad{% else %}rader{% endif %} · {{ consent_label }}{% if consent_channels %} ({% for ch in consent_channels %}{% if ch == "sms" %}sms{% else %}e-post{% endif %}{% if not forloop.last %} och {% endif %}{% endfor %}){% endif %}</p>
+  <div class="fl-kpis fl-im-kpis">
+    <div class="fl-kpi"><p class="fl-kpi__label">Nya</p><p class="fl-kpi__value">{{ counts.new|tal }}</p></div>
+    <div class="fl-kpi"><p class="fl-kpi__label">Uppdateras</p><p class="fl-kpi__value">{{ counts.updated|tal }}</p><p class="fl-kpi__note">Samma mobilnummer eller e-post</p></div>
+    <div class="fl-kpi"><p class="fl-kpi__label">Avregistrerade</p><p class="fl-kpi__value">{{ counts.suppressed|tal }}</p><p class="fl-kpi__note">Stannar avregistrerade</p></div>
+    <div class="fl-kpi"><p class="fl-kpi__label">Fel</p><p class="fl-kpi__value">{{ fel|tal }}</p><p class="fl-kpi__note">{% if counts.conflicts %}Varav {{ counts.conflicts|tal }} {% if counts.conflicts == 1 %}krock{% else %}krockar{% endif %} med kontakter du har{% else %}Ogiltigt nummer eller e-post{% endif %}</p></div>
+  </div>
+  {% if counts.company_freemail %}<p class="fl-notice fl-notice--warn">{{ counts.company_freemail|tal }} företag med privat e-postadress får inte e-post utan samtycke.</p>{% endif %}
+  {% if counts.limit %}<p class="fl-notice fl-notice--warn">{{ counts.limit|tal }} {% if counts.limit == 1 %}ny kontakt får{% else %}nya kontakter får{% endif %} inte plats under din gräns. Be ADX höja den.</p>{% endif %}
+  {% if counts.marked %}<p class="fl-panel__note">{{ counts.marked|tal }} {% if counts.marked == 1 %}rad är markerad{% else %}rader är markerade{% endif %} som avregistrerade i filen. Adresserna läggs på spärrlistan.</p>{% endif %}
+  {% if varningar %}<p class="fl-notice fl-notice--warn">{{ varningar|tal }} {% if varningar == 1 %}värde i ett extrafält sparas{% else %}värden i extrafält sparas{% endif %} inte: fel format eller för lång text. Kontakterna importeras ändå.</p>{% endif %}
+  <p class="fl-panel__note">Avregistrerade kontakter kan aldrig importeras tillbaka till ja. Spärrlistan vinner alltid.</p>
+
+  {% if fel or varningar %}
+  <div class="fl-im-errors">
+    <h3 class="fl-im-errors__title">{% if fel|add:varningar > error_preview|length %}De första felen{% else %}Felen{% endif %}</h3>
+    <div class="fl-table-wrap">
+      <table class="fl-table">
+        <thead><tr><th scope="col">Rad</th><th scope="col">Kolumn</th><th scope="col">Orsak</th></tr></thead>
+        <tbody>
+          {% for e in error_preview %}
+          <tr>
+            <td class="is-primary" data-label="Rad">Rad {{ e.row }}</td>
+            <td data-label="Kolumn">{{ e.column|default:"Hela raden" }}</td>
+            <td data-label="Orsak">{{ e.reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p><a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ errors_url }}">{% if varningar %}Ladda ner felrapporten{% else %}Ladda ner {% if fel == 1 %}felet{% else %}de {{ fel|tal }} felen{% endif %}{% endif %}</a></p>
+  </div>
+  {% endif %}
+</section>
+
+{% if importable or counts.marked %}
+<form method="post" action="{{ job_url }}" class="fl-form fl-panel fl-im-form" novalidate data-im-busy="Importerar">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="import">
+  <div class="fl-form__row">
+    <div class="fl-field{% if errors.list %} is-error{% endif %}">
+      <label class="fl-field__label" for="im-list">Lägg alla i lista</label>
+      <select id="im-list" name="list" data-im-list>
+        <option value="">Ingen lista</option>
+        {% for lista in listor %}<option value="{{ lista.pk }}"{% if values.list == lista.pk|stringformat:"s" %} selected{% endif %}>{{ lista.name }}</option>{% endfor %}
+        <option value="{{ new_list_value }}"{% if values.list == new_list_value %} selected{% endif %}>Ny lista</option>
+      </select>
+    </div>
+    <div class="fl-field{% if errors.list %} is-error{% endif %}" data-im-newlist>
+      <label class="fl-field__label" for="im-new-list">Namn på den nya listan</label>
+      <input type="text" id="im-new-list" name="new_list" maxlength="80" value="{{ values.new_list }}" autocomplete="off">
+      {% if errors.list %}<p class="fl-field__error">{{ errors.list }}</p>{% endif %}
+    </div>
+    <div class="fl-field">
+      <label class="fl-field__label" for="im-tag">Tagga med</label>
+      <input type="text" id="im-tag" name="tag" maxlength="40" value="{{ values.tag }}" list="im-tags" autocomplete="off">
+      <datalist id="im-tags">{% for tagg in taggar %}<option value="{{ tagg.name }}"></option>{% endfor %}</datalist>
+      <p class="fl-field__help">Lämna tomt om du inte vill tagga.</p>
+    </div>
+  </div>
+  <div class="fl-form__actions">
+    <p class="fl-form__note">Raderna med fel och de avregistrerade importeras inte.</p>
+    <div class="fl-form__buttons">
+      <button class="fl-btn" type="submit">{% if importable == 1 %}Importera 1 kontakt{% elif importable %}Importera {{ importable|tal }} kontakter{% else %}Lägg avregistreringarna på spärrlistan{% endif %}</button>
+    </div>
+  </div>
+</form>
+{% else %}
+<p class="fl-notice fl-notice--warn">Det finns inget att importera. Gå tillbaka och kontrollera kolumnerna och samtycket.</p>
+{% endif %}
+{% include "flamingo/app/kontakter/import/_nav.html" with back=True %}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-import.js' %}?v={{ static_version }}" defer></script>{% endblock %}

@@ -1,0 +1,21 @@
+{% comment %}
+Importens steg Fil, Kolumner, Samtycke, Granska (README I.2 och I.7). steps
+kommer från app_views/imports._steps: {"items": [{"label", "number",
+"state"}], "line"}. Chips i bred skärm; under 560 px raden "Steg 2 av 4:
+Kolumner" i stället (flamingo-app-import.css; display:none döljer den
+version som inte syns också för skärmläsare). Stegen är inga länkar: ett
+steg kan inte hoppas över, och samtycket går inte att hoppa förbi.
+{% endcomment %}
+<nav class="fl-im-steps" aria-label="Importens steg">
+  <ol class="fl-steps fl-im-steps__chips">
+    {% for step in steps.items %}
+    <li class="fl-steps__item is-{{ step.state }}">
+      <span class="fl-steps__link"{% if step.state == "now" %} aria-current="step"{% endif %}>
+        <span class="fl-steps__num" aria-hidden="true">{{ step.number }}</span>
+        <span class="fl-steps__label">{{ step.label }}</span>{% if step.state == "done" %}<span class="fl-sr">, klart</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ol>
+  <p class="fl-im-steps__line">{{ steps.line }}</p>
+</nav>

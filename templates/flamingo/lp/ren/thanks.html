@@ -12,6 +12,7 @@ förfrågan är redan räknad).
     <svg class="rn-thanks__icon" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><circle cx="24" cy="24" r="22"/><path d="M14 24.5l6.5 6.5L34 17.5"/></svg>
     <h1 class="rn-h1 rn-thanks__title">Tack!</h1>
     <p class="rn-lead">Din förfrågan är skickad till {{ site.business }}.</p>
+    {% if email_pending_text %}<p class="rn-thanks__text">{{ email_pending_text }}</p>{% endif %}
     {% if preview %}<p class="rn-preview-note">Förhandsvisning: ingen förfrågan skapades.</p>{% endif %}
     {% if site.phone %}
     <p class="rn-thanks__text">Vill du lägga till något, eller brådskar det?</p>

@@ -34,6 +34,11 @@ påhittade och hämtas aldrig från Google. Profilen på Reco är påhittad (id:
 ritar en exempelruta i stället för Recos ruta och i stället för utvalda
 omdömen, och Reco anropas aldrig.
 
+Kontakter och utskick (apps/utskick/demo.py) är på för demot: kontakter
+med samtycken i varje läge, listor, taggar, extrafält, en klar import, en
+avstängd anmälningssida och förfrågningar kopplade till sina kontakter.
+Demokontot behöver inget biträdesavtal och skickar aldrig något.
+
 Idempotent: demokunden hittas på namnet OCH is_demo och uppdateras, och
 innehållet (uppgifter, tjänster, kampanjer, sidor, bilder, granskningar,
 förfrågningar, sms och Googles siffror) byggs om från grunden varje gång.
@@ -255,6 +260,7 @@ class Command(BaseCommand):
             self._pages(account, campaigns, media, contact, staff, now)
             self._day_stats(campaigns, now)
             self._leads(account, services, campaigns, now)
+            self._utskick(account, staff, now)
         self._print_urls(customer, campaigns, contact)
 
     # ------------------------------------------------------------------
@@ -317,7 +323,11 @@ class Command(BaseCommand):
     def _reset(self, account):
         """Bygg om innehållet från grunden. Kampanjerna före tjänsterna: en
         tjänst är skyddad så länge en kampanj pekar på den. Granskningarna,
-        Googles siffror och konverteringarna följer med sina rader."""
+        Googles siffror och konverteringarna följer med sina rader. Först
+        kontakterna (apps/utskick/demo.py), som pekar på förfrågningarna."""
+        from apps.utskick import demo as utskick_demo
+
+        utskick_demo.reset(account)
         account.sms_log.all().delete()
         account.leads.all().delete()
         account.campaigns.all().delete()
@@ -1561,6 +1571,13 @@ class Command(BaseCommand):
         )
         lena.set_status(Lead.STATUS_WON, value_kr=168000, now=now - timedelta(days=15))
 
+    def _utskick(self, account, staff, now):
+        """Kontakter och utskick för demot (apps/utskick/demo.py), efter
+        förfrågningarna så att de kopplas till sina kontakter."""
+        from apps.utskick import demo as utskick_demo
+
+        utskick_demo.seed(account, staff, now)
+
     def _sms_row(self, account, lead, kind, to, body, status, error=""):
         return SmsLog.objects.create(
             account=account,
@@ -1612,6 +1629,10 @@ class Command(BaseCommand):
             w(f"  /flamingo/app/kampanjer/{campaign.pk}/   ({state})")
         w("Sidorna i sidbyggaren:")
         w("  /flamingo/app/sidor/")
+        w("Kontakter (utskick):")
+        w("  /flamingo/app/kontakter/")
+        w("  /flamingo/app/kontakter/listor/")
+        w("  /flamingo/app/kontakter/import/")
         w("Landningssidorna (bara byrån ser dem, alla andra får 404):")
         for state, campaign in campaigns.items():
             w(f"  {campaign.landing_url}   ({state})")

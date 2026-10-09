@@ -1,0 +1,81 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+En lista (README I.1). Kontext från app_views/lists.list_detail: lista,
+kontakter (sidans rader), page, created_text, contacts_url (Kontakter
+filtrerade på listan, där massändringarna finns). Markerade kontakter kan
+tas bort ur listan; de finns kvar i Kontakter.
+{% endcomment %}
+{% block app_title %}{{ lista.name }}{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{% url 'flamingo:app_lists' %}">Listor</a></p>
+    <h1 class="fl-app-title">{{ lista.name }}</h1>
+    <p class="fl-app-lead">{{ page.paginator.count|tal }} {% if page.paginator.count == 1 %}kontakt{% else %}kontakter{% endif %}{% if lista.description %} · {{ lista.description }}{% endif %} · skapad {{ created_text }}</p>
+  </div>
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ contacts_url }}">Visa i Kontakter</a>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<div class="fl-kt-listtools">
+  <details class="fl-kt-more">
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Byt namn</summary>
+    <form class="fl-form fl-kt-subform" method="post" action="{% url 'flamingo:app_list' lista.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="rename">
+      <div class="fl-form__row">
+        <div class="fl-field">
+          <label class="fl-field__label" for="kt-list-name">Namn</label>
+          <input class="fl-input" id="kt-list-name" type="text" name="namn" value="{{ lista.name }}" maxlength="80" required autocomplete="off">
+        </div>
+        <div class="fl-field">
+          <label class="fl-field__label" for="kt-list-desc">Beskrivning <span class="fl-kt-muted">(valfri)</span></label>
+          <input class="fl-input" id="kt-list-desc" type="text" name="beskrivning" value="{{ lista.description }}" maxlength="200" autocomplete="off">
+        </div>
+      </div>
+      <div class="fl-form__actions"><button type="submit" class="fl-btn fl-btn--sm">Spara</button></div>
+    </form>
+  </details>
+  <details class="fl-kt-more">
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ta bort listan</summary>
+    <form class="fl-kt-confirm" method="post" action="{% url 'flamingo:app_list' lista.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete">
+      <p class="fl-panel__note">Listan tas bort. Kontakterna finns kvar i Kontakter.</p>
+      <button type="submit" class="fl-btn fl-btn--sm">Ta bort listan</button>
+    </form>
+  </details>
+</div>
+
+{% if kontakter %}
+<form class="fl-kt-bulk" id="kontakter" method="post" action="{% url 'flamingo:app_list' lista.pk %}" data-kt-bulk data-kt-total="{{ page.paginator.count }}">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="remove">
+  {% include "flamingo/app/kontakter/_table.html" with selectable=True %}
+  <div class="fl-kt-bulkbar" data-kt-bulkbar>
+    <p class="fl-kt-bulkbar__count" data-kt-count aria-live="polite">Markera kontakter för att ta bort dem ur listan.</p>
+    <div class="fl-kt-bulkbar__controls">
+      <button type="submit" class="fl-btn fl-btn--sm">Ta bort ur listan</button>
+    </div>
+  </div>
+</form>
+{% if page.has_other_pages %}
+<nav class="fl-kt-pages" aria-label="Fler kontakter i listan">
+  {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?sida={{ page.previous_page_number }}">Föregående</a>{% endif %}
+  <span class="fl-kt-pages__at">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
+  {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?sida={{ page.next_page_number }}">Nästa</a>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Listan är tom</p>
+  <p class="fl-empty__text">Markera kontakter under Kontakter och välj Lägg i lista, eller välj listan när du importerar.</p>
+  <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contacts' %}">Till Kontakter</a>
+</div>
+{% endif %}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>{% endblock %}

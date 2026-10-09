@@ -1,0 +1,14 @@
+# Utskickens loggar (apps/utskick/README.md C.5, E.7): åtta veckor.
+# Kopieras till /etc/logrotate.d/adx-utskick (som ubuntu, J S1 steg 5):
+#   sudo install -m 0644 server/logrotate.d/adx-utskick /etc/logrotate.d/adx-utskick
+# Raderna bär bara tider och antal, aldrig nummer eller adresser.
+/home/djangouser/sites/adx/backups/utskick*.log {
+    su djangouser djangouser
+    weekly
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 djangouser djangouser
+}

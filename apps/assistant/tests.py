@@ -3225,7 +3225,17 @@ class ArendeMcpTests(TestCase):
     def test_no_forbidden_tools_exist(self):
         """Gränsen är frånvaro av verktyg - inte en instruktion modellen kan glömma."""
         for name in REGISTRY:
-            for forbidden in ("ta_bort", "radera", "starta_timer", "stoppa_timer", "skicka_offert"):
+            for forbidden in (
+                "ta_bort",
+                "radera",
+                "starta_timer",
+                "stoppa_timer",
+                "skicka_offert",
+                # Utskick och sms skickas aldrig av assistenten (apps/utskick/README.md A).
+                "skicka_utskick",
+                "utskick_skicka",
+                "skicka_sms",
+            ):
                 self.assertNotIn(forbidden, name)
 
     def test_skapa_arende_writes_directly_without_a_draft(self):

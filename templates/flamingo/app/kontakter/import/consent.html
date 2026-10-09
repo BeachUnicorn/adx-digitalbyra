@@ -1,0 +1,67 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static %}
+{% comment %}
+Import steg 3, Samtycke (README I.7, H.5): går inte att hoppa över. Tre val,
+inget förvalt: De har sagt ja, De är befintliga kunder, Vet inte. För de två
+första kryssar kunden i vilka kanaler det gäller (inget förkryssat; bara
+kanaler som filen har en kolumn för) och skriver var och när, som sparas
+som bevis på varje kontakt. Vy: app_views/imports.import_job (status
+consent), POST action=consent.
+{% endcomment %}
+{% block app_title %}Samtycke{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-import.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}{% include "flamingo/app/kontakter/import/_head.html" with title="Importera kontakter" %}{% endblock %}
+{% block kt_content %}
+{% include "flamingo/app/kontakter/import/_steps.html" %}
+{% include "flamingo/app/kontakter/import/_block.html" %}
+
+<form method="post" action="{{ job_url }}" class="fl-form fl-panel fl-im-form" novalidate data-im-consent data-im-busy="Går igenom raderna">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="consent">
+
+  <fieldset class="fl-field fl-im-choices{% if errors.choice %} is-error{% endif %}">
+    <legend class="fl-panel__title">Hur har de här kontakterna sagt ja?</legend>
+    <p class="fl-field__help">Gäller privatpersoner och sms till företag. Företag med organisationsnummer får e-post utan samtycke, alltid med avregistreringslänk.</p>
+    <label class="fl-im-choice">
+      <input type="radio" name="choice" value="consent"{% if values.choice == "consent" %} checked{% endif %}>
+      <span class="fl-im-choice__body"><strong>De har sagt ja</strong> till sms eller e-post från dig, till exempel i ett formulär eller i kassan.</span>
+    </label>
+    <label class="fl-im-choice">
+      <input type="radio" name="choice" value="existing"{% if values.choice == "existing" %} checked{% endif %}>
+      <span class="fl-im-choice__body"><strong>De är befintliga kunder</strong> och du vill erbjuda liknande tjänster. Varje utskick ger dem ett enkelt sätt att tacka nej.</span>
+    </label>
+    <label class="fl-im-choice">
+      <input type="radio" name="choice" value="unknown"{% if values.choice == "unknown" %} checked{% endif %}>
+      <span class="fl-im-choice__body"><strong>Vet inte.</strong> Kontakterna importeras, men de kan inte få reklam förrän de har sagt ja.</span>
+    </label>
+    {% if errors.choice %}<p class="fl-field__error">{{ errors.choice }}</p>{% endif %}
+  </fieldset>
+
+  <div class="fl-im-proof" data-im-proof>
+  <fieldset class="fl-field fl-im-proof__set">
+    <legend class="fl-field__label">Om du valde De har sagt ja eller De är befintliga kunder</legend>
+    <div class="fl-field{% if errors.channels %} is-error{% endif %}">
+      <span class="fl-field__help" id="im-channels-help">Vilka kanaler gäller det?</span>
+      <div class="fl-im-channels" role="group" aria-describedby="im-channels-help">
+        {% if has_sms %}<label class="fl-check"><input type="checkbox" name="sms" value="1"{% if values.sms %} checked{% endif %}><span>Sms</span></label>{% endif %}
+        {% if has_email %}<label class="fl-check"><input type="checkbox" name="email" value="1"{% if values.email %} checked{% endif %}><span>E-post</span></label>{% endif %}
+      </div>
+      {% if errors.channels %}<p class="fl-field__error">{{ errors.channels }}</p>{% endif %}
+    </div>
+    <div class="fl-field{% if errors.where %} is-error{% endif %}">
+      <label class="fl-field__label" for="im-where">Var och när?</label>
+      <input type="text" id="im-where" name="where" maxlength="300" value="{{ values.where }}" placeholder="Till exempel: kassan, från 2024" autocomplete="off">
+      <p class="fl-field__help">Sparas som bevis på varje kontakt.</p>
+      {% if errors.where %}<p class="fl-field__error">{{ errors.where }}</p>{% endif %}
+    </div>
+  </fieldset>
+  </div>
+
+  <div class="fl-form__actions">
+    <p class="fl-form__note">Nästa steg: du ser vad importen gör innan något sparas.</p>
+    <div class="fl-form__buttons"><button class="fl-btn" type="submit">Fortsätt</button></div>
+  </div>
+</form>
+{% include "flamingo/app/kontakter/import/_nav.html" with back=True %}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-import.js' %}?v={{ static_version }}" defer></script>{% endblock %}

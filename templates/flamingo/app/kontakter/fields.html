@@ -1,0 +1,111 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Extrafält (README B.1 FieldDef, H.5). Kontext från app_views/fields.field_list:
+rows ([{"definition", "used", "choices_text", "form"}]), count, max_fields,
+full, full_text, special_text, new_form, kinds ([(värde, rubrik, hjälp)]).
+Ändra och Ta bort ligger i <details> per fält (inget skript behövs). Typen
+väljs när fältet skapas och går inte att byta.
+{% endcomment %}
+{% block app_title %}Extrafält{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Extrafält</h1>
+    <p class="fl-app-lead">Egna uppgifter på dina kontakter, till exempel regnummer eller senaste service. {{ count }} av {{ max_fields }} används.</p>
+  </div>
+</header>
+{% endblock %}
+{% block kt_content %}
+<p class="fl-notice fl-notice--warn"><span>{{ special_text }}</span></p>
+
+{% if rows %}
+<ul class="fl-list fl-list--cards fl-kt-fields">
+  {% for row in rows %}
+  <li class="fl-list__item" id="falt-{{ row.definition.pk }}">
+    <div class="fl-list__main">
+      <span class="fl-list__title">{{ row.definition.label }}{% if row.definition.show_in_list %} <span class="fl-kt-chip fl-kt-chip--ok">Visas i listan</span>{% endif %}</span>
+      <span class="fl-list__meta">{{ row.definition.get_kind_display }} · {{ row.used|tal }} {% if row.used == 1 %}kontakt har{% else %}kontakter har{% endif %} ett värde{% if row.definition.choices %} · {{ row.definition.choices|join:", " }}{% endif %}</span>
+    </div>
+    <div class="fl-kt-rowactions">
+      <details class="fl-kt-more"{% if row.form %} open{% endif %}>
+        <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ändra<span class="fl-sr"> {{ row.definition.label }}</span></summary>
+        <form class="fl-form fl-kt-subform" method="post" action="{% url 'flamingo:app_fields' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="edit">
+          <input type="hidden" name="falt" value="{{ row.definition.pk }}">
+          <div class="fl-field{% if row.form.label.errors %} is-error{% endif %}">
+            <label class="fl-field__label" for="kt-field-label-{{ row.definition.pk }}">Rubrik</label>
+            <input class="fl-input" id="kt-field-label-{{ row.definition.pk }}" type="text" name="label" value="{% if row.form %}{{ row.form.label.value|default:'' }}{% else %}{{ row.definition.label }}{% endif %}" maxlength="60" required autocomplete="off">
+            {% for error in row.form.label.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+          </div>
+          {% if row.definition.kind == "choice" %}
+          <div class="fl-field{% if row.form.choices.errors %} is-error{% endif %}">
+            <label class="fl-field__label" for="kt-field-choices-{{ row.definition.pk }}">Val, ett per rad</label>
+            <textarea class="fl-input" id="kt-field-choices-{{ row.definition.pk }}" name="choices" rows="4">{% if row.form %}{{ row.form.choices.value|default:'' }}{% else %}{{ row.choices_text }}{% endif %}</textarea>
+            {% for error in row.form.choices.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+          </div>
+          {% endif %}
+          <label class="fl-check"><input type="checkbox" name="show_in_list" value="1"{% if row.form %}{% if row.form.show_in_list.value %} checked{% endif %}{% elif row.definition.show_in_list %} checked{% endif %}><span>Visa i listan under namnet</span></label>
+          <p class="fl-field__help">Typen ({{ row.definition.get_kind_display|lower }}) går inte att byta. Nyckeln för importen är {{ row.definition.key }}.</p>
+          <div class="fl-form__actions"><button type="submit" class="fl-btn fl-btn--sm">Spara</button></div>
+        </form>
+      </details>
+      <details class="fl-kt-more">
+        <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ta bort<span class="fl-sr"> {{ row.definition.label }}</span></summary>
+        <form class="fl-kt-confirm" method="post" action="{% url 'flamingo:app_fields' %}">
+          {% csrf_token %}
+          <input type="hidden" name="action" value="delete">
+          <input type="hidden" name="falt" value="{{ row.definition.pk }}">
+          <p class="fl-panel__note">Fältet och dess värden tas bort från {{ row.used|tal }} {% if row.used == 1 %}kontakt{% else %}kontakter{% endif %}. Det går inte att ångra.</p>
+          <button type="submit" class="fl-btn fl-btn--sm">Ta bort fältet</button>
+        </form>
+      </details>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="fl-empty">
+  <p class="fl-empty__title">Inga extrafält än</p>
+  <p class="fl-empty__text">Skapa ett fält här, eller låt importen göra det av en kolumn i din fil.</p>
+</div>
+{% endif %}
+
+<section class="fl-panel" id="nytt-falt" aria-labelledby="kt-field-new">
+  <h2 class="fl-panel__title" id="kt-field-new">Nytt fält</h2>
+  {% if full %}
+  <p class="fl-panel__text">{{ full_text }}</p>
+  {% else %}
+  <form class="fl-form" method="post" action="{% url 'flamingo:app_fields' %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="new">
+    <div class="fl-field{% if new_form.label.errors %} is-error{% endif %}">
+      <label class="fl-field__label" for="kt-field-new-label">Rubrik</label>
+      <input class="fl-input" id="kt-field-new-label" type="text" name="label" value="{{ new_form.label.value|default:'' }}" maxlength="60" required autocomplete="off" placeholder="Till exempel Regnummer">
+      {% for error in new_form.label.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+    </div>
+    <fieldset class="fl-field{% if new_form.kind.errors %} is-error{% endif %}">
+      <legend class="fl-field__label">Typ</legend>
+      <div class="fl-kt-options">
+        {% for value, label, help in kinds %}<label class="fl-check"><input type="radio" name="kind" value="{{ value }}"{% if new_form.kind.value == value %} checked{% endif %}><span><b>{{ label }}</b>. {{ help }}</span></label>{% endfor %}
+      </div>
+      {% for error in new_form.kind.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+    </fieldset>
+    <div class="fl-field{% if new_form.choices.errors %} is-error{% endif %}">
+      <label class="fl-field__label" for="kt-field-new-choices">Val, ett per rad</label>
+      <textarea class="fl-input" id="kt-field-new-choices" name="choices" rows="4">{{ new_form.choices.value|default:'' }}</textarea>
+      <p class="fl-field__help">Bara för typen Val.</p>
+      {% for error in new_form.choices.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}
+    </div>
+    <label class="fl-check"><input type="checkbox" name="show_in_list" value="1"{% if new_form.show_in_list.value %} checked{% endif %}><span>Visa i listan under namnet (som Regnr ABC 123). Bara ett fält kan visas där.</span></label>
+    <div class="fl-form__actions">
+      <p class="fl-form__note">{{ count }} av {{ max_fields }} extrafält används.</p>
+      <button type="submit" class="fl-btn fl-btn--sm">Skapa fältet</button>
+    </div>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

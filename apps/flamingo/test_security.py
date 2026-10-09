@@ -832,6 +832,25 @@ class LandingTrackingTests(Fixture, TestCase):
         self.assertNotIn(VISITOR_COOKIE, response.cookies)
         self.assertNotIn(SESSION_COOKIE, response.cookies)
 
+    def test_the_utskick_checkboxes_add_no_cookies(self):
+        """Kryssrutorna för utskick (apps/utskick, D10): sidan får fortfarande
+        bara formulärets CSRF-kaka, och rutorna är aldrig förkryssade."""
+        from apps.utskick.models import DpaAcceptance, DpaVersion, UtskickSettings
+        from apps.utskick.testing import enable_utskick
+
+        row = enable_utskick(self.account, "lindqvist", "Lindqvist Rör")
+        UtskickSettings.objects.filter(pk=row.pk).update(privacy_url="https://ror.example/gdpr/")
+        version = DpaVersion.objects.create(
+            version="2026-10", text="Avtalet", sha256="0" * 64, is_current=True
+        )
+        DpaAcceptance.objects.create(account=self.account, version=version)
+        response = Client().get(self.live.landing_url, HTTP_USER_AGENT=CHROME)
+        html = response.content.decode()
+        self.assertIn('name="consent_sms"', html)
+        self.assertNotRegex(html, r'<input[^>]*name="consent_[a-z]+"[^>]*\schecked')
+        self.assertEqual(sorted(set(response.cookies) - {"csrftoken"}), [])
+        self.assertFalse(PageView.objects.exists())
+
     def test_an_adx_page_cannot_take_the_lp_address(self):
         form = BlockPageForm(
             data={"title": "Landning", "slug": "lp", "design": BlockPage.DESIGN_ADX, "order": 0}

@@ -1,4 +1,4 @@
-{% load flamingo_staff flamingo_google %}
+{% load flamingo_staff flamingo_google utskick_tags %}
 {% comment %}
 Kundkortets ADX Flamingo-panel (apps/flamingo). Aktiveringen gäller direkt:
 kundens kontakter ser Flamingo på /flamingo/ och via portalen. Ingen mejlas.
@@ -8,7 +8,8 @@ för hand (manage_review.google_update) är reserven, och det enda utan API:t.
 ADX mejlar aldrig kunden härifrån. Google mejlar kunden bara när rutan för
 inbjudan är ibockad, och den säger det; rutan finns bara när Google satt ADX
 på tillåtelselistan (GOOGLE_ADS_INVITE_ON_CREATE). Kunden ser läget i
-verktyget. Panelens löptext är 16 px (tv-panel--read).
+verktyget. Panelens löptext är 16 px (tv-panel--read). Sist i panelen står
+Kontakter och utskick (manage/utskick/_customer_card.html, apps/utskick).
 {% endcomment %}
 <div class="m-panel tv-panel tv-panel--read" id="flamingo">
   <div class="tv-sec-title">ADX Flamingo{% if flamingo_enabled %} <span class="m-badge m-badge--flamingo">Aktiverat</span>{% endif %}</div>
@@ -107,5 +108,7 @@ verktyget. Panelens löptext är 16 px (tv-panel--read).
     <div class="tv-logfoot"><a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:flamingo_queue' %}{% if flamingo_account.is_demo %}?demo=1{% endif %}">Granskningskön</a></div>
   </div>
   {% endif %}{% endwith %}
+
+  {% utskick_card customer as ut %}{% include "manage/utskick/_customer_card.html" %}
   {% endif %}
 </div>

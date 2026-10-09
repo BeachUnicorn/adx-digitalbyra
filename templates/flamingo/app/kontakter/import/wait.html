@@ -1,0 +1,25 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static %}
+{% comment %}
+Medan ticken arbetar med en stor fil (läser in, går igenom eller
+importerar): läget och raderna. flamingo-app-import.js frågar efter läget
+(?status=json) och laddar om sidan när nästa steg är klart; utan skript
+finns länken "Ladda om sidan". Vy: app_views/imports.import_job (status
+converting, analysing eller importing).
+{% endcomment %}
+{% block app_title %}Importen pågår{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-import.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}{% include "flamingo/app/kontakter/import/_head.html" with title="Importera kontakter" %}{% endblock %}
+{% block kt_content %}
+{% include "flamingo/app/kontakter/import/_steps.html" %}
+
+<section class="fl-panel fl-im-wait" data-im-poll="{{ job_url }}?status=json">
+  <h2 class="fl-panel__title">{{ wait_text }}</h2>
+  <p class="fl-panel__text" aria-live="polite" data-im-progress-text>{% if progress_text %}{{ progress_text }}{% else %}{{ job.original_name }}{% endif %}</p>
+  {% if job.row_count %}<progress class="fl-im-progress" max="{{ job.row_count }}" value="{{ job.progress }}" data-im-progress>{{ job.progress }} av {{ job.row_count }}</progress>{% endif %}
+  <p class="fl-panel__note">Stora filer tar en stund. Du kan lämna sidan: importen fortsätter, och du hittar den under Import.</p>
+  <p class="fl-panel__note"><a class="fl-panel__link" href="{{ job_url }}">Ladda om sidan</a></p>
+</section>
+{% include "flamingo/app/kontakter/import/_nav.html" %}
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-import.js' %}?v={{ static_version }}" defer></script>{% endblock %}

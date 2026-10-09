@@ -598,6 +598,9 @@ class VvsLegacyGuardTests(TestCase):
             "apps/flamingo/test_pagebuilder.py",
             "apps/flamingo/README.md",
             "templates/flamingo/app/reviews/reviews.html",
+            # Flamingo 2.0 (apps/utskick): kontraktet nämner reco.se bland
+            # länkvärdarna utan granskning (E.8) och omdömesblocket i Brev (F.1).
+            "apps/utskick/README.md",
         }
     )
 

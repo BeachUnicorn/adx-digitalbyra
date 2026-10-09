@@ -1,0 +1,126 @@
+/* ==========================================================================
+   ADX Flamingo - Kontakter, importen (flamingo-app-import.css)
+
+   Laddas av templates/flamingo/app/kontakter/import/*.html ovanpå
+   flamingo-app.css och flamingo-app-utskick.css. Prefix .fl-im-.
+
+   Stegen (_steps.html):
+     <nav class="fl-im-steps"><ol class="fl-steps fl-im-steps__chips">...</ol>
+     <p class="fl-im-steps__line">Steg 2 av 4: Kolumner</p></nav>
+     Chips i bred skärm, raden under 560 px (README I.2).
+   Steg 1 (upload.html):  .fl-im-start (två rutor bredvid varandra), .fl-im-file
+   Steg 2 (map.html):     .fl-im-map > .fl-im-map__head + .fl-im-col (ett kort per kolumn:
+                          __name, __example, __pick); tre spalter i bred skärm,
+                          staplat under 640 px
+   Steg 3 (consent.html): .fl-im-choices > .fl-im-choice (radioknapp som ett kort),
+                          .fl-im-proof > .fl-im-proof__set, .fl-im-channels
+   Steg 4 (review.html):  .fl-im-kpis (fyra rutor, två i telefon), .fl-im-errors
+   Väntan (wait.html):    .fl-im-wait, .fl-im-progress
+   Under formulären:      .fl-im-nav (Tillbaka, Avbryt importen)
+   Tidigare importer:     .fl-im-badge--<status>
+   ========================================================================== */
+
+/* ---------- Stegen ---------- */
+.fl-im-steps{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fl-im-steps__line{display:none;margin:0;font-family:var(--fl-mono);font-size:13px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--fl-muted)}
+.fl-im-steps .fl-steps__link{cursor:default}
+.fl-im-steps .fl-steps__link:hover{border-color:transparent;color:inherit}
+
+/* ---------- Steg 1 ---------- */
+.fl-im-start{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:16px;align-items:start}
+.fl-im-drop{border-style:dashed;border-width:2px}
+.fl-im-file{
+  display:block;width:100%;max-width:100%;min-width:0;padding:12px;
+  border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-panel);
+  font-family:var(--fl-sans);font-size:16px;line-height:1.4;color:var(--fl-ink);
+}
+.fl-im-file::file-selector-button{
+  margin-right:12px;padding:8px 14px;border:1px solid var(--fl-line);border-radius:999px;
+  background:var(--fl-white);font:inherit;color:var(--fl-ink);cursor:pointer;
+}
+.fl-im-paste textarea{min-height:160px;font-family:var(--fl-mono);font-size:14px}
+
+.fl-im-badge--done{background:#E7F5EC;color:#17703D}
+.fl-im-badge--failed{background:#FCEDED;color:#8F1F1F}
+.fl-im-badge--cancelled{background:var(--fl-soft);color:var(--fl-muted)}
+.fl-im-badge--uploaded,.fl-im-badge--converting,.fl-im-badge--mapping,.fl-im-badge--consent,
+.fl-im-badge--analysing,.fl-im-badge--review,.fl-im-badge--importing{background:#F4F0FF;color:var(--fl-violet-ink)}
+
+/* ---------- Steg 2: kolumnerna ---------- */
+.fl-im-map{display:flex;flex-direction:column;min-width:0;border:1px solid var(--fl-line);border-radius:var(--fl-r-md);overflow:hidden}
+.fl-im-map__head,.fl-im-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr);gap:6px 16px;align-items:center;padding:12px 16px}
+.fl-im-map__head{background:var(--fl-panel);font-family:var(--fl-mono);font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--fl-muted)}
+.fl-im-col{border-top:1px solid var(--fl-soft);background:var(--fl-white)}
+.fl-im-col.is-error{background:#FFF8F7}
+.fl-im-col__name{margin:0;font-size:16px;font-weight:600;line-height:1.35;color:var(--fl-ink);overflow-wrap:anywhere}
+.fl-im-col__example{margin:0;font-size:16px;line-height:1.45;color:var(--fl-muted);overflow-wrap:anywhere}
+.fl-im-col__empty{white-space:nowrap}
+.fl-im-col__pick{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fl-im-col__locked{margin:0;padding:11px 14px;border:1px dashed var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-panel);font-size:16px;line-height:1.4;color:var(--fl-muted)}
+.fl-im-col.is-error select{border-color:#D92D20}
+
+/* ---------- Steg 3: samtycket ---------- */
+.fl-im-choices{gap:10px}
+.fl-im-choices legend{margin-bottom:6px}
+.fl-im-choice{
+  position:relative;display:flex;align-items:flex-start;gap:12px;padding:14px 16px;
+  border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-white);cursor:pointer;
+  transition:border-color .15s ease,background-color .15s ease;
+}
+.fl-im-choice:hover{border-color:#CFCBDB}
+.fl-im-choice input{flex:none;width:20px;height:20px;margin:2px 0 0;accent-color:var(--fl-violet);cursor:pointer}
+.fl-im-choice__body{font-size:16px;line-height:1.5;color:var(--fl-body)}
+.fl-im-choice__body strong{color:var(--fl-ink)}
+.fl-im-choice:has(input:checked){border-color:var(--fl-violet);background:var(--fl-violet-tint)}
+.fl-im-choice:has(input:focus-visible){outline:2px solid var(--fl-violet);outline-offset:2px}
+.fl-im-proof{padding:16px;border:1px solid var(--fl-soft);border-radius:var(--fl-r-sm);background:var(--fl-panel)}
+.fl-im-proof__set{gap:14px}
+.fl-im-proof__set legend{margin-bottom:10px;padding:0}
+.fl-im-proof[hidden]{display:none}
+.fl-im-channels{display:flex;flex-wrap:wrap;gap:10px 24px}
+
+/* ---------- Steg 4: granska ---------- */
+.fl-im-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.fl-im-errors{display:flex;flex-direction:column;gap:10px;min-width:0}
+.fl-im-errors__title{margin:0;font-size:16px;font-weight:600;line-height:1.35;color:var(--fl-ink)}
+.fl-im-errors p{margin:0}
+[data-im-newlist][hidden]{display:none}
+
+/* ---------- Väntan ---------- */
+.fl-im-progress{
+  display:block;width:100%;height:12px;border:0;border-radius:999px;overflow:hidden;
+  background:var(--fl-soft);color:var(--fl-violet);
+  -webkit-appearance:none;appearance:none;
+}
+.fl-im-progress::-webkit-progress-bar{background:var(--fl-soft);border-radius:999px}
+.fl-im-progress::-webkit-progress-value{background:var(--fl-violet);border-radius:999px}
+.fl-im-progress::-moz-progress-bar{background:var(--fl-violet);border-radius:999px}
+
+/* ---------- Tillbaka och Avbryt ---------- */
+.fl-im-nav{display:flex;flex-wrap:wrap;gap:8px}
+.fl-im-nav form{margin:0}
+
+/* ---------- Mellanstort och telefon ---------- */
+@media (max-width:900px){
+  .fl-im-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:640px){
+  .fl-im-map{border:0;border-radius:0;overflow:visible;gap:10px}
+  .fl-im-map__head{display:none}
+  .fl-im-col{grid-template-columns:minmax(0,1fr);gap:4px;padding:14px 16px;border:1px solid var(--fl-line);border-radius:var(--fl-r-md)}
+  .fl-im-col__pick{margin-top:6px}
+}
+@media (max-width:560px){
+  .fl-app .fl-im-steps__chips{display:none}
+  .fl-im-steps__line{display:block}
+  .fl-im-choice{padding:12px 14px}
+  .fl-im-form .fl-form__buttons{flex:1 1 100%}
+  .fl-im-form .fl-form__buttons .fl-btn{width:100%}
+  .fl-im-nav .fl-btn{flex:1 1 auto}
+  .fl-im-nav form{flex:1 1 auto;display:flex}
+  .fl-im-errors .fl-btn,.fl-im-drop .fl-btn,.fl-im-paste .fl-btn{width:100%}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .fl-im-choice{transition:none}
+}

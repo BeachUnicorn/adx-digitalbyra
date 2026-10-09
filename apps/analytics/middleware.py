@@ -52,6 +52,10 @@ _SKIP_PREFIXES = (
     # Flamingo-kundernas egna landningssidor: deras besökare är inte adx.se:s
     # besökare. Inga sidvisningar och inga ADX-kakor där.
     "/lp/",
+    # Utskickens publika sidor (apps/utskick): anmälan, bekräftelsen och Mina
+    # utskick. Länkarna bär personliga tokens som aldrig får hamna i
+    # PageView.path, och kundens prenumeranter är inte adx.se:s besökare.
+    "/utskick/",
 )
 
 _TITLE_RE = re.compile(rb"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
@@ -150,6 +154,11 @@ class AnalyticsMiddleware(MiddlewareMixin):
 
     def _maybe_track(self, request, response):
         if not getattr(settings, "ANALYTICS_ENABLED", True):
+            return
+
+        # Utskickens länkvärdar (k.adx.se, klick.adx.se, README E.1) räknas
+        # aldrig: inga kakor och inga sidvisningar där.
+        if getattr(request, "is_link_host", False):
             return
 
         if request.method != "GET":

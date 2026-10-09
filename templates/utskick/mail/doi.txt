@@ -1,0 +1,19 @@
+{% autoescape off %}{% comment %}
+Bekräftelsemejlets textdel (optin.build_doi). Samma innehåll som doi.html,
+utan något som personen skrev. Ingen html-escaping: det här är ren text.
+{% endcomment %}Bekräfta att du vill få e-post från {{ foretag }}
+
+Hej, klicka på länken så börjar {{ foretag }} skicka erbjudanden till den här adressen. Var det inte du som anmälde dig kan du strunta i mejlet.
+
+Ja, bekräfta:
+{{ bekrafta_url }}
+
+Länken gäller i {{ dagar }} dagar.
+
+Du får det här mejlet för att adressen anmäldes hos {{ foretag }}. Utan ett klick på länken får adressen inga erbjudanden.
+{% if integritet_url %}
+Så hanterar {{ foretag }} dina uppgifter:
+{{ integritet_url }}
+{% endif %}
+Skickat med ADX Flamingo åt {{ foretag }}.
+{% endautoescape %}

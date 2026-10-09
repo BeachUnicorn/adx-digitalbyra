@@ -314,7 +314,7 @@ class LandingPageTests(InboxFixture, TestCase):
 
     def test_no_inline_styles_or_scripts(self):
         base = Path(settings.BASE_DIR) / "templates" / "flamingo"
-        for folder in ("lp", "app/inbox", "app/pages"):
+        for folder in ("lp", "app/inbox", "app/pages", "app/kontakter", "app/utskick"):
             for path in (base / folder).rglob("*.html"):
                 text = path.read_text(encoding="utf-8")
                 with self.subTest(path=path.name):

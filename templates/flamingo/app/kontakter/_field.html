@@ -1,0 +1,12 @@
+{% load utskick_tags %}{% comment %}
+Ett fält i Kontakters formulär: rubrik, fältet (widgetens egen markup),
+hjälptext och fel. Kontext: field (BoundField), help (valfri text).
+Hjälptexten och felet har id:n som fältets aria-describedby pekar på
+(utskick_tags.beskriven med hjälptext; utan pekar Django själv på felet,
+<auto_id>_error). aria-invalid sätter Django vid fel.
+{% endcomment %}<div class="fl-field{% if field.errors %} is-error{% endif %}">
+  <label class="fl-field__label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {% if help %}{{ field|beskriven:help }}{% else %}{{ field }}{% endif %}
+  {% if help %}<p class="fl-field__help" id="{{ field.auto_id }}_helptext">{{ help }}</p>{% endif %}
+  {% if field.errors %}<div id="{{ field.auto_id }}_error">{% for error in field.errors %}<p class="fl-field__error">{{ error }}</p>{% endfor %}</div>{% endif %}
+</div>

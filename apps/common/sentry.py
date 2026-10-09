@@ -11,9 +11,12 @@ de hos en tredje part.
 
 Lokala variabler behålls (de gör en felrapport användbar, test_sentry.py),
 men variabler med namnen i SECRET_NAMES maskas: där ligger också sms:ens
-mottagare och texter (to, body, data). I apps/sms tas de lokala variablerna
-bort helt: där bär nästan varje variabel ett nummer, en text eller en nyckel,
-under namn som inte går att lista.
+mottagare och texter (to, body, data). När en ram i händelsen kommer från
+apps/sms, apps/utskick, landningssidorna eller inkorgen tas de lokala
+variablerna bort i VARJE ram: där bär nästan varje variabel ett nummer, en
+adress, en text eller en nyckel, under namn som inte går att lista, och
+ramarna under dem (databasens params, formulärens data) bär samma sak.
+Nummer och e-postadresser maskas dessutom var de än står.
 
 Tre lager, eftersom Sentrys eget skydd bara täcker det första till hälften:
 
@@ -63,10 +66,32 @@ SECRET_NAMES = [
     "body",
     "data",
     "signature",
+    # Kontakter och utskick (apps/utskick, README C.3): adresser, namn,
+    # sammanslagna fält, samtyckets bevis, sms- och mejltexter, råa
+    # inkommande meddelanden och SQL-parametrarna (django.db bär dem i params).
+    "address",
+    "phone",
+    "email",
+    "first_name",
+    "last_name",
+    "merge",
+    "text_shown",
+    "evidence",
+    "message",
+    "raw",
+    "params",
 ]
 
-#: Moduler vars lokala variabler aldrig skickas (se ovan).
-_NO_LOCALS_MODULES = ("apps.sms.",)
+#: Moduler vars lokala variabler aldrig skickas (se ovan). Finns en enda ram
+#: från någon av dem i händelsen töms ALLA ramars variabler: ramarna i
+#: django.db bär frågans params och ramarna i django.forms formulärets data,
+#: och de ligger under utskickens, sms:ens, landningssidans och inkorgens ramar.
+_NO_LOCALS_MODULES = (
+    "apps.sms.",
+    "apps.utskick.",
+    "apps.flamingo.public_views",
+    "apps.flamingo.app_views.inbox",
+)
 
 _PATTERNS = [
     # Offertlänken: token i sökvägen.
@@ -91,6 +116,22 @@ _PATTERNS = [
     (re.compile(r"adxsms_[A-Za-z0-9_\-]{8,}"), FILTERED),
     # Leveransadressen för ett sms: signaturen i sökvägen.
     (re.compile(r"(/api/sms/46elks/dlr/\d+/)[0-9a-f]{32}"), r"\1" + FILTERED),
+    # Utskick (apps/utskick, README C.3). Länkarna i sökvägen är behörigheter:
+    # bekräftelsen och Mina utskick, 46elks inkommande, k.adx.se och klick.adx.se.
+    (re.compile(r"(/utskick/(?:bekrafta|val)/)[A-Za-z0-9._-]{16,}"), r"\1" + FILTERED),
+    (re.compile(r"(/api/utskick/46elks/inkommande/)[A-Za-z0-9_-]{24,}"), r"\1" + FILTERED),
+    (re.compile(r"(https?://(?:k|klick)\.adx\.se/)[^\s\"'<>]+"), r"\1" + FILTERED),
+    # Svarsadressen per mottagare (Reply-To) och utskickens API-nycklar.
+    (re.compile(r"\bs\+[a-z0-9.]+@svar\.utskick\.adx\.se\b"), FILTERED),
+    (re.compile(r"adxut_[A-Za-z0-9_\-]{8,}"), FILTERED),
+    # Mottagarens token (ut=, adx=) och kontaktsökningen (q=) i query-strängar.
+    # Sentry sparar query_string utan "?", därav ^.
+    (re.compile(r"((?:^|[?&\s\"'])(?:ut|adx|q)=)[^&\s\"']+"), r"\1" + FILTERED),
+    # Kontakternas nummer och adresser, var de än står: E.164, svenska
+    # mobilnummer som de skrivs och e-postadresser.
+    (re.compile(r"\+\d{8,15}"), FILTERED),
+    (re.compile(r"\b07\d[\d -]{6,10}\d\b"), FILTERED),
+    (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+"), FILTERED),
 ]
 
 #: Anrop som inte ska spåras alls: maskinanrop var femte minut som annars
@@ -103,7 +144,16 @@ _UNTRACED_PREFIXES = (
     "/media/",
     "/favicon",
     "/api/sms/46elks/",
+    # Utskick: 46elks inkommande och de publika sidorna (tokens i adressen).
+    "/api/utskick/",
+    "/utskick/",
+    # Kontakternas och utskickens sidor i verktyget (sökningar och namn i
+    # adresser och svar).
+    "/flamingo/app/kontakter/",
+    "/flamingo/app/utskick/",
 )
+#: Slutet på landningssidornas besöksanrop (/lp/<slug>/besok/, README C.2).
+_UNTRACED_SUFFIXES = ("/besok/",)
 
 
 def scrub_text(value):
@@ -138,11 +188,12 @@ def _frames(event):
 
 
 def _drop_locals(event):
-    """Inga lokala variabler från _NO_LOCALS_MODULES."""
-    for frame in _frames(event):
-        module = str(frame.get("module") or "")
-        if "vars" in frame and module.startswith(_NO_LOCALS_MODULES):
-            frame["vars"] = {}
+    """Inga lokala variabler alls när en ram kommer från _NO_LOCALS_MODULES."""
+    frames = list(_frames(event))
+    if any(str(frame.get("module") or "").startswith(_NO_LOCALS_MODULES) for frame in frames):
+        for frame in frames:
+            if "vars" in frame:
+                frame["vars"] = {}
     return event
 
 
@@ -154,11 +205,36 @@ def scrub_event(event, hint=None):
         return None
 
 
+def _host(environ, scope):
+    host = environ.get("HTTP_HOST") or ""
+    if not host:
+        for name, value in scope.get("headers") or ():
+            if name in (b"host", "host"):
+                host = value.decode("latin-1") if isinstance(value, bytes) else str(value)
+                break
+    return host.split(":", 1)[0].strip().lower()
+
+
+def _link_hosts():
+    """Utskickens länkvärdar (k.adx.se, klick.adx.se; S2). Tomt före S2."""
+    try:
+        from django.conf import settings
+
+        hosts = getattr(settings, "UTSKICK_LINK_HOSTS", ()) or ()
+    except Exception:  # noqa: BLE001 - spårningen får aldrig fälla ett anrop
+        return set()
+    if isinstance(hosts, str):
+        hosts = hosts.split(",")
+    return {str(host).strip().lower() for host in hosts if str(host).strip()}
+
+
 def traces_sampler(sampling_context):
     environ = sampling_context.get("wsgi_environ") or {}
     scope = sampling_context.get("asgi_scope") or {}
     path = environ.get("PATH_INFO") or scope.get("path") or ""
-    if path.startswith(_UNTRACED_PREFIXES):
+    if path.startswith(_UNTRACED_PREFIXES) or path.endswith(_UNTRACED_SUFFIXES):
+        return 0.0
+    if _host(environ, scope) in _link_hosts():
         return 0.0
     return 0.1
 

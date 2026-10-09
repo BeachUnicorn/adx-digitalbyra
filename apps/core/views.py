@@ -58,6 +58,10 @@ def robots_txt(request):
         "Disallow: /aiz/",
         # Kundernas landningssidor (Flamingo) är öppna men ska inte hittas.
         "Disallow: /lp/",
+        # Utskickens anmälnings-, bekräftelse- och valsidor (apps/utskick)
+        # och alla API:er: öppna, men inget för en sökmotor.
+        "Disallow: /utskick/",
+        "Disallow: /api/",
         "Disallow: /status/",
         "",
         f"Sitemap: {base}/sitemap.xml",
