@@ -147,3 +147,87 @@ class PageQueryCountTests(TestCase):
                 block.delete()
                 self.assertEqual(without, 200)
                 self.assertEqual(primed, 200)
+
+
+class DeadLinkQueryTests(TestCase):
+    """Länklarmet på översikten (/manage/) slog upp varje länks sida och stad
+    för sig: 3 441 frågor och 3,3 s i drift 2026-10-10. Nu sker det i ett
+    minne (links.dead_links, request_memo.scope) med samma svar."""
+
+    @classmethod
+    def setUpTestData(cls):
+        call_command("seed_site", verbosity=0)
+        call_command("seed_sokordssidor", verbosity=0)
+
+    def _dead_links(self):
+        from apps.website.links import dead_links
+
+        with CaptureQueriesContext(connection) as ctx:
+            problems = dead_links()
+        return problems, len(ctx.captured_queries)
+
+    def _link_block(self, links):
+        page = BlockPage.objects.get(slug="hemsida-elfirma")
+        return Block.objects.create(
+            page=page, block_type="related", order=999, data={"title": "Fler", "links": links}
+        )
+
+    def test_more_links_cost_no_queries(self):
+        from apps.areas.models import Area
+
+        _, before = self._dead_links()
+        targets = list(BlockPage.objects.filter(is_published=True, design="")[:20])
+        areas = list(Area.objects.all()[:5])
+        self._link_block(
+            [
+                {"label": f"Sida {i}", "url": {"kind": "page", "id": t.pk}}
+                for i, t in enumerate(targets)
+            ]
+            + [
+                {"label": f"Väg {i}", "url": {"kind": "path", "path": f"/{t.slug}/"}}
+                for i, t in enumerate(targets)
+            ]
+            + [
+                {"label": f"Stad {i}", "url": {"kind": "area", "id": a.pk}}
+                for i, a in enumerate(areas)
+            ]
+        )
+        problems, after = self._dead_links()
+        self.assertEqual(problems, [])
+        # Blocket självt (1) och dess fem städer, en gång var: sidorna kommer
+        # ur klumpen som redan hämtas.
+        self.assertLessEqual(after, before + 1 + len(areas))
+
+    def test_dead_and_unpublished_targets_are_still_found(self):
+        from apps.areas.models import Area
+        from apps.website.links import MISSING, UNPUBLISHED
+
+        hidden = BlockPage.objects.filter(is_published=True, design="").last()
+        BlockPage.objects.filter(pk=hidden.pk).update(is_published=False)
+        area = Area.objects.first()
+        Area.objects.filter(pk=area.pk).update(is_active=False)
+        self._link_block(
+            [
+                {"label": "Borta", "url": {"kind": "page", "id": 987654}},
+                {"label": "Dold", "url": {"kind": "page", "id": hidden.pk}},
+                {"label": "Stängd stad", "url": {"kind": "area", "id": area.pk}},
+                {"label": "Ingen stad", "url": {"kind": "area", "id": 987654}},
+                {"label": "Ingen väg", "url": {"kind": "path", "path": "/finns-inte-alls/"}},
+            ]
+        )
+        problems, _ = self._dead_links()
+        found = {(p.label, p.status, p.target) for p in problems}
+        self.assertIn(("Borta", MISSING, "Sida #987654 (borta)"), found)
+        self.assertIn(("Dold", UNPUBLISHED, f"Sidan: {hidden.title}"), found)
+        self.assertIn(("Stängd stad", UNPUBLISHED, f"Staden: {area.name}"), found)
+        self.assertIn(("Ingen stad", MISSING, "Stad #987654 (borta)"), found)
+        self.assertIn(("Ingen väg", MISSING, "/finns-inte-alls/"), found)
+
+    def test_the_overview_stays_small(self):
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create_user("redaktor", password="x", is_staff=True)
+        self.client.force_login(user)
+        response, count = _count(self.client, "/manage/")
+        self.assertEqual(response.status_code, 200)
+        self.assertLess(count, 60, count)

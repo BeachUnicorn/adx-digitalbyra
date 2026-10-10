@@ -19,6 +19,7 @@ felsidans tråd och asgirefs hopp mellan dem. Trådar som vyn själv startar
 ser det inte.
 """
 
+from contextlib import contextmanager
 from contextvars import ContextVar
 
 from asgiref.sync import iscoroutinefunction
@@ -46,6 +47,23 @@ def memo(key, compute):
     except KeyError:
         value = store[key] = compute()
         return value
+
+
+@contextmanager
+def scope():
+    """Öppna minnet för ett svep utanför en förfrågan (länkrapporten, cron,
+    skalet). Inne i en förfrågan används förfrågans minne som det är.
+
+    links.dead_links slår upp hundratals länkar; utan minne blev varje länk
+    en egen fråga (översikten på /manage/ tog 3,3 s 2026-10-10)."""
+    if _store.get() is not None:
+        yield
+        return
+    token = _store.set({})
+    try:
+        yield
+    finally:
+        _store.reset(token)
 
 
 def forget(**kwargs):
