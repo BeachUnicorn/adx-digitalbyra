@@ -12,6 +12,10 @@ Inkommande sms till det delade svarsnumret (README G.1, J S2 test_s2_inbound).
     AgencyTests         byrån kopplar eller lägger åt sidan
     ReconcileTests      avstämningen mot 46elks historik
     OwnerNoticeTests    ägarens samlade sms, högst ett per 30 minuter
+
+StopTests, StartTests, ReconcileTests och OwnerNoticeTests kör tickens fas 2
+och 3 (avstämningen, svaren och ägarens sms) på testklockan
+(testing.TickClock), så att budgetarna inte tar slut på en lastad maskin.
 """
 
 from datetime import UTC, timedelta
@@ -49,6 +53,7 @@ from .testing import (
     PHONE_ANNA,
     PHONE_BO,
     PHONE_CILLA,
+    OnTickClock,
     UtskickFixture,
     enable_utskick,
     make_contact,
@@ -485,7 +490,7 @@ class PhraseTests(TestCase):
         )
 
 
-class StopTests(InboundFixture, TestCase):
+class StopTests(OnTickClock, InboundFixture, TestCase):
     def setUp(self):
         super().setUp()
         self.other_utskick = Utskick.objects.create(
@@ -678,7 +683,7 @@ class StopTests(InboundFixture, TestCase):
         self.assertFalse(Suppression.objects.exists())
 
 
-class StartTests(InboundFixture, TestCase):
+class StartTests(OnTickClock, InboundFixture, TestCase):
     def test_start_sends_a_confirm_link_and_lifts_nothing(self):
         self.send_out()
         self.handle("STOPP")
@@ -837,7 +842,7 @@ class AgencyTests(InboundFixture, TestCase):
         self.assertEqual(inbound.status, InboundMessage.Status.UNROUTABLE)
 
 
-class ReconcileTests(InboundFixture, TestCase):
+class ReconcileTests(OnTickClock, InboundFixture, TestCase):
     def test_due_every_ten_minutes_when_inbound_is_on(self):
         now = timezone.now()
         self.assertTrue(elks.reconcile_due(now))
@@ -906,7 +911,7 @@ class ReconcileTests(InboundFixture, TestCase):
             self.assertEqual(elks.reconcile(later + timedelta(minutes=20))["partial"], 1)
 
 
-class OwnerNoticeTests(InboundFixture, TestCase):
+class OwnerNoticeTests(OnTickClock, InboundFixture, TestCase):
     def setUp(self):
         super().setUp()
         type(self.account).objects.filter(pk=self.account.pk).update(notify_phone="0701740699")

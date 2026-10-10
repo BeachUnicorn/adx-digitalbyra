@@ -46,7 +46,7 @@ from .models import (
 )
 from .sending import email as email_loop
 from .sending import freeze, recover, sms_wrapper
-from .testing import UtskickFixture, enable_utskick, make_contact
+from .testing import OnTickClock, UtskickFixture, enable_utskick, make_contact
 
 EVENTS_URL = "https://sqs.eu-west-1.amazonaws.com/500841883756/adx-utskick-events"
 INBOUND_URL = "https://sqs.eu-west-1.amazonaws.com/500841883756/adx-utskick-inbound"
@@ -91,10 +91,11 @@ def fake_render():
     return stack
 
 
-class EmailFixture(UtskickFixture):
+class EmailFixture(OnTickClock, UtskickFixture):
     """En kund med e-post påslagen: Switchboard, listan Kunder, kontakter
     med samtycke för e-post och utskick som fryses av den riktiga
-    frysningen. Klockan är den riktiga (taken räknas på sent_at)."""
+    frysningen. Klockan är den riktiga (taken räknas på sent_at), men
+    slingans budget och takt går på testklockan (testing.TickClock)."""
 
     @classmethod
     def setUpTestData(cls):
@@ -161,8 +162,7 @@ class EmailFixture(UtskickFixture):
         return u
 
     def run_email(self, seconds=30, only=None):
-        with mock.patch("apps.utskick.sending.email.time.sleep"):
-            return email_loop.send_due(timezone.now(), time.monotonic() + seconds, only)
+        return email_loop.send_due(timezone.now(), time.monotonic() + seconds, only)
 
     def statuses(self, u):
         return sorted(u.recipients.values_list("status", flat=True))
@@ -295,9 +295,8 @@ class ErrorTests(EmailFixture, TestCase):
 
     def test_throttled_halves_the_rate_and_sleeps(self):
         ctx = email_loop.Context(rate=10)
-        with mock.patch("apps.utskick.sending.email.time.sleep") as sleep:
-            ctx.throttled()
-        sleep.assert_called_once_with(email_loop.THROTTLE_SLEEP)
+        ctx.throttled()
+        self.assertEqual(self.clock.slept, [email_loop.THROTTLE_SLEEP])
         self.assertEqual(ctx.rate, 5)
 
     def test_a_429_status_is_a_throttle_too(self):

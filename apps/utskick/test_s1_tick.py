@@ -4,7 +4,8 @@ utskick_daily.
 
 Inget når nätet: SES är FakeSes, och testkörningen sätter
 UTSKICK_TICK_MAX_MB=0 så att kommandot inte sätter något minnestak på
-testprocessen.
+testprocessen. Tickens budget går på testklockan (testing.TickClock), så
+att en lastad maskin inte får en fas att hoppas över.
 """
 
 import io
@@ -36,13 +37,13 @@ from .models import (
     Switchboard,
 )
 from .sending import tick
-from .testing import PHONE_ANNA, UtskickFixture, make_contact
+from .testing import PHONE_ANNA, OnTickClock, UtskickFixture, make_contact
 
 AGENCY = {"INQUIRY_NOTIFICATION_EMAIL": "byran@adx.example"}
 EMAIL = "ella.berg@hemma.example"
 
 
-class TickFixture(UtskickFixture):
+class TickFixture(OnTickClock, UtskickFixture):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()

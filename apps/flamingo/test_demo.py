@@ -933,6 +933,7 @@ class DemoUtskickS2Tests(DemoFixture, TestCase):
         from django.utils import timezone
 
         from apps.utskick.sending import tick
+        from apps.utskick.testing import tick_clock
 
         SmsAccount.objects.create(customer=self.customer, is_enabled=True, sender_name="Exempel")
         Switchboard.objects.update_or_create(
@@ -946,10 +947,12 @@ class DemoUtskickS2Tests(DemoFixture, TestCase):
         scheduled = Utskick.objects.get(account=self.account, status=Utskick.Status.SCHEDULED)
         moment = timezone.now()
         Utskick.objects.filter(pk=scheduled.pk).update(scheduled_at=moment)
+        # Budgeten på testklockan (apps.utskick.testing.TickClock): en lastad
+        # maskin får inte ticken att hoppa över sms-fasen.
         with (
             mock.patch("apps.sms.elks._post", side_effect=no_elks) as api,
             mock.patch.object(sms, "urlopen") as owner,
-            mock.patch("apps.utskick.sending.sms.time.sleep"),
+            tick_clock(),
         ):
             summary = tick.run(now=moment, budget=20)
         api.assert_not_called()

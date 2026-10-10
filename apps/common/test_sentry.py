@@ -63,6 +63,10 @@ class SentryLeakTests(TestCase):
         options["traces_sampler"] = lambda ctx: 1.0 if production_sampler(ctx) else 0.0
         sentry_sdk.init(transport=Capture, **options)
         self.addCleanup(sentry_sdk.init)  # utan dsn: avstängd igen
+        # Körs före raden ovan: stänger klienten och Sentrys övervakartråd
+        # (sentry.monitor), som annars sover i en slinga resten av körningen
+        # och snurrar fritt när ett test byter ut time.sleep.
+        self.addCleanup(sentry_sdk.get_client().close)
 
     def dump(self):
         sentry_sdk.flush()

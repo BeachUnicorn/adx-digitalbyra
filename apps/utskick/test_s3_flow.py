@@ -20,7 +20,9 @@ här prövas att delarna hänger ihop:
     TimelineTests      kontaktkortets tidslinje och Senast för mejlen
 
 Inget når nätet: SES är transport.FakeSes, SQS och S3 är attrapper genom
-aws.client. Klockan är den riktiga.
+aws.client. Klockan är den riktiga, men tickens budget går på testklockan
+(testing.TickClock): time.sleep väntar inte, och en lastad maskin får inte
+ticken att hoppa över faser.
 """
 
 import json
@@ -61,7 +63,7 @@ from .test_s2_foundation import LINK_SETTINGS
 from .test_s3_inbound_email import BUCKET, FakeS3, raw_mail
 from .test_s3_queues import FakeSqs
 from .test_s3_transport import EVENTS_URL, INBOUND_URL
-from .testing import make_contact
+from .testing import OnTickClock, make_contact
 
 FLOW = {
     **LINK_SETTINGS,
@@ -115,7 +117,7 @@ class FakeAws:
         raise AssertionError(f'aws.client("{service}") ska inte anropas i flödet')
 
 
-class S3FlowFixture(LpFixture):
+class S3FlowFixture(OnTickClock, LpFixture):
     """Exempelrör med e-posten påslagen, adressen under Företaget, listan
     Kunder med tre kontakter som sagt ja till e-post (Anna med pixeln) och
     Flamingo-sidan Badrum Nacka."""
@@ -166,9 +168,6 @@ class S3FlowFixture(LpFixture):
         patcher = mock.patch("apps.utskick.aws.client", side_effect=self.aws)
         patcher.start()
         self.addCleanup(patcher.stop)
-        sleep = mock.patch("apps.utskick.sending.email.time.sleep")
-        sleep.start()
-        self.addCleanup(sleep.stop)
         for target, kwargs in (
             ("apps.assistant.llm.is_configured", {"return_value": False}),
             ("apps.assistant.llm.call", {"side_effect": AssertionError("AI ska inte anropas")}),

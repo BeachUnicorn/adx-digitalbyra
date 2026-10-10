@@ -1611,6 +1611,10 @@ class SentryTests(SmsTestCase):
         options = sentry.options("https://x@example.invalid/1", "test", "/tmp")  # noqa: S108
         sentry_sdk.init(transport=_SentryCapture, **options)
         self.addCleanup(sentry_sdk.init)  # utan dsn: avstängd igen
+        # Körs före raden ovan: stänger klienten och Sentrys övervakartråd
+        # (sentry.monitor), som annars sover i en slinga resten av körningen
+        # och snurrar fritt när ett test byter ut time.sleep.
+        self.addCleanup(sentry_sdk.get_client().close)
         text = "Hemlig text 9137"
         with (
             mock.patch("apps.sms.elks.urlopen", side_effect=RuntimeError("pang")),

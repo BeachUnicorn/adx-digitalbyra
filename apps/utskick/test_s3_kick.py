@@ -16,6 +16,11 @@ och samma spärrar som tickens fas 3, i stället för upp till en minut senare.
                         andra tråd, väcker en knuff som väntar, startar en ny
                         tråd när budgeten är slut, stänger sin anslutning
     ConcurrentTests     ticken (fas 3) och knuffen samtidigt: ett sms
+
+RunTests och kapplöpningarna i ConcurrentTests går på testklockan
+(testing.TickClock): knuffens och fas 3:s budgetar tar inte slut för att
+maskinen är lastad. Trådarna i StartTests och webbanropet i en riktig tråd
+väntar på riktigt och går på den riktiga klockan.
 """
 
 import threading
@@ -37,7 +42,7 @@ from .inbound import elks
 from .models import InboundMessage, ThreadMessage, UtskickSettings
 from .sending import kick, sms_wrapper
 from .test_s2_inbound import InboundFixture
-from .testing import PHONE_ANNA, PHONE_BO
+from .testing import PHONE_ANNA, PHONE_BO, OnTickClock, tick_clock
 
 STOP_TEXT = "Du får inga fler sms från Exempelrör. Svara START om du ångrar dig."
 
@@ -164,7 +169,7 @@ class WebhookTests(KickFixture, TestCase):
 # ---------------------------------------------------------------------------
 
 
-class RunTests(KickFixture, TestCase):
+class RunTests(OnTickClock, KickFixture, TestCase):
     def test_the_stopp_answer_goes_at_once_and_the_tick_sends_nothing_more(self):
         self.send_out()
         inbound = self.handle("STOPP")
@@ -463,7 +468,7 @@ class ConcurrentTests(KickFixture, TransactionTestCase):
             finally:
                 connection.close()
 
-        with mock.patch.object(sms_wrapper, "send", side_effect=held_send):
+        with tick_clock(), mock.patch.object(sms_wrapper, "send", side_effect=held_send):
             one = threading.Thread(target=runner, args=(first,))
             one.start()
             self.assertTrue(inside.wait(10), "den första körningen kom aldrig fram till sms:et")

@@ -17,7 +17,9 @@ Inget når nätet: apps.sms.elks._post är FakeElks, avstämningens läsning av
 utbytt. Klockan är den riktiga (sms:ens created_at, minutgränsen, svarens
 och ägarsms:ens fönster räknas på den), och utskickens tidsfönster hålls
 öppet (timing.sms_window_open), så att testerna går också på natten;
-fönstret prövas i test_s2_tick.
+fönstret prövas i test_s2_tick. Tickens budget går däremot på testklockan
+(testing.TickClock), så att en lastad maskin inte får ticken att hoppa
+över sms-fasen.
 """
 
 import re
@@ -52,7 +54,7 @@ from .models import (
 from .sending import tick
 from .test_s1_lp import LpFixture
 from .test_s2_foundation import LINK_SETTINGS
-from .testing import PHONE_ANNA, PHONE_BO, PHONE_CILLA, make_contact
+from .testing import PHONE_ANNA, PHONE_BO, PHONE_CILLA, OnTickClock, make_contact
 
 TOKEN = "f" * 32
 REPLY = "+46766860046"
@@ -86,7 +88,7 @@ FLOW = {
 }
 
 
-class FlowFixture(LpFixture):
+class FlowFixture(OnTickClock, LpFixture):
     """Exempelrör med sms, svarsnumret och brytarna på, tre kontakter med
     samtycke i listan Kunder och en Flamingo-sida (Badrum Nacka)."""
 
@@ -194,8 +196,7 @@ class FlowFixture(LpFixture):
 
     def run_tick(self):
         with self.captureOnCommitCallbacks(execute=True):
-            with mock.patch("apps.utskick.sending.sms.time.sleep"):
-                return tick.run(now=timezone.now(), budget=30)
+            return tick.run(now=timezone.now(), budget=30)
 
     def sent_utskick(self):
         """Bekräftat med Skicka nu och skickat av ticken."""

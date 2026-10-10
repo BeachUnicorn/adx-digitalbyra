@@ -5,7 +5,9 @@ nödbromsen, taket, demokontot, tillståndsmaskinen och ticken.
 Inget når nätet: apps.sms.elks._post är EngineElks (som apps/sms/tests.FakeElks,
 med inspelade fel). Tiden är fast (NOW, en tisdag 10.00 i Stockholm) där
 tidsfönstret och veckotaket räknas; sms:ens created_at är klockans tid, som
-i apps/sms.
+i apps/sms. Tickens och slingornas budgetar går på testklockan
+(testing.TickClock): time.sleep väntar inte, och maskinens last tar inga
+sekunder från dem.
 """
 
 import time
@@ -48,7 +50,7 @@ from .models import (
 )
 from .sending import checks, freeze, recover, sms_wrapper, state, tick
 from .sending import sms as loop
-from .testing import UtskickFixture, enable_utskick, make_contact
+from .testing import OnTickClock, UtskickFixture, enable_utskick, make_contact
 
 NOW = datetime(2026, 10, 13, 10, 0, tzinfo=STOCKHOLM)
 BODY = "Hej {förnamn|du}, dags för service hos Exempelrör. Boka: {länk:boka}"
@@ -96,7 +98,7 @@ def phone(n):
     return f"+4670174{n:04d}"
 
 
-class EngineFixture(UtskickFixture):
+class EngineFixture(OnTickClock, UtskickFixture):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
@@ -191,8 +193,7 @@ class EngineFixture(UtskickFixture):
         return u
 
     def run_sms(self, now=NOW, seconds=5, only=None):
-        with mock.patch("apps.utskick.sending.sms.time.sleep"):
-            return loop.send_due(now, time.monotonic() + seconds, only)
+        return loop.send_due(now, time.monotonic() + seconds, only)
 
     def statuses(self, u):
         return sorted(u.recipients.values_list("status", flat=True))
@@ -1273,8 +1274,7 @@ class TickTests(EngineFixture, TestCase):
         self.people(2)
         u = self.utskick(status=Utskick.Status.SCHEDULED, scheduled_at=NOW - timedelta(minutes=1))
         self.assertTrue(tick.work_exists(NOW))
-        with mock.patch("apps.utskick.sending.sms.time.sleep"):
-            summary = tick.run(NOW, budget=20)
+        summary = tick.run(NOW, budget=20)
         self.assertEqual(summary["status"], "worked", summary)
         self.assertEqual(summary["start"], {"started": 1})
         self.assertEqual(summary["sms"]["sent"], 2)
@@ -1605,8 +1605,7 @@ class ReviewFindingTests(EngineFixture, TestCase):
         u = self.utskick(status=Utskick.Status.SCHEDULED)
         TrackedLink.objects.filter(utskick=u).update(destination="https://phish-login.example/x")
         self.refuse("phish-login.example")
-        with mock.patch("apps.utskick.sending.sms.time.sleep"):
-            tick.run(NOW, budget=20)
+        tick.run(NOW, budget=20)
         u.refresh_from_db()
         self.assertEqual(u.pause_reason, "content")
         self.assertEqual(self.fake.sends, [])

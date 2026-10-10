@@ -58,7 +58,7 @@ from .test_s3_events import bounce
 from .test_s3_inbound_email import InboundFixture, raw_mail
 from .test_s3_one_click import UnsubscribeFixture
 from .test_s3_transport import STAFF, EmailFixture, outgoing
-from .testing import UtskickFixture
+from .testing import OnTickClock, UtskickFixture
 
 RS = Recipient.Status
 ANNA = Actor(label="Anna Lindqvist")
@@ -604,7 +604,10 @@ class ProbeResumeTests(EmailFixture, TestCase):
 # ---------------------------------------------------------------------------
 
 
-class TickShareTests(UtskickFixture, TestCase):
+class TickShareTests(OnTickClock, UtskickFixture, TestCase):
+    """Sms-fasens tid räknas på testklockan (testing.TickClock), utan
+    maskinens last."""
+
     def sms_time(self, competes):
         seen = {}
 

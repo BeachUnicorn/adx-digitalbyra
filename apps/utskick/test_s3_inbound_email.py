@@ -16,7 +16,8 @@ test_s3_inbound_email).
 
 Inget når nätet: S3 är en attrapp (FakeS3 genom aws.client), och
 sending.email.deliver och from_for (sändnings-byggarens) ersätts med en
-attrapp som sparar mejlet.
+attrapp som sparar mejlet. Hämtningens budget (deadline) och svarens går på
+testklockan (testing.TickClock), inte på maskinens last.
 """
 
 import json
@@ -49,7 +50,7 @@ from .models import (
     ThreadMessage,
     Utskick,
 )
-from .testing import UtskickFixture, make_contact
+from .testing import OnTickClock, UtskickFixture, make_contact
 
 BUCKET = "adx-utskick-inbound-test"
 INBOUND = {
@@ -153,7 +154,7 @@ def raw_mail(
     return msg.as_bytes()
 
 
-class InboundFixture(UtskickFixture):
+class InboundFixture(OnTickClock, UtskickFixture):
     def setUp(self):
         super().setUp()
         self.s3 = FakeS3()

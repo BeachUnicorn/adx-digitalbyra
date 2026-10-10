@@ -239,8 +239,7 @@ class RateTests(EmailFixture, TestCase):
 
     def test_the_pace_waits_between_mails(self):
         ctx = email_loop.Context(rate=4)
-        with mock.patch("apps.utskick.sending.email.time.sleep") as sleep:
-            ctx.pace()
-            ctx.pace()
-        self.assertEqual(sleep.call_count, 1)
-        self.assertAlmostEqual(sleep.call_args[0][0], 0.25, delta=0.05)
+        ctx.pace()
+        ctx.pace()
+        self.assertEqual(len(self.clock.slept), 1)
+        self.assertAlmostEqual(self.clock.slept[0], 0.25, delta=0.05)

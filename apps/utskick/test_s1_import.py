@@ -4,6 +4,8 @@ Importen av kontakter (README J S1 "Import details" och I.7).
 Filerna skrivs till en tillfällig mapp (ImportJob.file:s lagring byts ut i
 setUp), aldrig till utvecklarens PRIVATE_MEDIA_ROOT. Inget här når nätet;
 Excel-filerna läses av xlsx2csv.py i en egen process precis som i drift.
+Där ticken (import_chunk) eller förfrågan importerar går budgeten på
+testklockan (testing.TickClock), inte på maskinens last.
 """
 
 import csv
@@ -45,7 +47,15 @@ from .models import (
     Suppression,
     Tag,
 )
-from .testing import PHONE_ANNA, PHONE_BO, PHONE_CILLA, UtskickFixture, make_contact
+from .testing import (
+    PHONE_ANNA,
+    PHONE_BO,
+    PHONE_CILLA,
+    OnTickClock,
+    UtskickFixture,
+    make_contact,
+    tick_clock,
+)
 
 S = ImportJob.Status
 MALL = Path(settings.BASE_DIR) / "static" / "utskick" / "kontakter-mall.xlsx"
@@ -286,7 +296,8 @@ class XlsxTests(ImportFiles, TestCase):
             job = self.upload(content, name="stor.xlsx")
         self.assertEqual((job.status, job.in_request), (S.CONVERTING, False))
         self.assertTrue(importer.work_exists())
-        summary = importer.import_chunk()
+        with tick_clock():
+            summary = importer.import_chunk()
         job.refresh_from_db()
         self.assertEqual(job.status, S.MAPPING)
         self.assertEqual((summary["jobs"], job.row_count), (1, 2))
@@ -920,7 +931,7 @@ class GateTests(ImportFiles, TestCase):
 @mock.patch.object(importer, "IN_REQUEST_ROWS", 10)
 @mock.patch.object(importer, "CHUNK_ROWS", 20)
 @mock.patch.object(importer, "BATCH_ROWS", 7)
-class ChunkTests(ImportFiles, TestCase):
+class ChunkTests(OnTickClock, ImportFiles, TestCase):
     def _job(self, n=45):
         rows = [[f"Person {i}", phone(i)] for i in range(n)]
         rows[5][1] = "123"
@@ -1016,7 +1027,7 @@ class ChunkTests(ImportFiles, TestCase):
         self.assertEqual((data["status"], data["waiting"]), ("review", False))
 
 
-class InRequestTests(ImportFiles, TestCase):
+class InRequestTests(OnTickClock, ImportFiles, TestCase):
     def _review(self, n):
         rows = [[f"Person {i}", phone(i)] for i in range(n)]
         client = self.client_for(self.anna)
