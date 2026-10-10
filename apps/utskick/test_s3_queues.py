@@ -164,6 +164,16 @@ class PollTests(QueueFixture, TestCase):
         self.assertEqual(counts.get("ignored"), 1)
         self.assertEqual(self.sqs.queues[EVENTS_URL], [])
 
+    def test_the_ses_validation_line_is_dropped_without_an_error(self):
+        from apps.utskick.inbound import queues as q
+
+        self.sqs.put(EVENTS_URL, q.SES_VALIDATION_TEXT + " Example topic.")
+        with self.assertLogs("apps.utskick.inbound.queues", level="INFO") as logs:
+            counts = self.poll()
+        self.assertEqual(counts.get("bad"), 1)
+        self.assertFalse([r for r in logs.records if r.levelname == "ERROR"])
+        self.assertEqual(self.sqs.queues[EVENTS_URL], [])
+
     def test_an_sns_envelope_is_unwrapped(self):
         _u, (recipient,) = self.sent()
         envelope = {"Type": "Notification", "Message": json.dumps(delivery(recipient))}

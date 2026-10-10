@@ -192,6 +192,10 @@ def _inbound(body, now):
     return "inbound" if row is not None else "ignored"
 
 
+#: Textraden SES skickar till SNS-ämnet när ett händelsemål skapas.
+SES_VALIDATION_TEXT = "Successfully validated SNS topic for Amazon SES event publishing"
+
+
 def _unwrap(body):
     """Kroppen är SES-notisen själv (RawMessageDelivery). Kommer den ändå i
     ett SNS-kuvert packas det upp."""
@@ -207,9 +211,16 @@ def _unwrap(body):
 def handle(which, message, now):
     """Ett meddelande ur kön. Svarar utfallet; "failed" betyder att
     meddelandet ligger kvar (det kommer tillbaka efter VisibilityTimeout)."""
+    raw = message.get("Body") or ""
     try:
-        body = json.loads(message.get("Body") or "")
+        body = json.loads(raw)
     except ValueError:
+        if raw.strip().startswith(SES_VALIDATION_TEXT):
+            # SES lägger en vanlig textrad i ämnet när konfigurationssetets
+            # händelsemål skapas eller ändras (aws-utskick-s3.sh). Väntat,
+            # inget fel.
+            logger.info("Utskick: SES bekräftade händelsemålet för kön %s", which)
+            return "bad"
         logger.error("Utskick: ett meddelande i kön %s var inte JSON och släpps", which)
         return "bad"
     if not isinstance(body, dict):
