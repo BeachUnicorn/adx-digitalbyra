@@ -100,10 +100,10 @@
 
     <div class="m-panel tv-panel">
       <div class="tv-sec-title">Portalkontakter</div>
-      <p class="tv-prop__note">Kontakterna får ett mejl med lösenordslänk när de bjuds in. De ser bara den här kundens ärenden som är markerade "Synlig för kund".</p>
+      <p class="tv-prop__note">Kontakterna får ett välkomstmejl när de bjuds in och loggar in med sin e-postadress och en engångskod som mejlas till dem. De ser bara den här kundens ärenden som är markerade "Synlig för kund". "Aktiv senast" är när kontakten senast öppnade en sida i kundportalen eller i Flamingo, räknat på fem minuter när. Gällde sidan en annan kund står den kundens namn efter. "Inloggad" är när kontakten senast loggade in med kod.</p>
       {% for u in contacts %}
       <form method="post" action="{% url 'manage:customer_remove_contact' customer.pk u.pk %}" class="tv-row">{% csrf_token %}
-        <span class="tv-row__grow">{{ u.get_full_name|default:u.email }} <small class="tv-muted">{{ u.email }}{% if not u.has_usable_password %} &middot; har inte satt lösenord än{% endif %}</small></span>
+        <span class="tv-row__grow">{{ u.get_full_name|default:u.email }} <small class="tv-muted">{{ u.email }}{% for part in u.status_parts %} &middot; {{ part.text }}{% if part.when %} <span class="tv-nowrap">{{ part.when }}</span>{% endif %}{% if part.after %} {{ part.after }}{% endif %}{% endfor %}</small></span>
         <button type="submit" class="m-btn m-btn--small m-btn--danger" data-confirm="Ta bort kontakten från kunden?">Ta bort</button>
       </form>
       {% empty %}<p class="tv-muted">Inga kontakter än.</p>{% endfor %}

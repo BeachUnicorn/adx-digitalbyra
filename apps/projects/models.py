@@ -749,6 +749,42 @@ class LoginCode(models.Model):
         return f"{self.user_id}: {self.created_at:%Y-%m-%d %H:%M}"
 
 
+class ActivityArea(models.TextChoices):
+    PORTAL = "portal", "Kundportalen"
+    FLAMINGO = "flamingo", "Flamingo"
+
+
+class ContactActivity(models.Model):
+    """
+    När en portalkontakt senast öppnade en sida, var (kundportalen eller
+    Flamingo) och för vilken kund (apps/projects/activity.py, som också
+    säger vad som räknas). En rad per användare, inte per kund: kunden är
+    den sidan gällde, så en kontakt i två kunder räknas bara hos den ena i
+    kundlistan. Byrån och byrån i kundvyn skrivs aldrig hit.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="contact_activity"
+    )
+    last_seen_at = models.DateTimeField("Aktiv senast")
+    last_area = models.CharField("Var", max_length=20, choices=ActivityArea.choices)
+    last_customer = models.ForeignKey(
+        "Customer",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="För kund",
+    )
+
+    class Meta:
+        verbose_name = "Kontaktaktivitet"
+        verbose_name_plural = "Kontaktaktiviteter"
+
+    def __str__(self):
+        return f"{self.user_id}: {self.last_seen_at:%Y-%m-%d %H:%M} ({self.last_area})"
+
+
 class Attachment(models.Model):
     """Bilaga på ett ärende: skärmdump, dokument. Privat lagring, gated utlämning."""
 

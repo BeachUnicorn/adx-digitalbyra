@@ -22,6 +22,11 @@ def _base_url():
     return (getattr(settings, "SITE_BASE_URL", "") or "https://adx.se").rstrip("/")
 
 
+def portal_login_url():
+    """Portalens inloggning, som i inbjudan: https://adx.se/kund/logga-in/."""
+    return f"{_base_url()}/kund/logga-in/"
+
+
 def _send(subject, body, to, reply_to=None, html=None):
     if not _email_configured() or not to:
         logger.warning("Portalmejl hoppades över (okonfigurerad e-post eller ingen mottagare).")
@@ -65,7 +70,7 @@ INVITE_FEATURES = [
 
 def send_invite(user, customer):
     """Inbjudan: inget lösenord att sätta - man loggar in med sin e-post."""
-    login_url = f"{_base_url()}/kund/logga-in/"
+    login_url = portal_login_url()
     subject = "Välkommen till er kundportal hos ADX"
     body = (
         f"{_greeting(user)}\n\n"
@@ -304,7 +309,7 @@ def preview(name):
             customer=customer,
             user=user,
             features=INVITE_FEATURES,
-            login_url=f"{_base_url()}/kund/logga-in/",
+            login_url=portal_login_url(),
             reply_hint="Frågor? Svara på det här mejlet.",
         )
     if name == "kod":

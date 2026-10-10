@@ -73,6 +73,11 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Kundportalens användare hålls borta från /manage/ (apps/projects).
     "apps.projects.middleware.PortalGateMiddleware",
+    # När en kontakt senast öppnade en sida i /kund/ eller /flamingo/app/
+    # (apps/projects/activity.py). Efter auth (request.user, sessionen) och
+    # utanför Flamingogrinden, så den ser samma status som webbläsaren får.
+    # Läser bara svaret; högst en skrivning per kontakt och fem minuter.
+    "apps.projects.activity.ContactActivityMiddleware",
     # Versionerar alla skrivande /manage/-requests (apps/assistant/revisions.py).
     "apps.assistant.revisions.ManageRevisionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",

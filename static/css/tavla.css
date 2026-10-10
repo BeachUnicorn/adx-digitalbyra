@@ -29,6 +29,16 @@ button.tv-chip.timer:hover{border-color:var(--m-text)}
 .tv-today{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
 .tv-head>.m-btn,.tv-head>form .m-btn{width:auto;display:inline-flex;align-items:center;flex:none}
 .tv-muted{color:var(--m-text-muted)}
+/* En tid som "i går 14:05" bryts aldrig mitt i (kundkortet, kundlistan). */
+.tv-nowrap{white-space:nowrap}
+/* Tabellrubrik i två ord som får bryta när tabellen är trång (kundlistan). */
+.m-table thead th.tv-th-wrap{white-space:normal}
+/* Tabell med många kolumner bredvid ett formulär (kundlistan): tätare mellan
+   kolumnerna. Bara i tabelläget; under 760 px är raderna kort (manage-skin.css). */
+@media (min-width:761px){
+  .tv-table-tight thead th:not(:first-child),.tv-table-tight tbody td:not(:first-child){padding-left:12px}
+  .tv-table-tight thead th:not(:last-child),.tv-table-tight tbody td:not(:last-child){padding-right:12px}
+}
 
 /* ===== Filterrad ===== */
 .tv-filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:18px}

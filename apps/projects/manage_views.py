@@ -28,6 +28,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from . import activity
 from .access import VIEW_AS_KEY, staff_required
 from .board import (
     STAGES,
@@ -43,7 +44,13 @@ from .board import (
     renumber,
     with_time,
 )
-from .emails import log_period_label, send_invite, send_issue_update_to_customer, send_log_digest
+from .emails import (
+    log_period_label,
+    portal_login_url,
+    send_invite,
+    send_issue_update_to_customer,
+    send_log_digest,
+)
 from .forms import (
     CommentForm,
     CustomerCreateForm,
@@ -770,7 +777,7 @@ def _merge(target, rows, key, field, how="sum"):
 
 
 def _customer_facts():
-    """Öppna ärenden, loggad tid och senaste aktivitet per kund."""
+    """Öppna ärenden, loggad tid och när ett ärende senast ändrades, per kund."""
     open_counts, last_seen, seconds = {}, {}, {}
     for key in ("customer", "project__customer"):
         _merge(
@@ -827,7 +834,12 @@ def customer_list(request):
             | Q(projects__key__icontains=query)
         ).distinct()
 
+    customers = list(base)
     open_counts, last_seen, seconds = _customer_facts()
+    # Kontakternas senaste sida i portalen eller Flamingo ("Kontakt aktiv").
+    # Inte samma sak som last_seen ("Ärende ändrat"), som är när ett av
+    # kundens ärenden senast ändrades.
+    contact_active = activity.latest_by_customer([c.pk for c in customers])
     from apps.flamingo.models import FlamingoAccount
 
     flamingo_ids = set(
@@ -842,9 +854,10 @@ def customer_list(request):
             "projects": len(c.projects.all()),
             "domains": [d.name for d in c.domains.all()],
             "last_seen": last_seen.get(c.pk),
+            "contact_active": contact_active.get(c.pk),
             "flamingo": c.pk in flamingo_ids,
         }
-        for c in base
+        for c in customers
     ]
     rows.sort(
         key=lambda r: (
@@ -907,7 +920,7 @@ def customer_detail(request, pk):
             "invite_form": InviteForm(),
             "projects": customer.projects.all(),
             "issues": issues,
-            "contacts": customer.users.all(),
+            "contacts": activity.contacts_for_card(customer),
             "time": fmt_hours(customer.total_seconds()),
             "title": customer.name,
             "log_entries": log_entries,
@@ -1066,7 +1079,8 @@ def customer_invite(request, pk):
     else:
         messages.warning(
             request,
-            f"{email} är kopplad, men mejlet gick inte iväg. Skicka lösenordslänken manuellt.",
+            f"{email} är kopplad, men mejlet gick inte iväg. Be kontakten logga in på "
+            f"{portal_login_url()} med sin e-postadress.",
         )
     return redirect("manage:customer_detail", pk=pk)
 
