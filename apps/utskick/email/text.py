@@ -128,13 +128,14 @@ def _block_text(kind, v):
 
 
 def _footer(utskick, ctx):
-    name, rest = render.company_line(ctx)
+    name, lines = render.company_lines(ctx)
     links = [
         _link(text, url)
         for text, url in render.footer_links(utskick, ctx)
         if text != render.WEB_VIEW_TEXT
     ]
-    return _join(RULE, " · ".join(p for p in (name, rest) if p), render.reason_text(ctx), *links)
+    # En uppgift per rad, och en tom rad före länkarna (Giovanni 2026-10-10).
+    return "\n\n".join(p for p in (_join(RULE, name, *lines), _join(*links)) if p)
 
 
 def _web_line(utskick, ctx):

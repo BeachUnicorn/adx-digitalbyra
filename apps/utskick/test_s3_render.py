@@ -556,8 +556,9 @@ class StructureTests(BrevFixture, TestCase):
 
     def test_the_footer(self):
         html = self.preview(contact=self.contact())
-        self.assertIn("Exempelrör AB</b> · Mossvägen 12, 167 33 Bromma · 08-123 456 78", html)
-        self.assertIn("Du får det här eftersom du har sagt ja till erbjudanden via e-post.", html)
+        # En uppgift per rad och ingen rad om varför (Giovanni 2026-10-10).
+        self.assertIn("Exempelrör AB</b><br>Mossvägen 12<br>167 33 Bromma<br>08-123 456 78", html)
+        self.assertNotIn("Du får det här", html)
         footer = html[html.index("data-brev-element") if "data-brev-element" in html else 0 :]
         for label in ("Ändra vad du får", "Avregistrera dig", "Visa i webbläsaren"):
             self.assertIn(label, footer)
@@ -565,8 +566,10 @@ class StructureTests(BrevFixture, TestCase):
         self.assertIn(links.unsubscribe_url(self.account.pk, value_hash), html)
         self.assertIn(links.email_preferences_url(self.account.pk, value_hash), html)
 
-    def test_the_reason_follows_the_basis_and_information(self):
-        for basis, line in render.REASONS.items():
+    def test_no_reason_line_for_any_basis_or_information(self):
+        """Sidfoten säger inte varför mottagaren får mejlet, oavsett grund
+        eller information (Giovanni 2026-10-10: "ta bort det")."""
+        for basis in ("consent", "existing_customer", "company"):
             ctx = render.context_for(
                 self.utskick,
                 mode=render.SEND,
@@ -575,10 +578,19 @@ class StructureTests(BrevFixture, TestCase):
                 ),
             )
             with self.subTest(basis=basis):
-                self.assertIn(line, render.render_html(self.utskick, ctx))
+                html = render.render_html(self.utskick, ctx)
+                self.assertNotIn("Du får det här", html)
+                self.assertIn("Avregistrera dig", html)
         Utskick.objects.filter(pk=self.utskick.pk).update(purpose="information")
         self.utskick.refresh_from_db()
-        self.assertIn("Det här är information om ditt ärende hos oss.", self.preview())
+        self.assertNotIn("Det här är information om ditt ärende", self.preview())
+
+    def test_the_text_version_has_one_detail_per_line(self):
+        from .email import text
+
+        body = text.render_text(self.utskick, render.context_for(self.utskick, mode=render.PREVIEW))
+        self.assertIn("Exempelrör AB\nMossvägen 12\n167 33 Bromma\n08-123 456 78\n\n", body)
+        self.assertNotIn("Du får det här", body)
 
     def test_the_privacy_link_names_the_company(self):
         from .models import UtskickSettings

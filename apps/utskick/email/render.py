@@ -15,7 +15,7 @@ gäller inte där; test_s3_render har en egen vakt).
     EDITOR, PREVIEW, SEND = "editor", "preview", "send"
     @dataclass RenderContext
         utskick, account, mode, recipient (eller None), merge (värdena),
-        fallbacks, basis (sidfotens rad), tracking_ok, test (testmejl),
+        fallbacks, basis (mottagarens grund), tracking_ok, test (testmejl),
         snapshot (underlaget: fryst eller färskt), palette, S, links
         ({"<block_id>:<plats>": TrackedLink-id}), web (webbversionen),
         address (mottagarens e-post, för sidfotens länkar)
@@ -29,7 +29,7 @@ gäller inte där; test_s3_render har en egen vakt).
     render_html(utskick, ctx, mode=None) -> str
                                      hela mejlet: förhandstexten, sidhuvudet med "Visa i
                                      webbläsaren" och loggan, blocken, sidfoten med
-                                     adressen, skälet (Recipient.basis), "Ändra vad du
+                                     namnet, adressen och telefonen (en per rad), "Ändra vad du
                                      får · Avregistrera dig · Visa i webbläsaren · Så
                                      hanterar <företaget> dina uppgifter"; varje spårad
                                      href genom links.email_url när ctx.links har platsen
@@ -99,14 +99,6 @@ EDITING_CSP = '<meta http-equiv="Content-Security-Policy" content="script-src \'
 #: Underlagets version (snapshot).
 DATA_VERSION = 1
 
-#: Sidfotens skäl per grund (F.1 element 24, Recipient.basis).
-REASONS = {
-    "consent": "Du får det här eftersom du har sagt ja till erbjudanden via e-post.",
-    "existing_customer": "Du får det här eftersom du är kund hos oss.",
-    "company": "Du får det här eftersom ditt företag är kund hos oss.",
-}
-DEFAULT_REASON = REASONS["consent"]
-INFO_REASON = "Det här är information om ditt ärende hos oss."
 WEB_VIEW_TEXT = "Visa i webbläsaren"
 PREFERENCES_TEXT = "Ändra vad du får"
 UNSUBSCRIBE_TEXT = "Avregistrera dig"
@@ -1158,21 +1150,17 @@ def web_url(utskick, ctx):
     return links.web_view_url(utskick.pk, recipient_id)
 
 
-def reason_text(ctx):
-    data = ctx.snapshot or {}
-    if data.get("information") or getattr(ctx.utskick, "is_information", False):
-        return INFO_REASON
-    return REASONS.get(ctx.basis or "", DEFAULT_REASON)
-
-
-def company_line(ctx):
-    """(namn, resten): "Exempelrör AB" och "Mossvägen 12, 167 33 Bromma ·
-    08-123 456 78"."""
+def company_lines(ctx):
+    """(namn, rader): "Exempelrör AB" och ["Mossvägen 12", "167 33 Bromma",
+    "08-123 456 78"]. En uppgift per rad (Giovanni 2026-10-10): adressen
+    delas vid kommatecken och radbrytningar, telefonen står sist."""
     company = (ctx.snapshot or {}).get("company") or {}
-    rest = [company.get("address") or ""]
+    address = str(company.get("address") or "")
+    lines = [part.strip() for part in re.split(r"[,\n]", address) if part.strip()]
     phone = _phone(company.get("phone")) or company.get("phone_text") or ""
-    rest.append(phone)
-    return company.get("name") or "", " · ".join(p for p in rest if p)
+    if phone:
+        lines.append(phone)
+    return company.get("name") or "", lines
 
 
 def pixel_url(ctx):
@@ -1212,14 +1200,13 @@ def _header_html(utskick, ctx):
 
 
 def _footer_html(utskick, ctx):
-    name, rest = company_line(ctx)
+    name, lines = company_lines(ctx)
     return render_to_string(
         FOOTER_TEMPLATE,
         {
             "S": ctx.S,
             "name": name,
-            "rest": rest,
-            "reason": reason_text(ctx),
+            "lines": lines,
             "links": footer_links(utskick, ctx),
             "pixel": pixel_url(ctx),
             "editing": ctx.editing,

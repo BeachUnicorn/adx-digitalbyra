@@ -3,7 +3,7 @@
 Architecture and build plan. Status 2026-10-10: **S1, S2, S3 and "After S3" (Giovanni's three
 changes: branding on the recipient pages, instant replies, empty fields in the Brev editor) are
 built, committed and deployed** (see "S1 as built", "S2 as built", "S3 as built" and "After S3").
-**S4 is built and tested locally, not committed and not deployed** (see "S4 as built" and its
+**S4 is deployed (2026-10-10, cef72a6)** (see "S4 as built" and its
 checklist). S5 and S6 are not built. This file is the contract for the build; update it when a
 stage ships or a decision changes. Revision 2 (2026-10-09) folds in the security, ops and product reviews; what
 was not taken over is listed in section L.
@@ -706,7 +706,7 @@ Checklist notes for the lead (in addition to J S3):
   builder's `pb_empty`, `flamingo-pb.css` and profile are unchanged. Tests:
   `test_s3_placeholders.py`.
 
-## S4 as built (2026-10-10, not committed, not deployed)
+## S4 as built (deployed 2026-10-10, cef72a6)
 
 Everything in J S4 exists in code. Nothing in S4 needs AWS, 46elks or DNS: the only server-side
 steps are `uv sync` (segno 1.6.6) and the migrations `utskick.0004` and `utskick.0005`, all run by
@@ -827,7 +827,7 @@ Deviations from this contract, decided while building S4 (the builders' notes in
   and the beacon's Origin can be forged outside a browser, so a snippet domain proves nothing:
   `links.own_domains` reads only `Customer.website` and verified sender domains (also for
   information utskick, H.5). The `SiteSnippet` branch was dead code before 0004, so nothing that
-  ran before changes. **Giovanni to confirm.**
+  ran before changes. Confirmed by Giovanni 2026-10-10.
 - **Reserved public slugs.** `a`, `b`, `c`, `m`, `o`, `p`, `s`, `v`, `w` join
   `RESERVED_PUBLIC_SLUGS`, and a slug may not start with `mcp`, `authorize`, `token`, `register`
   or `revoke` (nginx and `asgi_app` 404 every link-host path that merely starts with those words);
@@ -932,8 +932,8 @@ Checklist for the lead (in addition to J S4):
 - Before deploy: no production `UtskickSettings.public_slug` may be one of the reserved letters
   or start with a reserved prefix (expected none); read-only query, ask before running anything
   on the box.
-- Giovanni: confirm "snippet domains are not free from review" above, and that "Fick X" (and so
-  "Följ upp de som inte klickade") leaves out contacts who reported X as spam.
+- Done 2026-10-10: Giovanni confirmed "snippet domains are not free from review" above, and that
+  "Fick X" (and so "Följ upp de som inte klickade") leaves out contacts who reported X as spam.
 - J S4: ADX's own privacy policy line for the snippet (cookieless, the `adx` parameter, only
   visits from a link, and goals marked with `adxFlamingo.track`, for example a booking); ask
   Giovanni before changing the published page. The generated fallback
@@ -1400,7 +1400,7 @@ class Recipient(Model):                           # S2
     channel = Char(5, choices=sms|email)
     address = Char(254)                           # frozen E.164 or email
     merge = JSON(default=dict)                    # frozen merge values {"förnamn": "Anna"}
-    basis = Char(12, blank)                       # consent basis at freeze (footer reason line)
+    basis = Char(12, blank)                       # consent basis at freeze (no longer shown in the footer)
     tracking_ok = Bool(default=False)             # copied from Consent at freeze (pixel, H.5)
     status = Char(10, choices=queued|skipped|sending|sent|delivered|failed|bounced|complained|unknown|cancelled)
     skip_reason = Char(16, blank)                 # see I.8 "Hoppades över" for the full list and copy
@@ -2580,7 +2580,7 @@ The 24 Brev elements: header (1) and footer (24) are document-level and not in t
 | 21 | signature | Underskrift | greeting: text 40, script_name: text 30, photo: media, name: text 60, line: text 120, phone: phone | Avatar (photo, else initials in an accent circle) beside "Johan Lind / Exempelrör AB · 08-123 456 78" with a `tel:` link. Script font stack only (Snell Roundhand, Segoe Script, Bradley Hand, cursive) |
 | 22 | spacer | Mellanrum | size: choice s/m/l | |
 | 23 | social | Sociala medier | items 1..5: network choice facebook/instagram/linkedin/youtube/tiktok, url | Brev: text links in accent |
-| 24 | footer | Sidfot (låst) | none (locked) | Company name, address (required for reklam), phone; reason line from `Recipient.basis` ("Du får det här eftersom du har sagt ja till erbjudanden via e-post." / "... eftersom du är kund hos oss." / "... eftersom ditt företag är kund hos oss." / information: "Det här är information om ditt ärende hos oss."); "Ändra vad du får · Avregistrera dig · Visa i webbläsaren · Så hanterar Exempelrör dina uppgifter" |
+| 24 | footer | Sidfot (låst) | none (locked) | Company name, address (required for reklam) and phone, one detail per line (the address is split at commas and line breaks: "Exempelrör AB" / "Mossvägen 12" / "167 33 Bromma" / "08-123 456 78"); no reason line (Giovanni 2026-10-10 removed "Du får det här eftersom..." for every basis and for information); "Ändra vad du får · Avregistrera dig · Visa i webbläsaren · Så hanterar Exempelrör dina uppgifter" |
 
 New field kinds in `email/blocks.py` (page kinds unchanged):
 - `url`: absolute `http`, `https`, `mailto` or `tel` only (relative paths and `#x` refused), max
