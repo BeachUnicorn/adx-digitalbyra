@@ -8,7 +8,9 @@ longest_count, non_gsm, sender), non_gsm_text (tecknen i klartext: "ett
 hårt mellanslag"), errors (composer.validate), kontakt och next_kontakt
 (förhandsvisningens kontakt och "byt kontakt", en knapp som sparar först), insert_tags
 ([(platshållare, rubrik)]), used_tags (reservtexterna), link_rows ([{link,
-host, status, token}]), campaigns, templates ([{key, label, text,
+host, status, token, preselect_text}]), campaigns, preselect_groups
+([(kampanj, [(värde, text)])] för Förvälj svar, sidorna med ett flerval;
+flamingo-app-links.js visar bara den valda sidans grupp), templates ([{key, label, text,
 information}]), sender_identified, too_long, max_parts, planned (antal sms),
 total_text, test (owner, owner_text, staff, demo), opt_out, reply_sender,
 sender_text, sample_link (k.adx.se/a8Kf2X, lika lång som en riktig länk),
@@ -107,6 +109,7 @@ platshållare där markören står.
         <div class="fl-list__main">
           <span class="fl-list__title fl-ut-token">{{ row.token }}</span>
           <span class="fl-list__meta fl-ut-url">{% if row.link.kind == "lp" %}Flamingo-sida: {{ row.link.campaign.name|default:row.link.destination }}{% else %}{{ row.link.destination }}{% endif %}</span>
+          {% if row.preselect_text %}<span class="fl-list__meta">Förvalt svar: {{ row.preselect_text }}</span>{% endif %}
           {% if row.status == "pending" or row.status == "new" %}<span class="fl-ut-lock">Väntar på ADX: länkar till nya webbplatser godkänns av ADX.</span>{% elif row.status == "refused" %}<span class="fl-ut-lock">ADX har inte godkänt länkar till {{ row.host }}.</span>{% endif %}
         </div>
         <span class="fl-ut-links__actions">
@@ -144,6 +147,18 @@ platshållare där markören står.
           <p class="fl-field__help">Du har ingen publicerad Flamingo-sida än. Publicera en kampanj under Kampanjer, eller välj Egen adress.</p>
           {% endif %}
         </div>
+        {% if preselect_groups %}
+        <div class="fl-field" data-ln-preselect-field data-ln-when="lank_typ=lp">
+          <label class="fl-field__label" for="ut-lank-forval">Förvälj svar (valfritt)</label>
+          <select class="fl-input" id="ut-lank-forval" name="lank_forval" data-ln-preselect="ut-lank-kampanj" aria-describedby="ut-lank-forval-help">
+            <option value="">Inget förval</option>
+            {% for campaign, choices in preselect_groups %}<optgroup label="{{ campaign.name }}" data-ln-campaign="{{ campaign.pk }}">
+              {% for value, label in choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </optgroup>{% endfor %}
+          </select>
+          <p class="fl-field__help" id="ut-lank-forval-help">Svaret är redan valt när besökaren öppnar sidan. Besökaren kan ändra det.</p>
+        </div>
+        {% endif %}
         <div class="fl-field">
           <label class="fl-field__label" for="ut-lank-adress">Egen adress</label>
           <input class="fl-input" id="ut-lank-adress" type="url" name="lank_adress" placeholder="https://" autocomplete="off" aria-describedby="ut-lank-adress-help">
@@ -229,4 +244,4 @@ platshållare där markören står.
 </form>
 {% comment %}S3{% endcomment %}{% endif %}{% comment %}slut S3{% endcomment %}
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>{% if preselect_groups %}<script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>{% endif %}{% endblock %}

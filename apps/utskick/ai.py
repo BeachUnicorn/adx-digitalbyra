@@ -66,7 +66,6 @@ NOT_WRITTEN = frozenset(
         "person.name",
         "person.role",
         "signature.name",
-        "signature.script_name",
         "signature.line",
         "hours.map_text",
         "social.items",

@@ -6,12 +6,19 @@ detaljerna bakom ett klick. Kontroller som är påslagna men saknar mätning
 blir inga tomma kort - de räknas upp på en rad längst ned. Interna fel
 (saknad nyckel, timeout mot statusendpointet) visas aldrig för kunden:
 det är byråns sak, och kunden kan inte göra något åt dem.
+
+Inga leverantörer vid namn (Giovanni 2026-10-10): certifikatets utfärdare,
+namnservrarna, de råa DNS-posterna för e-post och serverns versionsrad
+visar vilka tjänster ADX använder. Kunden ser vad kontrollen kom fram till
+(_customer_detail); de råa värdena står kvar i Check.data och i /manage/.
 """
 
 from datetime import date, timedelta
 
 from django.utils import timezone
 from django.utils.formats import date_format
+
+from apps.common import providers
 
 from . import google_present
 from .google_checks import GOOD, NEEDS, POOR
@@ -58,15 +65,14 @@ def _ssl(check):
     if days is None:
         return None
     status = BAD if days < 7 else WARN if days < 21 else OK
+    # Utfärdaren visas inte: den säger vilken tjänst ADX använder.
     return _area(
         "ssl",
         "HTTPS-certifikat",
         status,
-        f"Giltigt till {_nice_date(data.get('not_after'))}"
-        + (f", utfärdat av {data['issuer']}" if data.get("issuer") else ""),
+        f"Giltigt till {_nice_date(data.get('not_after'))}",
         f"{days} dagar",
-        [("Giltigt till", _nice_date(data.get("not_after")), None)]
-        + ([("Utfärdare", data["issuer"], None)] if data.get("issuer") else []),
+        [("Giltigt till", _nice_date(data.get("not_after")), None)],
         "Förnyas automatiskt. Vi larmas om det inte sker.",
     )
 
@@ -77,18 +83,21 @@ def _domain(check):
     data = check.data
     days = data.get("days_left")
     status = WARN if days is not None and days < 30 else OK
+    # Registraren är kundens, utom när domänen ligger hos en av ADX
+    # leverantörer; namnservrarna visas inte (de säger var DNS ligger).
+    registrar = data.get("registrar") or ""
+    if providers.names_in(registrar, strict=True):
+        registrar = ""
     headline = "Registrerad"
     if data.get("expires"):
         headline = f"Förnyas senast {_nice_date(data['expires'])}"
-    if data.get("registrar"):
-        headline += f" hos {data['registrar']}"
+    if registrar:
+        headline += f" hos {registrar}"
     details = [("Domän", data.get("apex", ""), None)]
-    if data.get("registrar"):
-        details.append(("Registrar", data["registrar"], None))
+    if registrar:
+        details.append(("Registrar", registrar, None))
     if data.get("expires"):
         details.append(("Förnyas senast", _nice_date(data["expires"]), None))
-    if data.get("nameservers"):
-        details.append(("Namnservrar", ", ".join(data["nameservers"]), None))
     details.append(("Överlåtelselås", "På" if data.get("locked") else "Av", None))
     return _area(
         "domain",
@@ -98,6 +107,29 @@ def _domain(check):
         f"{days} dagar" if days is not None else "",
         details,
     )
+
+
+#: Kundens text för en rad vars detalj är ett rått värde (en DNS-post, ett
+#: värdnamn, serverns versionsrad): (titel, status) -> text. Raderna med
+#: status "fel" eller "varning" har annars kontrollens egen förklaring
+#: (apps/tools/analyzer.py, monitor/checks.py), som inte innehåller posten.
+CUSTOMER_DETAILS = {
+    ("MX (ta emot mejl)", "ok"): "Domänen tar emot mejl.",
+    ("SPF", "ok"): "Finns: mottagarna kan se vilka servrar som får skicka för domänen.",
+    ("DMARC", "ok"): "Finns, med en policy för mejl som inte går att verifiera.",
+    ("DMARC", "varning"): "Finns men bara övervakar (p=none): förfalskade mejl stoppas inte.",
+    ("DKIM", "ok"): "Finns: mejlen från domänen signeras.",
+    ("Server-header", "varning"): "Servern berättar vilken programversion den kör.",
+}
+
+
+def _customer_detail(row):
+    """Raden som kunden ser den: aldrig en rå post med leverantörernas namn."""
+    title, status = row.get("titel", ""), row.get("status")
+    detail = CUSTOMER_DETAILS.get((title, status), row.get("detalj", ""))
+    if providers.names_in(detail, strict=True):
+        detail = "Kontrollen är gjord." if status == "ok" else "Behöver ses över."
+    return (title, detail, status)
 
 
 def _rows_area(key, title, check, good_text, count_text):
@@ -115,7 +147,7 @@ def _rows_area(key, title, check, good_text, count_text):
         status,
         headline,
         f"{fine} av {len(rows)}",
-        [(r.get("titel", ""), r.get("detalj", ""), r.get("status")) for r in rows],
+        [_customer_detail(r) for r in rows],
     )
 
 

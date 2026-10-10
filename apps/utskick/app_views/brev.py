@@ -234,22 +234,33 @@ def _doc_blocks(utskick):
 
 
 def _unsigned(blocks):
-    """Blocken utan versionernas signatur, för att se om något ändrats."""
+    """Blocken utan versionernas signatur och utan borttagna fält
+    (email.registry.RETIRED_FIELDS, som underskriftens script_name), för att
+    se om något ändrats. Redigeraren läser inte om blocken efter en
+    sparning, så den skickar ett borttaget fält så länge sidan är öppen; det
+    är ingen ändring (ingen ny revision, och ett schemalagt utskick blir inte
+    ett utkast igen)."""
     out = []
     for block in blocks or []:
         if not isinstance(block, dict):
             out.append(block)
             continue
         block = dict(block)
+        type_key = block.get("type")
         if isinstance(block.get("versions"), list):
             block["versions"] = [
-                {k: v for k, v in version.items() if k != "sig"}
-                if isinstance(version, dict)
-                else version
+                _unsigned_version(type_key, version) if isinstance(version, dict) else version
                 for version in block["versions"]
             ]
         out.append(block)
     return out
+
+
+def _unsigned_version(type_key, version):
+    version = {k: v for k, v in version.items() if k != "sig"}
+    if "fields" in version:
+        version["fields"] = email_blocks.live_fields(type_key, version["fields"])
+    return version
 
 
 def _stamp(utskick, blocks, user, source, now=None):
@@ -257,7 +268,8 @@ def _stamp(utskick, blocks, user, source, now=None):
     pages.stamp_authorship):
 
     - en version som finns sparad med samma fält: det som sparades (källa,
-      by, at), så att ingen kan skriva en annans namn på en version;
+      by, at), så att ingen kan skriva en annans namn på en version
+      (borttagna fält räknas inte, email.blocks.live_fields);
     - samma id med andra fält: den inloggade med källan source (kunden
       eller byrån);
     - en ny version med serverns signatur (mallen i new_block): som den är;
@@ -278,6 +290,7 @@ def _stamp(utskick, blocks, user, source, now=None):
             out.append(block)
             continue
         block = dict(block)
+        type_key = block.get("type")
         versions = []
         for version in block["versions"]:
             if not isinstance(version, dict):
@@ -286,7 +299,9 @@ def _stamp(utskick, blocks, user, source, now=None):
             version = dict(version)
             version_id = version.get("id")
             before = stored.get(version_id) if isinstance(version_id, str) else None
-            if before is not None and before.get("fields") == version.get("fields"):
+            if before is not None and email_blocks.live_fields(
+                type_key, before.get("fields")
+            ) == email_blocks.live_fields(type_key, version.get("fields")):
                 for key in ("source", "by", "at"):
                     version[key] = before.get(key)
             elif before is None and email_blocks.is_signed(version):

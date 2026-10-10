@@ -473,7 +473,7 @@ def apply(recipient, out, sender, account, now, ctx):
         _fail(recipient, PROVIDER_TEXT, message=message)
         checks.provider_trouble(real_now)
         if _provider_streak(utskick):
-            _pause_provider(utskick, "Fem sms i rad fick fel från 46elks.", now)
+            _pause_provider(utskick, "Fem sms i rad fick fel från sms-tjänsten.", now)
         return "failed"
     logger.error("Utskick %s: mottagare %s fick felet %s", utskick.pk, recipient.pk, error)
     _fail(recipient, NOT_BUILT_TEXT, message=message)

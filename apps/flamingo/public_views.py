@@ -25,12 +25,24 @@ kundens kunder.
   (limits.create_form_lead, leads.create_lead) med klick-id och utm ur
   adressen, och sms.notify_new_lead skickar det kunden slagit på. Svaren på
   frågorna sparas som Lead.answers[frågans etikett]. Inga mejl.
+- Flerval (answers.py): en fråga med ett svar är radioknappar, en med flera
+  svar kryssrutor, båda som stora knappar utan skript. Ett flerval som krävs
+  måste ha ett svar (ett svar: precis ett), en annan fråga som krävs måste
+  vara ifylld; äldre frågor är valfria. Svaret sparas också med
+  alternativens nycklar i Lead.choice_answers. ?val=<fråga>.<alternativ>
+  kryssar i alternativ när sidan öppnas (answers.initial_for); okända värden
+  ignoreras, och en postning prövas som vanligt.
 - Ett klick på telefonnumret (varje tel:-länk med data-fl-call) skickas av
   static/js/flamingo-lp.js med sendBeacon till call_click
   (/lp/<slug>/ring/) och blir en förfrågan "Klick på telefonnumret". Bara
   för en live-kampanj utanför demokontot (_live_campaign). Inget
   sms: ägaren får själva samtalet. Utan skript räknas inget, och länken
   fungerar ändå.
+- Kundens egna besök räknas inte, lika lite som byråns (Giovanni
+  2026-10-10): för en inloggad kontakt hos kampanjens kund (Customer.users,
+  _own_visit) loggas inget besök från ett utskick, ingen tid på sidan och
+  inget klick på numret. Formuläret fungerar som vanligt för dem. En kontakt
+  hos en annan kund räknas som vilken besökare som helst.
 - Mätningen hos Google: sidan frågar inte om samtycke (beslut 2026-10-03).
   En förfrågan eller ett klick på numret med gclid köas som konvertering
   (Lead.can_send_to_google), och Lead.ad_consent lämnas tomt: sidan tar
@@ -83,6 +95,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.projects.access import is_agency_user
 
+from . import answers as form_answers
 from . import leads, limits, pagebuilder, sms
 from .manage_review import staff_state
 from .models import Campaign
@@ -172,7 +185,12 @@ class LeadForm(forms.Form):
     Frågorna kommer från sidans formulärblock (pagebuilder.FormSpec).
 
     Formulärets variant styr: "short" (som "ringer direkt" förut) har namnet
-    valfritt och bara mobilen; "questions" och "booking" kräver namnet."""
+    valfritt och bara mobilen; "questions" och "booking" kräver namnet.
+
+    En fråga som krävs (frågans "required") måste besvaras; äldre frågor är
+    valfria. Ett flerval som syns blir ChoiceField (ett svar) eller
+    MultipleChoiceField (flera svar) med alternativens nycklar; ett flerval
+    som inte syns (för få alternativ) får inget fält."""
 
     name = forms.CharField(label="Namn", max_length=leads.NAME_MAX, required=False)
     phone = forms.CharField(
@@ -201,18 +219,9 @@ class LeadForm(forms.Form):
             self.fields["name"].required = True
             self.fields["name"].error_messages["required"] = "Skriv ditt namn."
         for question in self.spec.questions:
-            if question["kind"] == "date":
-                field = forms.DateField(
-                    label=question["label"],
-                    required=False,
-                    input_formats=["%Y-%m-%d"],
-                    error_messages={"invalid": "Välj ett datum."},
-                )
-            else:
-                field = forms.CharField(
-                    label=question["label"], max_length=leads.ANSWER_MAX, required=False
-                )
-            self.fields[question["field"]] = field
+            field = self._question_field(question)
+            if field is not None:
+                self.fields[question["field"]] = field
         for name, field in self.fields.items():
             if isinstance(field, forms.CharField) and field.max_length:
                 field.error_messages["max_length"] = (
@@ -220,8 +229,58 @@ class LeadForm(forms.Form):
                 )
             field.widget.attrs.setdefault("id", f"rn-{name}")
 
+    @staticmethod
+    def _question_field(question):
+        required = bool(question.get("required"))
+        if question.get("choice"):
+            if not question.get("visible"):
+                return None
+            choices = [(o["key"], o["label"]) for o in question["options"]]
+            if question.get("multi"):
+                return forms.MultipleChoiceField(
+                    label=question["label"],
+                    choices=choices,
+                    required=required,
+                    error_messages={
+                        "required": "Välj minst ett svar.",
+                        "invalid_choice": "Välj bland alternativen.",
+                        "invalid_list": "Välj bland alternativen.",
+                    },
+                )
+            return forms.ChoiceField(
+                label=question["label"],
+                choices=choices,
+                required=required,
+                error_messages={
+                    "required": "Välj ett svar.",
+                    "invalid_choice": "Välj bland alternativen.",
+                },
+            )
+        if question["kind"] == "date":
+            return forms.DateField(
+                label=question["label"],
+                required=required,
+                input_formats=["%Y-%m-%d"],
+                error_messages={"invalid": "Välj ett datum.", "required": "Välj ett datum."},
+            )
+        return forms.CharField(
+            label=question["label"],
+            max_length=leads.ANSWER_MAX,
+            required=required,
+            error_messages={"required": "Svara på frågan."},
+        )
+
     def clean(self):
         cleaned = super().clean()
+        # Ett flerval med ett svar: två olika värden är ett fel, inte det
+        # sista (ChoiceField läser bara ett). Samma värde två gånger är ett.
+        if hasattr(self.data, "getlist"):
+            for question in self.spec.questions:
+                field = question["field"]
+                if not question.get("choice") or question.get("multi") or field not in self.fields:
+                    continue
+                if field not in self.errors and len(set(self.data.getlist(field))) > 1:
+                    self.add_error(field, "Välj bara ett svar.")
         #: Kanalerna vars ikryssade ruta fick ett fel (rutan märks i mallen).
         self.consent_error_channels = set()
         if self.consent:
@@ -236,18 +295,41 @@ class LeadForm(forms.Form):
         return cleaned
 
     def lead_data(self):
+        """Det leads.create_lead sparar. Ett flerval blir texten i answers
+        ("Bilservice, Reparation", i alternativens ordning) och en post i
+        choices (answers.clean_choices: frågans nyckel och text, flera svar
+        eller inte, alternativens nycklar och texter)."""
         data = {
             "name": self.cleaned_data.get("name", ""),
             "phone": self.cleaned_data.get("phone", ""),
             "email": self.cleaned_data.get("email", ""),
             "message": self.cleaned_data.get("message", ""),
             "answers": {},
+            "choices": [],
         }
         for question in self.spec.questions:
             value = self.cleaned_data.get(question["field"])
-            if value:
-                text = value.isoformat() if hasattr(value, "isoformat") else str(value)
-                data["answers"][question["label"]] = text
+            if not value:
+                continue
+            if question.get("choice"):
+                chosen = set(value) if isinstance(value, list | tuple) else {value}
+                picked = [o for o in question["options"] if o["key"] in chosen]
+                if not picked:
+                    continue
+                labels = [o["label"] for o in picked]
+                data["answers"][question["label"]] = ", ".join(labels)
+                data["choices"].append(
+                    {
+                        "q": question["key"],
+                        "label": question["label"],
+                        "multi": bool(question.get("multi")),
+                        "o": [o["key"] for o in picked],
+                        "labels": labels,
+                    }
+                )
+                continue
+            text = value.isoformat() if hasattr(value, "isoformat") else str(value)
+            data["answers"][question["label"]] = text
         data.update({key: self.data.get(key, "") for key in leads.TRACKING_KEYS})
         data[leads.KEYWORD_KEY] = self.data.get(leads.KEYWORD_KEY, "")
         return data
@@ -334,9 +416,10 @@ def _measure_context(request, campaign, preview):
     """Mätningen på sidan (flamingo-lp.js):
 
     call_beacon   adressen klicken på numret skickas till, eller "" när
-                  inget ska räknas: förhandsvisningen, demokonton och byrån
-                  (ett klick för att kontrollera numret är ingen förfrågan)"""
-    counted = not preview and not campaign.account.is_demo and not is_agency_user(request.user)
+                  inget ska räknas: förhandsvisningen, demokonton, byrån och
+                  kundens egna kontakter (ett klick för att kontrollera
+                  numret är ingen förfrågan)"""
+    counted = not preview and not campaign.account.is_demo and not _not_counted(request, campaign)
     return {
         "call_beacon": reverse("flamingo_public:call_click", args=[campaign.page_slug])
         if counted
@@ -356,10 +439,24 @@ def _utskick_click(campaign, *sources):
     return (ut, click) if click is not None else ("", None)
 
 
+def _own_visit(request, campaign):
+    """Är besökaren inloggad som kontakt hos kampanjens kund? Kundens egna
+    besök (till exempel "Öppna sidan" i verktyget) räknas inte."""
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return False
+    return user.customers.filter(pk=campaign.account.customer_id).exists()
+
+
+def _not_counted(request, campaign):
+    """Byrån och kundens egna kontakter räknas aldrig som besökare."""
+    return is_agency_user(request.user) or _own_visit(request, campaign)
+
+
 def _counted_visit(request, campaign, preview):
-    """Loggas besöket från ett utskick? Inte för byrån, förhandsvisningen
-    eller demokontot (E.4)."""
-    return not preview and not campaign.account.is_demo and not is_agency_user(request.user)
+    """Loggas besöket från ett utskick? Inte för byrån, kundens egna
+    kontakter, förhandsvisningen eller demokontot (E.4)."""
+    return not preview and not campaign.account.is_demo and not _not_counted(request, campaign)
 
 
 def _respond(html, status=200):
@@ -417,7 +514,9 @@ def landing(request, slug):
             status = 429
         tracking = leads.tracking_from(request.POST, request.GET)
     else:
-        form = LeadForm(spec=spec, consent=consent)
+        # Förvalet från länken (?val=, answers.py): bara ikryssat, aldrig mer.
+        initial = form_answers.initial_for(spec, request.GET.getlist(form_answers.PRESELECT_PARAM))
+        form = LeadForm(spec=spec, consent=consent, initial=initial)
 
     extra = _layout_extra(request, campaign, preview, page, which)
     extra.update(_measure_context(request, campaign, preview))
@@ -466,13 +565,13 @@ def call_click(request, slug):
     formuläret. Ett klick blir en förfrågan "Klick på telefonnumret" med
     klick-id och utm, högst en per besökare och kampanj och timme
     (limits.create_call_click_lead). Inget sms: ägaren får samtalet. Byrån
-    räknas inte. Med utskickets ut (flamingo-lp.js skickar den) får
-    förfrågan utskicket och spåret."""
+    och kundens egna kontakter räknas inte. Med utskickets ut
+    (flamingo-lp.js skickar den) får förfrågan utskicket och spåret."""
     campaign, click = _live_campaign(slug, request.POST)
     response = HttpResponse(status=204)
     response["Cache-Control"] = "no-store"
     response["X-Robots-Tag"] = "noindex, nofollow"
-    if is_agency_user(request.user):
+    if _not_counted(request, campaign):
         return response
     lead, refused = limits.create_call_click_lead(campaign, request.POST, request, click=click)
     if lead is None and refused != limits.LIMIT_DUPLICATE:
@@ -493,8 +592,8 @@ def visit_beacon(request, slug):
     skickat av flamingo-lp.js med sendBeacon. Kroppen: ut och s (sekunder).
     csrf_exempt: den signerade token är behörigheten (H.2), och sidan sätter
     ingen kaka. Svarar alltid 204 utan innehåll (ingen ska kunna se om
-    token gällde). Token från ett annat konto, byrån och demokontot
-    ignoreras; högst en skrivning per klick och tio sekunder
+    token gällde). Token från ett annat konto, byrån, kundens egna kontakter
+    och demokontot ignoreras; högst en skrivning per klick och tio sekunder
     (attribution.record_beacon)."""
     response = HttpResponse(status=204)
     response["Cache-Control"] = "no-store"
@@ -502,7 +601,7 @@ def visit_beacon(request, slug):
     if len(request.body or b"") > VISIT_BEACON_MAX_BYTES or is_agency_user(request.user):
         return response
     campaign = Campaign.objects.select_related("account").filter(page_slug=slug).first()
-    if campaign is None or campaign.account.is_demo:
+    if campaign is None or campaign.account.is_demo or _own_visit(request, campaign):
         return response
     _ut, click = _utskick_click(campaign, request.POST)
     if click is not None:

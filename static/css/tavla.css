@@ -481,7 +481,7 @@ body.is-dragging-any{cursor:grabbing}
 .tv-filters .m-btn{width:auto}
 
 /* ---------------------------------------------------------------------------
-   AWS-konton (apps/cloud): kundkortets sektion och portalens fakturor.
+   Molnkonton (apps/cloud): kundkortets sektion och portalens fakturor.
    --------------------------------------------------------------------------- */
 .aw-account{padding:14px 0;border-top:1px solid var(--m-border)}
 .aw-account.is-off{opacity:.6}

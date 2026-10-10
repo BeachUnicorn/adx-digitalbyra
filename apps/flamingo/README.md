@@ -74,6 +74,7 @@ Verktygets sidor:
 | `app/kampanjer/`, `ny/`, `<pk>/` | Kampanjerna, ny kampanj, förslaget i flikarna Annonser, Sökord, Sidan och Granskning, och inskicket med valet om granskning. Fliken Sidan visar kampanjens sida i sidbyggaren och låter kunden välja egen eller delad sida | 06-08 |
 | `app/sidor/`, `ny/`, `<pk>/` | Sidorna i sidbyggaren: listan, en ny sida ur mallarna för en tjänst (högst 50 sidor per konto), och redigeraren (sidan i en ram, blocken, versionerna, problemlistan, "Publicera ändringarna") | Sidbyggaren 01-09 |
 | `app/sidor/<pk>/spara/`, `rita/`, `nytt-block/`, `installningar/`, `publicera/`, `kopiera/`, `ta-bort/` (POST) | Redigerarens anrop (JSON): spara med rev (409 när någon annan sparat), rita block, ett nytt block ur mallen med sidans tjänst och pris, namn och palett, publicera med rev, kopiera och ta bort (`app_views/pages.py`) | |
+| `app/sidor/<pk>/forhandsvisa/` | Förhandsvisningen av en sida som ingen kampanj använder: utkastet som besökarna skulle se det, bara inloggad, noindex, formuläret skickar inget (`app_views/page_preview.py`). Listan och sidbyggaren har "Öppna sidan" och "Visa sidan" med adressen och Kopiera: kampanjens `/lp/<slug>/`, en per kampanj, eller "Förhandsvisa" | |
 | `app/sidor/<pk>/ai/bygg/`, `ai/skriv-om/`, `konverteringskoll/` | "Bygg sidan åt mig", "Skriv om" och Konverteringskollen (JSON, `app_views/page_ai.py`, `pagebuilder/ai.py`, `koll.py`). Sparar ingenting | Sidbyggaren 05-07 |
 | `app/media/`, `lista/`, `ladda-upp/` | Mediaarkivet: logotypen, uppladdade bilder och bilderna från hemsidan, färgerna ur logotypen (`app_views/media.py`, `media.py`) | Sidbyggaren 08 |
 | `app/omdomen/` | Omdömen från Google: profilen, "Det här är vi", "Profilen är vår" och valet av omdömen (`app_views/reviews.py`, `reviews.py`). Under dem profilen på Reco (`#reco`): länken eller id:t, "Det här är vi", "Profilen är vår", "Hämta igen", "Koppla bort profilen" och valet av omdömen för Utvalda (gömt när Utvalda är av) (`reco.py`) | Sidbyggaren 10 |
@@ -273,6 +274,38 @@ Kontrakten (blockens JSON, registret, renderaren, hjälparna) står i
 - **Redigeraren** (`static/js/flamingo-pb.js`) ritar sidan i en ram med
   srcdoc; dokumentet har `Content-Security-Policy: script-src 'none'`, så
   inget skript i sidan körs där.
+- **Flerval i formuläret** (Giovanni 2026-10-10, `answers.py`). En fråga kan
+  vara Flerval, ett svar (`one`) eller Flerval, flera svar (`many`), med två
+  till åtta alternativ i fältet Alternativ, ett per rad, och Svar: Valfritt
+  eller Krävs (gäller alla sorter; äldre frågor är valfria och sparas
+  oförändrade, `registry.Field.omit_when_absent`). Redigeraren visar
+  Alternativ och Svar på varje fråga, eftersom panelen inte kan dölja ett
+  underfält per sort. Högst två flervalsfrågor i ett formulär (principen
+  Färre fält säger det; den tredje ritas inte och sidan går inte att
+  publicera förrän den är ändrad), och för få, för många, för långa eller
+  lika alternativ stoppar också publiceringen, inte sparningen. Talen i ett
+  alternativ prövas inte mot uppgifterna ("1", "Under 50 kvm"), utom när
+  alternativet har ett pris eller en andel ("995 kr", "20 %"). Inget
+  "högst N svar": bara ett eller flera. På sidan är alternativen stora
+  knappar (riktiga radioknappar eller kryssrutor i en fieldset, inget
+  skript). Ett alternativs nyckel kommer ur texten ("Felsökning" blir
+  `felsokning`; en text utan a-z och 0-9, som "★★" eller "Да", får
+  `alt-` och en hash av texten, aldrig sin plats) och står kvar när
+  ordningen byts; byts texten blir det ett nytt alternativ. Backas
+  releasen tillbaka går sidor med flerval eller med fälten Alternativ och
+  Svar inte att spara i den äldre redigeraren (den känner inte fälten och
+  sorterna `one`/`many`), och den äldre sidan ritar flervalen som
+  textfält; inget sparat försvinner, och det fungerar igen efter nästa
+  deploy. Svaret sparas som text i `Lead.answers` (inkorgen och
+  GDPR-utdraget visar det som förut) och med nycklarna i
+  `Lead.choice_answers` (migreringen 0018, db_default `[]`), som utskickens
+  segment läser (`answers.chose_q`). `?val=<fråga>.<alternativ>` på sidans
+  adress kryssar i alternativ när sidan öppnas; okända värden ignoreras och
+  en postning prövas som vanligt. Svaren per sida finns under Sidor, Svar
+  (`/flamingo/app/sidor/<id>/svar/`): antal och procent per alternativ, av
+  förfrågningarna som svarade på frågan, utan skräp. AI skriver aldrig om
+  alternativen. Inga nya sms eller mejl: ägarens sms är kort med flit och
+  har inga svar.
 - **De gamla kampanjsidorna** flyttades in automatiskt i Ren (migreringen
   0011, fryst mappning). `Campaign.page` står kvar som historik och läses inte.
   Granskningen rättar inte längre sidan: den länkar till sidbyggaren
@@ -736,7 +769,10 @@ timmen per besökare och 30 i timmen per kampanj. En IPv6-adress räknas som
 sitt /64-nät (`limits.ip_bucket`), också för formulärets spärrar. Nås
 kampanjens gräns får byrån ett larm, högst ett i timmen per kampanj. Byråns
 klick räknas inte (remsan säger det), och tel:-länkarna på tacksidan räknas
-inte. Utan skript räknas inget, och länken fungerar ändå. Förfrågningarna
+inte. Inte heller kundens egna: en inloggad kontakt hos kampanjens kund
+("Öppna sidan" i verktyget) räknas varken som klick, besök från ett
+utskick eller tid på sidan (`public_views._own_visit`), men formuläret
+fungerar som vanligt. Utan skript räknas inget, och länken fungerar ändå. Förfrågningarna
 räknas med ett lås per kampanj i Postgres (`pg_advisory_xact_lock`), inte
 kampanjens rad, så ett klick väntar aldrig på en paus hos Google.
 

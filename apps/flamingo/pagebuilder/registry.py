@@ -27,6 +27,19 @@ Ett fält har en sort (Field.kind):
     key        en nyckel med a-z, 0-9 och bindestreck (bara som underfält;
                formulärets frågor). Saknas den skapas den ur etiketten.
 
+Ett underfält med Field.omit_when_absent läggs inte till i en post som
+saknar det: en äldre post sparas oförändrad, så att versionens källa och
+signatur står kvar (redigeraren läser aldrig om blocken efter en sparning,
+och app_views/pages.stamp_authorship jämför fälten). Formulärets frågor har
+två sådana: "options" (flervalets alternativ, ett per rad, textarea) och
+"required" (Valfritt eller Krävs). Redigeraren visar alla underfält på varje
+rad, så Alternativ och Svar syns också på en fråga med kort svar; Svar
+gäller alla sorter, alternativen bara flerval (Flerval, ett svar och
+Flerval, flera svar). Högst CHOICE_QUESTIONS_MAX flervalsfrågor i ett
+formulär, och två till åtta alternativ på högst 60 tecken: det som bryter
+mot det är ett problem vid publiceringen (problems.py), inget schemafel, så
+att sidan går att spara medan kunden skriver och byter Sorts svar.
+
 Fält med Field.variants används bara i de varianterna, men värdet sparas
 kvar när kunden byter variant ("texten följer med"). Variant.limits säger
 hur många poster varianten visar (Vanliga frågor: tre eller sex).
@@ -86,7 +99,16 @@ def requires_url(requires):
     return url + "#reco" if requires == REQUIRES_RECO else url
 
 
-QUESTION_KIND_LABELS = {"text": "Kort svar", "textarea": "Längre text", "date": "Datum"}
+QUESTION_KIND_LABELS = {
+    "text": "Kort svar",
+    "textarea": "Längre text",
+    "date": "Datum",
+    "one": "Flerval, ett svar",
+    "many": "Flerval, flera svar",
+}
+#: Frågans "required": tomt är valfritt (så har alla äldre frågor varit).
+REQUIRED = "required"
+REQUIRED_CHOICES = (("", "Valfritt"), (REQUIRED, "Krävs"))
 
 #: Bibliotekets rubriker (skärm 03 i mockupen), i ordning.
 GROUPS = (
@@ -114,6 +136,10 @@ class Field:
     placeholder: str = ""
     #: En post i listan, i singular ("Punkt 1", "Ort 2"); tomt = label.
     item_label: str = ""
+    #: Bara som underfält: saknas fältet i en post läggs det inte till när
+    #: posten rensas (blocks._clean_value), så att en äldre post sparas
+    #: oförändrad och behåller sin källa och signatur. Inte i as_dict.
+    omit_when_absent: bool = False
 
     def used_by(self, variant):
         return not self.variants or variant in self.variants
@@ -224,6 +250,14 @@ NOTE_MAX = 600
 SUBMIT_MAX = 30
 QUESTION_MAX = 120
 ANSWER_MAX = 400
+#: Flervalet: alternativen som text (ett per rad), ett alternativ, minst och
+#: högst så många alternativ, och högst så många flervalsfrågor i ett
+#: formulär (Färre fält).
+OPTIONS_TEXT_MAX = 500
+OPTION_MAX = 60
+OPTIONS_MIN = 2
+OPTIONS_MAX = 8
+CHOICE_QUESTIONS_MAX = 2
 
 _TITLE = Field("title", "Rubrik", TEXT, max_length=TITLE_MAX)
 
@@ -524,6 +558,20 @@ TYPES_LIST = (
                         CHOICE,
                         choices=tuple((k, QUESTION_KIND_LABELS[k]) for k in PAGE_QUESTION_KINDS),
                     ),
+                    Field(
+                        "options",
+                        "Alternativ för flerval, ett per rad",
+                        TEXTAREA,
+                        max_length=OPTIONS_TEXT_MAX,
+                        omit_when_absent=True,
+                    ),
+                    Field(
+                        "required",
+                        "Svar",
+                        CHOICE,
+                        choices=REQUIRED_CHOICES,
+                        omit_when_absent=True,
+                    ),
                 ),
             ),
             Field("note_title", "Rubrik på rutan", TEXT, max_length=SHORT_MAX),
@@ -532,7 +580,7 @@ TYPES_LIST = (
         ),
         why=(
             "Varje extra fält tappar några. Namn och telefon räcker ofta; frågor "
-            "bara när de behövs."
+            "bara när de behövs, och högst två flervalsfrågor."
         ),
         principle="Färre fält",
         single=True,

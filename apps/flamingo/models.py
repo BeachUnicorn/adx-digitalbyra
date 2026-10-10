@@ -130,8 +130,13 @@ MATCH_CHOICES = [
     (MATCH_BROAD, "Bred"),
 ]
 
-#: Frågetyper på landningssidans formulär (Campaign.page["questions"]).
-PAGE_QUESTION_KINDS = ("text", "textarea", "date")
+#: Frågetyper på landningssidans formulär (formulärblockets "questions",
+#: förut Campaign.page["questions"]). one och many är flerval med ett
+#: respektive flera svar; alternativen står i frågans "options", ett per rad
+#: (pagebuilder/blocks.parse_options). En konstant, ingen migrering.
+PAGE_QUESTION_KINDS = ("text", "textarea", "date", "one", "many")
+#: Flervalen bland dem (Lead.choice_answers, apps/flamingo/answers.py).
+PAGE_CHOICE_KINDS = ("one", "many")
 
 #: Standardtext för autosvaret. Inga tider och inga löften: kunden skriver
 #: om den i sina inställningar om hen vill säga mer.
@@ -1552,7 +1557,22 @@ class Lead(models.Model):
     email = models.EmailField("E-post", blank=True)
     message = models.TextField("Meddelande", blank=True)
     #: Svaren på formulärets frågor: {"Ungefär hur stort?": "6 m2", ...}.
+    #: Ett flerval står här som text ("Bilservice, Reparation").
     answers = models.JSONField("Svar", default=dict, blank=True)
+    #: Svaren på flervalsfrågorna, med alternativens nycklar (answers.py,
+    #: clean_choices): en post per besvarad fråga,
+    #: [{"page": <LandingPage-id>, "q": "tjanst", "label": "Vilken tjänst?",
+    #:   "multi": true, "o": ["bilservice", "reparation"],
+    #:   "labels": ["Bilservice", "Reparation"]}].
+    #: page sätts av leads.create_lead ur kampanjens sida, aldrig ur det som
+    #: postas. Tomt för förfrågningar utan flerval. db_default: den förra
+    #: versionen skriver förfrågningar utan fältet (apps/utskick README B.0).
+    choice_answers = models.JSONField(
+        "Flervalssvar",
+        default=list,
+        blank=True,
+        db_default=Value([], output_field=models.JSONField()),
+    )
     gclid = models.CharField("Googles klick-id", max_length=200, blank=True)
     #: Klick-id:n från iOS (appar respektive webben), när gclid saknas.
     gbraid = models.CharField("Googles klick-id (gbraid)", max_length=200, blank=True)

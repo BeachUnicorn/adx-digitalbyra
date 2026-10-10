@@ -15,7 +15,9 @@ site (business, phone, tel, address, hours, rating, logo, has_form ...),
 blocks_html, palette_style (palettens CSS-variabler), editing, which,
 page_title, page_description, has_callbar. Från public_views dessutom
 preview, is_staff, status_label, review_url, call_beacon, tracking, action,
-draft_url och published_url.
+draft_url och published_url. page_preview (app_views/page_preview.py,
+förhandsvisningen av utkastet i verktyget, bara inloggad) ger en egen remsa
+överst.
 
 Varje tel:-länk har data-fl-call; static/js/flamingo-lp.js räknar klicket
 utan att hålla upp samtalet. data-fl-visit (visit_beacon) finns bara för
@@ -42,9 +44,16 @@ Sidhuvudet ligger fast överst från 720 px. I mobilen, när ringremsan finns,
 {% if is_staff and not editing %}
 <div class="rn-staff" role="note">
   <div class="rn-wrap rn-staff__in">
-    <p class="rn-staff__text">{% if preview %}<b>Förhandsvisning.</b> Kampanjens status: {{ status_label }}. Sidan syns bara för ADX och formuläret skickar inget.{% else %}<b>Live.</b> Du är inloggad som ADX. En förfrågan härifrån hamnar i kundens inkorg, men ett klick på numret räknas inte.{% endif %}
+    <p class="rn-staff__text">{% if preview %}<b>Förhandsvisning.</b> Kampanjens status: {{ status_label }}. Sidan är öppen för alla som har adressen, men formuläret skickar inget för ADX.{% else %}<b>Live.</b> Du är inloggad som ADX. En förfrågan härifrån hamnar i kundens inkorg, men ett klick på numret räknas inte.{% endif %}
     {% if which == "draft" %}Du ser utkastet{% if page.is_published %}, inte den publicerade sidan{% else %}; sidan är inte publicerad än{% endif %}.{% elif page.has_unpublished_changes %}Du ser den publicerade sidan. Utkastet har ändringar som inte är publicerade.{% endif %}</p>
     <p class="rn-staff__links">{% if which == "draft" and published_url %}<a class="rn-staff__link" href="{{ published_url }}">Visa den publicerade</a>{% elif which == "published" and draft_url %}<a class="rn-staff__link" href="{{ draft_url }}">Visa utkastet</a>{% endif %}{% if review_url %}<a class="rn-staff__link" href="{{ review_url }}">Till granskningen</a>{% endif %}</p>
+  </div>
+</div>
+{% endif %}
+{% if page_preview and not editing %}
+<div class="rn-staff" role="note">
+  <div class="rn-wrap rn-staff__in">
+    <p class="rn-staff__text"><b>Förhandsvisning.</b> Du ser utkastet. Förhandsvisningen syns bara för den som är inloggad i Flamingo, och formuläret skickar inget.</p>
   </div>
 </div>
 {% endif %}

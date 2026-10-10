@@ -72,8 +72,20 @@ servern inte känner igen behåller sin källa bara med en giltig signatur.
 
 Formulärets frågor (formulärblockets fält "questions") har formen
 {"key": "storlek", "label": "Ungefär hur stort?", "kind": "text"}, där kind
-är text, textarea eller date. Fältet i formuläret heter q_<key>, och svaret
-sparas som Lead.answers[label], som förut.
+är text, textarea, date, one (Flerval, ett svar) eller many (Flerval, flera
+svar). Fältet i formuläret heter q_<key>, och svaret sparas som
+Lead.answers[label], som förut. Två fält kan finnas, och läggs aldrig till
+i en äldre fråga (registry.Field.omit_when_absent):
+
+    "options"   flervalets alternativ, ett per rad (blocks.parse_options:
+                nyckeln ur texten, "Felsökning" blir "felsokning"; två till
+                åtta, högst 60 tecken vardera)
+    "required"  "" (valfritt, som alla äldre frågor) eller "required" (krävs)
+
+Ett flerval sparas också med nycklarna i Lead.choice_answers (answers.py),
+högst två flervalsfrågor i ett formulär (ett problem som stoppar
+publiceringen, problems.py; den tredje ritas inte), och sidan tar
+emot ?val=<fråga>.<alternativ> som förval (answers.initial_for).
 
 Typerna och varianterna (registry.py):
 
@@ -126,6 +138,9 @@ from .blocks import (
     form_spec,
     is_signed,
     new_block,
+    option_key,
+    option_problems,
+    parse_options,
     service_ctx,
     sign_version,
     validate_blocks,
@@ -195,11 +210,14 @@ __all__ = [
     "live_campaigns",
     "new_block",
     "new_page",
+    "option_key",
+    "option_problems",
     "page_context",
     "page_problems",
     "page_view_context",
     "pages_for",
     "palette_vars",
+    "parse_options",
     "problem_text",
     "publish_for_campaign",
     "publish_page",

@@ -1,8 +1,9 @@
 {% load flamingo_app %}{% comment %}
 Ett kort i inkorgens lista (som admin-inkorg.html): status och tid överst,
-kanalen till höger, namnet, tjänsten och början av meddelandet.
-Kontext: item (Lead med card_ago, card_channel och card_status), current
-(pk eller None). Ett svar på utskick (S2) visar "Klar" i stället för
+kanalen till höger, namnet, tjänsten och början av meddelandet (eller
+svaret på formulärets flerval när meddelandet saknas).
+Kontext: item (Lead med card_ago, card_channel, card_status och card_text),
+current (pk eller None). Ett svar på utskick (S2) visar "Klar" i stället för
 Kontaktad, tiden för senaste svaret och början av det.
 {% endcomment %}<li class="fl-inbox-card{% if item.pk == current %} is-current{% endif %}{% if item.status == "new" %} is-new{% endif %}{% if item.status == "won" or item.status == "lost" or item.status == "junk" %} is-closed{% endif %}">
   <a class="fl-inbox-card__link" href="{% url 'flamingo:app_lead' item.pk %}"{% if item.pk == current %} aria-current="page"{% endif %}>
@@ -11,6 +12,6 @@ Kontaktad, tiden för senaste svaret och början av det.
       <span class="fl-inbox-card__channel{% if item.card_channel == "STOPP" %} is-stop{% endif %}">{{ item.card_channel }}</span>
     </span>
     <span class="fl-inbox-card__name">{{ item.display_name }}</span>
-    {% if item.service_name or item.message %}<span class="fl-inbox-card__meta">{% if item.service_name %}{{ item.service_name }}{% endif %}{% if item.service_name and item.message %} · {% endif %}{% if item.message %}{{ item.message }}{% endif %}</span>{% endif %}
+    {% if item.service_name or item.card_text %}<span class="fl-inbox-card__meta">{% if item.service_name %}{{ item.service_name }}{% endif %}{% if item.service_name and item.card_text %} · {% endif %}{% if item.card_text %}{{ item.card_text }}{% endif %}</span>{% endif %}
   </a>
 </li>

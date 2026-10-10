@@ -618,9 +618,27 @@ def _state(page, account, blocks, *, editing=False, request=None, form=None, ext
     )
 
 
+def _chosen(bound):
+    """Alternativen som är ikryssade: det som postades, annars förvalet
+    (?val=, formulärets initial)."""
+    value = bound.value() if bound is not None else None
+    if value in (None, ""):
+        return set()
+    if isinstance(value, list | tuple):
+        return {str(v) for v in value}
+    return {str(value)}
+
+
 def _form_context(state):
     """Formulärets kontext: LeadForm (bunden eller tom) och frågorna med
-    sina fält, honungsfältet, dolda fält för klick-id och adressen."""
+    sina fält, honungsfältet, dolda fält för klick-id och adressen. Ett
+    flerval får sina alternativ med id och om de är ikryssade.
+
+    Id:n som hör till en fråga är "rn-q_<nyckel>" (ett textfält),
+    "rn-q_<nyckel>.<n>" (alternativ n, från 1), "rn-q_<nyckel>.fel" (felet)
+    och "rn-q_<nyckel>.hjalp" (hjälptexten): nycklarna har aldrig punkt och
+    alternativen är tal, så två frågor, eller ett alternativ som heter Fel,
+    kan inte ge samma id."""
     from ..public_views import HONEYPOT, LeadForm
 
     spec = state.site.spec or FormSpec()
@@ -628,7 +646,14 @@ def _form_context(state):
     questions = []
     for q in spec.questions:
         bound = form[q["field"]] if q["field"] in form.fields else None
-        questions.append({**q, "bound": bound})
+        row = {**q, "bound": bound, "error_id": f"rn-{q['field']}.fel"}
+        if q.get("choice"):
+            chosen = _chosen(bound)
+            row["options"] = [
+                {**o, "id": f"rn-{q['field']}.{n}", "checked": o["key"] in chosen}
+                for n, o in enumerate(q["options"], start=1)
+            ]
+        questions.append(row)
     return {
         "form": form,
         "questions": questions,

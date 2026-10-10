@@ -85,6 +85,24 @@ VIEWS = {
     "formular": "Skickade formuläret",
 }
 SKIPPED_PREFIX = "hoppades-over-"
+#: Orsaker vars värde i databasen inte ska stå i adressfältet: värdet
+#: nämner e-posttjänstens leverantör (Giovanni 2026-10-10). Det gamla värdet
+#: fungerar ändå i ?visa=, så att sparade länkar inte går sönder.
+SKIP_SLUGS = {Recipient.SkipReason.SES_SUPPRESSED: "sparrad-hos-e-posttjansten"}
+
+
+def skipped_view(reason):
+    """?visa= för mottagarna som hoppades över av orsaken."""
+    return SKIPPED_PREFIX + SKIP_SLUGS.get(reason, reason)
+
+
+def skipped_reason(view):
+    """Orsaken i en vy "hoppades-over-<orsak>", eller None för en okänd."""
+    slug = view[len(SKIPPED_PREFIX) :]
+    reason = next((str(r) for r, s in SKIP_SLUGS.items() if s == slug), slug)
+    return reason if reason in Recipient.SkipReason.values else None
+
+
 #: S4: "lank-<id>" klickade på länken, "lank-<id>-forfragan" förfrågan via den.
 LINK_PREFIX = "lank-"
 LINK_LEADS_SUFFIX = "-forfragan"
@@ -290,8 +308,8 @@ def view_q(utskick, view, channel=None):
     räknas med samma villkor)."""
     view = str(view or "")
     if view.startswith(SKIPPED_PREFIX):
-        reason = view[len(SKIPPED_PREFIX) :]
-        if reason not in Recipient.SkipReason.values:
+        reason = skipped_reason(view)
+        if reason is None:
             return None
         return Q(status=R.SKIPPED, skip_reason=reason)
     if view.startswith(LINK_PREFIX):
@@ -344,11 +362,10 @@ def view_q(utskick, view, channel=None):
 
 def view_label(view, utskick=None):
     if view.startswith(SKIPPED_PREFIX):
-        reason = view[len(SKIPPED_PREFIX) :]
-        try:
-            return "Hoppades över: " + Recipient.SkipReason(reason).label.lower()
-        except ValueError:
+        reason = skipped_reason(view)
+        if reason is None:
             return ""
+        return "Hoppades över: " + Recipient.SkipReason(reason).label.lower()
     # S4: en länks egna vyer heter efter länken.
     if view.startswith(LINK_PREFIX) and utskick is not None:
         link, leads = _view_link(utskick, view)

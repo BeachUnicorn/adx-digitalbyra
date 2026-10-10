@@ -18,6 +18,8 @@ finns (storlek, justering, sida) är fält.
 
     EMAIL_TYPES             {typ: BlockType} för de 22 blocken
     BLOCK_KEYS              blockens nycklar i ordning (fasta)
+    RETIRED_FIELDS          {typ: nycklar} för fält som tagits bort; sparade
+                            värden ignoreras (underskriftens script_name)
     DOC_ELEMENTS            ("header", "footer"): dokumentets låsta delar
     GROUPS                  bibliotekets rubriker
     get_type(key)           BlockType eller None
@@ -505,7 +507,6 @@ TYPES_LIST = (
         "trust",
         (
             F("greeting", "Hälsning", TEXT, max_length=40, placeholder="Vänliga hälsningar,"),
-            F("script_name", "Namnet i skrivstil", TEXT, max_length=30),
             F("photo", "Bild", MEDIA),
             F("name", "Namn", TEXT, max_length=60),
             F("line", "Rad under namnet", TEXT, max_length=120),
@@ -549,6 +550,18 @@ TYPES_LIST = (
 
 EMAIL_TYPES = {t.key: t for t in TYPES_LIST}
 assert tuple(EMAIL_TYPES) == BLOCK_KEYS, "EMAIL_TYPES och BLOCK_KEYS i samma ordning"
+
+#: Fält som har tagits bort ur ett block: {typ: nycklar}. Sparade mejl kan
+#: ha kvar dem i email_doc. De ritas inte, nekas inte (blocks._Cleaner) och
+#: försvinner när mejlet sparas nästa gång; en version som bara skiljer sig
+#: i dem räknas som oförändrad (blocks._stamp).
+#: Underskriftens script_name ("Namnet i skrivstil") togs bort 2026-10-10
+#: (Giovanni): systemets skrivstilar ser ut som ett bröllopskort och ser
+#: olika ut på varje enhet, och ett mejl kan inte ha med sig ett eget typsnitt.
+RETIRED_FIELDS = {"signature": frozenset({"script_name"})}
+assert not any(
+    keys & {f.key for f in EMAIL_TYPES[key].fields} for key, keys in RETIRED_FIELDS.items()
+), "ett borttaget fält står kvar i schemat"
 
 #: Bibliotekets grupp per block.
 GROUP_NAMES = dict(GROUPS)

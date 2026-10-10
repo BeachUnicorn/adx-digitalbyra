@@ -113,7 +113,7 @@ def _banners(account, now):
         account=account, status=Utskick.Status.PAUSED_HEALTH, pause_reason__in=HEALTH_REASONS
     )
     for utskick in paused.order_by("-status_changed_at")[:10]:
-        note = ((utskick.stats or {}).get("pause") or {}).get("note", "")
+        note = health.shown_note(((utskick.stats or {}).get("pause") or {}).get("note", ""))
         if not note:
             note = (
                 health.BLOCKED_TEXT

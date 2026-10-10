@@ -48,6 +48,15 @@ Fälten och deras operatorer (FIELDS):
     visited_lp      within_days, not_within_days   Event lp_visit eller site_visit
     lead            within_days, not_within_days   förfrågan (Lead.contact, inte
                                                    svarstrådarnas och inte skräp)
+    answer:<sida>.<fråga>
+                    in, not_in            v = [alternativ]  svar i formulär: en
+                                          förfrågan som lead ovan (kopplad till
+                                          kontakten, inte skräp eller svarstrådar)
+                                          valde något av alternativen på sidans
+                                          flervalsfråga (Lead.choice_answers,
+                                          apps/flamingo/answers.py); sidan är
+                                          LandingPage-id och hämtas med kontot
+                                          i villkoret (ForeignIds annars)
     replied         within_days, not_within_days   svar i en tråd (ThreadMessage
                                                    in, inte STOPP-trådar)
     source          in, not_in            v = [Contact.Source]
@@ -73,9 +82,14 @@ Uppföljningen från rapporten ("Följ upp de som inte klickade", I.8):
 
 Regler (H.1): clean prövar varje list-, tagg- och utskicks-id med
 access.owned_ids (ett främmande id ger ForeignIds, vyn svarar 400) och varje
-fältnyckel mot kontots FieldDef. compile_q börjar aldrig själv: contacts()
-börjar från Contact.objects.filter(account=account), och varje delfråga
-har list__account=, tag__account=, utskick__account= eller account= i
+fältnyckel mot kontots FieldDef. En svarsregel prövar att sidan är kontots
+(den hämtas med kontot i villkoret, bara de sidor reglerna pekar på;
+ForeignIds annars, som owned_ids) och att frågan och alternativen finns på
+sidan nu (answers.questions_by_page); den sparade regeln kompileras ändå med
+sina nycklar om frågan tas bort sedan (förfrågningarna står kvar).
+compile_q börjar aldrig själv: contacts() börjar från
+Contact.objects.filter(account=account), och varje delfråga har
+list__account=, tag__account=, utskick__account= eller account= i
 villkoret, så ett manipulerat id i databasen ger färre kontakter, aldrig
 någon annans. En regel som inte går att läsa ger inga kontakter. Varje
 villkor är sant eller falskt, aldrig NULL, där det kan negeras
@@ -112,6 +126,7 @@ bara i utskicket).
 """
 
 import operator
+import re
 import time as monotonic_clock
 from calendar import monthrange
 from datetime import date, datetime, time, timedelta
@@ -151,7 +166,7 @@ from apps.common.security import normalize_typography
 from apps.sms.pricing import STOCKHOLM
 
 from . import consent as consents
-from .access import owned_ids, settings_for
+from .access import ForeignIds, owned_ids, settings_for
 from .models import (
     CHANNEL_EMAIL,
     CHANNEL_SMS,
@@ -235,6 +250,8 @@ FIELDS = {
     "clicked": ACTIVITY_OPS,
     "visited_lp": WINDOW_OPS,
     "lead": WINDOW_OPS,
+    # Svar i formulär (Giovanni 2026-10-10): answer:<sida>.<fråga>.
+    "answer": ID_OPS,
     "replied": WINDOW_OPS,
     "source": ID_OPS,
     "created": CREATED_OPS,
@@ -263,8 +280,11 @@ MISSING_TEXTS = {
     "channel": "Välj sms eller e-post.",
     "kind": "Välj privatperson eller företag.",
     "source": "Välj en källa.",
+    "answer": "Välj ett svar.",
 }
 GONE_FIELD_TEXT = "Fältet finns inte längre. Välj ett annat."
+GONE_QUESTION_TEXT = "Frågan finns inte längre på sidan. Välj en annan."
+ANSWER_CHOICE_TEXT = "Välj ett av frågans svar."
 DAYS_TEXT = f"Skriv ett antal dagar från 1 till {MAX_DAYS}."
 MONTHS_TEXT = f"Skriv ett antal månader från 1 till {MAX_MONTHS}."
 NUMBER_TEXT = "Skriv ett tal, till exempel 2 eller 2,5."
@@ -278,6 +298,8 @@ TOO_MANY_IDS_TEXT = f"Välj högst {MAX_IDS} i ett villkor."
 NOTHING = Q(pk__in=[])
 
 _ISO_DATE = r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+#: Svarsregelns nyckel: <sidans id>.<frågans nyckel> (fullmatch).
+_ANSWER_KEY = re.compile(r"([1-9][0-9]{0,9})\.([a-z0-9][a-z0-9_-]{0,39})")
 _NUMBER = r"^-?[0-9]{1,15}([.][0-9]{1,10})?$"
 _DECIMAL = DecimalField(max_digits=26, decimal_places=10)
 #: Fält som har id:n i v (modellen, och texten när inget är valt).
@@ -440,6 +462,15 @@ def _text(value):
     return " ".join(normalize_typography(value).split())
 
 
+def _answer_key(key):
+    """(sidans id, frågans nyckel) ur en svarsregels nyckel ("12.tjanst"),
+    eller None."""
+    match = _ANSWER_KEY.fullmatch(key) if isinstance(key, str) else None
+    if match is None:
+        return None
+    return int(match.group(1)), match.group(2)
+
+
 def _split(rule):
     """(namn, nyckel, op, v) ur en regel, eller None."""
     if not isinstance(rule, dict):
@@ -452,20 +483,34 @@ def _split(rule):
 
 
 class _Context:
-    """Det en kompilering eller prövning behöver om kontot: tiden och
-    extrafälten (en fråga, första gången de behövs)."""
+    """Det en kompilering eller prövning behöver om kontot: tiden,
+    extrafälten och flervalsfrågorna på sidorna reglerna pekar på (en
+    databasfråga för fälten, en per sida, första gången de behövs)."""
 
     def __init__(self, account_id, now=None):
         self.account_id = account_id
         self.now = now or timezone.now()
         self.today = today_in_stockholm(self.now)
         self._fields = None
+        self._pages = {}
 
     @property
     def fields(self):
         if self._fields is None:
             self._fields = {d.key: d for d in FieldDef.objects.filter(account_id=self.account_id)}
         return self._fields
+
+    def page_questions(self, page_id):
+        """{frågans nyckel: answers.ChoiceQuestion} för sidan som besökarna
+        ser den, eller None när sidan inte är kontots (eller inte finns).
+        Bara sidan hämtas, med kontot i villkoret, en gång per sida."""
+        if page_id not in self._pages:
+            from apps.flamingo import answers as form_answers
+
+            found = form_answers.questions_by_page(self.account_id, [page_id])
+            questions = found.get(page_id)
+            self._pages[page_id] = None if questions is None else {q.key: q for q in questions}
+        return self._pages[page_id]
 
 
 # ---------------------------------------------------------------------------
@@ -722,6 +767,27 @@ def _c_lead(ctx, key, op, value):
     return _exists(rows, op)
 
 
+def _c_answer(ctx, key, op, value):
+    """Svar i formulär: en förfrågan kopplad till kontakten (som "lead": inte
+    svarstrådarnas och inte skräp) valde något av alternativen på sidans
+    fråga. Bara kontots förfrågningar; sidan i Lead.choice_answers är alltid
+    kampanjens egen (leads.create_lead), aldrig något som postats."""
+    from apps.flamingo import answers as form_answers
+    from apps.flamingo.models import Lead
+
+    parsed = _answer_key(key)
+    options = [o for o in _strings(value) if form_answers.KEY_RE.fullmatch(o)]
+    if parsed is None or not options:
+        return None
+    rows = (
+        Lead.objects.filter(contact=OuterRef("pk"), account_id=ctx.account_id)
+        .filter(form_answers.chose_q(parsed[0], parsed[1], options))
+        .exclude(source=Lead.SOURCE_REPLY)
+        .exclude(status=Lead.STATUS_JUNK)
+    )
+    return _exists(rows, op)
+
+
 def _c_replied(ctx, key, op, value):
     rows = ThreadMessage.objects.filter(
         thread__contact=OuterRef("pk"),
@@ -746,6 +812,7 @@ _COMPILERS = {
     "clicked": _c_clicked,
     "visited_lp": _c_visited_lp,
     "lead": _c_lead,
+    "answer": _c_answer,
     "replied": _c_replied,
 }
 
@@ -960,10 +1027,33 @@ def _clean_text(value):
     return text
 
 
+def _clean_answer(ctx, key, value):
+    """Alternativen i en svarsregel: nycklar som finns på frågan nu, utan
+    dubbletter, i den ordning de valdes. _clean_rule har redan prövat sidan
+    och frågan."""
+    values = [v for v in _as_list(value) if v not in ("", None)]
+    if not values:
+        raise _Missing("answer")
+    if len(values) > MAX_IDS:
+        raise _Bad(TOO_MANY_IDS_TEXT)
+    page_id, question_key = _answer_key(key)
+    question = ctx.page_questions(page_id)[question_key]
+    out = []
+    for raw in values:
+        option = raw.strip() if isinstance(raw, str) else ""
+        if option not in question.option_keys:
+            raise _Bad(ANSWER_CHOICE_TEXT)
+        if option not in out:
+            out.append(option)
+    return out
+
+
 def _clean_value(account, ctx, name, key, op, value):
     """Värdet i kanonisk form, eller _Missing / _Bad / ForeignIds."""
     if op in NO_VALUE_OPS and name != "consent":
         return None
+    if name == "answer":
+        return _clean_answer(ctx, key, value)
     if name in _ID_MODELS and op in ("in", "not_in"):
         model, what = _ID_MODELS[name]
         ids = _owned(model, account, value)
@@ -1036,6 +1126,20 @@ def _clean_value(account, ctx, name, key, op, value):
     raise _Bad(VALUE_TEXT)
 
 
+def _clean_answer_key(account, ctx, key):
+    """Svarsregelns sida och fråga: sidan är kontots (ForeignIds annars, som
+    owned_ids; sidan hämtas med kontot i villkoret, ctx.page_questions) och
+    frågan finns på den nu (GONE_QUESTION_TEXT annars)."""
+    parsed = _answer_key(key)
+    if parsed is None:
+        raise _Bad(SHAPE_TEXT)
+    questions = ctx.page_questions(parsed[0])
+    if questions is None:
+        raise ForeignIds
+    if parsed[1] not in questions:
+        raise _Bad(GONE_QUESTION_TEXT)
+
+
 def _clean_rule(account, ctx, rule, locked):
     """En regel i kanonisk form, eller _Missing / _Bad / ForeignIds."""
     if not isinstance(rule, dict):
@@ -1052,7 +1156,9 @@ def _clean_rule(account, ctx, rule, locked):
         raise _Bad(GONE_FIELD_TEXT)
     if name == "contact" and key not in CONTACT_FIELDS:
         raise _Bad(SHAPE_TEXT)
-    if name not in ("field", "contact") and key:
+    if name == "answer":
+        _clean_answer_key(account, ctx, key)
+    elif name not in ("field", "contact") and key:
         raise _Bad(SHAPE_TEXT)
     if name == "opened" and locked():
         raise _Bad(OPENED_LOCKED_TEXT)
@@ -1193,18 +1299,32 @@ class _Names:
     villkoret."""
 
     def __init__(self, account, items):
-        wanted = {"list": set(), "tag": set(), "utskick": set()}
+        wanted = {"list": set(), "tag": set(), "utskick": set(), "page": set()}
         for rule in _leaves(items):
             parts = _split(rule)
             if parts is None:
                 continue
-            name, _key, op, value = parts
+            name, key, op, value = parts
             if name in _ID_MODELS and op in ("in", "not_in"):
                 wanted[_ID_MODELS[name][1]].update(_ids(value))
+            if name == "answer" and _answer_key(key) is not None:
+                wanted["page"].add(_answer_key(key)[0])
         self.lists = _names_in(ContactList, account, wanted["list"]) if wanted["list"] else {}
         self.tags = _names_in(Tag, account, wanted["tag"]) if wanted["tag"] else {}
         self.utskick = _names_in(Utskick, account, wanted["utskick"]) if wanted["utskick"] else {}
         self.fields = {d.key: d for d in FieldDef.objects.filter(account=account)}
+        self.pages, self.answers = {}, {}
+        if wanted["page"]:
+            from apps.flamingo import answers as form_answers
+            from apps.flamingo.models import LandingPage
+
+            # Bara sidorna reglerna pekar på, med kontot i villkoret.
+            self.pages = _names_in(LandingPage, account, wanted["page"])
+            self.answers = {
+                (q.page_id, q.key): q
+                for questions in form_answers.questions_by_page(account.pk, wanted["page"]).values()
+                for q in questions
+            }
 
 
 def _leaves(items):
@@ -1272,8 +1392,44 @@ def _describe_field(name, key, op, value, names):
     return f"{label} {_COMPARE_WORDS[op]} {shown}"
 
 
+def _describe_answer(key, op, value, names):
+    """Som byggarens "valde" och "valde inte":
+
+        Valde Reparation eller Felsökning i "Vilken tjänst önskar du?" (Bilservice)
+        Valde inte Reparation i "..." (Bilservice), eller svarade inte
+        Valde inget av Reparation och Felsökning i "..." (Bilservice), eller svarade inte
+
+    "valde inte" tar också med kontakterna som aldrig svarade, och det står
+    i texten. En fråga eller ett alternativ som inte finns på sidan längre
+    står som borttaget."""
+    parsed = _answer_key(key)
+    question = names.answers.get(parsed) if parsed is not None else None
+    page = names.pages.get(parsed[0], "") if parsed is not None else ""
+    words = []
+    for option in _strings(value):
+        word = (question.option_label(option) if question is not None else "") or (
+            "ett borttaget svar"
+        )
+        if word not in words:
+            words.append(word)
+    words = words or ["ett borttaget svar"]
+    if op == "in":
+        what = f"Valde {_join(words)}"
+    elif len(words) == 1:
+        what = f"Valde inte {words[0]}"
+    else:
+        what = f"Valde inget av {', '.join(words[:-1])} och {words[-1]}"
+    if question is None:
+        where = f" i en fråga som inte finns längre{f' ({page})' if page else ''}"
+    else:
+        where = f' i "{question.label}" ({question.page_name})'
+    return f"{what}{where}" if op == "in" else f"{what}{where}, eller svarade inte"
+
+
 def _describe(name, key, op, value, names):
     positive = op in ("in", "within_days", "eq", "eligible")
+    if name == "answer":
+        return _describe_answer(key, op, value, names)
     if name == "list":
         what = _named(_ids(value), names.lists, "listan", "någon av listorna", "en borttagen lista")
         return f"Finns i {what}" if positive else f"Finns inte i {what}"

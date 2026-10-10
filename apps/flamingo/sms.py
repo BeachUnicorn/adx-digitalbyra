@@ -94,6 +94,15 @@ NOTE_DAILY_LIMIT = f"Dagens gräns på {SMS_DAILY_MAX} sms för kontot är nådd
 NOTE_DEMO = "Demokonto: inga sms skickas."
 NOTE_VIA_UTSKICK = "Förfrågan kom via ett utskick: sms:et till dig kommer samlat med svaren."
 
+#: Ett sms som inte gick fram. Texten syns för kunden i inkorgen, så den
+#: säger "sms-tjänsten" och aldrig leverantörens namn eller råa felet; det
+#: tekniska står i loggen. Giovannis beslut 2026-10-10: leverantörerna är
+#: byråns sak.
+FAILED_HTTP = "Sms-tjänsten svarade med fel (HTTP {code})."
+FAILED_UNREACHABLE = "Sms-tjänsten gick inte att nå."
+FAILED_OTHER = "Sms:et kunde inte skickas."
+_FAILED_HTTP_RE = re.compile(r"Sms-tjänsten svarade med fel \(HTTP \d{3}\)\.")
+
 
 def is_configured():
     """46elks är inkopplat: alla tre inställningarna har ett värde, och
@@ -323,7 +332,7 @@ def _post_to_elks(sender, to, body):
     except ValueError:
         payload = {}
     if isinstance(payload, dict) and payload.get("status") == "failed":
-        raise RuntimeError("46elks svarade failed")
+        raise RuntimeError("svaret hade status failed")
     return str(payload.get("id", "")) if isinstance(payload, dict) else ""
 
 
@@ -400,16 +409,48 @@ def send(account, kind, to, body, lead=None, sender=None, now=None, once_per_num
         try:
             provider_id = _post_to_elks(sender or settings.ELKS_SENDER, number, body)
         except HTTPError as exc:
-            return _finish(row, SmsLog.STATUS_FAILED, f"46elks: HTTP {exc.code}")
+            logger.warning("Flamingo: sms via 46elks fick HTTP %s", exc.code)
+            return _finish(row, SmsLog.STATUS_FAILED, FAILED_HTTP.format(code=exc.code))
         except URLError as exc:
-            return _finish(row, SmsLog.STATUS_FAILED, f"46elks: {exc.reason}")
+            logger.warning("Flamingo: 46elks gick inte att nå: %s", exc.reason)
+            return _finish(row, SmsLog.STATUS_FAILED, FAILED_UNREACHABLE)
         except Exception as exc:  # noqa: BLE001 - tidsgräns, trasigt svar, vad som helst
-            logger.warning("Flamingo: sms via 46elks misslyckades: %s", type(exc).__name__)
-            return _finish(row, SmsLog.STATUS_FAILED, f"46elks: {type(exc).__name__}: {exc}")
+            logger.warning("Flamingo: sms via 46elks misslyckades: %s: %s", type(exc).__name__, exc)
+            return _finish(row, SmsLog.STATUS_FAILED, FAILED_OTHER)
         return _finish(row, SmsLog.STATUS_SENT, provider_id=provider_id)
     except Exception:  # noqa: BLE001 - ett sms får aldrig fälla förfrågan
         logger.exception("Flamingo: sms kunde inte skickas eller loggas (konto %s)", account.pk)
         return None
+
+
+def _shown_texts():
+    return {
+        value
+        for name, value in globals().items()
+        if name.startswith(("NOTE_", "FAILED_")) and isinstance(value, str)
+    }
+
+
+def shown_error(row):
+    """Orsaken på en sms-rad som kunden får se i inkorgen.
+
+    Bara modulens egna texter (NOTE_*, FAILED_*) visas som de är. Allt annat
+    i error visas som FAILED_OTHER: rader sparade före 2026-10-10 bar
+    leverantörens namn och råa fel, och ett nytt oväntat fel ska inte heller
+    nå kunden."""
+    error = row.error or ""
+    if not error or error in _shown_texts() or _FAILED_HTTP_RE.fullmatch(error):
+        return error
+    return FAILED_OTHER
+
+
+def for_inbox(rows):
+    """Sms-raderna för inkorgen, med error ersatt av shown_error (bara i
+    minnet, raden sparas aldrig)."""
+    out = list(rows)
+    for row in out:
+        row.error = shown_error(row)
+    return out
 
 
 def notify_new_lead(lead, now=None):

@@ -49,6 +49,7 @@ from django.utils import timezone
 
 from .. import keys
 from .. import suppression as suppressions
+from ..consent import COMPLAINT_DETAIL
 from ..models import (
     CHANNEL_EMAIL,
     Consent,
@@ -78,8 +79,8 @@ IGNORED = "ignored"
 UNKNOWN_RECIPIENT = "unknown_recipient"
 
 SOFT_TEXT = "Tillfällig studs"
-REJECT_TEXT = "SES stoppade mejlet innan det skickades."
-RENDERING_TEXT = "SES kunde inte bygga mejlet."
+REJECT_TEXT = "E-posttjänsten stoppade mejlet innan det skickades."
+RENDERING_TEXT = "E-posttjänsten kunde inte bygga mejlet."
 SUPPRESSED_TEXT = "Adressen är spärrad hos e-posttjänsten."
 #: Slagen av mejl utan mottagare vars studsar och klagomål gäller kontakten.
 CONTACT_KINDS = ("doi", "test", "reply")
@@ -207,7 +208,7 @@ def _complaint(account_id, address, utskick_id, now):
         clean,
         reason=Suppression.Reason.COMPLAINT,
         source=Consent.Source.COMPLAINT,
-        source_detail="SES",
+        source_detail=COMPLAINT_DETAIL,
         now=now,
     )
     if utskick_id:

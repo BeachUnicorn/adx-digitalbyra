@@ -2440,6 +2440,37 @@ class ThrottledTests(SmsTestCase):
         self.assertEqual(mail.outbox, [])
         self.assertEqual(pricing.month_to_date_units(self.account), 0)
 
+    def test_the_provider_answer_never_reaches_the_customer(self):
+        """Leverantörens svar ("46elks svarade 429: ...") stannar i loggen:
+        API:t och portalen säger ERROR_TEXTS, också för rader som sparades
+        med svaret före 2026-10-10 (Giovanni: leverantörerna är byråns sak)."""
+        self.throttle()
+        response = self.api_post({"to": FICTIONAL, "message": "Hej", "reference": "order-8"})
+        self.assertEqual(response.status_code, 429)
+        msg = SmsMessage.objects.get(pk=response.json()["error"]["id"])
+        self.assertEqual(msg.error, service.ERROR_TEXTS["rate_limited"])
+        old = self.message(
+            status=SmsMessage.Status.REJECTED,
+            error_code="rate_limited",
+            error="46elks svarade 429: Too many requests",
+            provider_id="",
+            customer_price=0,
+            markup=0,
+        )
+        for row in (msg, old):
+            with self.subTest(row=row.pk):
+                body = self.api_get(f"/api/sms/v1/messages/{row.pk}/").json()
+                self.assertEqual(
+                    body["error"],
+                    {"code": "rate_limited", "message": service.ERROR_TEXTS["rate_limited"]},
+                )
+        self.client.force_login(self.contact)
+        page = self.client.get("/kund/sms/")
+        self.assertEqual(page.status_code, 200)
+        self.assertNotContains(page, "46elks")
+        self.assertNotContains(page, "Too many requests")
+        self.assertContains(page, "För många sms på en gång.")
+
     def test_a_retry_with_the_same_reference_reaches_46elks(self):
         fake = self.throttle()
         data = {"to": FICTIONAL, "message": "Hej", "reference": "u7:42"}

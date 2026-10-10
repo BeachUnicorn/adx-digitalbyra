@@ -2,7 +2,8 @@
 Fliken Sidan: kampanjens landningssida i sidbyggaren (mockupen skärm 09).
 Vilken sida kampanjen visar (egen eller delad med andra kampanjer, med en
 tydlig varning som namnger de andra kampanjerna), blocken, läget,
-kontrollerna, "Redigera sidan" och en förhandsvisning i telefonformat
+kontrollerna, "Redigera sidan", "Svaren i formuläret" (svaren på
+formulärets flerval, app_views/pages.page_answers) och en förhandsvisning i telefonformat
 (utkastet ritat av pagebuilder.render_page_html i en iframe med sandbox,
 eller telefonbilden om den inte går att rita). Sidan blir publik på
 /lp/<slug>/ först när kampanjen är live; då publiceras den också om den
@@ -34,6 +35,7 @@ aldrig varit det. Kontext: campaigns.page_context.
       <p class="fl-camp-hint">Öppna sidan i sidbyggaren för att ändra texter, block och bilder. Färg: {{ landing_page.get_palette_display|lower }}.</p>
       <div class="fl-panel__actions">
         <a class="fl-btn" href="{{ page_editor_url }}">Redigera sidan</a>
+        {% if page_answers_url %}<a class="fl-btn fl-btn--ghost" href="{{ page_answers_url }}">Svaren i formuläret</a>{% endif %}
       </div>
     </section>
     {% if not read_only and campaign.status != "in_review" %}

@@ -736,7 +736,9 @@ def _release_throttled(message, detail):
         locked = SmsMessage.objects.select_for_update().get(pk=message.pk)
         locked.status = SmsMessage.Status.REJECTED
         locked.error_code = "rate_limited"
-        locked.error = detail[:300]
+        # error syns för kunden (API:t och portalen): den neutrala texten,
+        # aldrig leverantörens svar. Det står i loggen nedan.
+        locked.error = ERROR_TEXTS["rate_limited"]
         locked.markup = 0
         locked.customer_price = 0
         locked.save(
@@ -749,7 +751,9 @@ def _release_throttled(message, detail):
                 "updated_at",
             ]
         )
-    logger.warning("SMS: 46elks svarade 429 (sms %s); försöker igen om en minut", message.pk)
+    logger.warning(
+        "SMS: 46elks svarade 429 (sms %s): %s; försöker igen om en minut", message.pk, detail
+    )
     return fail("rate_limited", message=locked, retry_after=THROTTLED_RETRY_AFTER)
 
 
@@ -798,7 +802,7 @@ def resolve_check(message, sent, now=None):
                 return False  # 46elks har redan rapporterat sms:et: det skickades.
             message.status = SmsMessage.Status.FAILED
             message.error_code = "provider_error"
-            message.error = "Avstämt mot 46elks: sms:et skickades inte."
+            message.error = "Avstämt mot sms-tjänsten: sms:et skickades inte."
             message.markup = 0
             message.customer_price = 0
             fields += ["status", "error_code", "error", "markup", "customer_price"]

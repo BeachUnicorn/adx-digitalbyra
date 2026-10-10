@@ -42,7 +42,7 @@
       if (status) status.textContent = text;
     }
 
-    // En fil per anrop: nginx tar högst 85 MB per anrop, och 20 bilder på
+    // En fil per anrop: servern tar högst 85 MB per anrop, och 20 bilder på
     // 15 MB är mer än så. Förloppet gäller alla filerna tillsammans.
     function upload(fileList) {
       if (busy || !fileList || !fileList.length) return;

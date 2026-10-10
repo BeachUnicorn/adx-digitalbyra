@@ -96,6 +96,8 @@ def _css_mtime():
         "css/flamingo-app-onboarding.css",
         "css/flamingo-app-campaigns.css",
         "css/flamingo-app-inbox.css",
+        # Sidornas adresser (apps/flamingo/app_views/page_preview.py).
+        "css/flamingo-app-pages.css",
         "css/flamingo-lp-ren.css",
         "css/flamingo-pb.css",
         "css/flamingo-pb-ai.css",

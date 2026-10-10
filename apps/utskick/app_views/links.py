@@ -22,6 +22,15 @@ anmälningssidans (I.7 Anmälan). Länk-byggaren i S4.
                                                  (?ladda=1 laddar ned)
     signup_qr     kontakter/anmalan/qr.<svg|png>     anmälningssidans QR-kod
 
+Förvälj svar (Giovanni 2026-10-10): när målet är en Flamingo-sida med en
+flervalsfråga i formuläret kan länken förvälja ett svar (fältet forval,
+"tjanst.reparation"). Det prövas mot kampanjens sida nu
+(answers.preselect_choices; links.PRESELECT_TEXT annars) och sparas som
+?val= i TrackedLink.destination; klicket tar det med till sidan
+(links.bare_destination). Väljaren har en grupp per sida, och
+flamingo-app-links.js visar bara den valda sidans grupp. Ett förval som
+inte finns på sidan längre visas som det (preselect_stale).
+
 En länk ur adressen hämtas med owned(TrackedLink, account, pk); bara
 namngivna länkar (is_named) har en sida och en QR-kod, ett utskicks egna
 länkar ger 404. Kampanjens id ur formuläret går genom owned_ids (ett
@@ -53,6 +62,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_safe
 
+from apps.flamingo import answers as form_answers
 from apps.flamingo.exports import landing_page_url
 from apps.flamingo.models import Campaign, Lead
 
@@ -88,6 +98,7 @@ NO_SLUG_TEXT = (
     "Adressen för anmälan är inte satt än. Be ADX sätta den, så går det att skapa länkar."
 )
 EXPLAINER = "Två klickdomäner: k.adx.se i sms (kort), klick.adx.se i mejl och QR-koder."
+STALE_PRESELECT_TEXT = "Förvalet finns inte längre på sidan. Välj ett nytt eller Inget förval."
 
 #: Målets chips (I.11): (rubrik, ton för .fl-ut-status--<ton>).
 CHIP_LP = ("Flamingo-sida", "info")
@@ -153,6 +164,17 @@ def _lp_campaigns(account):
     return Campaign.objects.filter(
         account=account, status__in=(Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED)
     ).order_by("name")
+
+
+def preselect_groups(campaigns):
+    """Förvälj svar: [(kampanj, [(värde, "Alternativ (Fråga)")])] för
+    kampanjerna vars sida har ett flerval, i kampanjernas ordning."""
+    groups = []
+    for campaign in campaigns:
+        choices = form_answers.preselect_choices(campaign)
+        if choices:
+            groups.append((campaign, choices))
+    return groups
 
 
 def _named_or_404(account, pk):
@@ -362,6 +384,7 @@ def _posted(request):
         "campaign": request.POST.get("kampanj", ""),
         "address": request.POST.get("adress", ""),
         "slug": request.POST.get("slug", ""),
+        "preselect": str(request.POST.get("forval", "") or "").strip()[:200],
     }
 
 
@@ -379,7 +402,15 @@ def _clean_target(account, values, errors):
         if campaign is None:
             errors["kampanj"] = CAMPAIGN_TEXT
             return None, None, ""
-        return TrackedLink.Kind.LP, campaign, landing_page_url(campaign)[: links.URL_MAX]
+        url = landing_page_url(campaign)
+        preselect = values.get("preselect") or ""
+        if preselect:
+            # Bara ett svar som finns på den valda sidan nu (Förvälj svar).
+            if preselect not in dict(form_answers.preselect_choices(campaign)):
+                errors["forval"] = links.PRESELECT_TEXT
+                return None, None, ""
+            url = form_answers.with_preselect(url, preselect)
+        return TrackedLink.Kind.LP, campaign, url[: links.URL_MAX]
     if target == TARGET_EXTERNAL:
         raw = str(values["address"] or "").strip()
         if not raw:
@@ -422,10 +453,12 @@ def _log(request, account, link, what):
 def _form_context(account, row, values, errors):
     public_slug = row.public_slug
     prefix = f"{urlsplit(links.email_link_base()).netloc}/{public_slug}/"
+    campaigns = list(_lp_campaigns(account).select_related("landing_page"))
     return {
         "values": values,
         "errors": errors,
-        "campaigns": _lp_campaigns(account),
+        "campaigns": campaigns,
+        "preselect_groups": preselect_groups(campaigns),
         "prefix": prefix,
         "public_slug": public_slug,
         "no_slug_text": NO_SLUG_TEXT,
@@ -439,7 +472,14 @@ def _form_context(account, row, values, errors):
 @require_http_methods(["GET", "HEAD", "POST"])
 def link_new(request, account):
     row = request.utskick_settings
-    values = {"label": "", "target": TARGET_LP, "campaign": "", "address": "", "slug": ""}
+    values = {
+        "label": "",
+        "target": TARGET_LP,
+        "campaign": "",
+        "address": "",
+        "slug": "",
+        "preselect": "",
+    }
     errors = {}
     if request.method == "POST":
         if account.is_demo:
@@ -532,6 +572,13 @@ def _numbers(account, link, seen, now):
     return numbers
 
 
+def _preselect_of(link):
+    """Förvalet länken bär ("tjanst.reparation"), eller ""."""
+    if link.kind != TrackedLink.Kind.LP:
+        return ""
+    return form_answers.preselect_of(link.destination)
+
+
 def _current_values(link):
     return {
         "label": link.label,
@@ -539,6 +586,7 @@ def _current_values(link):
         "campaign": str(link.campaign_id or ""),
         "address": link.destination if link.kind == TrackedLink.Kind.EXTERNAL else "",
         "slug": link.slug,
+        "preselect": _preselect_of(link),
     }
 
 
@@ -590,8 +638,15 @@ def link_detail(request, account, pk):
     seen = links.seen_snippet_domains(account.pk)
     state = links.destination_states(account, [link]).get(link.pk, (links.STATUS_ALLOWED, ""))
     chip = destination_chip(link, seen)
+    preselect = _preselect_of(link)
+    preselect_text = form_answers.preselect_label(link.campaign, preselect) if preselect else ""
     context = {
         "link": link,
+        # Förvalt svar: "Vilken tjänst önskar du?: Reparation", eller att det
+        # inte finns på sidan längre.
+        "preselect_text": preselect_text,
+        "preselect_stale": bool(preselect) and not preselect_text,
+        "stale_preselect_text": STALE_PRESELECT_TEXT,
         "text": links.named_link_text(link, row.public_slug),
         "url": links.named_link_url(link, row.public_slug),
         "goes": short_destination(link.destination),

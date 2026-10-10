@@ -31,6 +31,12 @@ redigeraren i sidbyggaren (UX: adx-marketing/sidbyggaren-mockup.html, skärm
                       utkastet har sparats från ett annat ställe sedan rev.
                       Med Accept: application/json svarar vyn med JSON
                       (redigeraren), annars med en omdirigering.
+    page_answers      Svar i formuläret: hur besökarna svarat på sidans
+                      flervalsfrågor, antal och procent per alternativ
+                      (answers.page_report), bara läsning. Procenten räknas
+                      av förfrågningarna som svarade på frågan; skräp räknas
+                      inte. Länkas från sidans kort (när sidan har ett
+                      flerval eller svar) och kampanjens flik Sidan.
 
 Allt hämtas via kundens konto (account=account, app_view). Byrån i kundvyn
 gör samma sak som kunden, och det sparas i byråns namn: versioner som är
@@ -67,6 +73,7 @@ from django.views.decorators.http import require_POST
 
 from apps.common.security import sanitize_plain_text
 
+from .. import answers as form_answers
 from .. import exports, pagebuilder
 from ..models import Campaign, LandingPage, Service
 from ..pagebuilder import registry
@@ -432,6 +439,7 @@ def _saved_text(moment):
 @app_view
 def page_list(request, account):
     rows = []
+    answered = form_answers.answered_page_ids(account)
     for page in pagebuilder.pages_for(account):
         campaigns = list(pagebuilder.campaigns_using(page))
         kind, text = page_state(page, campaigns)
@@ -445,6 +453,8 @@ def page_list(request, account):
                 "badge": STATE_BADGES[kind],
                 "changed": _when(page.updated_at),
                 "thumb": [b.get("type", "") for b in page.draft_blocks[:THUMB_ROWS]],
+                # Länken Svar: sidan har ett flerval, eller svar från förut.
+                "has_answers": page.pk in answered or bool(form_answers.questions_for_page(page)),
             }
         )
     services = list(account.services.filter(is_active=True).order_by("order", "id"))
@@ -453,6 +463,24 @@ def page_list(request, account):
         "flamingo/app/pages/list.html",
         "pages",
         {"rows": rows, "services": services},
+    )
+
+
+@app_view
+def page_answers(request, account, pk):
+    """Svar i formuläret: sidans flervalsfrågor med antal och procent per
+    alternativ (answers.page_report). Bara läsning, bara kontots egen sida."""
+    page = get_object_or_404(LandingPage, pk=pk, account=account)
+    report = form_answers.page_report(page)
+    return render_app(
+        request,
+        "flamingo/app/pages/answers.html",
+        "pages",
+        {
+            "page": page,
+            "report": report,
+            "draft_only": not report and form_answers.draft_only(page),
+        },
     )
 
 

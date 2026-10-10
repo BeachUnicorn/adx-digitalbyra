@@ -140,6 +140,19 @@ class ServerErrorPageTests(TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertIn("Något gick fel hos oss", response.content.decode())
 
+    def test_healthz_never_shows_the_database_error(self):
+        """/healthz/ är publik: förarens text (motor, värd, användare) står i
+        loggen, aldrig i svaret (Giovanni 2026-10-10: driften är byråns sak)."""
+        boom = RuntimeError('connection to server at "db.example.internal", port 5432 failed')
+        with (
+            mock.patch("apps.core.views.connection.cursor", side_effect=boom),
+            self.assertLogs("apps.core.views", "WARNING"),
+        ):
+            response = self.client.get("/healthz/")
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["checks"]["database"], "error")
+        self.assertNotIn("5432", response.content.decode())
+
     def test_standalone_templates_render_without_context(self):
         from django.template import loader
 

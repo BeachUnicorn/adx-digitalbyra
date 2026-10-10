@@ -1012,14 +1012,13 @@ def _prepare(kind, f, data, ctx, linker, editing):
         v["half_pad"] = HALF + HALF_GAP
     elif kind == "signature":
         v["greeting"] = m(f.get("greeting"))
-        v["script_name"] = m(f.get("script_name"))
         v["photo"] = _image(data, f.get("photo"), "avatar", 48)
         v["name"] = m(f.get("name"))
         v["line"] = m(f.get("line"))
         v["initials"] = _initials(f.get("name"))
         v["phone"] = _phone(f.get("phone"))
         v["tel"] = f"tel:{f['phone']}" if f.get("phone") else ""
-        v["hidden"] = not (v["greeting"] or v["script_name"] or v["name"])
+        v["hidden"] = not (v["greeting"] or v["name"])
     elif kind == "spacer":
         v["height"] = SPACER.get(f.get("size") or "m", SPACER["m"])
     elif kind == "social":

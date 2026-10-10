@@ -632,7 +632,7 @@ def export_contact(contact):
             "till": row.new_status,
             "text": row.text_shown,
             "källa": row.source,
-            "detalj": row.source_detail,
+            "detalj": consents.shown_detail(row.source, row.source_detail),
         }
         for row in ConsentLog.objects.filter(contact=contact).order_by("at", "pk")
     ]
@@ -644,6 +644,13 @@ def export_contact(contact):
             "e-post": lead.email,
             "meddelande": lead.message,
             "svar": lead.answers,
+            # Flervalen i formuläret (Lead.choice_answers): frågan och de
+            # valda alternativen som de stod när förfrågan skickades.
+            "flerval": [
+                {"fråga": entry.get("label", ""), "svar": entry.get("labels", [])}
+                for entry in (lead.choice_answers if isinstance(lead.choice_answers, list) else [])
+                if isinstance(entry, dict)
+            ],
             "status": lead.get_status_display(),
         }
         for lead in linked_leads(contact).order_by("created_at", "pk")

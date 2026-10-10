@@ -155,7 +155,7 @@ UNKNOWN_ALERT = (
 )
 REJECTED_PREFIX = "E-posttjänsten tog inte emot mejlet"
 DOMAIN_TEXT = "Avsändardomänen är inte verifierad längre. Välj en annan avsändare."
-MAIL_FROM_TEXT = "Avsändardomänens studsadress (MAIL FROM) är inte verifierad hos SES."
+MAIL_FROM_TEXT = "Avsändardomänens studsadress (MAIL FROM) är inte verifierad hos e-posttjänsten."
 NO_EVENTS_TEXT = (
     "UTSKICK_SQS_EVENTS_URL saknas: studsar och klagomål skulle inte läsas. "
     "E-postutskicken väntar tills kön är satt (server/aws-utskick-s3.sh, J S3 steg 4)."
@@ -1293,9 +1293,15 @@ def _tracked_link(utskick, spot, pages):
     # med #ankare eller ?fråga är fortfarande kontots egen.
     page = blocks.own_page(utskick.account, url, pages=pages)
     if page is not None:
+        from apps.flamingo import answers as form_answers
         from apps.flamingo.exports import landing_page_url
 
         destination = landing_page_url(page)
+        # Förvalet i sidans formulär (?val=tjanst.reparation) följer med, som
+        # ankaret (links.bare_destination). Sidan prövar det själv.
+        preselect = form_answers.preselect_of(url)
+        if preselect:
+            destination = form_answers.with_preselect(destination, preselect)
         fragment = urlsplit(url).fragment
         if fragment:
             # Ankaret följer med till sidan (links.bare_destination).

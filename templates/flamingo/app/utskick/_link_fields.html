@@ -1,10 +1,14 @@
 {% comment %}
 Fälten för en namngiven länks beskrivning och mål (S4, länk-byggaren),
 i link_form.html (ny länk) och link.html (ändra). Kontext: values (label,
-target, campaign, address), errors, campaigns (kontots publicerade
-Flamingo-sidor), target_lp, target_external. Fälten som bara gäller ett
+target, campaign, address, preselect), errors, campaigns (kontots publicerade
+Flamingo-sidor), preselect_groups ([(kampanj, [(värde, text)])] för sidorna
+med ett flerval), target_lp, target_external. Fälten som bara gäller ett
 mål visas av flamingo-app-links.js ([data-ln-show-when]); utan skript syns
-båda och målet avgörs av valet.
+båda och målet avgörs av valet. Förvälj svar har en grupp per sida; skriptet
+visar bara den valda sidans grupp och döljer fältet när sidan inget flerval
+har eller målet är en egen adress ([data-ln-preselect], [data-ln-when]).
+Utan skript syns alla grupper och servern prövar valet mot sidan.
 {% endcomment %}
 <div class="fl-field{% if errors.beskrivning %} is-error{% endif %}">
   <label class="fl-field__label" for="ut-ln-label">Beskrivning</label>
@@ -33,6 +37,19 @@ båda och målet avgörs av valet.
   {% endif %}
   {% if errors.kampanj %}<p class="fl-field__error" id="ut-ln-campaign-error">{{ errors.kampanj }}</p>{% endif %}
 </div>
+{% if preselect_groups %}
+<div class="fl-field{% if errors.forval %} is-error{% endif %}" data-ln-preselect-field data-ln-when="mal={{ target_lp }}">
+  <label class="fl-field__label" for="ut-ln-forval">Förvälj svar (valfritt)</label>
+  <select class="fl-input" id="ut-ln-forval" name="forval" data-ln-preselect="ut-ln-campaign" aria-describedby="ut-ln-forval-help{% if errors.forval %} ut-ln-forval-error{% endif %}"{% if errors.forval %} aria-invalid="true"{% endif %}>
+    <option value="">Inget förval</option>
+    {% for campaign, choices in preselect_groups %}<optgroup label="{{ campaign.name }}" data-ln-campaign="{{ campaign.pk }}">
+      {% for value, label in choices %}<option value="{{ value }}"{% if value == values.preselect and values.campaign == campaign.pk|stringformat:"d" %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </optgroup>{% endfor %}
+  </select>
+  <p class="fl-field__help" id="ut-ln-forval-help">Svaret är redan valt när besökaren öppnar sidan. Besökaren kan ändra det.</p>
+  {% if errors.forval %}<p class="fl-field__error" id="ut-ln-forval-error">{{ errors.forval }}</p>{% endif %}
+</div>
+{% endif %}
 <div class="fl-field{% if errors.adress %} is-error{% endif %}" data-ln-show-when="mal={{ target_external }}">
   <label class="fl-field__label" for="ut-ln-address">Egen adress</label>
   <input class="fl-input" id="ut-ln-address" type="url" name="adress" maxlength="500" value="{{ values.address }}" placeholder="https://" autocomplete="off" inputmode="url" aria-describedby="ut-ln-address-help{% if errors.adress %} ut-ln-address-error{% endif %}"{% if errors.adress %} aria-invalid="true"{% endif %}>

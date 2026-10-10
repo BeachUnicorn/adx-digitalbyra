@@ -19,6 +19,18 @@ sidornas TYPES och salt, som förut.
 
 Formen på ett block står i pagebuilder/__init__.py.
 
+Formuläret: form_spec(blocks) ger frågorna med fältet q_<nyckel>, om svaret
+krävs, och för ett flerval (one, many) alternativen ur texten i "options"
+(parse_options: ett per rad, nyckeln ur texten med option_key). Ett flerval
+med färre än två alternativ ritas inte och tar inte emot svar (visible
+False); problems.py säger varför (option_problems). Högst
+registry.CHOICE_QUESTIONS_MAX flervalsfrågor i ett formulär: ett flerval
+efter det andra ritas inte heller (over_limit), och sidan går inte att
+publicera förrän det är ändrat (problems.py, MSG_CHOICE_COUNT). Det är
+inget schemafel: då skulle redigeraren sluta spara hela sidan så fort
+kunden byter Sorts svar på en tredje fråga. Svaren sparas i Lead.answers
+och Lead.choice_answers (apps/flamingo/answers.py).
+
 Varje version som servern skapar eller sparar får en signatur ("sig"): en
 HMAC (nyckeln härledd ur SECRET_KEY) över versionens id, källa, by, at och
 fälten. Redigeraren skickar tillbaka hela blocken; en version som servern
@@ -34,6 +46,7 @@ import logging
 import re
 import secrets
 import string
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import datetime
 
@@ -43,7 +56,7 @@ from django.utils.text import slugify
 
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 
-from ..models import PAGE_QUESTION_KINDS, MediaAsset, Service
+from ..models import PAGE_CHOICE_KINDS, PAGE_QUESTION_KINDS, MediaAsset, Service
 from . import registry
 from .registry import (
     CHOICE,
@@ -368,6 +381,9 @@ def _clean_value(spec, value, where, errors, media_ids):
                 errors.append(f"{item_where}: okända fält {', '.join(sorted(unknown))}.")
             item = {}
             for sub in spec.items:
+                if sub.omit_when_absent and sub.key not in raw:
+                    # En äldre post sparas som den var (registry.Field).
+                    continue
                 item[sub.key] = _clean_value(
                     sub, raw.get(sub.key), f"{item_where}, {sub.label}", errors, media_ids
                 )
@@ -399,6 +415,78 @@ def _fill_keys(items):
             i += 1
         seen.add(key)
         item["key"] = key
+
+
+# ---------------------------------------------------------------------------
+# Flervalets alternativ
+# ---------------------------------------------------------------------------
+
+#: Problemen med alternativen (problems.py, vid frågan).
+MSG_OPTIONS_FEW = "Skriv minst två alternativ, ett per rad."
+MSG_OPTIONS_MANY = "Högst åtta alternativ (nu {n})."
+MSG_OPTION_LONG = "Alternativ {i} är för långt: högst 60 tecken."
+MSG_OPTION_SAME = "Två alternativ blir samma svar: {a} och {b}. Skriv dem olika."
+#: Vid det tredje flervalet och fler (problems.py; Färre fält).
+MSG_CHOICE_COUNT = "Högst två flervalsfrågor i ett formulär. Byt Sorts svar på den här frågan."
+
+
+def option_key(label):
+    """Alternativets nyckel ur texten: "Felsökning" blir "felsokning", som
+    frågornas nycklar (QUESTION_KEY). En text som inte blir något med a-z
+    och 0-9 (tecken som "+" och "★", kyrilliska, arabiska) får "alt-" och
+    början av en SHA-1 av texten (gemener, NFKC), aldrig sin plats i listan.
+    Nyckeln står alltså kvar när alternativen byter ordning eller andra läggs
+    till och tas bort, och två lika texter blir samma nyckel (option_problems
+    säger till); den byts bara när texten byts."""
+    text = str(label or "")
+    key = slugify(text)[:40].strip("-_")
+    if key and QUESTION_KEY.fullmatch(key):
+        return key
+    norm = unicodedata.normalize("NFKC", " ".join(text.split())).casefold()
+    return "alt-" + hashlib.sha1(norm.encode("utf-8")).hexdigest()[:10]
+
+
+def _option_lines(text):
+    return [" ".join(line.split()) for line in str(text or "").splitlines() if line.strip()]
+
+
+def parse_options(text):
+    """Alternativen ur frågans "options": [{"key", "label"}], ett per rad.
+    Tomma rader hoppas över, texten kortas till registry.OPTION_MAX, ett
+    alternativ med samma nyckel som ett tidigare tas bort, och högst
+    registry.OPTIONS_MAX alternativ."""
+    out, seen = [], set()
+    for line in _option_lines(text):
+        label = line[: registry.OPTION_MAX].strip()
+        key = option_key(label)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append({"key": key, "label": label})
+        if len(out) >= registry.OPTIONS_MAX:
+            break
+    return out
+
+
+def option_problems(text):
+    """Vad som är fel med alternativen, som texter för kunden (problems.py).
+    Tom lista när flervalet går att visa som det står."""
+    lines = _option_lines(text)
+    problems = []
+    if len(lines) < registry.OPTIONS_MIN:
+        problems.append(MSG_OPTIONS_FEW)
+    if len(lines) > registry.OPTIONS_MAX:
+        problems.append(MSG_OPTIONS_MANY.format(n=len(lines)))
+    seen = {}
+    for i, line in enumerate(lines, start=1):
+        if len(line) > registry.OPTION_MAX:
+            problems.append(MSG_OPTION_LONG.format(i=i))
+        key = option_key(line[: registry.OPTION_MAX].strip())
+        if key in seen:
+            problems.append(MSG_OPTION_SAME.format(a=seen[key], b=line))
+        else:
+            seen[key] = line
+    return problems
 
 
 def clean_fields(block_type, fields, *, where="", media_ids=None):
@@ -575,7 +663,15 @@ class FormSpec:
     booking: frågorna (dag och tid), ett meddelande, namn och telefon;
     tiden bekräftas i telefon, så ingen e-post.
 
-    fields räknar fälten som besökaren ser (Konverteringskollen)."""
+    fields räknar fälten som besökaren ser (Konverteringskollen).
+
+    En fråga är ett dict: key, label, kind, field ("q_<key>"), required
+    (svaret krävs), choice (flerval), multi (flera svar), visible (ritas och
+    tar emot svar: ett flerval behöver minst två alternativ och får vara
+    högst det andra i formuläret), over_limit (ett flerval efter det andra,
+    för raden i redigeringsläget) och options ([{"key", "label"}], tomt för
+    andra sorter). Frågor som inte syns står ändå kvar i listan, så att
+    numret på en fråga är detsamma som i blockets "questions"."""
 
     variant: str = "short"
     title: str = ""
@@ -607,11 +703,14 @@ class FormSpec:
     def fields(self):
         """Fälten i formuläret: frågorna, namn och telefon, meddelandet och
         e-posten när de visas."""
-        return len(self.questions) + 2 + int(self.asks_message) + int(self.asks_email)
+        visible = sum(1 for q in self.questions if q.get("visible", True))
+        return visible + 2 + int(self.asks_message) + int(self.asks_email)
 
 
 def _questions(raw_questions):
-    questions, seen = [], set()
+    """Frågorna som FormSpec.questions (se FormSpec). En äldre fråga utan
+    options och required är en valfri fråga, som förut."""
+    questions, seen, choices = [], set(), 0
     for raw in raw_questions or []:
         if not isinstance(raw, dict):
             continue
@@ -621,7 +720,27 @@ def _questions(raw_questions):
         if not key or not label or key in seen:
             continue
         seen.add(key)
-        questions.append({"key": key, "label": label[:120], "kind": kind, "field": f"q_{key}"})
+        choice = kind in PAGE_CHOICE_KINDS
+        options = parse_options(raw.get("options")) if choice else []
+        visible, over_limit = True, False
+        if choice:
+            choices += 1
+            over_limit = choices > registry.CHOICE_QUESTIONS_MAX
+            visible = len(options) >= registry.OPTIONS_MIN and not over_limit
+        questions.append(
+            {
+                "key": key,
+                "label": label[:120],
+                "kind": kind,
+                "field": f"q_{key}",
+                "required": raw.get("required") == registry.REQUIRED,
+                "choice": choice,
+                "multi": kind == "many",
+                "visible": visible,
+                "over_limit": over_limit,
+                "options": options,
+            }
+        )
         if len(questions) >= QUESTIONS_MAX:
             break
     return questions

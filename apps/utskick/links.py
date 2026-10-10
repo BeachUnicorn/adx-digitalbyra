@@ -423,12 +423,21 @@ def snippet_tag(site):
 #   request_host(account, host, user) -> AllowedHost
 #   request_if_new(account, url, user)    en ny värd blir väntande (och byrån larmas)
 #   add_link(utskick, *, key, campaign=None, destination="", label="", user=None,
-#            request_new=True)
+#            request_new=True, preselect="")
 #   link_problems(utskick) -> list[str]   Granska och förkontrollerna blockerar (I.6)
 #   destination_ok(link) -> bool          klicket: får länken fortfarande gå dit?
 #   check_destinations(account, urls) -> {url: True | False | None}
 #   build_destination(link, recipient=None, click=None) -> str
 #   bare_destination(link) -> str         HEAD och förhandsvisningen: utan ut och utm
+#
+# Förvälj svar (Giovanni 2026-10-10): en länk till en Flamingo-sida kan bära
+# ?val=<fråga>.<alternativ> (apps/flamingo/answers.py), så att svaret redan
+# är ikryssat i sidans formulär. Det står i TrackedLink.destination
+# (".../lp/<slug>/?val=tjanst.reparation"); add_link och de namngivna
+# länkarna godtar bara ett alternativ som finns på kampanjens sida nu
+# (answers.preselect_choices, PRESELECT_TEXT annars), och bare_destination
+# låter val följa med som ankaret. Sidan själv litar aldrig på det mer än
+# som ett förval.
 #   rollup(now, deadline=None) -> dict    ticken: TrackedLink.human_clicks och leads
 #
 # Externa adresser (E.8) måste vara absoluta http(s)-adresser med ett
@@ -609,6 +618,7 @@ LINK_HOST_TEXT = "Länken kan inte gå till en annan utskickslänk."
 KEY_TEXT = "Länkens namn får bara ha små bokstäver, siffror och bindestreck."
 CAMPAIGN_TEXT = "Sidan finns inte hos dig."
 LOCKED_TEXT = "Utskicket går inte att ändra nu."
+PRESELECT_TEXT = "Välj ett svar från sidan du valde, eller Inget förval."
 
 STATUS_ALLOWED = "allowed"
 STATUS_PENDING = "pending"
@@ -941,13 +951,26 @@ def request_if_new(account, url, user):
     return request_host(account, host, user)
 
 
-def add_link(utskick, *, key, campaign=None, destination="", label="", user=None, request_new=True):
+def add_link(
+    utskick,
+    *,
+    key,
+    campaign=None,
+    destination="",
+    label="",
+    user=None,
+    request_new=True,
+    preselect="",
+):
     """Länken {länk:<key>} i utskicket: en Flamingo-sida (campaign, kontots
     egen) eller en extern adress (E.8). Finns nyckeln redan ersätts länken.
     En ny extern värd sparas som väntande (request_host) och Granska
     blockerar tills byrån godkänt den. Bara medan utskicket går att ändra.
     request_new=False: den som anropar begär värden själv efteråt
-    (request_if_new), utanför sitt radlås, eftersom larmet är ett mejl."""
+    (request_if_new), utanför sitt radlås, eftersom larmet är ett mejl.
+    preselect ("tjanst.reparation") förväljer ett svar i sidans formulär
+    (?val=); det ska finnas på kampanjens sida, annars PRESELECT_TEXT."""
+    from apps.flamingo import answers as form_answers
     from apps.flamingo.exports import landing_page_url
 
     from .models import TrackedLink, Utskick
@@ -961,6 +984,11 @@ def add_link(utskick, *, key, campaign=None, destination="", label="", user=None
             raise LinkRefused(CAMPAIGN_TEXT)
         kind = TrackedLink.Kind.LP
         cleaned = landing_page_url(campaign)
+        preselect = str(preselect or "").strip()
+        if preselect:
+            if preselect not in dict(form_answers.preselect_choices(campaign)):
+                raise LinkRefused(PRESELECT_TEXT)
+            cleaned = form_answers.with_preselect(cleaned, preselect)
     else:
         kind = TrackedLink.Kind.EXTERNAL
         cleaned = clean_external(account, destination, allow_pending=True)
@@ -1018,12 +1046,17 @@ def link_problems(utskick):
 
 def bare_destination(link):
     """Målet utan ut och utm (HEAD, E.3). En Flamingo-sida behåller ankaret
-    som länken i mejlet hade (#boka, S3)."""
+    som länken i mejlet hade (#boka, S3) och förvalet i formuläret
+    (?val=tjanst.reparation, answers.preselect_of)."""
     if link.kind == link.Kind.LP and link.campaign_id and link.campaign is not None:
+        from apps.flamingo import answers as form_answers
         from apps.flamingo.exports import landing_page_url
 
         with site_urls():
             url = landing_page_url(link.campaign)
+        preselect = form_answers.preselect_of(link.destination)
+        if preselect:
+            url = form_answers.with_preselect(url, preselect)
         fragment = urlsplit(link.destination or "").fragment
         return f"{url}#{fragment}" if fragment else url
     return link.destination

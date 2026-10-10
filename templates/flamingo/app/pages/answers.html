@@ -1,0 +1,67 @@
+{% extends "flamingo/app/base.html" %}
+{% load static flamingo_app utskick_tags %}
+{% comment %}
+Svar i formuläret (app_views/pages.page_answers, apps/flamingo/answers.py):
+hur besökarna har svarat på flervalsfrågorna i sidans formulär. En panel
+per fråga med en rad per alternativ: texten, en stapel (SVG med viewBox,
+som utskickens rapport) och andelen med antalet ("5 av 8"). Procenten
+räknas av förfrågningarna som svarade på frågan; skräp räknas inte. Flera
+svar kan bli mer än 100 procent tillsammans; det sägs när något räknat svar
+hade flera (q.any_multi), också om frågan har ett svar nu. Alternativ och frågor som inte finns
+längre på sidan står sist, märkta. Ingen tabell: raderna är en lista, så
+inget blir bredare än skärmen i 375 px. Bara läsning.
+
+Kontext: page, report (answers.page_report: [{key, label, multi,
+any_multi, current, answered, options: [{key, label, n, pct, width, current}]}]) och draft_only
+(utkastet har ett flerval som inte är publicerat än).
+{% endcomment %}
+{% block app_title %}Svar i formuläret, {{ page.name }}{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-svar.css' %}?v={{ static_version }}">{% endblock %}
+{% block app_content %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-svar-crumb" href="{% url 'flamingo:app_pages' %}">Sidor</a>: {{ page.name }}</p>
+    <h1 class="fl-app-title">Svar i formuläret</h1>
+    <p class="fl-app-lead">Hur besökarna har svarat på flervalsfrågorna i formuläret på sidan.</p>
+  </div>
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_page' page.pk %}">Redigera sidan</a>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_pages' %}">Till sidorna</a>
+  </div>
+</header>
+
+{% if report %}
+<div class="fl-svar">
+  {% for q in report %}
+  <section class="fl-panel fl-svar__q" aria-labelledby="fl-svar-{{ forloop.counter }}">
+    <h2 class="fl-panel__title" id="fl-svar-{{ forloop.counter }}">{{ q.label }}</h2>
+    <p class="fl-panel__note">{% if q.multi %}Flera svar{% else %}Ett svar{% endif %} · {% if q.answered == 1 %}1 förfrågan svarade{% else %}{{ q.answered|tal }} förfrågningar svarade{% endif %}</p>
+    {% if not q.current %}<p class="fl-panel__note">Frågan finns inte längre på sidan.</p>{% endif %}
+    {% if q.answered %}
+    <ol class="fl-svar__rows">
+      {% for o in q.options %}
+      <li class="fl-svar__row">
+        <span class="fl-svar__label">{{ o.label }}{% if not o.current %} <span class="fl-svar__gone">(finns inte längre i frågan)</span>{% endif %}</span>
+        <svg class="fl-svar__bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="fl-svar__track" x="0" y="0" width="100" height="10"></rect><rect class="fl-svar__fill" x="0" y="0" width="{{ o.width }}" height="10"></rect></svg>
+        <span class="fl-svar__value"><span class="fl-svar__pct">{{ o.pct|procent }}</span><span class="fl-svar__n">({{ o.n|tal }} av {{ q.answered|tal }})</span></span>
+      </li>
+      {% endfor %}
+    </ol>
+    <p class="fl-panel__note">{% if q.answered == 1 %}Procenten räknas av den enda förfrågan som svarade på frågan.{% else %}Procenten räknas av de {{ q.answered|tal }} förfrågningar som svarade på frågan.{% endif %} Skräp räknas inte.{% if q.multi or q.any_multi %} Flera svar gick att välja, så tillsammans kan det bli mer än 100 procent.{% endif %}</p>
+    {% else %}
+    <p class="fl-panel__text">Inga svar än.</p>
+    {% endif %}
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<div class="fl-empty fl-panel">
+  <p class="fl-empty__title">Ingen flervalsfråga än</p>
+  {% if draft_only %}
+  <p class="fl-empty__text">Flervalsfrågan finns i utkastet. Publicera sidan, så kan besökarna svara.</p>
+  {% else %}
+  <p class="fl-empty__text">Lägg till en fråga i formuläret i sidbyggaren och välj "Flerval, ett svar" eller "Flerval, flera svar" under Sorts svar.</p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

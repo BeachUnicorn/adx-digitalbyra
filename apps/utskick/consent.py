@@ -78,6 +78,20 @@ CUSTOMER_SOURCES = frozenset({S.IMPORT, S.MANUAL, S.API})
 FORM_SOURCES = frozenset({S.LP_FORM, S.SIGNUP, S.PREFERENCE})
 #: Källor som kan bära ett bevis från personen (proved=True).
 PROOF_SOURCES = frozenset({S.DOI, S.CONFIRM, S.START, S.LINK, S.PREFERENCE})
+#: source_detail för ett klagomål (mottagaren markerade mejlet som skräppost).
+#: Före 2026-10-10 stod e-posttjänstens namn där; shown_detail visar de raderna
+#: med den här texten, och loggen själv skrivs aldrig om (den är beviset).
+COMPLAINT_DETAIL = "Markerade mejlet som skräppost"
+
+
+def shown_detail(source, detail):
+    """source_detail som kunden och personen själv får se (kontaktkortet,
+    tidslinjen och personens export). Ett klagomål visas alltid med
+    COMPLAINT_DETAIL: leverantörerna är byråns sak (Giovanni 2026-10-10)."""
+    if source == S.COMPLAINT:
+        return COMPLAINT_DETAIL
+    return detail or ""
+
 
 BASIS_FOR = {
     YES: Consent.Basis.CONSENT,

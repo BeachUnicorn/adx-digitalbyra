@@ -19,7 +19,7 @@ under 760 px).
   <div class="fl-app-head__text">
     <p class="fl-kicker">{{ customer.name }}</p>
     <h1 class="fl-app-title">Leveranshälsa</h1>
-    <p class="fl-app-lead">Alla som skickar med ADX delar rykte hos e-posttjänsten. Studsar och klagomål tas om hand direkt, och ett utskick pausas innan gränserna hos AWS nås.</p>
+    <p class="fl-app-lead">Alla som skickar med ADX delar rykte hos e-posttjänsten. Studsar och klagomål tas om hand direkt, och ett utskick pausas innan e-posttjänstens gränser nås.</p>
   </div>
 </header>
 {% endblock %}
@@ -57,12 +57,12 @@ under 760 px).
   <div class="fl-kpi">
     <span class="fl-kpi__label">Studsar 30 d</span>
     <span class="fl-kpi__value">{% if has_outcomes %}{{ bounce_text }}{% else %}Inga mejl än{% endif %}</span>
-    <span class="fl-kpi__note">Paus vid 4 % · AWS gräns 5 %</span>
+    <span class="fl-kpi__note">Paus vid 4 % · gränsen 5 %</span>
   </div>
   <div class="fl-kpi">
     <span class="fl-kpi__label">Klagomål 30 d</span>
     <span class="fl-kpi__value">{% if has_outcomes %}{{ complaint_text }}{% else %}Inga mejl än{% endif %}</span>
-    <span class="fl-kpi__note">Paus vid 0,08 % · AWS gräns 0,1 %</span>
+    <span class="fl-kpi__note">Paus vid 0,08 % · gränsen 0,1 %</span>
   </div>
   <div class="fl-kpi">
     <span class="fl-kpi__label">Studsade adresser</span>

@@ -17,7 +17,9 @@ en ny rad nästa lediga nummer):
     r<n>_g      gruppen: "" (OCH) eller en nyckel som g1 (raderna i en grupp: ELLER)
     r<n>_f      fältet: list, tag, field:<nyckel>, contact:<namn>, consent:sms,
                 consent:email, kind, source, created, got_utskick, opened, clicked,
-                visited_lp, lead, replied
+                visited_lp, lead, replied, answer:<sida>.<fråga> (svar i formulär:
+                en flervalsfråga på en av kontots landningssidor, gruppen "Svar i
+                formulär" sist i väljaren)
     r<n>_op     operatorn; för datum before, within eller next med r<n>_unit
                 days eller months (blir before_months och så vidare)
     r<n>_v      värdet: en väljare (flera för in och not_in), en text eller ett tal
@@ -47,6 +49,8 @@ from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
+
+from apps.flamingo import answers as form_answers
 
 from .. import audience, limits, segments
 from ..access import owned, utskick_view
@@ -152,6 +156,10 @@ ACTIVITY_LABELS = {
     "lead": "Förfrågan",
     "replied": "Svar",
 }
+#: Svar i formulär (answer:<sida>.<fråga>): gruppen i väljaren och operatorerna
+#: ("Bilservice: Vilken tjänst önskar du? valde Reparation").
+ANSWER_GROUP = "Svar i formulär"
+ANSWER_FORM_OPS = (("in", "valde"), ("not_in", "valde inte"))
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +211,8 @@ class Builder:
             .values_list("pk", "name")[:UTSKICK_CHOICES]
         )
         self.fields = list(FieldDef.objects.filter(account=account).order_by("order", "pk"))
+        # Flervalsfrågorna på kontots sidor, sidorna i namnordning.
+        self.answer_questions = form_answers.questions_for_account(account.pk)
         self.specs = {}
         self._build()
 
@@ -290,6 +300,17 @@ class Builder:
                 widgets.append(_pick(LIST_OPS, self.utskick, "Välj utskick", "Utskick"))
             widgets.append(_count_widget(("within_days", "not_within_days"), False))
             self._add(name, ACTIVITY_LABELS[name], ops, widgets)
+        for question in self.answer_questions:
+            self._add(
+                self._answer_value(question),
+                f"{question.page_name}: {question.label}",
+                ANSWER_FORM_OPS,
+                [_pick(LIST_OPS, question.options, "Välj svar", "Svar")],
+            )
+
+    @staticmethod
+    def _answer_value(question):
+        return f"answer:{question.page_id}.{question.key}"
 
     def field_groups(self):
         """Väljarens grupper: [(rubrik, [(värde, text, låst)])]."""
@@ -315,6 +336,7 @@ class Builder:
             ),
             ("Samtycke", entries(["consent:sms", "consent:email"])),
             ("Aktivitet", activity),
+            (ANSWER_GROUP, entries([self._answer_value(q) for q in self.answer_questions])),
         ]
         return [(title, rows) for title, rows in groups if rows]
 
@@ -341,7 +363,12 @@ class Builder:
             spec = None
             error = error or segments.OPENED_LOCKED_TEXT
         if spec is None and f and not error:
-            error = segments.GONE_FIELD_TEXT if f.startswith("field:") else READ_TEXT
+            if f.startswith("field:"):
+                error = segments.GONE_FIELD_TEXT
+            elif f.startswith("answer:"):
+                error = segments.GONE_QUESTION_TEXT
+            else:
+                error = READ_TEXT
         op_values = [o for o, _label in spec["ops"]] if spec else []
         unit = "days"
         for prefix in COMPOSED:

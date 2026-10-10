@@ -54,6 +54,7 @@ annan avsändare) räknas aldrig. Inga adresser i loggen eller larmen.
 """
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 
@@ -95,6 +96,9 @@ WAIT_DAILY_TEXT = (
 )
 #: Taket som byrån satt (email_daily_cap) är inget nytt-konto-tak.
 WAIT_CAP_TEXT = "Fortsätter i morgon: dagens tak för mejl är nått"
+#: Pausnoter som sparats före 2026-10-10 namngav e-posttjänsten där det nu
+#: står "e-posttjänstens" (Giovanni: leverantörerna är byråns sak).
+_OLD_LIMIT_NAME = re.compile(r"före \S+ gräns på")
 
 RS = Recipient.Status
 R = Utskick.PauseReason
@@ -112,6 +116,12 @@ def counted_q():
     efteråt). Slingans egna fel (ett mejl SES aldrig tog emot) tömmer
     sent_at och räknas inte."""
     return Q(status__in=COUNTED) | Q(status=RS.FAILED, sent_at__isnull=False)
+
+
+def shown_note(note):
+    """En sparad pausnot som kunden ska se, med leverantörens namn ersatt i
+    noter från före 2026-10-10 (stats["pause"]["note"] skrivs inte om)."""
+    return _OLD_LIMIT_NAME.sub("före e-posttjänstens gräns på", note or "")
 
 
 def _pct(fraction):
@@ -175,7 +185,7 @@ def judge(verdict, *, min_outcomes=BOUNCE_MIN_OUTCOMES, scope="utskick"):
             first = "av de första" if scope == "utskick" else "av de senaste"
             verdict.text = (
                 f"{_pct(verdict.bounce_rate)} {first} {verdict.outcomes} mejlen studsade. "
-                "Vi pausar vid 4 %, före AWS gräns på 5 %. ADX har fått ett larm. "
+                "Vi pausar vid 4 %, före e-posttjänstens gräns på 5 %. ADX har fått ett larm. "
                 "De studsade adresserna är redan markerade."
             )
             return verdict

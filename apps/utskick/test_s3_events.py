@@ -213,6 +213,7 @@ class EventTests(EventFixture, TestCase):
         row = kontakt.consents.get(channel=CHANNEL_EMAIL)
         self.assertEqual(row.status, consents.UNSUBSCRIBED)
         self.assertEqual(row.source, Consent.Source.COMPLAINT)
+        self.assertEqual(row.source_detail, consents.COMPLAINT_DETAIL)
         suppression = Suppression.objects.get(account=self.account, channel=CHANNEL_EMAIL)
         self.assertEqual(suppression.reason, Suppression.Reason.COMPLAINT)
 
@@ -316,7 +317,8 @@ class ThresholdTests(EventFixture, TestCase):
         self.assertEqual(u.pause_reason, Utskick.PauseReason.BOUNCES)
         note = u.stats["pause"]["note"]
         self.assertIn("4\u00a0% av de första 200 mejlen studsade", note)
-        self.assertIn("Vi pausar vid 4 %, före AWS gräns på 5 %.", note)
+        self.assertIn("Vi pausar vid 4 %, före e-posttjänstens gräns på 5 %.", note)
+        self.assertNotIn("AWS", note)
         self.assertEqual(mail.outbox[-1].to, ["byran@adx.example"])
 
     def test_under_200_outcomes_never_pause(self):

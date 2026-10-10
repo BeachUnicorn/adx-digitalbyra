@@ -60,7 +60,10 @@ sidornas; url, date (ISO, "2026-10-24"), time ("15:00"), email, phone
 bokstäver) och rich_basic. Allt är vanlig text, aldrig HTML: HTML tas bort
 och AI-typografi normaliseras (apps.common.security, som sidornas fält).
 Obligatoriska fält och listornas minsta antal stoppar inte sparningen (ett
-utkast sparas medan kunden skriver); email/checks.py blockerar dem.
+utkast sparas medan kunden skriver); email/checks.py blockerar dem. Ett fält
+som tagits bort ur en typ (registry.RETIRED_FIELDS, underskriftens
+script_name) nekas inte: det följer inte med när mejlet sparas, och en
+version som bara skiljer sig i det behåller källa, by och at.
 
 rich_basic: tom rad = nytt stycke, **fet**, *kursiv*, [text](adress) och
 rader som börjar med "- " (en punktlista). bold_only tar bara **fet**; resten
@@ -479,7 +482,10 @@ class _Cleaner:
         if not isinstance(fields, dict):
             self._err(block_id, "", where, "Fälten ska vara ett dict.")
             return {}
-        unknown = set(fields) - {spec.key for spec in block_type.fields}
+        # Ett borttaget fält (registry.RETIRED_FIELDS) i ett sparat mejl är
+        # inget fel: det följer bara inte med.
+        retired = registry.RETIRED_FIELDS.get(block_type.key, frozenset())
+        unknown = set(fields) - {spec.key for spec in block_type.fields} - retired
         if unknown:
             self._err(block_id, "", where, f"Okända fält {', '.join(sorted(unknown))}.")
         return {
@@ -774,7 +780,6 @@ def _template_fields(type_key, account, utskick, user):
         name = name or (facts.person if facts is not None else "")
         return {
             "greeting": "Vänliga hälsningar,",
-            "script_name": name.split()[0][:30] if name else "",
             "name": name[:60],
             "line": (facts.company if facts is not None else "")[:120],
             "phone": phone,
@@ -1084,12 +1089,24 @@ def validate(account, utskick, blocks):
     return _validate(account, utskick, blocks)[0]
 
 
+def live_fields(type_key, fields):
+    """Fälten utan de borttagna (registry.RETIRED_FIELDS). Redigeraren läser
+    inte om blocken efter en sparning, så den skickar ett borttaget fält så
+    länge sidan är öppen; det får inte göra versionen till en ny, varken här
+    (_stamp) eller i redigerarens sparning (app_views/brev.py, _stamp och
+    _unsigned)."""
+    retired = registry.RETIRED_FIELDS.get(type_key)
+    if not retired or not isinstance(fields, dict):
+        return fields
+    return {key: value for key, value in fields.items() if key not in retired}
+
+
 def _stamp(stored_blocks, blocks, user, now=None):
     """Vem som skrev varje version, avgjort av servern (som sidornas
     app_views/pages.stamp_authorship): en sparad version med samma fält
-    behåller källa, by och at; en ny version med e-postens signatur (mallen,
-    AI) står som den är; allt annat får den inloggade (kunden, eller ADX
-    för byrån i kundvyn)."""
+    (borttagna fält räknas inte, live_fields) behåller källa, by och at;
+    en ny version med e-postens signatur (mallen, AI) står som den är; allt
+    annat får den inloggade (kunden, eller ADX för byrån i kundvyn)."""
     stored = {}
     for block in stored_blocks:
         for version in block.get("versions") or []:
@@ -1104,6 +1121,7 @@ def _stamp(stored_blocks, blocks, user, now=None):
             out.append(block)
             continue
         block = dict(block)
+        type_key = block.get("type")
         versions = []
         for version in block["versions"]:
             if not isinstance(version, dict):
@@ -1111,7 +1129,9 @@ def _stamp(stored_blocks, blocks, user, now=None):
                 continue
             version = dict(version)
             before = stored.get(version.get("id")) if isinstance(version.get("id"), str) else None
-            if before is not None and before.get("fields") == version.get("fields"):
+            if before is not None and live_fields(type_key, before.get("fields")) == live_fields(
+                type_key, version.get("fields")
+            ):
                 for key in ("source", "by", "at"):
                     version[key] = before.get(key)
             elif before is None and is_signed(version):

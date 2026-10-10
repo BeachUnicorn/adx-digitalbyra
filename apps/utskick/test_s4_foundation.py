@@ -731,6 +731,8 @@ class SignatureTests(SimpleTestCase):
                 "clicked",
                 "visited_lp",
                 "lead",
+                # Svar i formulär (Giovanni 2026-10-10): answer:<sida>.<fråga>.
+                "answer",
                 "replied",
                 "source",
                 "created",

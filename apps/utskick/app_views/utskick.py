@@ -61,6 +61,7 @@ from django.utils import timezone
 from django.utils.http import urlencode
 from django.views.decorators.http import require_POST
 
+from apps.flamingo import answers as form_answers
 from apps.flamingo.models import Campaign
 from apps.sms import numbers, pricing
 from apps.sms.models import UNITS_PER_KR
@@ -90,6 +91,7 @@ from ..sending import checks, sms_wrapper, state
 from ..templatetags.utskick_tags import procent
 from . import render_utskick
 from .contacts import clean_name, day_text
+from .links import preselect_groups
 
 logger = logging.getLogger(__name__)
 
@@ -987,15 +989,31 @@ def _lp_campaigns(account):
 
 
 def _link_rows(account, utskick):
-    """Utskickets länkar med var de går och värdens läge (E.8)."""
+    """Utskickets länkar med var de går, värdens läge (E.8) och förvalt svar
+    i sidans formulär ("Vilken tjänst önskar du?: Reparation", eller "")."""
     rows = []
-    for link in TrackedLink.objects.filter(utskick=utskick).select_related("campaign"):
+    for link in TrackedLink.objects.filter(utskick=utskick).select_related(
+        "campaign", "campaign__landing_page"
+    ):
         host = _host_of(link.destination)
         status = "allowed"
         if link.kind == TrackedLink.Kind.EXTERNAL and host:
             status = links.host_status(account, host)
         token = "{" + composer.LINK_PREFIX + link.key + "}"
-        rows.append({"link": link, "host": host, "status": status, "token": token})
+        preselect_text = ""
+        if link.kind == TrackedLink.Kind.LP:
+            preselect = form_answers.preselect_of(link.destination)
+            if preselect:
+                preselect_text = form_answers.preselect_label(link.campaign, preselect)
+        rows.append(
+            {
+                "link": link,
+                "host": host,
+                "status": status,
+                "token": token,
+                "preselect_text": preselect_text,
+            }
+        )
     return rows
 
 
@@ -1061,7 +1079,16 @@ def _add_link(request, account, utskick):
                 return None, None
             pk = owned_ids(Campaign, account, [raw])[0]
             campaign = Campaign.objects.get(pk=pk, account=account)
-            link = links.add_link(utskick, key=key, campaign=campaign, label=label or campaign.name)
+            # Förvälj svar i sidans formulär (?val=); add_link prövar det mot
+            # sidan och nekar med links.PRESELECT_TEXT.
+            preselect = str(request.POST.get("lank_forval") or "").strip()[:200]
+            link = links.add_link(
+                utskick,
+                key=key,
+                campaign=campaign,
+                label=label or campaign.name,
+                preselect=preselect,
+            )
         else:
             raw = str(request.POST.get("lank_adress") or "").strip()
             if not raw:
@@ -1273,6 +1300,7 @@ def _step_innehall(request, account, utskick):
     else:
         context.update({"content_tabs": False, "content_tab": "sms", "brev": None})
     # --- slut S3 ---
+    campaigns = list(_lp_campaigns(account).select_related("landing_page"))
     context.update(
         {
             "sms": sms,
@@ -1292,7 +1320,8 @@ def _step_innehall(request, account, utskick):
                 for tag in found.tags
             ],
             "link_rows": _link_rows(account, utskick),
-            "campaigns": _lp_campaigns(account),
+            "campaigns": campaigns,
+            "preselect_groups": preselect_groups(campaigns),
             "templates": [
                 {
                     "key": t["key"],
@@ -2390,7 +2419,7 @@ def _banner_bounces(account, utskick, now):
     pct = procent(numbers.get("bounced", 0) * 100 / outcomes) if outcomes else ""
     lead = f"{pct} av de första {_group(outcomes)} mejlen studsade. " if outcomes else ""
     text = (
-        f"{lead}Vi pausar vid 4 %, före AWS gräns på 5 %. ADX har fått ett larm. "
+        f"{lead}Vi pausar vid 4 %, före e-posttjänstens gräns på 5 %. ADX har fått ett larm. "
         "De studsade adresserna är redan markerade."
     )
     if _probe_failed(utskick):
@@ -2659,7 +2688,7 @@ def utskick_report(request, account, pk):
             if reason in Recipient.SkipReason.values
             else reason,
             "n": n,
-            "visa": f"{reports.SKIPPED_PREFIX}{reason}",
+            "visa": reports.skipped_view(reason),
         }
         for reason, n in (numbers.get("skipped_by_reason") or {}).items()
         if n

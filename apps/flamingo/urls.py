@@ -1,7 +1,7 @@
 from django.urls import include, path
 
 from . import views
-from .app_views import campaigns, inbox, onboarding, overview, page_ai, pages
+from .app_views import campaigns, inbox, onboarding, overview, page_ai, page_preview, pages
 from .app_views import media as media_views
 from .app_views import reviews as reviews_views
 
@@ -38,6 +38,14 @@ urlpatterns = [
     path("app/sidor/<int:pk>/kopiera/", pages.page_copy, name="app_page_copy"),
     path("app/sidor/<int:pk>/ta-bort/", pages.page_delete, name="app_page_delete"),
     path("app/sidor/<int:pk>/publicera/", pages.page_publish, name="app_page_publish"),
+    # Utkastet som besökarna skulle se det, bara inloggad (app_views/page_preview.py).
+    path(
+        "app/sidor/<int:pk>/forhandsvisa/",
+        page_preview.page_preview,
+        name="app_page_preview",
+    ),
+    # Svaren på formulärets flervalsfrågor (app_views/pages.page_answers).
+    path("app/sidor/<int:pk>/svar/", pages.page_answers, name="app_page_answers"),
     # AI och Konverteringskollen i sidbyggaren (app_views/page_ai.py), JSON.
     path("app/sidor/<int:pk>/ai/bygg/", page_ai.page_ai_build, name="app_page_ai_build"),
     path("app/sidor/<int:pk>/ai/skriv-om/", page_ai.page_ai_rewrite, name="app_page_ai_rewrite"),

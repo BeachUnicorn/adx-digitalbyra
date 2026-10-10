@@ -6,8 +6,11 @@ länk i Länkar. Kontext från app_views/links.link_detail: link, text
 ("klick.adx.se/exempelror/vinter"), url (med https), goes, chip_label,
 chip_tone, state ("allowed", "pending", "refused"), state_text, numbers
 (clicks, week, last, leads (None för en extern adress), visits (None utan
-spårning på målet)), qr_svg och qr_png (adresserna till QR-koden), och
-formulärets values, errors, campaigns, target_lp, target_external.
+spårning på målet)), qr_svg och qr_png (adresserna till QR-koden),
+preselect_text (Förvalt svar: "Alternativ (Fråga)", eller ""),
+preselect_stale och stale_preselect_text (förvalet finns inte på sidan
+längre), och formulärets values, errors, campaigns, preselect_groups,
+target_lp, target_external.
 
 QR-koden visas som SVG (bredd och höjd ur CSS) och laddas ned som SVG
 (tryck) eller PNG (?ladda=1). Slugen ändras aldrig. Inga style-attribut,
@@ -30,6 +33,7 @@ inga inline-skript; .fl-ut-ln- i flamingo-app-utskick-links.css.
 {% elif state == "refused" %}
 <p class="fl-notice fl-notice--error" role="status"><span>{{ state_text }} Adressen leder ingenstans. Välj ett annat mål nedan.</span></p>
 {% endif %}
+{% if preselect_stale %}<p class="fl-notice fl-notice--warn" role="status"><span>{{ stale_preselect_text }}</span></p>{% endif %}
 
 <section class="fl-kpis fl-ut-ln-kpis" aria-label="Siffror för länken">
   <div class="fl-kpi">
@@ -65,6 +69,7 @@ inga inline-skript; .fl-ut-ln- i flamingo-app-utskick-links.css.
     <button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ln-copy="{{ url }}" hidden>Kopiera</button>
   </div>
   <p class="fl-panel__note">Går till <span class="fl-ut-url">{{ goes_full }}</span> <span class="fl-ut-status fl-ut-status--{{ chip_tone }}">{{ chip_label }}</span></p>
+  {% if preselect_text %}<p class="fl-panel__note">Förvalt svar: {{ preselect_text }}</p>{% endif %}
 </section>
 
 <section class="fl-panel" id="qr" aria-labelledby="ut-ln-qr">

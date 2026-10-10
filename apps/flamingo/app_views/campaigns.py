@@ -637,6 +637,8 @@ def page_context(request, campaign, account, *, with_preview=False):
         "page_choice_rows": page_options(account, exclude=page),
         "page_is_live": campaign.status in (Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED),
         "page_editor_url": reverse("flamingo:app_page", args=[page.pk]),
+        # Svar i formuläret (flervalen, app_views/pages.page_answers).
+        "page_answers_url": reverse("flamingo:app_page_answers", args=[page.pk]),
         "page_preview_url": f"{campaign.landing_url}?utkast=1",
         "landing_html": landing_preview(request, campaign, page) if with_preview else None,
     }

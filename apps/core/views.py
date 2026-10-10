@@ -1,6 +1,10 @@
+import logging
+
 from django.conf import settings as django_settings
 from django.db import connection
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
+
+logger = logging.getLogger(__name__)
 
 
 def favicon(request):
@@ -30,7 +34,10 @@ def healthz(request):
             cursor.fetchone()
         checks["database"] = "ok"
     except Exception as exc:  # noqa: BLE001 - report any DB failure as unhealthy
-        checks["database"] = f"error: {exc}"
+        # The endpoint is public: the driver's message (engine, host, user)
+        # goes to the log, never into the response.
+        logger.warning("healthz: database check failed: %s", exc)
+        checks["database"] = "error"
         status = 503
 
     return JsonResponse(

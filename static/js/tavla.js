@@ -4,7 +4,12 @@
 
    Kundmejl: den enda knappen som mejlar är "Svar + mejl till kunden"
    (data-act="comment-email"), och den bekräftar först. Inget annat här
-   anropar mejlvägen. */
+   anropar mejlvägen.
+
+   Leverantörernas namn (apps/common/providers.py): när en text kunden ser
+   nämner en av byråns leverantörer svarar servern med warning, som visas
+   som ett felbesked. Mejlet frågar servern först (409, providers) och
+   skickas bara om byrån svarar ja (providers_ok). */
 (function () {
   "use strict";
   var csrfEl = document.querySelector("#csrf [name=csrfmiddlewaretoken]");
@@ -193,7 +198,7 @@
   function saveField(field, value, opts) {
     opts = opts || {};
     return post(urlFor("field", openId), { field: field, value: value, panel: !!opts.panel })
-      .then(function (d) { apply(d, { moveTo: opts.moveTo }); flash(true); return d; })
+      .then(function (d) { apply(d, { moveTo: opts.moveTo }); flash(true); if (d.warning) toast(d.warning, true); return d; })
       .catch(function (err) { flash(false, err.message); if (opts.panel) refreshPanel(); throw err; });
   }
   drawer.addEventListener("change", function (e) {
@@ -237,11 +242,16 @@
       if (act === "comment-email" && !window.confirm(a.getAttribute("data-confirm") || "Mejla kunden?")) return;
       a.classList.add("is-busy");
       var req = act === "comment-email"
-        ? post(urlFor("email", openId), { body: body })
+        ? post(urlFor("email", openId), { body: body }).catch(function (err) {
+            if (!(err.data && err.data.providers)) throw err;
+            if (!window.confirm(err.message)) throw new Error("Inget har sparats eller mejlats.");
+            return post(urlFor("email", openId), { body: body, providers_ok: true });
+          })
         : post(urlFor("comment", openId), { body: body, internal: act === "comment-internal" });
       req.then(function (d) {
         apply(d);
         if (act === "comment-email") toast(d.mailed ? "Mejlet är skickat till kunden." : (d.error || "Sparat, men mejlet gick inte iväg."), !d.mailed);
+        else if (d.warning) toast(d.warning, true);
         else toast(act === "comment-internal" ? "Intern anteckning sparad." : "Svaret syns i portalen. Inget mejl har skickats.");
       }).catch(fail).then(function () { a.classList.remove("is-busy"); });
     }

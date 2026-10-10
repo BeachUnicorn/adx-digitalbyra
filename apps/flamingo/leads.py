@@ -174,12 +174,16 @@ def _clean_answers(answers):
 def create_lead(campaign, data, request=None, ip_hash="", click=None):
     """En förfrågan från kampanjens landningssida (källa: formulär).
 
-    data: name, phone, email, message, answers ({fråga: svar}) och de dolda
+    data: name, phone, email, message, answers ({fråga: svar}), choices
+    (flervalen med alternativens nycklar, answers.clean_choices: blir
+    Lead.choice_answers med kampanjens sida, aldrig en postad) och de dolda
     spårningsfälten (gclid, gbraid, wbraid, utm_*). Saknas spårningen i data läses
     den ur adressen (request.GET), så att den följer med även om de dolda
     fälten skulle tappas. ip_hash kommer från limits.ip_hash (spärren på
     /lp/); landningssidan skapar förfrågan via limits.create_form_lead.
     click är utskickets klick (samma konto, attribution.resolve) eller None."""
+    from . import answers as form_answers
+
     query = request.GET if request is not None else None
     tracking = tracking_from(data, query)
     utm = {key: tracking[key] for key in UTM_KEYS if key in tracking}
@@ -193,6 +197,7 @@ def create_lead(campaign, data, request=None, ip_hash="", click=None):
         email=clean_email(data.get("email")),
         message=sanitize_multiline_text(str(data.get("message") or ""), max_length=MESSAGE_MAX),
         answers=_clean_answers(data.get("answers")),
+        choice_answers=form_answers.clean_choices(data.get("choices"), campaign.landing_page_id),
         gclid=tracking.get("gclid", ""),
         gbraid=tracking.get("gbraid", ""),
         wbraid=tracking.get("wbraid", ""),

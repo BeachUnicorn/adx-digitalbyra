@@ -5,7 +5,8 @@ och belopp.
 - Listan: nyast först, filter som chips (Alla visar allt utom skräp), kort
   i alla bredder. Kunden kan lägga till en förfrågan själv (ett samtal, ett
   mejl): källa "manuell", inga sms.
-- Förfrågan: meddelandet och svaren, "Var kom hen ifrån?", ringknappen och
+- Förfrågan: meddelandet och svaren (ett flerval som "Bilservice,
+  Reparation", Lead.answers), "Var kom hen ifrån?", ringknappen och
   status. Vunnen kräver ett belopp; leads.set_status() köar konverteringen
   till Google när förfrågan har ett gclid (Lead.can_send_to_google).
 - Ett klick på telefonnumret på sidan är en förfrågan utan namn och nummer
@@ -36,6 +37,7 @@ from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
+from .. import answers as form_answers
 from .. import leads, sms
 from ..models import ConversionUpload, Lead
 from ..rules import when_text
@@ -173,12 +175,14 @@ def status_label(lead):
 
 def _cards(lead_list, now):
     """Listans kort: förfrågan plus det kortet visar. Ett svar på utskick
-    visar tiden för senaste svaret."""
+    visar tiden för senaste svaret. Texten är meddelandet, eller svaret på
+    det första flervalet när meddelandet saknas (answers.card_text)."""
     for lead in lead_list:
         moment = lead.activity_at if lead.source == Lead.SOURCE_REPLY else lead.created_at
         lead.card_ago = ago(moment or lead.created_at, now)
         lead.card_channel = channel(lead)
         lead.card_status = status_label(lead)
+        lead.card_text = lead.message or form_answers.card_text(lead)
     return lead_list
 
 
@@ -390,7 +394,7 @@ def render_detail(
         "value_input": value_input,
         "error": error,
         "conversions": conversions,
-        "sms_rows": lead.sms_log.order_by("created_at", "id"),
+        "sms_rows": sms.for_inbox(lead.sms_log.order_by("created_at", "id")),
     }
     if is_reply:
         from apps.utskick.app_views.inbox_reply import thread_context

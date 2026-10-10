@@ -93,6 +93,13 @@ class RegistryTests(TestCase):
                 "email": "email",
             },
             "callout": {"text": "rich_basic"},
+            "signature": {
+                "greeting": "text",
+                "photo": "media",
+                "name": "text",
+                "line": "text",
+                "phone": "phone",
+            },
             "divider": {},
         }
         for key, fields in expected.items():
@@ -116,6 +123,16 @@ class RegistryTests(TestCase):
                     self.assertIn(spec.kind, registry.FIELD_KINDS)
                     for sub in spec.items:
                         self.assertIn(sub.kind, registry.FIELD_KINDS)
+
+    def test_the_script_name_is_retired(self):
+        # Giovanni 2026-10-10: systemets skrivstilar ser ut som ett
+        # bröllopskort och ser olika ut på varje enhet.
+        signature = registry.get_type("signature")
+        self.assertIsNone(signature.field("script_name"))
+        self.assertEqual(registry.RETIRED_FIELDS, {"signature": frozenset({"script_name"})})
+        schema = next(t for t in registry.schema() if t["key"] == "signature")
+        self.assertNotIn("script_name", json.dumps(schema))
+        self.assertNotIn("skrivstil", json.dumps(schema, ensure_ascii=False))
 
     def test_the_schema_is_json(self):
         schema = json.loads(json.dumps(registry.schema()))
@@ -537,7 +554,12 @@ class NewBlockTests(BrevFixture, TestCase):
             blocks.new_block("signature", self.account, self.utskick, user=self.anna)
         )
         self.assertEqual(signature["name"], "Anna Lindqvist")
-        self.assertEqual(signature["script_name"], "Anna")
+        # Namnet i skrivstil togs bort 2026-10-10 (registry.RETIRED_FIELDS).
+        self.assertNotIn("script_name", signature)
+        self.assertEqual(
+            set(blocks.new_block("signature", self.account, self.utskick)["versions"][0]["fields"]),
+            {"greeting", "photo", "name", "line", "phone"},
+        )
         self.assertEqual(signature["phone"], "+46812345678")
         staff = blocks.active_fields(
             blocks.new_block("signature", self.account, self.utskick, user=self.staff)

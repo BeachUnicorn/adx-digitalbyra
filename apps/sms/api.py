@@ -57,13 +57,19 @@ def _when(dt):
     return dt.isoformat(timespec="seconds") if dt else None
 
 
+#: Felkoder där error kan bära leverantörens eget svar (rader sparade före
+#: 2026-10-10 för rate_limited). API:t svarar alltid med ERROR_TEXTS för
+#: dem: leverantörerna är byråns sak.
+PROVIDER_CODES = ("provider_error", "provider_unknown", "rate_limited")
+
+
 def message_json(message):
     """Ett sms i API:t. Ett reserverat sms med oklart svar från 46elks har
     status "unknown" (felkod provider_unknown) tills läget är avgjort."""
     error = None
     if message.error_code:
         text = message.error
-        if message.error_code in ("provider_error", "provider_unknown"):
+        if message.error_code in PROVIDER_CODES:
             text = service.ERROR_TEXTS[message.error_code]
         error = {"code": message.error_code, "message": text}
     return {

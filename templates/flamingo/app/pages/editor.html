@@ -1,5 +1,5 @@
 {% extends "flamingo/app/base.html" %}
-{% load static %}
+{% load static flamingo_pages %}
 {% comment %}
 Redigeraren i sidbyggaren (app_views/pages.page_detail, mockupen skärm 01,
 02 och 04). Sidan i mitten i en ram (srcdoc: utkastet ritat av
@@ -14,6 +14,13 @@ konverteringskollen fyller #pb-panel-ai och #pb-panel-koll från
 static/js/flamingo-pb-ai.js; saknas den står en reservtext. Mediaväljaren
 ritas i #pb-panel-media.
 
+Remsan under toppraden (.fl-pg-addr, flamingo-app-pages.css): "Visa sidan"
+öppnar sidan som besökarna ser den i en ny flik, med adressen bredvid och
+Kopiera (flamingo-app-links.js, data-ln-copy; dold utan skript, då markeras
+adressen med ett klick). En kampanj: dess /lp/<slug>/. Flera: en rad per
+kampanj. Ingen: "Förhandsvisa" (utkastet, bara inloggad,
+app_views/page_preview.py), ingen adress att kopiera.
+
 Kontext: page, campaigns, live_campaigns, shared, usage, state,
 state_kind, state_badge, canvas_html, saved, palettes, groups, config (JSON till
 skriptet).
@@ -24,6 +31,7 @@ skriptet).
 {% block app_head %}
 <link rel="stylesheet" href="{% static 'css/flamingo-pb.css' %}?v={{ static_version }}">
 <link rel="stylesheet" href="{% static 'css/flamingo-pb-ai.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo-app-pages.css' %}?v={{ static_version }}">
 {% endblock %}
 {% block app_content %}
 {% include "flamingo/pagebuilder/icons.html" %}
@@ -65,6 +73,36 @@ skriptet).
       {% endif %}
     </div>
   </header>
+
+  {% with links=campaigns|page_links %}
+  <section class="fl-pg-addr" aria-label="Sidans adress">
+    {% if links|length > 1 %}
+    <ul class="fl-pg-addr__list">
+      {% for link in links %}
+      <li class="fl-pg-addr__row">
+        <span class="fl-pg-addr__camp">{{ link.campaign.name }}</span>
+        <a class="pb-btn pb-btn--ghost pb-btn--sm" href="{{ link.href }}" target="_blank" rel="noopener">Visa sidan<span class="fl-sr"> för {{ link.campaign.name }} (ny flik)</span></a>
+        <span class="fl-pg-addr__url">{{ link.url }}</span>
+        <button type="button" class="pb-btn pb-btn--ghost pb-btn--sm" data-ln-copy="{{ link.url }}" hidden>Kopiera<span class="fl-sr"> adressen för {{ link.campaign.name }}</span></button>
+      </li>
+      {% endfor %}
+    </ul>
+    {% elif links %}
+    {% with link=links.0 %}
+    <p class="fl-pg-addr__row">
+      <a class="pb-btn pb-btn--ghost pb-btn--sm" href="{{ link.href }}" target="_blank" rel="noopener">Visa sidan<span class="fl-sr"> (ny flik)</span></a>
+      <span class="fl-pg-addr__url">{{ link.url }}</span>
+      <button type="button" class="pb-btn pb-btn--ghost pb-btn--sm" data-ln-copy="{{ link.url }}" hidden>Kopiera<span class="fl-sr"> adressen</span></button>
+    </p>
+    {% endwith %}
+    {% else %}
+    <p class="fl-pg-addr__row">
+      <a class="pb-btn pb-btn--ghost pb-btn--sm" href="{% page_preview_url page %}" target="_blank" rel="noopener">Förhandsvisa<span class="fl-sr"> (ny flik)</span></a>
+      <span class="fl-pg-addr__note">Förhandsvisningen visar utkastet och syns bara för den som är inloggad. Sidan får en adress när en kampanj använder den.</span>
+    </p>
+    {% endif %}
+  </section>
+  {% endwith %}
 
   {% if shared or live_campaigns %}
   <p class="pb-mnote">{% if shared %}<svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-link"></use></svg><span>Delad av {{ campaigns|length }} kampanjer: en ändring syns i alla.</span>{% else %}<span class="pb-note__dot" aria-hidden="true"></span><span>Live. Ändringar syns när du publicerar.</span>{% endif %}</p>
@@ -161,4 +199,5 @@ skriptet).
 {% block extra_js %}
 <script src="{% static 'js/flamingo-pb.js' %}?v={{ static_version }}" defer></script>
 <script src="{% static 'js/flamingo-pb-ai.js' %}?v={{ static_version }}" defer></script>
+<script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>
 {% endblock %}

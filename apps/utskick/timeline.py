@@ -25,6 +25,7 @@ from datetime import datetime
 from django.urls import reverse
 from django.utils import timezone
 
+from . import consent as consents
 from .models import CHANNEL_SMS, Consent, ConsentLog, Event
 
 PER_PAGE = 30
@@ -98,7 +99,8 @@ def _consent_items(contact, limit):
             source = Consent.Source(row.source).label
         except ValueError:
             source = row.source
-        detail = " · ".join(p for p in (source, row.source_detail, row.by_label) if p)
+        shown = consents.shown_detail(row.source, row.source_detail)
+        detail = " · ".join(p for p in (source, shown, row.by_label) if p)
         items.append(
             Item(at=row.at, kind="consent", title=title, detail=detail, by_staff=row.by_staff)
         )

@@ -3,7 +3,7 @@
 {% comment %}
 Inställningarna: sms till kunden vid ny förfrågan och autosvaret till den som
 frågar. Båda är av från början, och inget sms går iväg förrän ADX kopplat in
-46elks (sms_configured). Kontext från app_views/onboarding.settings_view:
+sms-tjänsten (sms_configured). Kontext från app_views/onboarding.settings_view:
 form (SettingsForm), sms_configured, sms_length, sms_count, autoreply_max,
 contacts. Teckenräknaren uppdateras av static/js/flamingo-app-onboarding.js.
 {% endcomment %}
@@ -20,7 +20,7 @@ contacts. Teckenräknaren uppdateras av static/js/flamingo-app-onboarding.js.
 {% if sms_configured %}
 <p class="fl-notice fl-notice--ok"><span>Sms-tjänsten är inkopplad. Sms skickas bara för det du slagit på här.</span></p>
 {% else %}
-<p class="fl-notice fl-notice--warn"><span><b>Sms är inte inkopplat än.</b> ADX behöver slå på sms-tjänsten (46elks) först. Fram till dess skickas inga sms, även om du slår på dem här. Dina val sparas och gäller när tjänsten är på.</span></p>
+<p class="fl-notice fl-notice--warn"><span><b>Sms är inte inkopplat än.</b> ADX behöver slå på sms-tjänsten först. Fram till dess skickas inga sms, även om du slår på dem här. Dina val sparas och gäller när tjänsten är på.</span></p>
 {% endif %}
 
 <form method="post" class="fl-form">

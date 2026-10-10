@@ -273,6 +273,46 @@ textarea.rn-input--short{min-height:84px}
 .rn-check__label{flex:1 1 auto;min-width:0;color:var(--rn-body);font-size:16px;line-height:1.45;cursor:pointer;overflow-wrap:anywhere}
 .rn-check.is-error{padding:10px 12px;border:1px solid var(--rn-error);border-radius:14px;background:var(--rn-error-bg)}
 .rn-consent__privacy a{display:inline-block;padding-block:6px;margin-block:-6px}
+/* Flerval (apps/flamingo/answers.py): riktiga radioknappar eller kryssrutor
+   i varsin label, osynliga men fokuserbara (aldrig display:none) och lagda
+   över hela knappen, så att klicket, fokusramen och webbläsarens "fyll i"
+   pekar på knappen. Knapparna är minst 44 px. Varje knapp har en ring (ett
+   svar) eller en ruta (flera svar) med plats för bocken, så att den inte
+   växer när den väljs; den valda får fylld ring, bock, kant och ton, så att
+   valet inte bara syns i färgen. Inget skript. Egna klasser: .rn-chip är
+   orternas och märkenas. */
+.rn-choice{margin:0;padding:0;border:0}
+.rn-choice__legend{margin-bottom:10px;padding:0}
+.rn-choice__opts{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+.rn-choice__opt{position:relative;display:inline-flex;max-width:100%;min-width:0;cursor:pointer}
+.rn-choice__input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.rn-choice__box{
+  display:inline-flex;align-items:center;gap:10px;min-width:0;max-width:100%;min-height:44px;padding:10px 16px 10px 12px;
+  border:1.5px solid var(--rn-field-line);border-radius:14px;background:var(--rn-white);
+  color:var(--rn-ink);font-size:16px;font-weight:600;line-height:1.3;
+  transition:border-color .15s ease,background-color .15s ease,box-shadow .15s ease;
+}
+.rn-choice__text{min-width:0;overflow-wrap:anywhere}
+.rn-choice__mark{
+  flex:none;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border:1.5px solid var(--rn-field-line);border-radius:50%;background:var(--rn-white);
+}
+.rn-choice--many .rn-choice__mark{border-radius:5px}
+.rn-choice__check{width:14px;height:14px;visibility:hidden;color:var(--rn-on-primary)}
+@media (hover:hover){
+  .rn-choice__opt:hover .rn-choice__box{border-color:var(--rn-ink)}
+}
+.rn-choice__input:checked + .rn-choice__box{
+  border-color:var(--rn-primary);background:var(--rn-primary-soft);box-shadow:inset 0 0 0 1px var(--rn-primary);
+}
+.rn-choice__input:checked + .rn-choice__box .rn-choice__mark{border-color:var(--rn-primary);background:var(--rn-primary)}
+.rn-choice__input:checked + .rn-choice__box .rn-choice__check{visibility:visible}
+.rn-choice__input:focus-visible + .rn-choice__box{outline:3px solid var(--rn-primary-ink);outline-offset:3px}
+.rn-choice.is-error .rn-choice__box{border-color:var(--rn-error)}
+@media (forced-colors:active){
+  .rn-choice__input:checked + .rn-choice__box{outline:2px solid CanvasText;outline-offset:2px}
+  .rn-choice__check{color:CanvasText}
+}
 .rn-form__or{color:var(--rn-body);font-size:18px;text-align:center}
 .rn-form__or a{font-weight:600;white-space:nowrap}
 .rn-form__or a,.rn-review__meta a,.rn-thanks__back a{display:inline-block;padding-block:11px;margin-block:-11px}

@@ -96,8 +96,8 @@ customer sees one meaning of "Kontakter".
 - No "ny" badge on the nav items.
 - "Nyhetsbrev ungefär en gång i månaden" on the preference page is customer-written text, empty by
   default (a frequency line is a promise).
-- The Underskrift script font is a system script stack; the mockup's Caveat web font is not loaded
-  (no external fonts in mail).
+- The Underskrift has no script-font name line (the mockup's Caveat line): no external fonts in mail,
+  and the system script stack it first used was removed 2026-10-10 (F.1 element 21).
 - "Färger och logotyp hämtas från Företaget": there is no account brand colour. Logo comes from
   `MediaAsset(is_logo=True)`; the default accent from
   `media.logo_colors_for_account(account_id)["primary"]`, stored per utskick.
@@ -1602,8 +1602,15 @@ class Segment(Model):                             # S4
     name = Char(80)
     rules = JSON()            # {"all": [rule | {"any": [rule, ...]}]}
                               # rule = {"f": "list"|"tag"|"field:<key>"|"consent"|"kind"|"got_utskick"|"opened"|
-                              #         "clicked"|"visited_lp"|"lead"|"replied"|"source"|"created",
+                              #         "clicked"|"visited_lp"|"lead"|"replied"|"source"|"created"|
+                              #         "answer:<page>.<question>",
                               #         "op": "in"|"not_in"|"eq"|"before_days"|"within_days"|"before_months"|..., "v": ...}
+                              # answer (2026-10-10, "Svar i formulär"): in/not_in, v = [option keys] of a
+                              #   choice question on one of the account's landing pages; a lead linked to the
+                              #   contact (not junk, not a reply thread) chose any of them
+                              #   (Lead.choice_answers, apps/flamingo/answers.chose_q). clean checks the page
+                              #   with owned_ids(LandingPage) (ForeignIds, 400) and that the question and
+                              #   options are on the page now; a saved rule keeps compiling with its keys.
     cached_count, cached_sms, cached_email = PositiveInt(default=0); counted_at = DateTime(null)
     created_by; created_at; updated_at
     constraints: Unique(account, name)
@@ -2394,7 +2401,13 @@ engagement beacon is upgraded to `human`. Only human clicks count anywhere in th
 `build_destination`:
 - `lp` links: `campaign.landing_url` made absolute with `exports.landing_base_url()`, plus `ut`,
   `utm_source=flamingo`, `utm_medium=sms|email`, `utm_campaign=utskick-<pk>`. Creating an lp
-  TrackedLink requires `campaign.account_id == account.id`.
+  TrackedLink requires `campaign.account_id == account.id`. "Förvälj svar" (2026-10-10): an lp
+  link may carry `?val=<question>.<option>` in `TrackedLink.destination`, so the answer is already
+  ticked in the page's form; `bare_destination` keeps it (like the `#fragment`), only a value on
+  the campaign's page now is accepted when the link is made (`links.PRESELECT_TEXT`), and the page
+  treats it as a preselect only (apps/flamingo/answers.py). Named links and the sms link slot have
+  the select; the email slot keeps a pasted own-page address with `?val=` (`sending/email._tracked_link`)
+  but has no picker (the Brev link fields are free text).
 - `external` links: the stored absolute destination (E.8), existing query and fragment kept, utm
   appended when `add_utm`, `adx=<token>` appended only when the destination host is a `SiteSnippet`
   domain (or a subdomain of it) whose `last_seen_at` is set (S4). Codes never carry URLs, so there
@@ -2577,7 +2590,7 @@ The 24 Brev elements: header (1) and footer (24) are document-level and not in t
 | 18 | faq | Vanliga frågor | title: text 60, items 1..6: q text 120, a textarea 400 | Static, no accordion |
 | 19 | hours | Öppettider, adress och karta | show_hours, show_address: choice yes/no, map_text: text 30, map_image: media | From confirmed hours/address facts; "Hitta hit" links to a Google Maps search for the address; no Static Maps API |
 | 20 | callout | Ruta (framhävd text) | text: rich_basic 300 (bold only, req) | Soft background; "**PS.** ..." renders the bold lead |
-| 21 | signature | Underskrift | greeting: text 40, script_name: text 30, photo: media, name: text 60, line: text 120, phone: phone | Avatar (photo, else initials in an accent circle) beside "Johan Lind / Exempelrör AB · 08-123 456 78" with a `tel:` link. Script font stack only (Snell Roundhand, Segoe Script, Bradley Hand, cursive) |
+| 21 | signature | Underskrift | greeting: text 40, photo: media, name: text 60, line: text 120, phone: phone | Avatar (photo, else initials in an accent circle) beside "Johan Lind / Exempelrör AB · 08-123 456 78" with a `tel:` link. No script-font name line: `script_name` was removed 2026-10-10 (Giovanni: system script fonts look like a wedding invitation and differ per device; mail cannot carry its own font). Stored values are ignored, not refused, and dropped on the next save (`email/registry.RETIRED_FIELDS`) |
 | 22 | spacer | Mellanrum | size: choice s/m/l | |
 | 23 | social | Sociala medier | items 1..5: network choice facebook/instagram/linkedin/youtube/tiktok, url | Brev: text links in accent |
 | 24 | footer | Sidfot (låst) | none (locked) | Company name, address (required for reklam) and phone, one detail per line (the address is split at commas and line breaks: "Exempelrör AB" / "Mossvägen 12" / "167 33 Bromma" / "08-123 456 78"); no reason line (Giovanni 2026-10-10 removed "Du får det här eftersom..." for every basis and for information); "Ändra vad du får · Avregistrera dig · Visa i webbläsaren · Så hanterar Exempelrör dina uppgifter" |
@@ -3232,7 +3245,7 @@ värmepump är pausat vid taket."). "Fortsätt" always re-runs the D.3 pre-check
 |---|---|---|---|
 | `sms_cost_cap` | Pausat vid taket | "Pausat vid taket: 388 sms kostar cirka 151 kr och 92 kr är kvar av taket 500 kr." | "Höj taket" (when `customer_manages_api`, to `sms:cap_update`) or "Be ADX höja taket" (agency alert, then "ADX har fått din fråga."); "Fortsätt"; "Avbryt utskicket" |
 | `adx_mail_cap` | Pausat vid taket | "Pausat: 1 240 av 2 000 mejl från ADX-domänen är skickade i oktober och utskicket behöver 820 till. Verifiera din egen domän under Inställningar, eller skicka till färre mottagare." | "Verifiera domän", "Avbryt utskicket" |
-| `bounces` | Pausat: studsar | "4,6 % av de första 500 mejlen studsade. Vi pausar vid 4 %, före AWS gräns på 5 %. ADX har fått ett larm. De studsade adresserna är redan markerade." | "Ta bort studsade och fortsätt", "Avbryt utskicket" |
+| `bounces` | Pausat: studsar | "4,6 % av de första 500 mejlen studsade. Vi pausar vid 4 %, före e-posttjänstens gräns på 5 %. ADX har fått ett larm. De studsade adresserna är redan markerade." | "Ta bort studsade och fortsätt", "Avbryt utskicket" |
 | `complaints` | Pausat: klagomål | "3 mottagare har markerat mejlet som skräppost. ADX går igenom det innan utskicket kan fortsätta." | "Avbryt utskicket" (staff resumes) |
 | `stops` | Pausat: avregistreringar | "9 av 380 mottagare (2,4 %) har avregistrerat sig. ADX går igenom utskicket innan det kan fortsätta." | "Avbryt utskicket" (staff resumes) |
 | `account_health` | Pausat: studsar | "E-postutskick är spärrade tills ADX har gått igenom studsarna." | "Avbryt utskicket" |
@@ -3467,11 +3480,20 @@ Flow templates (S5, "Nytt flöde" offers Tomt plus these as drafts):
   leading to Rapport) and named links; destination chips Flamingo-sida, Skript finns, Extern;
   actions QR-kod (SVG and PNG), Kopiera, Rapport; the explainer "Två klickdomäner: k.adx.se i sms
   (kort), klick.adx.se i mejl och QR-koder."; "Ny länk" form: label, a Flamingo page or an address
-  (E.8), slug.
+  (E.8), slug, and "Förvälj svar (valfritt)" when a page has a choice question (one optgroup per
+  page; `flamingo-app-links.js` shows only the chosen page's group; "Inget förval" first). The link
+  page says "Förvalt svar: <alternativ> (<fråga>)" (the option first, so a narrow select still
+  shows it), or "Förvalet finns inte längre på sidan. Välj
+  ett nytt eller Inget förval." The sms step's "Lägg till länk" has the same select (`lank_forval`).
 - **Segmentbyggaren** (S4): rule rows (field, operator, value) with "+ Villkor" and "+ Grupp
   (ELLER)"; months supported ("äldre än 5 månader"); the "öppnade" rule is locked when open
   tracking was never on: "Öppningar spåras inte. Slå på Spåra öppningar under Inställningar."; live
-  count "388 kan få sms · 301 kan få e-post"; rows wrap at 375 px.
+  count "388 kan få sms · 301 kan få e-post"; rows wrap at 375 px. The last group "Svar i
+  formulär" has one field per choice question ("Bilservice: Vilken tjänst önskar du?", "valde" /
+  "valde inte", the options); the summary reads 'Valde Reparation eller Felsökning i "Vilken tjänst
+  önskar du?" (Bilservice)', and for "valde inte" 'Valde inte Reparation i "..." (Bilservice), eller
+  svarade inte' ("Valde inget av A och B" for several), since it also matches contacts who never
+  answered; a removed question says "Frågan finns inte längre på sidan. Välj en annan."
 - **Flöden** (S5): vertical step list with yes/no branches (no free canvas); wait "Vänta 2 timmar" or
   "Vänta 3 dagar" (1 hour to 365 days); a wait ending outside the window moves to the next window
   and the node says "Skickas 09.00 nästa morgon om väntan slutar utanför tidsfönstret."; locked

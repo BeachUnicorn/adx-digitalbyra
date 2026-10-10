@@ -119,7 +119,7 @@ def _block_text(kind, v):
         return _join("Öppettider" if rows else "", *rows, address, maps)
     if kind == "signature":
         line = " · ".join(p for p in (v.get("line"), v.get("phone")) if p)
-        return _join(v.get("greeting"), v.get("name") or v.get("script_name"), line)
+        return _join(v.get("greeting"), v.get("name"), line)
     if kind == "spacer":
         return ""
     if kind == "social":

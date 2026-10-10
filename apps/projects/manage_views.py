@@ -28,6 +28,8 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from apps.common import providers
+
 from . import activity
 from .access import VIEW_AS_KEY, staff_required
 from .board import (
@@ -469,7 +471,12 @@ def issue_field(request, pk):
         issue.save(update_fields=update + ["updated_at"])
         if field in _FIELD_LOG:
             issue.log(request.user, _FIELD_LOG[field](issue))
-    return _respond(request, issue, panel=bool(data.get("panel")))
+    extra = {}
+    if issue.visible_to_customer and field in ("title", "description", "visible_to_customer"):
+        warning = providers.warning(issue.title, issue.description)
+        if warning:
+            extra["warning"] = warning
+    return _respond(request, issue, panel=bool(data.get("panel")), **extra)
 
 
 @staff_required
@@ -504,7 +511,8 @@ def issue_comment(request, pk):
         internal = bool(data.get("internal", True))
         Comment.objects.create(issue=issue, author=request.user, body=body, is_internal=internal)
         issue.log(request.user, "skrev en intern anteckning" if internal else "svarade i portalen")
-        return _respond(request, issue, panel=True)
+        warning = "" if internal else providers.warning(body)
+        return _respond(request, issue, panel=True, **({"warning": warning} if warning else {}))
 
     form = CommentForm(request.POST, request.FILES)
     if form.is_valid():
@@ -518,6 +526,9 @@ def issue_comment(request, pk):
         internal = form.cleaned_data["is_internal"]
         issue.log(request.user, "skrev en intern anteckning" if internal else "svarade i portalen")
         messages.success(request, "Kommentaren är sparad.")
+        warning = "" if internal else providers.warning(form.cleaned_data["body"])
+        if warning:
+            messages.warning(request, warning)
     else:
         messages.error(
             request,
@@ -542,6 +553,13 @@ def issue_email_customer(request, pk):
     customer = issue.effective_customer
     if customer is None:
         return JsonResponse({"ok": False, "error": "Ärendet har ingen kund."}, status=400)
+    # Mejlet går inte att ta tillbaka: nämner svaret en leverantör frågar
+    # tavlan först (tavla.js skickar providers_ok när byrån svarat ja).
+    warning = providers.warning(body)
+    if warning and not data.get("providers_ok"):
+        return JsonResponse(
+            {"ok": False, "error": f"{warning} Mejla ändå?", "providers": True}, status=409
+        )
     comment = Comment.objects.create(issue=issue, author=request.user, body=body, is_internal=False)
     if send_issue_update_to_customer(issue, comment):
         issue.log(request.user, f"mejlade kunden ({customer.name})")
@@ -960,6 +978,9 @@ def customer_log_add(request, pk):
             customer=customer, date=on_date, text=text, author=request.user
         )
         messages.success(request, "Loggraden är sparad. Den syns i kundens portal.")
+        warning = providers.warning(text)
+        if warning:
+            messages.warning(request, f"{warning} Ta bort raden och skriv om den.")
     return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
 
 

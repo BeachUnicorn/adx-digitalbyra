@@ -36,6 +36,17 @@ Reglerna:
 - Toppen med formulär behöver ett formulärblock; Toppen med bild, Personen bakom
   med bild och Före och efter behöver sina bilder, och bilderna måste finnas
   i kontots mediaarkiv.
+- Varje fråga i formuläret behöver en text. Ett flerval (Flerval, ett svar
+  eller flera svar) behöver två till åtta alternativ, högst 60 tecken
+  vardera, som inte blir samma svar (blocks.option_problems), och högst två
+  flervalsfrågor i ett formulär (Färre fält): den tredje och fler får
+  blocks.MSG_CHOICE_COUNT. Problemet står vid frågan ("Formulär, fråga 2").
+- Alternativen prövas som texter (löften, påståenden, typografi) bara på ett
+  flerval: på en annan fråga visas de inte. De står vid frågan som
+  "Formulär, fråga 2, alternativen". Ett alternativ är besökarens svar, inte
+  ett påstående, så talen i det ("1", "4 eller fler", "Under 50 kvm")
+  prövas inte mot uppgifterna; ett alternativ med ett pris eller en andel
+  ("Service 995 kr", "20 %") prövas som vanligt (_option_problems).
 
 Omdömen från Google kontrolleras inte som text: de är kundernas egna ord,
 oförändrade, med Googles märkning.
@@ -47,10 +58,11 @@ import re
 from apps.common.security import AI_TYPOGRAPHY_CHARS
 
 from .. import checks
-from ..models import MediaAsset
-from .blocks import active_fields
+from ..models import PAGE_CHOICE_KINDS, MediaAsset
+from .blocks import MSG_CHOICE_COUNT, active_fields, option_problems
 from .facts import CERTIFICATE_WORDS, CLAIM_WORDS, facts_for
 from .registry import (
+    CHOICE_QUESTIONS_MAX,
     ITEMS,
     LINES,
     MEDIA,
@@ -82,6 +94,12 @@ PUBLISHED_OPEN = "Rätta det i utkastet och publicera."
 #: Blocken där kvalitetsord och behörigheter prövas mot uppgifterna.
 CLAIM_BLOCKS = ("certificates", "guarantee")
 _WORD = re.compile(r"[^\W\d_]{4,}")
+#: Ett pris eller en andel i ett flervals alternativ ("995 kr", "20 %",
+#: "kr 500"): då prövas alternativets tal mot uppgifterna.
+_PRICED = re.compile(
+    r"\d\s*(?:kr\b|kronor\b|sek\b|:-|%|procent\b|€|\$|euro?\b)|(?:\bkr|\bsek|€|\$)\s*\d",
+    re.I,
+)
 _STOP = frozenset("och eller med utan från till som har för alla våra vara".split())
 
 
@@ -98,6 +116,10 @@ def page_context(page, *, also=()):
 
 def _where(block_type, spec, index=None, sub=None):
     label = spec.label.lower()
+    if index is not None and sub is not None and sub.key == "options":
+        # Formulärets alternativ: "Formulär, fråga 2, alternativen".
+        item = (spec.item_label or spec.label).lower()
+        return f"{block_type.name}, {item} {index + 1}, alternativen"
     if index is not None and spec.kind in (LINES, ITEMS):
         item = sub.label if sub else (spec.item_label or spec.label)
         label = f"{item.lower()} {index + 1}"
@@ -122,8 +144,27 @@ def _texts(block_type, block_fields, variant):
                 if not isinstance(item, dict):
                     continue
                 for sub in spec.items:
+                    if sub.key == "options" and item.get("kind") not in PAGE_CHOICE_KINDS:
+                        # Formulärets alternativ syns bara på ett flerval.
+                        continue
                     if sub.kind in (TEXT, TEXTAREA) and item.get(sub.key):
                         yield spec, i, sub, str(item[sub.key])
+
+
+def _option_problems(text, context):
+    """checks.text_problems för ett flervals alternativ, ett per rad: talen i
+    ett alternativ utan pris eller andel räknas som bekräftade (det är
+    besökarens svar, inte ett påstående). Samma meddelande en gång."""
+    found = []
+    for line in text.splitlines():
+        line_context = context
+        if not _PRICED.search(line):
+            numbers = context.numbers | checks.number_tokens(line)
+            line_context = dataclasses.replace(context, numbers=frozenset(numbers))
+        for message in checks.text_problems(line, line_context):
+            if message not in found:
+                found.append(message)
+    return found
 
 
 def _grounded(text, facts):
@@ -191,7 +232,11 @@ def page_problems(page, context=None, *, blocks=None):
                 if checks.number_tokens(text) - context.numbers:
                     add(MSG_PHONE, block, spec)
                 continue
-            for message in checks.text_problems(text, context):
+            if sub is not None and sub.key == "options":
+                messages = _option_problems(text, context)
+            else:
+                messages = checks.text_problems(text, context)
+            for message in messages:
                 add(message, block, spec, index, sub)
             if block_type.key in CLAIM_BLOCKS:
                 _claim_problems(text, facts, block, block_type, spec, index, sub, add)
@@ -216,9 +261,19 @@ def page_problems(page, context=None, *, blocks=None):
         elif block_type.key == "callbar" and fields.get("phone"):
             can_call = True
         elif block_type.key == "form" and fields.get("questions"):
+            questions_spec = block_type.field("questions")
+            choices = 0
             for i, question in enumerate(fields["questions"]):
+                if not isinstance(question, dict):
+                    continue
                 if not question.get("label"):
-                    add("Skriv frågan.", block, block_type.field("questions"), i)
+                    add("Skriv frågan.", block, questions_spec, i)
+                if question.get("kind") in PAGE_CHOICE_KINDS:
+                    choices += 1
+                    if choices > CHOICE_QUESTIONS_MAX:
+                        add(MSG_CHOICE_COUNT, block, questions_spec, i)
+                    for message in option_problems(question.get("options")):
+                        add(message, block, questions_spec, i)
 
     if not counts.get("hero"):
         add(MSG_NO_HERO, where="Sidan")

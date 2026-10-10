@@ -114,8 +114,9 @@ class EmptyFieldTests(BrevFixture, TestCase):
                     checked += 1
         # Rubrik och bild (3), Rubrik, Text, Bild, Bild och text (2), Erbjudande
         # (3), Prislista (2), Steg, Händelse (2), Person (2), Video, Vanliga
-        # frågor, Ruta, Underskrift (3).
-        self.assertEqual(checked, 24)
+        # frågor, Ruta, Underskrift (2: hälsningen och namnet; namnet i
+        # skrivstil togs bort 2026-10-10).
+        self.assertEqual(checked, 23)
 
     def test_the_hero_placeholders_are_three_lines(self):
         html = render.render_block(self.utskick, blk("hero"))

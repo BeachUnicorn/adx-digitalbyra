@@ -15,6 +15,10 @@ anropas:
 - Inget mejlar kunden. Kommentarer är interna om inget annat sägs, och inte
   ens en kundsynlig kommentar skickar mejl - det gör Giovanni från tavlan.
 - synlig_for_kund sätts aldrig till sant utan explicit parameter.
+- Text som kunden ser (ett kundsynligt ärende, en kommentar som inte är
+  intern, en rad i kundloggen) nämner inte byråns leverantörer vid namn
+  (apps/common/providers.py). Verktyget vägrar och säger vilket namn det
+  gäller, så att modellen skriver om texten.
 
 Alla operationer börjar med require_agency: kundkontakter (Customer.users)
 får aldrig läsa andra kunders ärenden via MCP, oavsett vad portalen visar.
@@ -30,6 +34,7 @@ from django.forms.models import model_to_dict
 from django.utils import timezone
 
 from apps.assistant.models import Risk
+from apps.common import providers
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 from apps.projects.access import is_agency_user
 from apps.projects.board import move_issue, with_time
@@ -109,6 +114,18 @@ def clean_text(value, field, max_length, multiline=False):
             f"{field} är {len(text) - max_length} tecken för lång (högst {max_length})."
         )
     return text
+
+
+def refuse_provider_names(**texts):
+    """OperationError när en text som kunden ser nämner en av byråns
+    leverantörer (Giovanni 2026-10-10). texts: fältets namn -> texten."""
+    for field, text in texts.items():
+        found = providers.names_in(text, strict=True)
+        if found:
+            raise OperationError(
+                f"{field} nämner {providers.label(found)}, och kunden ser texten. "
+                f"{providers.INSTEAD}."
+            )
 
 
 def parse_date(value, field):
@@ -557,6 +574,8 @@ def _skapa_arende(
         # portalen för att modellen råkade sätta en flagga.
         "visible_to_customer": bool(synlig_for_kund),
     }
+    if data["visible_to_customer"]:
+        refuse_provider_names(rubrik=data["title"], beskrivning=data["description"])
     form = _form(IssueForm, Issue(), data)
     issue = form.save(commit=False)
     issue.reporter = user
@@ -618,6 +637,22 @@ def _uppdatera_arende(
     if not changed:
         raise OperationError("Inget att ändra - ange minst ett fält.")
 
+    # Det kunden ser efter ändringen: blir ärendet synligt prövas rubriken
+    # och beskrivningen som de blir; är det redan synligt bara det som ändras.
+    if changed.get("visible_to_customer", issue.visible_to_customer):
+        shown = (
+            {"title": issue.title, "description": issue.description}
+            if not issue.visible_to_customer
+            else {}
+        )
+        shown.update({k: v for k, v in changed.items() if k in ("title", "description")})
+        refuse_provider_names(
+            **{
+                {"title": "rubrik", "description": "beskrivning"}[key]: value
+                for key, value in shown.items()
+            }
+        )
+
     before = {
         "priority": issue.priority,
         "assignee": issue.assignee_id,
@@ -672,6 +707,9 @@ def _kommentera_arende(user, nyckel_eller_id, text, intern=True):
     body = clean_text(text, "text", 20000, multiline=True)
     if not body:
         raise OperationError("Kommentaren är tom.")
+    if not intern:
+        # Också när ärendet inte är synligt än: det kan bli det.
+        refuse_provider_names(text=body)
     comment = Comment.objects.create(issue=issue, author=user, body=body, is_internal=bool(intern))
     issue.log(user, "skrev en intern anteckning" if comment.is_internal else "svarade i portalen")
     return {
@@ -896,6 +934,7 @@ def _skriv_kundlogg(user, kund, text, datum=None):
     body = clean_text(text, "text", 1000, multiline=True)
     if not body:
         raise OperationError("text får inte vara tom.")
+    refuse_provider_names(text=body)
     on_date = parse_date(datum, "datum") or timezone.localdate()
     if on_date > timezone.localdate():
         raise OperationError("datum kan inte ligga i framtiden.")
@@ -1021,7 +1060,8 @@ register(
             "eller kund (id/namn) - inte påhittade; läs lista_projekt/lista_kunder "
             "först. Etiketter måste finnas sedan tidigare. Ärendet är osynligt för "
             "kunden om du inte uttryckligen sätter synlig_for_kund. Svaret ger nyckel "
-            "och länk till tavlan."
+            "och länk till tavlan. Ett kundsynligt ärende nämner inte byråns "
+            "leverantörer vid namn (verktyget vägrar)."
         ),
         input_schema=_schema(
             {
@@ -1048,7 +1088,9 @@ register(
         description=(
             "Ändra fält på ett ärende DIREKT. Bara fält du skickar ändras. forfaller "
             "eller ansvarig som tom sträng tar bort värdet; etiketter ersätter hela "
-            "listan. synlig_for_kund ändras bara om du skickar den."
+            "listan. synlig_for_kund ändras bara om du skickar den. Rubrik och "
+            "beskrivning på ett kundsynligt ärende nämner inte byråns leverantörer "
+            "vid namn (verktyget vägrar)."
         ),
         input_schema=_schema(
             {
@@ -1094,7 +1136,8 @@ register(
         description=(
             "Lägg en kommentar på ett ärende. Intern som standard (syns aldrig i "
             "portalen). intern=false gör den kundsynlig om ärendet är det - men "
-            "skickar ALDRIG mejl; det gör Giovanni själv från tavlan."
+            "skickar ALDRIG mejl; det gör Giovanni själv från tavlan. En kundsynlig "
+            "kommentar nämner inte byråns leverantörer vid namn."
         ),
         input_schema=_schema(
             {"nyckel_eller_id": _REF, "text": _S, "intern": _B},
@@ -1216,7 +1259,9 @@ register(
         name="skriv_kundlogg",
         description=(
             "Skriv en rad i kundloggen DIREKT: datum (ISO, default i dag) och två-tre "
-            "meningar om vad som gjordes. Syns i kundens portal. Mejlar aldrig."
+            "meningar om vad som gjordes. Syns i kundens portal. Mejlar aldrig. "
+            "Nämn inte byråns leverantörer (sms-, e-post-, drift- eller "
+            "felrapporttjänsten) vid namn."
         ),
         input_schema=_schema({"kund": _S, "text": _S, "datum": _S}, ["kund", "text"]),
         risk=Risk.ACTION,

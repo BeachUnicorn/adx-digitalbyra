@@ -516,10 +516,15 @@ class SmsTests(InboxFixture, TestCase):
 
     @override_settings(**ELKS)
     def test_failures_are_logged_and_never_raised(self):
+        # Kunden ser error i inkorgen: "sms-tjänsten", aldrig leverantörens
+        # namn eller det råa felet (Giovanni 2026-10-10).
         for error, text in (
-            (URLError("timeout"), "46elks: timeout"),
-            (HTTPError(sms.ELKS_URL, 401, "Unauthorized", {}, None), "46elks: HTTP 401"),
-            (ValueError("trasigt"), "ValueError"),
+            (URLError("timeout"), sms.FAILED_UNREACHABLE),
+            (
+                HTTPError(sms.ELKS_URL, 401, "Unauthorized", {}, None),
+                "Sms-tjänsten svarade med fel (HTTP 401).",
+            ),
+            (ValueError("trasigt"), sms.FAILED_OTHER),
         ):
             with self.subTest(error=type(error).__name__):
                 SmsLog.objects.all().delete()
@@ -527,7 +532,9 @@ class SmsTests(InboxFixture, TestCase):
                     rows = sms.notify_new_lead(self.lead, now=_day(12))
                 self.assertEqual(len(rows), 2)
                 self.assertEqual({r.status for r in rows}, {SmsLog.STATUS_FAILED})
-                self.assertIn(text, rows[0].error)
+                self.assertEqual(rows[0].error, text)
+                self.assertNotIn("46elks", rows[0].error)
+                self.assertNotIn("trasigt", rows[0].error)
 
     @override_settings(**ELKS)
     def test_quiet_hours_stop_the_autoreply_but_not_the_owner_notice(self):

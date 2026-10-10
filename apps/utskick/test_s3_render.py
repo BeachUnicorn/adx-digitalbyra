@@ -19,12 +19,17 @@ Brev som HTML och text (README F.4, F.3, H.5, J S3 test_s3_render):
     SizeTests           102 kB med de längsta värdena
     AccentTests         ljus och mörk färg
     ModeTests           redigeraren (pb-attributen, CSP), webbversionen, kalendern
+    SignatureTests      underskriften utan skrivstil (2026-10-10): ett sparat
+                        script_name ritas inte, nekas inte och försvinner vid nästa
+                        sparning utan att versionen byter författare
     MimeTests           List-Unsubscribe och Post kodas aldrig, text före HTML
     TemplateGuardTests  mallarna: inga skript, inga externa typsnitt, inga relativa
                         adresser, ingen layout som bara hänger på class
 """
 
+import copy
 import io
+import json
 import re
 import shutil
 import tempfile
@@ -35,6 +40,7 @@ from unittest import mock
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
 
@@ -221,7 +227,6 @@ def all_blocks(photo, other):
         blk(
             "signature",
             greeting="Vänliga hälsningar,",
-            script_name="Johan",
             name="Johan Lind",
             line="Exempelrör AB",
             phone="08-123 456 78",
@@ -1009,6 +1014,182 @@ class ModeTests(BrevFixture, TestCase):
         line = render.event_line({"date": "2026-10-23", "start": "15:00"}, year=2026)
         self.assertEqual(line, "Fredag 23 oktober kl. 15")
         self.assertEqual(render.event_line({"date": "2026-10-23"}, year=2026), "Fredag 23 oktober")
+
+
+# ---------------------------------------------------------------------------
+# Underskriften utan skrivstil (F.1 element 21)
+# ---------------------------------------------------------------------------
+
+
+class SignatureTests(BrevFixture, TestCase):
+    """Namnet i skrivstil togs bort 2026-10-10 (Giovanni: systemets
+    skrivstilar ser ut som ett bröllopskort och ser olika ut på varje enhet).
+    Ett mejl som sparades före det har kvar script_name i email_doc."""
+
+    SCRIPT_FONTS = ("cursive", "Snell", "Segoe Script", "Bradley Hand")
+
+    def old_doc(self):
+        """Ett mejl sparat före 2026-10-10: underskriften ur mallen med namnet
+        i skrivstil, signerad som servern gjorde då."""
+        block = blocks.new_block("signature", self.account, self.utskick)
+        version = block["versions"][0]
+        version["fields"].update(name="Johan Lind", script_name="Johan")
+        pb.sign_version(version, salt=blocks.SIGN_SALT)
+        Utskick.objects.filter(pk=self.utskick.pk).update(email_doc={"blocks": [block]})
+        self.utskick.refresh_from_db()
+        return copy.deepcopy(block)
+
+    def html(self, mode=render.PREVIEW):
+        return render.render_html(self.utskick, render.context_for(self.utskick, mode=mode))
+
+    def stored_version(self):
+        self.utskick.refresh_from_db()
+        return self.utskick.email_doc["blocks"][0]["versions"][0]
+
+    def test_no_script_font_anywhere(self):
+        html = self.html()
+        self.assertIn("Johan Lind", html)
+        for needle in self.SCRIPT_FONTS:
+            with self.subTest(needle=needle):
+                self.assertNotIn(needle, html)
+        S = style.brev_styles(style.palette_for_accent(style.DEFAULT_ACCENT))
+        self.assertNotIn("sig", S)
+        self.assertFalse(hasattr(style, "SCRIPT"))
+        source = (TEMPLATES / "blocks" / "signature.html").read_text(encoding="utf-8")
+        self.assertNotIn("S.sig", source)
+        self.assertNotIn('pb "script_name"', source)
+
+    def test_the_greeting_keeps_its_space_before_the_name(self):
+        greeting = re.search(r'<p style="([^"]*)"[^>]*>Vänliga hälsningar,</p>', self.html())
+        self.assertIsNotNone(greeting)
+        self.assertIn("margin-bottom:12px", greeting.group(1))
+        # Utan namnrad står hälsningen ensam, utan luft under.
+        doc = [blk("signature", greeting="Vänliga hälsningar,")]
+        blocks.save(self.utskick, doc, rev=self.utskick.email_rev, user=self.anna)
+        self.utskick.refresh_from_db()
+        greeting = re.search(r'<p style="([^"]*)"[^>]*>Vänliga hälsningar,</p>', self.html())
+        self.assertNotIn("margin-bottom", greeting.group(1))
+
+    def test_an_old_script_name_is_not_drawn(self):
+        self.old_doc()
+        for mode in (render.PREVIEW, render.EDITOR):
+            with self.subTest(mode=mode):
+                html = self.html(mode)
+                self.assertIn("Johan Lind", html)
+                self.assertNotIn(">Johan</p>", html)
+                self.assertNotIn("script_name", html)
+                for needle in self.SCRIPT_FONTS:
+                    self.assertNotIn(needle, html)
+        ctx = render.context_for(self.utskick, mode=render.PREVIEW)
+        plain = text.default_text(self.utskick, ctx)
+        self.assertIn("Vänliga hälsningar,\nJohan Lind", plain)
+        self.assertNotIn("Johan\n", plain)
+
+    def test_an_old_mail_saves_and_keeps_who_wrote_it(self):
+        stored = copy.deepcopy(self.old_doc()["versions"][0])
+        # Redigerarens kopia: som den laddades, med script_name. Den läser
+        # inte om blocken efter en sparning, så samma kopia skickas igen.
+        sent = copy.deepcopy(self.utskick.email_doc["blocks"])
+        authorship = (stored["source"], stored["by"], stored["at"])
+        for attempt in (1, 2):
+            with self.subTest(attempt=attempt):
+                blocks.save(
+                    self.utskick,
+                    copy.deepcopy(sent),
+                    rev=self.utskick.email_rev,
+                    user=self.anna,
+                )
+                version = self.stored_version()
+                self.assertNotIn("script_name", version["fields"])
+                self.assertEqual(version["fields"]["name"], "Johan Lind")
+                self.assertEqual((version["source"], version["by"], version["at"]), authorship)
+                self.assertEqual(version["source"], blocks.SOURCE_TEMPLATE)
+                self.assertTrue(blocks.is_signed(version))
+        # En verklig ändring är fortfarande kundens.
+        changed = copy.deepcopy(sent)
+        changed[0]["versions"][0]["fields"]["greeting"] = "Hälsningar,"
+        blocks.save(self.utskick, changed, rev=self.utskick.email_rev, user=self.anna)
+        version = self.stored_version()
+        self.assertEqual((version["source"], version["by"]), (blocks.SOURCE_CUSTOMER, self.anna.pk))
+        self.assertEqual(version["fields"]["greeting"], "Hälsningar,")
+        self.assertNotIn("script_name", version["fields"])
+
+    def test_the_editor_and_ai_paths_ignore_it(self):
+        doc = [self.old_doc()]
+        # brev_render_block prövar blocken med validate.
+        cleaned = blocks.validate(self.account, self.utskick, copy.deepcopy(doc))
+        self.assertNotIn("script_name", cleaned[0]["versions"][0]["fields"])
+        # En ny version (AI eller redigeraren) med det gamla fältet.
+        version = blocks.add_version(
+            copy.deepcopy(doc[0]),
+            {"greeting": "Hej,", "script_name": "Johan"},
+            blocks.SOURCE_AI,
+            None,
+            account=self.account,
+        )
+        self.assertEqual(version["fields"]["greeting"], "Hej,")
+        self.assertNotIn("script_name", version["fields"])
+        # Andra okända fält nekas som förut, och script_name bara i underskriften.
+        with self.assertRaises(blocks.BlockError):
+            blocks.add_version(
+                copy.deepcopy(doc[0]),
+                {"tagline": "x"},
+                blocks.SOURCE_AI,
+                None,
+                account=self.account,
+            )
+        heading = blocks.new_block("heading", self.account, self.utskick)
+        with self.assertRaises(blocks.BlockError):
+            blocks.add_version(
+                heading,
+                {"text": "Hej", "script_name": "Johan"},
+                blocks.SOURCE_AI,
+                None,
+                account=self.account,
+            )
+
+    def test_the_editor_save_does_not_count_the_old_field_as_a_change(self):
+        """Redigerarens sparning (app_views/brev.py) jämför också utan
+        script_name (granskningen 2026-10-10): efter en första sparning som
+        tar bort fältet skickar fliken kvar det, och det får inte ge en ny
+        revision eller göra ett schemalagt utskick till ett utkast."""
+        editor = [self.old_doc()]
+        editor[0]["versions"][0]["fields"]["greeting"] = "Hälsningar,"
+        client = self.client_for(self.anna)
+        url = reverse("flamingo:app_brev_save", args=[self.utskick.pk])
+
+        def save(rev):
+            response = client.post(
+                url,
+                data=json.dumps({"rev": rev, "blocks": copy.deepcopy(editor)}),
+                content_type="application/json",
+                HTTP_ACCEPT="application/json",
+            )
+            self.assertEqual(response.status_code, 200, response.content)
+            return response.json()
+
+        before = self.utskick.email_rev
+        rev = save(before)["rev"]
+        self.assertGreater(rev, before)
+        version = self.stored_version()
+        self.assertNotIn("script_name", version["fields"])
+        self.assertEqual(version["fields"]["greeting"], "Hälsningar,")
+        authorship = (version["source"], version["by"], version["at"])
+        Utskick.objects.filter(pk=self.utskick.pk).update(
+            status=Utskick.Status.SCHEDULED,
+            confirmed_at=timezone.now(),
+            confirm_summary={"email": 3},
+            scheduled_at=timezone.now() + timezone.timedelta(days=1),
+        )
+        again = save(rev)
+        self.assertEqual(again["rev"], rev)
+        self.assertEqual(again["status"], Utskick.Status.SCHEDULED)
+        self.assertEqual(again["message"], "")
+        self.utskick.refresh_from_db()
+        self.assertEqual(self.utskick.status, Utskick.Status.SCHEDULED)
+        self.assertEqual(self.utskick.email_rev, rev)
+        version = self.stored_version()
+        self.assertEqual((version["source"], version["by"], version["at"]), authorship)
 
 
 # ---------------------------------------------------------------------------

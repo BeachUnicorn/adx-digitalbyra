@@ -1,0 +1,60 @@
+/* ==========================================================================
+   ADX Flamingo - sidornas adresser (flamingo-app-pages.css)
+
+   templates/flamingo/app/pages/list.html och editor.html: "Öppna sidan",
+   "Visa sidan", "Förhandsvisa" och adressen med Kopiera
+   (app_views/page_preview.py). Bygger på flamingo-app.css och sidbyggarens
+   flamingo-pb.css (.pb-btn, .pb-pagec) och lägger bara till sitt eget.
+
+     .fl-pg-camps / __item   listan: en rad per kampanj när flera delar sidan
+     .fl-pg-open             länken "Öppna sidan" bredvid kampanjens namn
+     .fl-pg-addr             sidbyggaren: remsan under toppraden
+     .fl-pg-addr__row        en adress: (kampanjen,) Visa sidan, adressen, Kopiera
+     .fl-pg-addr__url        adressen som text, markeras med ett klick
+                             (utan skript kopieras den för hand)
+
+   Från 1024 px är kortets knappspalt högst 300 px: knapparna radbryts i
+   stället för att klämma sidans namn (Öppna sidan, Förhandsvisa och Svar
+   gjorde namnspalten 79 px bred vid 1024 px). Smalare än 1024 px har en
+   delad sida en rad per kampanj (namnet, Visa sidan, Kopiera) utan
+   adresstexten, som Kopiera ger; utan skript (Kopiera dold) står den kvar.
+   ========================================================================== */
+
+/* ---------- Listan ---------- */
+.fl-pg-camps{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.fl-pg-camps__item{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;min-width:0}
+.pb-pagec__camps .fl-pg-open{font-weight:600;color:var(--fl-violet-ink);white-space:nowrap}
+
+/* ---------- Sidbyggaren: remsan under toppraden ---------- */
+.fl-pg-addr{
+  display:flex;flex-direction:column;gap:8px;padding:8px 20px;
+  border-bottom:1px solid var(--fl-line);background:var(--fl-white);
+}
+/* Länkarna har knapparnas form (.pb-btn), utan understrykning. */
+.fl-pg-addr a.pb-btn{text-decoration:none}
+.fl-pg-addr__list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.fl-pg-addr__row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0;margin:0}
+.fl-pg-addr__camp{flex:none;font-size:15px;font-weight:600;color:var(--fl-ink)}
+.fl-pg-addr__url{
+  min-width:0;font-family:var(--fl-mono);font-size:14px;line-height:1.4;color:var(--fl-body);
+  overflow-wrap:anywhere;-webkit-user-select:all;user-select:all;
+}
+.fl-pg-addr__note{min-width:0;margin:0;font-size:15px;line-height:1.45;color:var(--fl-muted)}
+
+@media (min-width:1024px){
+  .pb-pagec__side{max-width:300px}
+}
+
+@media (max-width:1023px){
+  .fl-pg-addr{padding:8px 16px}
+  .fl-pg-addr__row{gap:6px 8px}
+  /* Adressen på en egen rad överst, knapparna under den. */
+  .fl-pg-addr__camp{order:-2;flex-basis:100%}
+  .fl-pg-addr__url{order:-1;flex-basis:100%}
+  .fl-pg-addr__note{font-size:14px}
+  /* Flera kampanjer: en rad per kampanj, så att sidan inte trycks ner. */
+  .fl-pg-addr__list .fl-pg-addr__row:has(> [data-ln-copy]:not([hidden])) > .fl-pg-addr__url{display:none}
+  .fl-pg-addr__list .fl-pg-addr__row:has(> [data-ln-copy]:not([hidden])) > .fl-pg-addr__camp{
+    order:0;flex:1 1 120px;min-width:0;overflow-wrap:anywhere;
+  }
+}

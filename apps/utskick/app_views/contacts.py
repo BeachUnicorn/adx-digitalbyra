@@ -1059,8 +1059,9 @@ def _proof(row):
     pairs = [("Status", row.get_status_display()), ("Grund", row.get_basis_display())]
     if row.source:
         source = row.get_source_display()
-        if row.source_detail:
-            source = f"{source} · {row.source_detail}"
+        detail = consents.shown_detail(row.source, row.source_detail)
+        if detail:
+            source = f"{source} · {detail}"
         pairs.append(("Källa", source))
     if row.collected_at:
         pairs.append(("Insamlat", stamp(row.collected_at)))

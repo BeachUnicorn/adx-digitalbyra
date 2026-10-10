@@ -10,6 +10,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods, require_POST
 
+from apps.common import providers
 from apps.projects.access import staff_required
 from apps.projects.models import Customer
 
@@ -49,6 +50,10 @@ def monitor_update(request, pk):
     monitor.sentry_project = request.POST.get("sentry_project", "").strip()[:80]
     monitor.save()
     messages.success(request, "Övervakningen är sparad.")
+    # Anteckningen står överst på kundens statussida.
+    warning = providers.warning(monitor.note)
+    if warning:
+        messages.warning(request, f"Anteckningen: {warning}")
     return _back(pk)
 
 

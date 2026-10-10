@@ -116,8 +116,6 @@ INNER_RADIUS = 6
 BUTTON_RADIUS = 6
 FONT = "-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
 MONO = "ui-monospace,Menlo,'Courier New',monospace"
-#: Underskriftens skrivstil (F.1 element 21): bara systemets typsnitt.
-SCRIPT = "'Snell Roundhand','Segoe Script','Bradley Hand',cursive"
 
 
 def valid_accent(value):
@@ -383,8 +381,8 @@ def brev_styles(palette):
         "av_img": "display:block;width:56px;height:56px;border:0;border-radius:50%;",
         "av_img_sm": "display:block;width:48px;height:48px;border:0;border-radius:50%;",
         "callout": f"background-color:{SOFT};border-radius:{radius};padding:16px 18px;",
-        "sig": f"{reset}margin:6px 0 12px;font-family:{SCRIPT};font-size:34px;line-height:1;"
-        f"font-weight:600;color:{INK};",
+        # Underskriftens hälsning när namnraden följer (luft före bilden).
+        "greet": f"{reset}margin-bottom:12px;" + _font(400, 16, 1.65) + f"color:{TEXT};",
         "soc": f"color:{acc};text-decoration:underline;" + _font(400, 15, 1.5),
         "soc_gap": "display:inline-block;width:14px;",
         # Sidfoten

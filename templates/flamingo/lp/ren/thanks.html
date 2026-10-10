@@ -4,6 +4,8 @@ Tacksidan efter formuläret. Inga löften om när eller hur: bara att
 förfrågan är skickad, och numret om det brådskar. Tel:-länken här räknas
 inte som ett klick (data-fl-call saknas med flit: den som redan skickat en
 förfrågan är redan räknad).
+back_url (förhandsvisningen av en sida utan kampanj, app_views/page_preview.py)
+leder tillbaka dit i stället för till kampanjens adress.
 {% endcomment %}
 {% block title %}Tack | {{ site.business }}{% endblock %}
 {% block content %}
@@ -18,7 +20,7 @@ förfrågan är redan räknad).
     <p class="rn-thanks__text">Vill du lägga till något, eller brådskar det?</p>
     <a class="rn-btn rn-btn--primary rn-btn--lg" href="{{ site.tel }}"><svg class="rn-ic" aria-hidden="true" focusable="false"><use href="#rn-i-phone"></use></svg><span>Ring <span class="rn-nowrap">{{ site.phone }}</span></span></a>
     {% endif %}
-    <p class="rn-thanks__back"><a href="{{ campaign.landing_url }}">Tillbaka till sidan</a></p>
+    <p class="rn-thanks__back"><a href="{% if back_url %}{{ back_url }}{% else %}{{ campaign.landing_url }}{% endif %}">Tillbaka till sidan</a></p>
   </div>
 </section>
 {% endblock %}

@@ -70,7 +70,7 @@ PRINCIPLES = (
         "farre_falt",
         "Färre fält",
         "Varje fält i ett formulär är ett skäl att avbryta. Fråga bara det som behövs för "
-        "att höra av sig.",
+        "att höra av sig, och använd högst två flervalsfrågor.",
         "Forskning om formulär från bland andra Baymard Institute och Nielsen Norman Group.",
     ),
     Principle(

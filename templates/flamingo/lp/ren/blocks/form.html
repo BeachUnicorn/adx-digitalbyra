@@ -5,15 +5,39 @@ längre text, namn, telefon och e-post) och booking (dag och tid bland
 frågorna, ett meddelande, namn och telefon). Står det direkt efter Toppen
 med formulär hamnar det bredvid på en bred skärm.
 
-Frågorna är valfria (LeadForm) och märks "(valfritt)". Rutan (note_title och
-note) står under kortet; bara texten (note) står som en rad under kortet,
-och i booking under datumfältet (view.note_under). I redigeringsläget ritas
-rutan också när rubriken på den är tom, så att den går att fylla i.
+En fråga som inte krävs (frågans "required", LeadForm) märks "(valfritt)";
+äldre frågor är valfria. Ett flerval (q.choice, apps/flamingo/answers.py) är
+en fieldset med frågan som legend och alternativen som stora knappar:
+riktiga radioknappar (ett svar) eller kryssrutor (flera svar) i varsin
+label, osynliga men fokuserbara och lagda över hela knappen, så att det
+fungerar med tangentbord och skärmläsare och utan skript. Varje knapp har
+en ring (ett svar) eller en ruta (flera svar) som får en bock när den är
+vald, plus kant och ton (inte bara färg); platsen för bocken finns redan,
+så knappen ändrar inte storlek. Ett flerval med ett svar som krävs har
+required på radioknapparna; flera svar prövas av servern. Ett flerval som
+inte syns (q.visible: för få alternativ, eller q.over_limit, ett tredje
+flerval) ritas bara i redigeringsläget, med en rad om vad som är fel; på
+sidan har det inget fält. Ett klick på knapparna eller raden i
+redigeringsläget öppnar frågorna (data-pb-field="questions"), där
+alternativen skrivs. Förvalet från länken (?val=) kommer som formulärets initial och
+syns som o.checked.
+
+Id:n per fråga (render._form_context): rn-q_<nyckel> på ett textfält,
+rn-q_<nyckel>.<n> på knapparna (n från 1), rn-q_<nyckel>.hjalp på
+hjälptexten och q.error_id (rn-q_<nyckel>.fel) på felet; fältet med fel får
+aria-invalid och aria-describedby mot det.
+
+Rutan (note_title och note) står under kortet; bara texten (note) står som
+en rad under kortet, och i booking under datumfältet (view.note_under). I
+redigeringsläget ritas rutan också när rubriken på den är tom, så att den
+går att fylla i.
 
 Kontext utöver blockets: form (public_views.LeadForm, bunden efter en POST
-med fel), questions (med fältet i bound), spec (blocks.FormSpec),
-honeypot, tracking (klick-id och utm som följer med i dolda fält), action
-och preview. Svaren sparas som Lead.answers[frågans etikett].
+med fel), questions (med fältet i bound, och för ett flerval options med
+key, label, id och checked), spec (blocks.FormSpec), honeypot, tracking
+(klick-id och utm som följer med i dolda fält), action och preview. Svaren
+sparas som Lead.answers[frågans etikett], flervalen också i
+Lead.choice_answers.
 
 lp_consent (public_views._lp_consent, apps/utskick) ger kryssrutorna för
 utskick under fälten: boxes (kanal och exakt text), privacy_url och
@@ -54,18 +78,35 @@ så att förfrågan får utskicket. Aldrig i tracking (Lead.utm).
         {% endif %}
 
         {% for q in questions %}
-        <div class="rn-field{% if q.bound.errors %} is-error{% endif %}">
-          <label class="rn-label" for="rn-{{ q.field }}"><span{% pb "questions" forloop.counter0 "label" %}>{{ q.label }}</span> <span class="rn-opt">(valfritt)</span></label>
-          {% if q.kind == "textarea" %}
-          <textarea class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" rows="3" maxlength="1000">{{ q.bound.value|default_if_none:"" }}</textarea>
-          {% elif q.kind == "date" %}
-          <input class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" type="date" value="{{ q.bound.value|default_if_none:"" }}"{% if view.note_under == q.field and f.note %} aria-describedby="rn-{{ q.field }}-hjalp"{% endif %}>
-          {% else %}
-          <input class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" type="text" maxlength="1000" value="{{ q.bound.value|default_if_none:"" }}">
-          {% endif %}
-          {% if view.note_under == q.field %}{% if f.note %}<p class="rn-help" id="rn-{{ q.field }}-hjalp"{% pb "note" %}>{{ f.note|linebreaksbr }}</p>{% else %}{% pb_empty "note" "p" "rn-help" %}{% endif %}{% endif %}
-          {% for error in q.bound.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}
+        {% if q.choice %}
+        {% if q.visible %}
+        <fieldset class="rn-field rn-choice{% if q.multi %} rn-choice--many{% endif %}{% if q.bound.errors %} is-error{% endif %}"{% if q.bound.errors %} aria-describedby="{{ q.error_id }}"{% endif %}>
+          <legend class="rn-label rn-choice__legend"><span{% pb "questions" forloop.counter0 "label" %}>{{ q.label }}</span>{% if q.multi and q.required %} <span class="rn-opt">(välj ett eller flera)</span>{% elif q.multi %} <span class="rn-opt">(välj ett eller flera, valfritt)</span>{% elif not q.required %} <span class="rn-opt">(valfritt)</span>{% endif %}</legend>
+          <div class="rn-choice__opts"{% pb "questions" %}>
+            {% for o in q.options %}<label class="rn-choice__opt" for="{{ o.id }}"><input class="rn-choice__input" id="{{ o.id }}" type="{% if q.multi %}checkbox{% else %}radio{% endif %}" name="{{ q.field }}" value="{{ o.key }}"{% if o.checked %} checked{% endif %}{% if q.required and not q.multi %} required{% endif %}{% if q.bound.errors %} aria-invalid="true" aria-describedby="{{ q.error_id }}"{% endif %}><span class="rn-choice__box"><span class="rn-choice__mark" aria-hidden="true"><svg class="rn-ic rn-choice__check" aria-hidden="true" focusable="false"><use href="#rn-i-check"></use></svg></span><span class="rn-choice__text">{{ o.label }}</span></span></label>{% endfor %}
+          </div>
+          {% if q.bound.errors %}<div id="{{ q.error_id }}">{% for error in q.bound.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}</div>{% endif %}
+        </fieldset>
+        {% elif editing %}
+        <div class="rn-field">
+          <p class="rn-label"><span{% pb "questions" forloop.counter0 "label" %}>{{ q.label }}</span></p>
+          <p class="rn-help"{% pb "questions" %}>{% if q.over_limit %}Högst två flervalsfrågor i ett formulär. Byt Sorts svar på den här frågan.{% else %}Skriv minst två alternativ under Frågor, ett per rad.{% endif %}</p>
         </div>
+        {% endif %}
+        {% else %}
+        <div class="rn-field{% if q.bound.errors %} is-error{% endif %}">
+          <label class="rn-label" for="rn-{{ q.field }}"><span{% pb "questions" forloop.counter0 "label" %}>{{ q.label }}</span>{% if not q.required %} <span class="rn-opt">(valfritt)</span>{% endif %}</label>
+          {% if q.kind == "textarea" %}
+          <textarea class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" rows="3" maxlength="1000"{% if q.required %} required{% endif %}{% if q.bound.errors %} aria-invalid="true" aria-describedby="{{ q.error_id }}"{% endif %}>{{ q.bound.value|default_if_none:"" }}</textarea>
+          {% elif q.kind == "date" %}
+          <input class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" type="date" value="{{ q.bound.value|default_if_none:"" }}"{% if q.required %} required{% endif %}{% if q.bound.errors %} aria-invalid="true"{% endif %}{% if view.note_under == q.field and f.note %} aria-describedby="rn-{{ q.field }}.hjalp{% if q.bound.errors %} {{ q.error_id }}{% endif %}"{% elif q.bound.errors %} aria-describedby="{{ q.error_id }}"{% endif %}>
+          {% else %}
+          <input class="rn-input" id="rn-{{ q.field }}" name="{{ q.field }}" type="text" maxlength="1000" value="{{ q.bound.value|default_if_none:"" }}"{% if q.required %} required{% endif %}{% if q.bound.errors %} aria-invalid="true" aria-describedby="{{ q.error_id }}"{% endif %}>
+          {% endif %}
+          {% if view.note_under == q.field %}{% if f.note %}<p class="rn-help" id="rn-{{ q.field }}.hjalp"{% pb "note" %}>{{ f.note|linebreaksbr }}</p>{% else %}{% pb_empty "note" "p" "rn-help" %}{% endif %}{% endif %}
+          {% if q.bound.errors %}<div id="{{ q.error_id }}">{% for error in q.bound.errors %}<p class="rn-error">{{ error }}</p>{% endfor %}</div>{% endif %}
+        </div>
+        {% endif %}
         {% endfor %}
 
         {% if spec.asks_message %}

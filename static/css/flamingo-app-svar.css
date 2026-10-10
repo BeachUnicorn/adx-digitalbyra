@@ -1,0 +1,42 @@
+/* ==========================================================================
+   ADX Flamingo - Svar i formuläret (flamingo-app-svar.css)
+
+   templates/flamingo/app/pages/answers.html (app_views/pages.page_answers):
+   svaren på sidans flervalsfrågor, en panel per fråga och en rad per
+   alternativ. Bygger på flamingo-app.css (.fl-panel, .fl-app-head) och
+   samma staplar som utskickens rapport (flamingo-app-utskick-report.css).
+   Allt här har prefixet .fl-svar.
+
+     .fl-svar__rows    raderna: texten, stapeln (SVG med viewBox) och
+                       andelen med antalet; under 760 px står stapeln på
+                       en egen rad under texten
+
+   Inga style-attribut, ingen tabell, inget bredare än skärmen i 375 px.
+   ========================================================================== */
+
+.fl-svar{display:flex;flex-direction:column;gap:16px;min-width:0}
+.fl-svar__q{display:flex;flex-direction:column;gap:12px;min-width:0}
+.fl-svar-crumb{color:inherit;text-decoration:none}
+.fl-svar-crumb:hover{text-decoration:underline;text-underline-offset:3px}
+
+.fl-svar__rows{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.fl-svar__row{
+  display:grid;grid-template-columns:minmax(0,14em) minmax(0,1fr) auto;align-items:center;gap:12px;
+  min-height:40px;min-width:0;
+}
+.fl-svar__label{min-width:0;font-size:16px;line-height:1.35;color:var(--fl-body);overflow-wrap:anywhere}
+.fl-svar__gone{color:var(--fl-muted)}
+.fl-svar__bar{display:block;width:100%;height:12px;border-radius:6px;overflow:hidden}
+.fl-svar__track{fill:var(--fl-soft)}
+/* Stapeln minst 3:1 mot vitt (WCAG 1.4.11), som rapportens. */
+.fl-svar__fill{fill:var(--fl-violet)}
+.fl-svar__value{
+  display:inline-flex;align-items:baseline;justify-content:flex-end;gap:8px;min-width:5.5em;
+  font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--fl-ink);
+}
+.fl-svar__n{font-size:14px;font-weight:400;color:var(--fl-muted)}
+
+@media (max-width:759px){
+  .fl-svar__row{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+  .fl-svar__bar{grid-column:1 / -1;grid-row:2}
+}

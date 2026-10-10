@@ -333,6 +333,124 @@ class PortalTests(Fixture):
         self.assertIn("inte uppsatt än", html)
 
 
+class StatusProviderNameTests(Fixture):
+    """Statussidan visar vad kontrollerna kom fram till, inte vilka tjänster
+    ADX använder (Giovanni 2026-10-10): ingen utfärdare, inga namnservrar,
+    inga råa DNS-poster och ingen versionsrad från servern. Data som i
+    utvecklingsdatabasen (monitor.Check 3, 5, 8 och 9)."""
+
+    def setUp(self):
+        super().setUp()
+        Check.objects.create(
+            domain=self.domain,
+            kind=Kind.SSL,
+            ok=True,
+            data={"days_left": 67, "not_after": "2026-11-27", "issuer": "Let's Encrypt"},
+        )
+        Check.objects.create(
+            domain=self.domain,
+            kind=Kind.DOMAIN,
+            ok=True,
+            data={
+                "apex": "nordan.se",
+                "registrar": "Amazon Registrar, Inc.",
+                "expires": "2027-03-01",
+                "days_left": 140,
+                "nameservers": ["ns-877.awsdns-45.net", "ns-81.awsdns-10.com"],
+                "locked": False,
+            },
+        )
+        Check.objects.create(
+            domain=self.domain,
+            kind=Kind.EMAIL,
+            ok=True,
+            data={
+                "ok": True,
+                "rows": [
+                    {
+                        "status": "ok",
+                        "titel": "MX (ta emot mejl)",
+                        "detalj": "nordan-se.mail.protection.outlook.com",
+                    },
+                    {
+                        "status": "ok",
+                        "titel": "SPF",
+                        "detalj": "v=spf1 include:spf.protection.outlook.com "
+                        "include:amazonses.com -all",
+                    },
+                    {
+                        "status": "varning",
+                        "titel": "DMARC",
+                        "detalj": "Finns men p=none (övervakar bara): v=DMARC1; p=none; "
+                        "rua=mailto:dmarc@eu-west-1.amazonses.com",
+                    },
+                    {"status": "ok", "titel": "DKIM", "detalj": "Selektor hittad: selector1"},
+                ],
+            },
+        )
+        Check.objects.create(
+            domain=self.domain,
+            kind=Kind.SECURITY,
+            ok=True,
+            data={
+                "ok": True,
+                "rows": [
+                    {"status": "ok", "titel": "HTTPS", "detalj": "https://nordan.se/"},
+                    {
+                        "status": "varning",
+                        "titel": "Server-header",
+                        "detalj": "Avslöjar version: nginx/1.24.0 (Ubuntu)",
+                    },
+                ],
+            },
+        )
+
+    def test_the_status_page_names_no_provider(self):
+        import html as html_lib
+
+        from apps.common.providers import names_in
+
+        response = self.as_contact().get("/kund/status/")
+        self.assertEqual(response.status_code, 200)
+        text = html_lib.unescape(response.content.decode())
+        self.assertEqual(names_in(text, strict=True), [])
+        for gone in ("Utfärdare", "utfärdat av", "Namnservrar", "Registrar", "selector1"):
+            with self.subTest(gone=gone):
+                self.assertNotIn(gone, text)
+        for shown in (
+            "Giltigt till",
+            "67 dagar",
+            "Förnyas senast",
+            "Domänen tar emot mejl.",
+            "Finns: mottagarna kan se vilka servrar som får skicka för domänen.",
+            "Finns men bara övervakar (p=none)",
+            "Finns: mejlen från domänen signeras.",
+            "Servern berättar vilken programversion den kör.",
+            "https://nordan.se/",
+        ):
+            with self.subTest(shown=shown):
+                self.assertIn(shown, text)
+
+    def test_the_customers_own_registrar_is_still_shown(self):
+        Check.objects.create(
+            domain=self.domain,
+            kind=Kind.DOMAIN,
+            ok=True,
+            data={"apex": "nordan.se", "registrar": "Loopia AB", "expires": "2027-03-01"},
+        )
+        self.assertContains(self.as_contact().get("/kund/status/"), "hos Loopia AB")
+
+    def test_an_unknown_row_with_a_provider_name_is_replaced(self):
+        from . import status_areas
+
+        row = {"status": "ok", "titel": "Ny kontroll", "detalj": "via amazonses.com"}
+        self.assertEqual(
+            status_areas._customer_detail(row), ("Ny kontroll", "Kontrollen är gjord.", "ok")
+        )
+        row = {"status": "fel", "titel": "SPF", "detalj": "Saknas - mottagare kan inte veta."}
+        self.assertEqual(status_areas._customer_detail(row)[1], "Saknas - mottagare kan inte veta.")
+
+
 class ManageTests(Fixture):
     def test_add_domain_toggle_and_run(self):
         client = self.as_staff()
