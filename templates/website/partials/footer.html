@@ -1,8 +1,11 @@
-{% load static %}
+{% load static render_context %}
 {% comment %}
 Sidfoten ur strict-design-guide.html: glaspanel med logotyp, beskrivning,
 länkkolumner ur footer-menyerna (Menu-modellen, en meny = en kolumn) och
-bottenraden ur sajtinställningarna.
+bottenraden ur sajtinställningarna. Beskrivningen är rik text ur panelen
+(sanerad vid sparning) och renderas som HTML, inte som synliga taggar.
+Bottenraden börjar med bolagsraden (Giovanni 2026-10-10, version D) och
+följs av adress och e-post.
 {% endcomment %}
 <footer data-analytics-position="footer">
   <div class="wrap">
@@ -10,7 +13,7 @@ bottenraden ur sajtinställningarna.
       <div class="foot-top">
         <div>
           <img src="{% static 'images/adx-logo.png' %}" alt="{{ site_settings.name|default:'ADX' }}">
-          {% if site_settings.footer_about %}<p class="foot-desc">{{ site_settings.footer_about }}</p>{% endif %}
+          {% if site_settings.footer_about %}<div class="foot-desc">{% render_with_context_rich site_settings.footer_about %}</div>{% endif %}
         </div>
         <div class="foot-cols">
           {% for menu in footer_menus %}
@@ -26,7 +29,7 @@ bottenraden ur sajtinställningarna.
         </div>
       </div>
       <div class="foot-bottom">
-        <span>&copy; {% now "Y" %} {{ site_settings.name|default:"ADX" }}</span>
+        <span class="foot-legal">&copy; {% now "Y" %} Atlas Holly Aktiebolag. ADX är en tjänst från Atlas Holly Aktiebolag, org.nr 559241-8528, med säte i Solna. Grundat 2020.</span>
         {% if site_settings.street_address %}<span>{{ site_settings.street_address }}{% if site_settings.postal_code %}, {{ site_settings.postal_code }} {{ site_settings.city }}{% endif %}</span>{% endif %}
         {% if site_settings.email %}<span>{{ site_settings.email }}</span>{% endif %}
       </div>

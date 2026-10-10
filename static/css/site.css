@@ -376,6 +376,8 @@
   .foot-top{display:flex;justify-content:space-between;gap:40px;flex-wrap:wrap;margin-bottom:40px}
   .foot-top img{height:26px;filter:var(--logo-filter);transition:filter .5s ease}
   .foot-desc{font-size:19px;color:var(--fg-soft);max-width:380px;margin-top:20px}
+  .foot-desc p{margin:0}
+  .foot-desc p + p{margin-top:12px}
   .foot-cols{display:flex;gap:64px;flex-wrap:wrap}
   .foot-cols h5{
     font-family:var(--mono);font-size:16px;letter-spacing:.12em;text-transform:uppercase;
@@ -389,6 +391,7 @@
     border-top:1px solid var(--border-soft);padding-top:26px;
     font-family:var(--mono);font-size:16.5px;color:var(--fg-soft);
   }
+  .foot-legal{flex:1 1 100%}
 
   /* ---------- Responsive ---------- */
   @media (max-width:1080px){

@@ -168,6 +168,25 @@ class SeededSiteTests(TestCase):
                 seen.add(href)
                 self.assertEqual(client.get(href).status_code, 200, f"{href} (länkad från {path})")
 
+    def test_footer_text_is_rendered_as_html_not_as_tags(self):
+        """Sidfotstexten sparas som rik text ur panelen (<p>...</p>). Den
+        syntes som bokstavliga taggar under loggan (2026-10-10)."""
+        from apps.website.models import SiteSettings
+
+        settings = SiteSettings.load()
+        settings.footer_about = "<p>ADX är en digitalbyrå i Stockholm.</p>"
+        settings.save()
+        html = Client().get("/").content.decode()
+        self.assertIn('<div class="foot-desc"><p>ADX är en digitalbyrå i Stockholm.</p></div>', html)
+        self.assertNotIn("&lt;p&gt;", html)
+
+    def test_footer_names_the_company_before_address_and_email(self):
+        settings_email = "hej@adx.se"
+        html = Client().get("/").content.decode()
+        bottom = html[html.index('class="foot-bottom"') :]
+        legal = bottom.index("Atlas Holly Aktiebolag, org.nr 559241-8528, med säte i Solna. Grundat 2020.")
+        self.assertLess(legal, bottom.index(settings_email))
+
 
 class ForeignDatabaseGuardTests(TestCase):
     """Bootvakten mot kopierade .env-pekare (incidenten 2026-08-27: kopians
