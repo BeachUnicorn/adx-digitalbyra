@@ -177,14 +177,18 @@ class SeededSiteTests(TestCase):
         settings.footer_about = "<p>ADX är en digitalbyrå i Stockholm.</p>"
         settings.save()
         html = Client().get("/").content.decode()
-        self.assertIn('<div class="foot-desc"><p>ADX är en digitalbyrå i Stockholm.</p></div>', html)
+        self.assertIn(
+            '<div class="foot-desc"><p>ADX är en digitalbyrå i Stockholm.</p></div>', html
+        )
         self.assertNotIn("&lt;p&gt;", html)
 
     def test_footer_names_the_company_before_address_and_email(self):
         settings_email = "hej@adx.se"
         html = Client().get("/").content.decode()
         bottom = html[html.index('class="foot-bottom"') :]
-        legal = bottom.index("Atlas Holly Aktiebolag, org.nr 559241-8528, med säte i Solna. Grundat 2020.")
+        legal = bottom.index(
+            "Atlas Holly Aktiebolag, org.nr 559241-8528, med säte i Solna. Grundat 2020."
+        )
         self.assertLess(legal, bottom.index(settings_email))
 
 
