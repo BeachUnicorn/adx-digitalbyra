@@ -12,7 +12,7 @@ för besökarna), kan_forhandsgranska och forhandsgranska_url (fungerar
 också när sidan är stängd). Kopiera-knappen använder
 flamingo-app-kontakter.js (data-kt-copy, dold utan skript). kanaler (S2):
 [{kanal, rubrik, vald, hinder}], e-post och sms; en kanal med hinder går
-inte att välja (texten säger varför). QR-koden finns inte än och nämns inte.
+inte att välja (texten säger varför). S4: QR-koden (app_signup_qr) under Adress.
 {% endcomment %}
 {% block app_title %}Anmälan{% endblock %}
 {% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">{% endblock %}
@@ -42,6 +42,18 @@ inte att välja (texten säger varför). QR-koden finns inte än och nämns inte
       {% if publik_url %}<button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-kt-copy="{{ publik_url }}" hidden>Kopiera länk</button>{% endif %}
       {% if kan_forhandsgranska %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ forhandsgranska_url }}" target="_blank" rel="noopener">Förhandsgranska</a>{% endif %}
     </li>
+    {% comment %}S4 (länk-byggaren): sidans QR-kod (app_signup_qr, README I.7 Anmälan), när sidan har en adress.{% endcomment %}
+    {% if publik_url %}
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">QR-kod</span>
+        <span class="fl-list__meta">Till affischer, skyltar och kvitton. Leder till sidan ovan. SVG passar för tryck, PNG i dokument och sociala medier.</span>
+      </div>
+      <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_signup_qr' 'svg' %}?ladda=1" download>Ladda ner SVG</a>
+      <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_signup_qr' 'png' %}?ladda=1" download>Ladda ner PNG</a>
+    </li>
+    {% endif %}
+    {% comment %}slut S4{% endcomment %}
   </ul>
 </section>
 

@@ -15,10 +15,18 @@ Länk-byggaren (S2):
     sms_preferences   k.adx.se/p/<kod>      GET sida, POST sparar (E.5)
     confirm           k.adx.se/b/<kod>      GET knapp, POST bekräftar (E.5)
 
-S3 (klick.adx.se, mejlen; avsnittet sist i filen, inkorg-byggaren i S3):
+S3 (klick.adx.se, mejlen; avsnittet efter S2, inkorg-byggaren i S3):
 
     email_click, email_unsubscribe, email_preferences, web_view,
     open_pixel, calendar
+
+S4 (klick.adx.se; avsnittet sist i filen, länk-byggaren i S4):
+
+    named            klick.adx.se/<public_slug>/<slug>   den namngivna länken (302)
+    named_folded     klick.adx.se/Exempelror/Vinter      301 till adressen i gemener
+                                                         (integrationen)
+    snippet          klick.adx.se/s.<ver>.js             skriptet på egen sajt (E.6)
+    snippet_beacon   klick.adx.se/v                      skriptets besöksanrop (POST)
 
 Regler här: inga kakor (ingen {% csrf_token %}, POST:ar är csrf_exempt och
 bär den signerade nonce:n fn, tokens.form_nonce, E.1), maskade uppgifter,
@@ -36,11 +44,13 @@ avregistrera sig. Kontot tas bara ur koden (H.1). Reglerna bakom sidorna står i
 attribution.py.
 """
 
+import logging
+
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseRedirect
+from django.http import HttpResponse, HttpResponsePermanentRedirect, HttpResponseRedirect
 from django.shortcuts import render
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods, require_safe
+from django.views.decorators.http import require_http_methods, require_POST, require_safe
 
 from apps.common.botcheck import botcheck_passes
 from apps.common.net import client_ip
@@ -59,6 +69,8 @@ from .links import (
     site_urls,
 )
 from .models import CHANNEL_SMS, LinkCode, Recipient
+
+logger = logging.getLogger(__name__)
 
 #: ADX integritetspolicy på adx.se (startsidan på länkvärdarna länkar dit).
 ADX_PRIVACY_PATH = "/integritetspolicy/"
@@ -885,3 +897,253 @@ def calendar(request, token):
     response = HttpResponse(text.encode("utf-8"), content_type="text/calendar; charset=utf-8")
     response["Content-Disposition"] = 'attachment; filename="kalender.ics"'
     return private(response)
+
+
+# ---------------------------------------------------------------------------
+# S4, klick.adx.se: de namngivna länkarna och skriptet på egen sajt
+# (README E.1, E.3, E.6, H.2). Länk-byggaren; namnen hålls fast av
+# test_s4_foundation.SignatureTests.
+#
+#   named           GET, HEAD   klick.adx.se/<public_slug>/<slug>: kontot ur
+#                               UtskickSettings.public_slug (eller en tidigare adress
+#                               som kontot har kvar, OldPublicSlug), länken ur (konto, slug),
+#                               bara namngivna länkar (utskick null). 302 som
+#                               klicket (links.build_destination, private); en
+#                               Flamingo-sida får ut, en extern adress prövas igen
+#                               (destination_ok) och får adx= bara när värden är en
+#                               SiteSnippet-domän med last_seen_at (E.3). Klicket
+#                               sparas med kanalen named, utan mottagare
+#                               (attribution.record_named_click); bottar räknas
+#                               bara. Missar räknas inte (ingen kod att gissa, men samma
+#                               404 för okänt konto och okänd slug).
+#   snippet         GET, HEAD   klick.adx.se/s.<ver>.js: links.snippet_body(ver),
+#                               404 för en okänd version. text/javascript,
+#                               Cache-Control public, max-age=31536000, immutable,
+#                               Access-Control-Allow-Origin: * (SRI med
+#                               crossorigin=anonymous kräver CORS),
+#                               Cross-Origin-Resource-Policy: cross-origin, nosniff.
+#                               Inga kakor.
+#   snippet_beacon  POST        klick.adx.se/v, csrf_exempt (H.2): text/plain JSON
+#                               {"k": nyckel, "t": token, "p": sökväg, "s": sekunder,
+#                               "v": 1 vid landningen, "e": adxFlamingo.track(namn)},
+#                               högst 1 kB. Godtas bara när Origin är SiteSnippet.domain
+#                               eller en underdomän och t är ett klick hos nyckelns konto
+#                               (tokens.read_adx, Click.account_id) eller provlänkens
+#                               token för just det skriptet (site_snippet). Uppdaterar
+#                               klicket som besöksanropet på landningssidan
+#                               (attribution.record_beacon), räknar landningen och
+#                               skriver Event site_visit en gång per klick och 30
+#                               minuter (attribution.record_site_visit), last_seen_at
+#                               högst en gång per SiteSnippet.SEEN_EVERY. Svarar alltid
+#                               204 utan kropp (också när något inte stämmer, så att
+#                               svaret inte avslöjar nycklar eller klick), med en gräns
+#                               per besökare (Counter). Inga kakor, ingen lagring.
+# ---------------------------------------------------------------------------
+
+
+#: Besöksanropet är litet (E.6): nyckeln, token, sökvägen, sekunderna.
+BEACON_MAX_BYTES = 1024
+#: Besöksanrop per besökare (ip_hash) och timme som behandlas; resten tas
+#: emot och glöms (svaret är detsamma).
+BEACON_PER_HOUR = 120
+#: Skriptets cache: adressen bär versionen, så filen ändras aldrig.
+SNIPPET_CACHE = "public, max-age=31536000, immutable"
+
+
+class _NamedCode:
+    """Det attribution.count_bot läser av en klickkod, för en namngiven länk
+    (ingen mottagare, ingen LinkCode-rad)."""
+
+    pk = None
+    recipient = None
+    recipient_id = None
+
+    def __init__(self, link):
+        self.link = link
+        self.link_id = link.pk
+        self.account_id = link.account_id
+
+
+@csrf_exempt
+@on_link_host(KIND_EMAIL)
+@require_safe
+def named(request, account, slug):
+    """klick.adx.se/<public_slug>/<slug> (E.1, E.3, E.8): den namngivna
+    länken, för affischer, QR-koder, Instagram och kvitton. Kontot tas ur
+    public_slug, länken ur (konto, slug) och bara bland namngivna länkar
+    (utskick null). Okänt konto och okänd slug ger samma sida; missar
+    räknas inte (adresserna står öppet på affischer). En extern adress
+    prövas igen (destination_ok). HEAD ger målet utan ut och sparar inget.
+    Bottar och förhandsvisningar räknas på länken men sparas inte. Ett
+    klick sparas med kanalen named utan mottagare, och målet får ut (en
+    Flamingo-sida) eller adx (en sajt med skriptet). Inga anrop utåt.
+    csrf_exempt bara för att en POST ska få 405 i stället för CSRF-sidan
+    (inga kakor på länkvärdarna); vyn tar bara GET och HEAD."""
+    from .access import account_for_public_slug
+    from .models import TrackedLink
+
+    # Också en tidigare adress som kontot har kvar (OldPublicSlug): tryckta
+    # affischer och QR-koder fortsätter till samma kund efter ett byte.
+    account_id = account_for_public_slug(account)
+    if account_id is None:
+        return not_found(request)
+    link = (
+        TrackedLink.objects.select_related("campaign", "account__customer")
+        .filter(account_id=account_id, slug=slug, utskick__isnull=True)
+        .first()
+    )
+    if link is None or not destination_ok(link):
+        return not_found(request)
+    if request.method == "HEAD":
+        return private(HttpResponseRedirect(bare_destination(link)))
+    kind = attribution.classify(request, None, link)
+    if kind == attribution.BOT:
+        attribution.count_bot(_NamedCode(link))
+        return private(HttpResponseRedirect(build_destination(link, None, None)))
+    click_row = attribution.record_named_click(link, kind, request, _ip_hash(request))
+    return private(HttpResponseRedirect(build_destination(link, None, click_row)))
+
+
+# --- S4 (integrationen): versaler i en namngiven länk ---
+
+
+@csrf_exempt
+@on_link_host(KIND_EMAIL)
+@require_safe
+def named_folded(request, account, slug):
+    """klick.adx.se/Exempelror/Vinter (S4-HANDOFF, begäran 1 från länk-
+    byggaren): en telefon gör ofta första bokstaven stor när någon skriver
+    av en affisch. Adressen med minst en versal (urls_links prövar den efter
+    named) får 301 till samma adress i gemener, där named räknar klicket.
+    Bara när gemenerna är en namngiven länk som finns: värdarnas egna första
+    led (s, p, b, m, a, v, w, o, c, där koderna skiljer på stora och små
+    bokstäver) och de reserverade början är aldrig ett konto, och en okänd
+    adress får samma 404 som named ger. Inget sparas och inga missar räknas."""
+    from .access import account_for_public_slug, is_reserved_slug
+    from .links import NAMED_SLUG_RE
+    from .models import TrackedLink
+
+    account, slug = account.lower(), slug.lower()
+    if is_reserved_slug(account) or not NAMED_SLUG_RE.match(slug):
+        return not_found(request)
+    account_id = account_for_public_slug(account)
+    if account_id is None:
+        return not_found(request)
+    named_links = TrackedLink.objects.filter(account_id=account_id, utskick__isnull=True)
+    if not named_links.filter(slug=slug).exists():
+        return not_found(request)
+    return private(HttpResponsePermanentRedirect(f"/{account}/{slug}"))
+
+
+# --- slut S4 (integrationen)
+
+
+@on_link_host(KIND_EMAIL)
+@require_safe
+def snippet(request, ver):
+    """klick.adx.se/s.<ver>.js (E.6): skriptet för versionen
+    (links.snippet_body, också en sparad äldre version), annars 404. Filen
+    ändras aldrig under sin adress, så den cachas i ett år. CORS för alla
+    (SRI med crossorigin=anonymous kräver det), inga kakor."""
+    from .links import snippet_body
+
+    body = snippet_body(ver)
+    if body is None:
+        return not_found(request)
+    response = HttpResponse(body, content_type="text/javascript; charset=utf-8")
+    response["Cache-Control"] = SNIPPET_CACHE
+    response["Access-Control-Allow-Origin"] = "*"
+    response["Cross-Origin-Resource-Policy"] = "cross-origin"
+    response["X-Content-Type-Options"] = "nosniff"
+    response["Content-Length"] = str(len(body))
+    return response
+
+
+def _beacon_done():
+    """Svaret på varje besöksanrop: 204 utan kropp, ingen cache."""
+    response = HttpResponse(status=204)
+    response["Cache-Control"] = "no-store"
+    response["Access-Control-Allow-Origin"] = "*"
+    return response
+
+
+def _beacon_payload(request):
+    """Kroppen som en dict (text/plain JSON, högst BEACON_MAX_BYTES), eller None."""
+    import json
+
+    try:
+        length = int(request.META.get("CONTENT_LENGTH") or 0)
+    except ValueError:
+        return None
+    if length <= 0 or length > BEACON_MAX_BYTES:
+        return None
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+@csrf_exempt
+@on_link_host(KIND_EMAIL)
+@require_POST
+def snippet_beacon(request):
+    """klick.adx.se/v (E.6, H.2): skriptets besöksanrop, text/plain JSON
+    {"k": nyckel, "t": token, "p": sökväg, "s": sekunder, "v": 1 vid
+    landningen, "e": adxFlamingo.track(namn)}. csrf_exempt: behörigheten är
+    nyckeln, den signerade token och Origin. Godtas bara när Origin är
+    skriptets domän eller en underdomän, och t är ett klick hos nyckelns
+    konto (tokens.read_adx, Click.account_id) eller provlänkens token för
+    just det skriptet. Ett klick uppdateras som av besöksanropet på
+    landningssidan (attribution.record_beacon), landningen räknas
+    (record_site_visit) och last_seen_at sätts högst en gång per
+    SiteSnippet.SEEN_EVERY. Demokontot loggas inte. Svarar alltid 204 utan
+    kropp, också när något inte stämmer, och sätter inga kakor."""
+    from django.db.models import Q
+    from django.utils import timezone
+
+    from . import site_snippet
+    from .models import Click, SiteSnippet
+
+    done = _beacon_done()
+    data = _beacon_payload(request)
+    if data is None:
+        return done
+    key = str(data.get("k") or "")
+    token = str(data.get("t") or "")
+    if not site_snippet.KEY_RE.match(key) or not site_snippet.TOKEN_RE.match(token):
+        return done
+    site = SiteSnippet.objects.select_related("account").filter(key=key).first()
+    if site is None or site.account.is_demo:
+        return done
+    host = site_snippet.origin_host(request)
+    if not site_snippet.origin_ok(site, host):
+        return done
+    if limits.hit("site_beacon", _ip_hash(request), limits.hour_window(), BEACON_PER_HOUR):
+        return done
+    now = timezone.now()
+    click = None
+    click_id = tokens.read_adx(token)
+    if click_id:
+        click = Click.objects.filter(pk=click_id, account_id=site.account_id).first()
+    if click is None and site_snippet.read_install_token(token) != site.pk:
+        return done
+    SiteSnippet.objects.filter(
+        Q(last_seen_at__isnull=True) | Q(last_seen_at__lt=now - SiteSnippet.SEEN_EVERY),
+        pk=site.pk,
+    ).update(last_seen_at=now)
+    if click is None:
+        return done
+    try:
+        path = site_snippet.clean_path(data.get("p"))
+        if data.get("v") == 1:
+            attribution.record_site_visit(click, path, now, host=host)
+        attribution.record_beacon(click, data.get("s", 0), now)
+        goal = site_snippet.clean_goal(data.get("e"))
+        if goal:
+            attribution.record_site_goal(click, path, goal, now, host=host)
+    except (TypeError, ValueError, OverflowError, AttributeError):
+        # Kroppen kommer från vem som helst med en token: ett värde av fel
+        # slag ger aldrig ett serverfel, svaret är alltid 204 (bara pk loggas).
+        logger.warning("Besöksanropet kunde inte läsas för klick %s.", click.pk)
+    return done

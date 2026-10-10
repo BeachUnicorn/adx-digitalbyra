@@ -10,6 +10,11 @@ Vem som får vad i Kontakter och Utskick (README H.1). Reglerna bor här.
     owned(model, account, pk)    ett id ur adressen, 404 för ett annat kontos
     owned_ids(model, account, ids)  id:n ur ett formulär eller JSON, ForeignIds för främmande
     actor_for(request)           vem som gör ändringen (för loggarna)
+    validate_public_slug, suggest_public_slug   adressen för anmälan (upptagen också om
+                                 ett annat konto hade den förut, OldPublicSlug)
+    account_for_public_slug(slug) -> account_id | None   nuvarande adress, annars en
+                                 tidigare adress som kontot fortfarande har
+    retire_public_slug(row, new_slug, now)   ett byte: den gamla adressen följer kontot
 
 Varje vy i verktyget går via utskick_view: Flamingos app_view (behörighet
 och kundens konto) plus kravet att utskick är aktiverat, annars 404, också
@@ -32,8 +37,10 @@ from django.shortcuts import get_object_or_404
 from .models import (
     CHANNEL_EMAIL,
     CHANNEL_SMS,
+    RESERVED_PUBLIC_SLUG_PREFIXES,
     RESERVED_PUBLIC_SLUGS,
     DpaVersion,
+    OldPublicSlug,
     UtskickSettings,
     default_consent_text,
 )
@@ -260,8 +267,41 @@ def reserved_slugs():
     return reserved
 
 
-def validate_public_slug(slug, exclude_pk=None):
-    """ValidationError om adressen är reserverad, felaktig eller upptagen."""
+def is_reserved_slug(slug, reserved=None):
+    """Är adressen reserverad: i listan, eller (S4) början på en sökväg som
+    länkvärdarna aldrig släpper fram till appen (RESERVED_PUBLIC_SLUG_PREFIXES)?"""
+    if reserved is None:
+        reserved = reserved_slugs()
+    return slug in reserved or slug.startswith(RESERVED_PUBLIC_SLUG_PREFIXES)
+
+
+OLD_SLUG_TEXT = (
+    "Adressen har använts av en annan kund. Länkar och QR-koder med den kan finnas "
+    "kvar, så den går inte att använda."
+)
+
+
+def _account_of_row(exclude_pk):
+    if not exclude_pk:
+        return None
+    return (
+        UtskickSettings.objects.filter(pk=exclude_pk).values_list("account_id", flat=True).first()
+    )
+
+
+def _old_slug_taken(slug, account_id):
+    """Har ett annat konto (eller ett borttaget) haft adressen förut?"""
+    rows = OldPublicSlug.objects.filter(slug=slug)
+    if account_id:
+        rows = rows.exclude(account_id=account_id)
+    return rows.exists()
+
+
+def validate_public_slug(slug, exclude_pk=None, account_id=None):
+    """ValidationError om adressen är reserverad, felaktig eller upptagen:
+    ett annat kontos nuvarande adress, eller en adress som ett annat konto
+    hade förut (OldPublicSlug: tryckta länkar och QR-koder pekar dit).
+    Kontot (account_id, annars raden exclude_pk:s) får ta tillbaka sin egen."""
     from django.core.validators import validate_slug
 
     slug = (slug or "").strip().lower()
@@ -270,29 +310,77 @@ def validate_public_slug(slug, exclude_pk=None):
     validate_slug(slug)
     if len(slug) > 40:
         raise ValidationError("Adressen får vara högst 40 tecken.")
-    if slug in reserved_slugs():
+    if is_reserved_slug(slug):
         raise ValidationError("Adressen är reserverad. Välj en annan.")
     taken = UtskickSettings.objects.filter(public_slug=slug)
     if exclude_pk:
         taken = taken.exclude(pk=exclude_pk)
     if taken.exists():
         raise ValidationError("Adressen används redan av en annan kund.")
+    if _old_slug_taken(slug, account_id or _account_of_row(exclude_pk)):
+        raise ValidationError(OLD_SLUG_TEXT)
     return slug
 
 
-def suggest_public_slug(name, exclude_pk=None):
+def suggest_public_slug(name, exclude_pk=None, account_id=None):
     """Ett förslag ur företagsnamnet (flamingo.models.company_slug), ledigt
-    och inte reserverat; krockar får -2, -3 och så vidare."""
+    och inte reserverat (en annan kunds tidigare adress är inte ledig);
+    krockar får -2, -3 och så vidare."""
     from apps.flamingo.models import company_slug
 
     base = company_slug(name)[:40].strip("-") or "foretaget"
+    if base.startswith(RESERVED_PUBLIC_SLUG_PREFIXES):
+        # S4: -2 räddar inte en reserverad början (tokenbolaget-2).
+        base = f"kund-{base}"[:40].rstrip("-")
     reserved = reserved_slugs()
     taken = UtskickSettings.objects.all()
     if exclude_pk:
         taken = taken.exclude(pk=exclude_pk)
+    account_id = account_id or _account_of_row(exclude_pk)
     slug, n = base, 2
-    while slug in reserved or taken.filter(public_slug=slug).exists():
+    while (
+        is_reserved_slug(slug, reserved)
+        or taken.filter(public_slug=slug).exists()
+        or _old_slug_taken(slug, account_id)
+    ):
         suffix = f"-{n}"
         slug = base[: 40 - len(suffix)].rstrip("-") + suffix
         n += 1
     return slug
+
+
+def account_for_public_slug(slug):
+    """Kontots id för adressen: den nuvarande (UtskickSettings.public_slug),
+    annars en tidigare adress som kontot fortfarande har (OldPublicSlug med
+    ett konto). None när ingen har den."""
+    slug = str(slug or "")
+    found = (
+        UtskickSettings.objects.filter(public_slug=slug)
+        .values_list("account_id", flat=True)
+        .first()
+    )
+    if found:
+        return found
+    return (
+        OldPublicSlug.objects.filter(slug=slug, account__isnull=False)
+        .values_list("account_id", flat=True)
+        .first()
+    )
+
+
+def retire_public_slug(row, new_slug, now=None):
+    """Kontots adress byts från row.public_slug till new_slug (anropas i
+    samma transaktion som sparningen). Den gamla adressen sparas som
+    OldPublicSlug för kontot, så att tryckta länkar och QR-koder fortsätter
+    till samma kund; tar kontot tillbaka en egen tidigare adress tas den
+    raden bort."""
+    from django.utils import timezone
+
+    old = str(row.public_slug or "")
+    if not row.pk or not old or old == new_slug:
+        return
+    now = now or timezone.now()
+    OldPublicSlug.objects.filter(slug=new_slug, account_id=row.account_id).delete()
+    OldPublicSlug.objects.update_or_create(
+        slug=old, defaults={"account_id": row.account_id, "retired_at": now}
+    )

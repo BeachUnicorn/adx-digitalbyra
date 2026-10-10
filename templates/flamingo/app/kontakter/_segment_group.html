@@ -1,0 +1,11 @@
+{% comment %}
+En grupp (ELLER) i segmentbyggaren. Kontext: key (g1, g2 och så vidare,
+"__G__" i skriptets mall), rows (Builder.row), field_groups. Det räcker att
+ett av villkoren i gruppen gäller.
+{% endcomment %}<div class="fl-sg-item fl-sg-group" data-sg-groupbox data-sg-key="{{ key }}">
+  <p class="fl-sg-group__title">Minst ett av de här</p>
+  <div class="fl-sg-group__rows" data-sg-rows>
+    {% for row in rows %}{% include "flamingo/app/kontakter/_segment_row.html" %}{% endfor %}
+  </div>
+  <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="add_to:{{ key }}" data-sg-add-to>+ Villkor i gruppen</button>
+</div>

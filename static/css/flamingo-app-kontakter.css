@@ -221,3 +221,9 @@
   .fl-kt-way__change,.fl-kt-proof__summary{display:inline-block;padding-block:12px;margin-block:-8px}
   .fl-kt-crumb{display:inline-block;padding-block:14px;margin-block:-14px}
 }
+
+/* ---------- S4 (rapport-byggaren): Skicka sms och "Svarar oftast" (I.7) ---------- */
+.fl-kt-sms .fl-kt-sms__text{width:100%;min-height:110px}
+.fl-kt-sms .fl-check{align-items:flex-start}
+.fl-kt-habit{margin-top:4px}
+/* --- slut S4 */

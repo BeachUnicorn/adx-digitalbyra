@@ -1,0 +1,86 @@
+/* ==========================================================================
+   ADX Flamingo - Utskick, Länkar och Spårningsskript
+   (flamingo-app-utskick-links.css; S4, länk-byggaren)
+
+   templates/flamingo/app/utskick/links.html, link_form.html, link.html,
+   _link_fields.html och snippet.html (README I.9, I.11, E.6). Bygger på
+   flamingo-app.css (.fl-table, .fl-panel, .fl-form, .fl-kpis, .fl-seg) och
+   flamingo-app-utskick-views.css (.fl-ut-status, .fl-ut-sub, .fl-ut-lock,
+   .fl-ut-more, .fl-ut-confirm, .fl-ut-pages). Allt här har prefixet .fl-ut-ln-.
+
+   Komponenterna:
+     .fl-ut-ln-addr / -dest        adresser som bryts var som helst (aldrig sidoscroll)
+     .fl-ut-ln-goes                målet och dess chip på en rad som radbryts
+     .fl-ut-ln-actions             QR-kod och Kopiera, radbryts; fulla bredden i smalt
+     .fl-ut-ln-copyrow / -code     en adress eller skriptets rad i monospace med Kopiera
+     .fl-ut-ln-qr                  QR-koden och knapparna; under varandra i smalt
+     .fl-ut-ln-slug                klick.adx.se/exempelror/ före slugfältet, radbryts
+     .fl-ut-ln-steps / -facts      stegen och punkterna på Spårningsskript
+
+   Regler som i resten av verktyget: brödtext minst 16 px, inga
+   style-attribut, inget bredare än skärmen i 375 px.
+   ========================================================================== */
+
+.fl-ut-ln-domain{font-size:16px;color:var(--fl-muted)}
+.fl-ut-ln-addr{overflow-wrap:anywhere;word-break:break-word}
+.fl-ut-ln-dest{overflow-wrap:anywhere;word-break:break-word}
+/* Cellen Går till: ett enda barn i cellen, så att kortläget (td som flex)
+   ställer etiketten till vänster och allt innehåll i en kolumn till höger. */
+.fl-ut-ln-cell{display:flex;flex-direction:column;align-items:flex-start;gap:6px;min-width:0}
+.fl-ut-ln-goes{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;min-width:0}
+.fl-ut-ln-actions{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+
+/* Adressen och skriptets rad: monospace som bryts, så att raden aldrig
+   blir bredare än ytan. user-select all gör det lätt att markera utan JS. */
+.fl-ut-ln-copyrow{display:flex;flex-wrap:wrap;align-items:flex-start;gap:8px 12px;min-width:0}
+.fl-ut-ln-code{
+  flex:1 1 16rem;min-width:0;max-width:100%;padding:10px 12px;border:1px solid var(--fl-line);
+  border-radius:var(--fl-r-sm);background:var(--fl-panel);font-family:var(--fl-mono);font-size:15px;
+  line-height:1.5;color:var(--fl-ink);word-break:break-all;overflow-wrap:anywhere;user-select:all;
+}
+.fl-ut-ln-tag{font-size:14px}
+
+/* QR-koden: bilden i fast storlek bredvid texten, under varandra i smalt. */
+.fl-ut-ln-qr{display:flex;flex-wrap:wrap;align-items:flex-start;gap:16px 24px;min-width:0}
+.fl-ut-ln-qr__img{
+  flex:none;display:block;width:185px;max-width:100%;height:auto;padding:6px;
+  border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:#fff;
+}
+.fl-ut-ln-qr__text{display:flex;flex-direction:column;gap:10px;flex:1 1 16rem;min-width:0}
+
+/* Slugen: prefixet och fältet på en rad som radbryts. */
+.fl-ut-ln-slug{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;min-width:0}
+.fl-ut-ln-slug__prefix{font-family:var(--fl-mono);font-size:15px;color:var(--fl-muted);overflow-wrap:anywhere}
+.fl-ut-ln-slug__input{flex:1 1 12rem;min-width:0}
+
+.fl-ut-ln-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+
+.fl-ut-ln-delete > summary{list-style:none;cursor:pointer}
+.fl-ut-ln-delete > summary::-webkit-details-marker{display:none}
+.fl-ut-ln-delete__summary{font-size:16px;font-weight:600;color:var(--fl-ink)}
+.fl-ut-ln-delete form{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:10px}
+
+/* Stegen och punkterna: vanliga listor (en flex-li tappar sin siffra). */
+.fl-ut-ln-steps{margin:0;padding-left:22px;list-style:decimal}
+.fl-ut-ln-steps > li{display:list-item;min-width:0;font-size:16px;line-height:1.5}
+.fl-ut-ln-steps > li + li{margin-top:14px}
+.fl-ut-ln-steps > li > * + *{margin-top:8px}
+.fl-ut-ln-facts{margin:0;padding-left:20px;list-style:disc;font-size:16px;line-height:1.5;color:var(--fl-body)}
+.fl-ut-ln-facts > li + li{margin-top:8px}
+
+@media (max-width:900px){
+  .fl-ut-ln-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  /* Kortläget: åtgärderna under siffrorna, vänsterställda. */
+  .fl-ut-ln-table td[data-label=""]{justify-content:flex-start}
+  .fl-ut-ln-cell{flex:1 1 auto;align-items:flex-end;text-align:right}
+  .fl-ut-ln-table .fl-ut-ln-goes{justify-content:flex-end}
+  .fl-ut-ln-table .fl-ut-lock{margin-top:0}
+}
+@media (max-width:560px){
+  .fl-ut-ln-actions{display:flex;width:100%}
+  .fl-ut-ln-actions .fl-btn{flex:1 1 auto}
+  .fl-ut-ln-qr__img{width:160px}
+  .fl-ut-ln-qr__text .fl-ut-ln-actions .fl-btn{flex:1 1 40%}
+}

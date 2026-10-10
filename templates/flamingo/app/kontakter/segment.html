@@ -1,0 +1,124 @@
+{% extends "flamingo/app/kontakter/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Segmentbyggaren (README I.11, S4). Kontext från app_views/segments._render:
+segment (None för ett nytt), name, name_error, notices, items ([{"group":
+False, "row"} | {"group": True, "key", "rows"}]), next_index, group_count,
+field_groups, templates (en tom rad per fält, för skriptet), new_row,
+counted (segments_views.live_count: ok, total_text, text, note, lines),
+opened_locked, opened_locked_text, used_by, full, full_text, max_rules,
+max_groups, action_url.
+
+Allt fungerar utan skript: knapparna + Villkor, + Grupp (ELLER), + Villkor i
+gruppen, Ta bort och Visa valen skickar formuläret och ritar om sidan
+(inget sparas förrän Spara segmentet). flamingo-app-segment.js gör samma sak
+på sidan, byter värdets väljare när fältet eller jämförelsen byts och
+räknar medan kunden bygger (app_segment_count, med en liten fördröjning);
+ordet efter talet (data-sg-unit) byts med det, "1 kontakt" och "2 kontakter".
+Raderna staplas under 760 px. OCH och ELLER mellan raderna kommer från css.
+{% endcomment %}
+{% block app_title %}{% if segment %}{{ segment.name }}{% else %}Nytt segment{% endif %}{% endblock %}
+{% block kt_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo-app-segment.css' %}?v={{ static_version }}">{% endblock %}
+{% block kt_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{% url 'flamingo:app_lists' %}#segment">Listor</a></p>
+    <h1 class="fl-app-title">{% if segment %}{{ segment.name }}{% else %}Nytt segment{% endif %}</h1>
+    <p class="fl-app-lead">Ett segment är villkor som räknas om varje gång du använder det, så att det alltid är aktuellt.</p>
+  </div>
+  {% if segment %}
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contacts' %}?segment={{ segment.pk }}">Visa kontakterna</a>
+  </div>
+  {% endif %}
+</header>
+{% endblock %}
+{% block kt_content %}
+{% if full %}<p class="fl-notice fl-notice--warn"><span>{{ full_text }}</span></p>{% endif %}
+{% for notice in notices %}<p class="fl-notice fl-notice--error"><span>{{ notice }}</span></p>{% endfor %}
+
+<form id="sg-form" class="fl-form fl-sg" method="post" action="{{ action_url }}" data-sg data-sg-count="{% url 'flamingo:app_segment_count' %}" data-sg-next="{{ next_index }}" data-sg-groups="{{ group_count }}" data-sg-max-rules="{{ max_rules }}" data-sg-max-groups="{{ max_groups }}" data-sg-retry="20" data-sg-error-text="{{ count_error_text }}">
+  {% csrf_token %}
+  <button type="submit" class="fl-sr" tabindex="-1" name="action" value="save">Spara segmentet</button>
+  <div class="fl-sg__cols">
+    <div class="fl-sg__main">
+      <div class="fl-field{% if name_error %} is-error{% endif %}">
+        <label class="fl-field__label" for="sg-namn">Namn</label>
+        <input class="fl-input" id="sg-namn" type="text" name="namn" value="{{ name }}" maxlength="80" required autocomplete="off" placeholder="Till exempel Service i höst">
+        {% if name_error %}<p class="fl-field__error">{{ name_error }}</p>{% endif %}
+      </div>
+
+      <fieldset class="fl-field fl-sg-rules">
+        <legend class="fl-field__label">Villkor</legend>
+        <p class="fl-field__help">Alla villkor ska gälla. I en grupp räcker det att ett av villkoren gäller.</p>
+        <div class="fl-sg-items" data-sg-items>
+          {% for item in items %}
+          {% if item.group %}
+          {% include "flamingo/app/kontakter/_segment_group.html" with key=item.key rows=item.rows %}
+          {% else %}
+          {% include "flamingo/app/kontakter/_segment_row.html" with row=item.row %}
+          {% endif %}
+          {% endfor %}
+        </div>
+        <div class="fl-sg-tools">
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="add_rule" data-sg-add>+ Villkor</button>
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="add_group" data-sg-add-group>+ Grupp (ELLER)</button>
+          <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="refresh" data-sg-nojs>Visa valen för fälten</button>
+        </div>
+        <p class="fl-field__help fl-sg-limit">Högst {{ max_rules }} villkor och {{ max_groups }} grupper.</p>
+        {% if opened_locked %}<p class="fl-field__help fl-sg-locked">Öppnade mejl: {{ opened_locked_text }} <a class="fl-panel__link" href="{% url 'flamingo:app_utskick_settings' %}">Till inställningarna</a></p>{% endif %}
+      </fieldset>
+    </div>
+
+    <aside class="fl-sg__side" aria-label="Matchar just nu">
+      <div class="fl-panel fl-panel--soft fl-sg-count" aria-live="polite">
+        <p class="fl-kpi__label">Matchar just nu</p>
+        <p class="fl-sg-count__value"><span data-sg-total>{% if counted.ok %}{{ counted.total_text }}{% else %}-{% endif %}</span> <span data-sg-unit data-sg-one="kontakt" data-sg-many="kontakter">{% if counted.ok and counted.total == 1 %}kontakt{% else %}kontakter{% endif %}</span></p>
+        <p class="fl-sg-count__text" data-sg-text>{% if counted.ok %}{{ counted.text }}{% else %}-{% endif %}</p>
+        <p class="fl-panel__note" data-sg-note{% if not counted.note %} hidden{% endif %}>{{ counted.note }}</p>
+        <p class="fl-panel__note">Kan få räknar bara dem som får erbjudanden i kanalen. Avregistrerade, studsade och kontakter utan samtycke räknas inte.</p>
+      </div>
+      <div class="fl-panel fl-sg-summary">
+        <h2 class="fl-kt-box__title">Så lyder segmentet</h2>
+        <ul class="fl-sg-lines" data-sg-lines>
+          {% for line in counted.lines %}<li>{{ line }}</li>{% empty %}<li class="fl-sg-lines__empty">Inga villkor än.</li>{% endfor %}
+        </ul>
+      </div>
+    </aside>
+  </div>
+  <div class="fl-form__actions">
+    <p class="fl-form__note">Segmentet räknas om varje gång du använder det i ett utskick.</p>
+    <div class="fl-form__buttons">
+      <a class="fl-btn fl-btn--ghost" href="{% url 'flamingo:app_lists' %}#segment">Avbryt</a>
+      <button type="submit" class="fl-btn" name="action" value="save">Spara segmentet</button>
+    </div>
+  </div>
+</form>
+
+{% if segment %}
+<section class="fl-panel fl-sg-danger" aria-labelledby="sg-delete-title">
+  <h2 class="fl-panel__title" id="sg-delete-title">Ta bort segmentet</h2>
+  {% if used_by %}
+  <p class="fl-panel__text">Segmentet används i {% for name in used_by %}{% if not forloop.first %}{% if forloop.last %} och {% else %}, {% endif %}{% endif %}utskicket {{ name }}{% endfor %}. Ta bort det ur mottagarna där innan du tar bort segmentet.</p>
+  {% else %}
+  <details class="fl-kt-more">
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ta bort segmentet</summary>
+    <form class="fl-kt-confirm" method="post" action="{% url 'flamingo:app_segment' segment.pk %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="delete">
+      <p class="fl-panel__note">Bara villkoren tas bort. Kontakterna finns kvar.</p>
+      <button type="submit" class="fl-btn fl-btn--sm">Ta bort {{ segment.name }}</button>
+    </form>
+  </details>
+  {% endif %}
+</section>
+{% endif %}
+
+<div class="fl-sg-templates" hidden>
+  <template data-sg-row-tpl>{% include "flamingo/app/kontakter/_segment_row.html" with row=new_row %}</template>
+  <template data-sg-group-tpl>{% include "flamingo/app/kontakter/_segment_group.html" with key="__G__" rows=None %}</template>
+  {% for blank in templates %}<template data-sg-tpl="{{ blank.field }}">{% include "flamingo/app/kontakter/_segment_opval.html" with row=blank %}</template>{% endfor %}
+</div>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-segment.js' %}?v={{ static_version }}" defer></script>{% endblock %}

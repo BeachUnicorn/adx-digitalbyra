@@ -1,0 +1,102 @@
+{% load flamingo_app utskick_tags %}{% comment %}
+S4 (rapport-byggaren): hela rapporten (README I.8, I.2). Inkluderas av
+report.html när utskicket har börjat gå. Kontext: utskick och full
+(reports.full: funnels, chart, links, lp, has_lp).
+
+Tratten är staplar i rader (en SVG per stapel med viewBox, bredden ur
+step.width, inget style-attribut), procenten av Skickade; klick per timme är
+en SVG med viewBox som får sin bredd ur css (width:100%), med början, mitten
+och slutet på axeln och meningen om klicken synlig under. Utan länkar
+(full.has_links) visas varken Klickade, Stannade eller diagrammet. Talen i SVG:n kommer som text ur
+reports.chart, så att mallen aldrig skriver ett decimalkomma i ett
+attribut. Varje tal som räknar mottagare leder till listan bakom det
+(app_utskick_recipients med ?visa= och ?kanal=), med samma villkor som
+talet. Tabellen över länkarna har data-label på varje cell och blir kort
+under 760 px. Inga style-attribut, inga inbäddade skript.
+{% endcomment %}{% url 'flamingo:app_utskick_recipients' utskick.pk as rp_list %}
+<div class="fl-ut-rp-grid">
+  <section class="fl-panel fl-ut-rp-card" aria-labelledby="ut-rp-funnel-title">
+    <h2 class="fl-panel__title" id="ut-rp-funnel-title">Från utskick till förfrågan</h2>
+    {% for tratt in full.funnels %}
+    {% if tratt.label %}<h3 class="fl-ut-rp-sub">{{ tratt.label }}</h3>{% endif %}
+    <ol class="fl-ut-rp-funnel">
+      {% for step in tratt.steps %}
+      <li class="fl-ut-rp-funnel__item">
+        {% if step.visa %}<a class="fl-ut-rp-step fl-ut-rp-step--link" href="{{ rp_list }}?visa={{ step.visa }}{% if step.kanal %}&amp;kanal={{ step.kanal }}{% endif %}">{% else %}<span class="fl-ut-rp-step">{% endif %}
+          <span class="fl-ut-rp-step__label">{{ step.label }}</span>
+          <svg class="fl-ut-rp-step__bar" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect class="fl-ut-rp-step__track" x="0" y="0" width="100" height="10"></rect><rect class="fl-ut-rp-step__fill" x="0" y="0" width="{{ step.width }}" height="10"></rect></svg>
+          <span class="fl-ut-rp-step__value"><span class="fl-ut-rp-step__n">{{ step.n|tal }}</span>{% if not forloop.first and step.pct is not None %}<span class="fl-ut-rp-step__pct">{{ step.pct|procent }}<span class="fl-sr"> av skickade</span></span>{% endif %}</span>
+        {% if step.visa %}</a>{% else %}</span>{% endif %}
+      </li>
+      {% endfor %}
+    </ol>
+    {% empty %}
+    <p class="fl-panel__note">Inget har skickats än.</p>
+    {% endfor %}
+    {% if full.funnels %}<p class="fl-panel__note fl-ut-rp-base">Procenten räknas av Skickade.</p>{% endif %}
+
+    {% if full.has_links %}
+    <h3 class="fl-ut-rp-sub" id="ut-rp-chart-title">Klick per timme efter utskicket</h3>
+    {% if full.chart %}
+    <figure class="fl-ut-rp-chart">
+      <svg class="fl-ut-rp-chart__svg" viewBox="0 0 {{ full.chart.width }} {{ full.chart.height }}" preserveAspectRatio="none" role="img" aria-labelledby="ut-rp-chart-title ut-rp-chart-desc" focusable="false">
+        <line class="fl-ut-rp-chart__base" x1="0" y1="{{ full.chart.height }}" x2="{{ full.chart.width }}" y2="{{ full.chart.height }}"></line>
+        {% for bar in full.chart.bars %}{% if bar.n %}<rect class="fl-ut-rp-chart__bar{% if bar.hi %} is-hi{% endif %}" x="{{ bar.x }}" y="{{ bar.y }}" width="{{ bar.w }}" height="{{ bar.h }}"><title>{{ bar.title }}</title></rect>{% endif %}{% endfor %}
+      </svg>
+      <div class="fl-ut-rp-chart__axis" aria-hidden="true"><span>{{ full.chart.first }}</span><span>{{ full.chart.mid }}</span><span>{{ full.chart.last }}</span></div>
+      <figcaption class="fl-ut-rp-chart__caption" id="ut-rp-chart-desc">{{ full.chart.total|tal }} klick under {{ full.chart.hours }} timmar från {{ full.chart.first }}, som mest {{ full.chart.top|tal }} på en timme.</figcaption>
+    </figure>
+    <ul class="fl-sr">{% for row in full.chart.rows %}<li>{{ row }}</li>{% endfor %}</ul>
+    {% else %}
+    <p class="fl-panel__note">Inga klick än.</p>
+    {% endif %}
+    {% endif %}
+  </section>
+
+  <div class="fl-ut-rp-side">
+    {% if full.links %}
+    <section class="fl-panel fl-ut-rp-card" aria-labelledby="ut-rp-links-title">
+      <h2 class="fl-panel__title" id="ut-rp-links-title">Länkar</h2>
+      <div class="fl-table-wrap">
+        <table class="fl-table fl-ut-rp-links">
+          <thead>
+            <tr>
+              <th scope="col">Länk</th>
+              <th scope="col">Typ</th>
+              <th scope="col" class="is-num">Klick</th>
+              <th scope="col" class="is-num">Förfrågningar</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in full.links %}
+            <tr>
+              <td class="is-primary" data-label="Länk"><span class="fl-ut-rp-links__name">{{ row.label }}</span>{% if row.destination and row.destination != row.label %}<span class="fl-ut-sub fl-ut-url">{{ row.destination }}</span>{% endif %}</td>
+              <td data-label="Typ">{{ row.kind }}</td>
+              <td class="is-num" data-label="Klick">{% if row.visa and row.clicks %}<a class="fl-ut-rp-num" href="{{ rp_list }}?visa={{ row.visa }}">{{ row.clicks|tal }}</a>{% else %}{{ row.clicks|tal }}{% endif %}</td>
+              <td class="is-num" data-label="Förfrågningar">{% if row.visa_leads and row.leads %}<a class="fl-ut-rp-num" href="{{ rp_list }}?visa={{ row.visa_leads }}">{{ row.leads|tal }}</a>{% else %}{{ row.leads|tal }}{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if full.lp or full.has_lp %}
+    <section class="fl-panel fl-ut-rp-card" aria-labelledby="ut-rp-lp-title">
+      <h2 class="fl-panel__title" id="ut-rp-lp-title">Vad de gjorde på sidan</h2>
+      {% if full.lp %}
+      {% if full.lp.line %}<p class="fl-panel__text">{{ full.lp.line }}</p>{% endif %}
+      <ul class="fl-ut-rp-facts">
+        <li class="fl-ut-rp-fact">{% if full.lp.linked and full.lp.visitors %}<a class="fl-ut-rp-num" href="{{ rp_list }}?visa=besokte">{{ full.lp.visitors|tal }}</a>{% else %}<span class="fl-ut-rp-num">{{ full.lp.visitors|tal }}</span>{% endif %} <span>besökte sidan</span></li>
+        <li class="fl-ut-rp-fact">{% if full.lp.linked and full.lp.called %}<a class="fl-ut-rp-num" href="{{ rp_list }}?visa=ringde">{{ full.lp.called|tal }}</a>{% else %}<span class="fl-ut-rp-num">{{ full.lp.called|tal }}</span>{% endif %} <span>ringde från sidan</span></li>
+        <li class="fl-ut-rp-fact">{% if full.lp.linked and full.lp.form_leads %}<a class="fl-ut-rp-num" href="{{ rp_list }}?visa=formular">{{ full.lp.form_leads|tal }}</a>{% else %}<span class="fl-ut-rp-num">{{ full.lp.form_leads|tal }}</span>{% endif %} <span>skickade formuläret</span></li>
+      </ul>
+      <p class="fl-panel__note">Tiden på sidan mäts utan kakor, bara för besök via utskickets länk.</p>
+      {% else %}
+      <p class="fl-panel__note">Ingen har besökt Flamingo-sidan via utskicket än.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+</div>

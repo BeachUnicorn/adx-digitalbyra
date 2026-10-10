@@ -4,7 +4,8 @@ flikraden under rubriken i varje del (README C.2 och I.1a).
 
     nav_for(account)            APP_NAV med Kontakter och Utskick efter Kampanjer när utskick är på
     contacts_tabs(active)       flikarna i Kontakter, med den aktiva markerad
-    utskick_tabs(active)        flikarna i Utskick (S3: Utskick, Leveranshälsa, Inställningar)
+    utskick_tabs(active)        flikarna i Utskick (S4: Utskick, Länkar, Leveranshälsa,
+                                Inställningar)
 
 APP_NAV i apps/flamingo/app_views/__init__.py är standarden och ändras
 inte. Ett konto utan utskick ser exakt den menyn; ett med utskick får
@@ -25,16 +26,18 @@ from django.urls import reverse
 CONTACTS_ITEM = ("contacts", "flamingo:app_contacts", "Kontakter")
 UTSKICK_ITEM = ("utskick", "flamingo:app_utskick_list", "Utskick")
 
-#: Flikarna i Utskick (I.1a). Flöden (S5) och Länkar (S4) läggs till i
-#: steget som bygger dem, före Leveranshälsa (S3) och Inställningar.
+#: Flikarna i Utskick (I.1a). Flöden (S5) läggs till i steget som bygger
+#: dem, mellan Utskick och Länkar (S4). Spårningsskriptet (S4) ligger under
+#: Inställningar och har ingen egen flik.
 UTSKICK_TABS = (
     ("utskick", "flamingo:app_utskick_list", "Utskick"),
+    ("links", "flamingo:app_links", "Länkar"),
     ("health", "flamingo:app_utskick_health", "Leveranshälsa"),
     ("settings", "flamingo:app_utskick_settings", "Inställningar"),
 )
 
-#: Flikarna i Kontakter i ordning: (nyckel, url-namn, rubrik). Segment
-#: läggs i Listor från S4; inga flikar för det som inte är byggt.
+#: Flikarna i Kontakter i ordning: (nyckel, url-namn, rubrik). Segmenten
+#: (S4) bor under Listor: segmentbyggaren sätter fliken "lists".
 CONTACT_TABS = (
     ("contacts", "flamingo:app_contacts", "Kontakter"),
     ("lists", "flamingo:app_lists", "Listor"),
@@ -84,5 +87,6 @@ def contacts_tabs(active):
 
 
 def utskick_tabs(active):
-    """Som contacts_tabs, för Utskick ("utskick", "health" eller "settings")."""
+    """Som contacts_tabs, för Utskick ("utskick", "links", "health" eller
+    "settings")."""
     return _tabs(UTSKICK_TABS, active, "Utskick")

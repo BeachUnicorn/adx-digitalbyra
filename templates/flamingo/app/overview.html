@@ -88,7 +88,7 @@ som förfrågningar.
       {% endif %}
     </div>
   </div>
-  {% if numbers.utskick_leads or numbers.utskick_deals %}<p class="fl-panel__note">Varav via utskick: {{ numbers.utskick_leads|tal }} {% if numbers.utskick_leads == 1 %}förfrågan{% else %}förfrågningar{% endif %}, {{ numbers.utskick_deals|tal }} {% if numbers.utskick_deals == 1 %}affär{% else %}affärer{% endif %}. De räknas inte in i kr per förfrågan och kr per affär.</p>{% endif %}
+  {% if numbers.utskick_leads or numbers.utskick_deals %}<p class="fl-panel__note">Varav via utskick{% if numbers.named_leads %} och dina länkar{% endif %}: {{ numbers.utskick_leads|tal }} {% if numbers.utskick_leads == 1 %}förfrågan{% else %}förfrågningar{% endif %}, {{ numbers.utskick_deals|tal }} {% if numbers.utskick_deals == 1 %}affär{% else %}affärer{% endif %}. De räknas inte in i kr per förfrågan och kr per affär.</p>{% endif %}
 </section>
 
 {% if band_path %}

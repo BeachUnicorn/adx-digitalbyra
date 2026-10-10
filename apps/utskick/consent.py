@@ -45,7 +45,7 @@ optin.py direkt, inte här (de ändrar ingen status).
 from dataclasses import dataclass
 
 from django.db import transaction
-from django.db.models import Exists, OuterRef
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from . import keys
@@ -505,11 +505,13 @@ def eligible(contact, channel, purpose, consent=None, suppressed=None):
     return not ineligible_reason(contact, channel, purpose, consent, suppressed)
 
 
-def eligible_contacts(contacts, channel, purpose):
-    """Samma regel som eligible, som ett filter på en Contact-queryset (en
-    fråga, för rubrikens "1 902 kan få sms" och listans filter). Bygger på
-    att samtyckesraden alltid är bunden till kontaktens nuvarande adress
-    (ensure_rows och contacts.change_address)."""
+def eligible_q(channel, purpose):
+    """Samma regel som eligible, som ett Q på kontakten själv (raden som
+    filtreras, OuterRef("pk")). Går att lägga i ett CASE, ett Count(filter=)
+    eller ett ~Q utan att räkna om kontots alla kontakter: aldrig NULL
+    (Exists och kolumner som aldrig är NULL). Bygger på att samtyckesraden
+    alltid är bunden till kontaktens nuvarande adress (ensure_rows och
+    contacts.change_address)."""
     if purpose == REKLAM:
         statuses = (YES, EXISTING) if channel == CHANNEL_SMS else REKLAM_OK
     else:
@@ -525,10 +527,16 @@ def eligible_contacts(contacts, channel, purpose):
         .filter(~Exists(blocked))
     )
     field = "phone" if channel == CHANNEL_SMS else "email"
-    contacts = contacts.filter(Exists(ok_consent)).exclude(**{field: ""})
+    q = Q(Exists(ok_consent)) & ~Q(**{field: ""})
     if channel == CHANNEL_EMAIL:
-        contacts = contacts.filter(email_state=Contact.EmailState.OK)
-    return contacts
+        q &= Q(email_state=Contact.EmailState.OK)
+    return q
+
+
+def eligible_contacts(contacts, channel, purpose):
+    """eligible_q som ett filter på en Contact-queryset (en fråga, för
+    rubrikens "1 902 kan få sms" och listans filter)."""
+    return contacts.filter(eligible_q(channel, purpose))
 
 
 # ---------------------------------------------------------------------------

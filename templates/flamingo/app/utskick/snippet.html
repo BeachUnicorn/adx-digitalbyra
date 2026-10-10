@@ -1,0 +1,108 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static %}
+{% comment %}
+Spårningsskript (README I.9, E.6, S4, länk-byggaren). Kontext från
+app_views/snippet.snippet_settings: rows ([{site, label, tone, seen, tag,
+install_url, host_text}]: en per domän; tag är hela raden för sidhuvudet
+med versionen och SRI-hashen), errors (domain), values (domain), can_add,
+max_sites, analytics_text, track_text och track_example (adxFlamingo.track),
+trouble_texts (när läget står kvar på Inte sett än), beacon_host.
+
+Taggen skrivs som text (force_escape: links.snippet_tag ger en
+SafeString, som annars skulle bli en riktig script-tagg här) och kopieras med flamingo-app-links.js
+(data-ln-copy, dold utan skript). Provlänken öppnar kundens egen
+webbplats med ?adx=<provtoken>; när skriptet rapporterar blir läget
+Installerat. Inga style-attribut, inga inline-skript; .fl-ut-ln- i
+flamingo-app-utskick-links.css.
+{% endcomment %}
+{% block app_title %}Spårningsskript{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick-links.css' %}?v={{ static_version }}"><script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-ut-crumb" href="{% url 'flamingo:app_utskick_settings' %}">Inställningar för utskick</a></p>
+    <h1 class="fl-app-title">Spårningsskript</h1>
+    <p class="fl-app-lead">En rad i din webbplats sidhuvud visar hela besöket från en länk i ett utskick: vilken sida personen kom till och hur länge hen stannade. Skriptet sätter inga kakor och sparar inget i besökarens webbläsare.</p>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+{% for row in rows %}
+<section class="fl-panel" aria-labelledby="ut-ln-site-{{ row.site.pk }}">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="ut-ln-site-{{ row.site.pk }}">{{ row.site.domain }}</h2>
+    <span class="fl-ut-status fl-ut-status--{{ row.tone }}">{{ row.label }}{% if row.seen %}, {{ row.seen }}{% endif %}</span>
+  </div>
+  {% if row.host_text %}<p class="fl-ut-lock">{{ row.host_text }}</p>{% endif %}
+  <ol class="fl-ut-ln-steps">
+    <li>
+      <p class="fl-panel__text">Lägg in raden i sidhuvudet (head) på varje sida på {{ row.site.domain }}, eller be den som sköter webbplatsen göra det.</p>
+      <div class="fl-ut-ln-copyrow">
+        <code class="fl-ut-ln-code fl-ut-ln-tag">{{ row.tag|force_escape }}</code>
+        <button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ln-copy="{{ row.tag|force_escape }}" hidden>Kopiera raden</button>
+      </div>
+    </li>
+    <li>
+      <p class="fl-panel__text">Öppna provlänken. När skriptet har hört av sig står det Installerat här (ladda om sidan).</p>
+      <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ row.install_url }}" target="_blank" rel="noopener noreferrer">Öppna provlänken</a>
+    </li>
+    <li>
+      <p class="fl-panel__text">{{ analytics_text }}</p>
+    </li>
+    <li>
+      <p class="fl-panel__text">{{ track_text }}</p>
+      <div class="fl-ut-ln-copyrow">
+        <code class="fl-ut-ln-code">{{ track_example }}</code>
+        <button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ln-copy="{{ track_example }}" hidden>Kopiera raden</button>
+      </div>
+    </li>
+  </ol>
+  {% if not row.site.is_installed %}
+  <details class="fl-ut-more">
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Står det Inte sett än efter provlänken?</summary>
+    <ul class="fl-ut-ln-facts">
+      {% for text in trouble_texts %}<li>{{ text }}</li>{% endfor %}
+    </ul>
+  </details>
+  {% endif %}
+  <details class="fl-ut-more">
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ta bort {{ row.site.domain }}</summary>
+    <form class="fl-ut-confirm" method="post" action="{% url 'flamingo:app_utskick_snippet' %}">
+      {% csrf_token %}
+      <input type="hidden" name="site" value="{{ row.site.pk }}">
+      <p>Länkar till {{ row.site.domain }} får inte längre parametern adx, och besök där räknas inte. Ta också bort raden från webbplatsen.</p>
+      <button type="submit" class="fl-btn fl-btn--sm" name="action" value="remove">Ta bort domänen</button>
+    </form>
+  </details>
+</section>
+{% endfor %}
+
+{% if can_add %}
+<section class="fl-panel" aria-labelledby="ut-ln-add">
+  <h2 class="fl-panel__title" id="ut-ln-add">{% if rows %}Lägg till fler webbplatser{% else %}Lägg in skriptet{% endif %}</h2>
+  <form class="fl-form" method="post" action="{% url 'flamingo:app_utskick_snippet' %}" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="add">
+    <div class="fl-field{% if errors.domain %} is-error{% endif %}">
+      <label class="fl-field__label" for="ut-ln-domain">Din webbplats</label>
+      <input class="fl-input" id="ut-ln-domain" type="text" name="domain" value="{{ values.domain }}" placeholder="exempelror.se" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="ut-ln-domain-help{% if errors.domain %} ut-ln-domain-error{% endif %}"{% if errors.domain %} aria-invalid="true"{% endif %}>
+      <p class="fl-field__help" id="ut-ln-domain-help">Bara domänen. Underdomäner som www ingår. Högst {{ max_sites }} webbplatser.</p>
+      {% if errors.domain %}<p class="fl-field__error" id="ut-ln-domain-error">{{ errors.domain }}</p>{% endif %}
+    </div>
+    <div class="fl-form__actions">
+      <button type="submit" class="fl-btn">Lägg till webbplatsen</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<aside class="fl-panel fl-panel--soft" aria-labelledby="ut-ln-how">
+  <h2 class="fl-panel__title" id="ut-ln-how">Så fungerar det</h2>
+  <ul class="fl-ut-ln-facts">
+    <li>Bara besök som kommer från en länk i ett utskick eller en av dina länkar syns. Andra besökare på webbplatsen räknas inte, och skriptet skickar inget för dem.</li>
+    <li>Länken till webbplatsen får parametern adx först när skriptet har hört av sig. Skriptet läser den en gång och tar sedan bort den ur adressfältet.</li>
+    <li>Skriptet hämtas från {{ beacon_host }} med en kontrollsumma, så webbläsaren kör bara exakt den fil du har lagt in.</li>
+    <li>Länkar till en ny webbplats godkänns av ADX innan de kan användas i ett utskick.</li>
+  </ul>
+</aside>
+{% endblock %}

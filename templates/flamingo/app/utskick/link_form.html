@@ -1,0 +1,54 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static %}
+{% comment %}
+Ny länk (README I.11, E.8, S4, länk-byggaren). Kontext från
+app_views/links.link_new: values (label, target, campaign, address, slug),
+errors (beskrivning, slug, mal, kampanj, adress, form), campaigns, prefix
+("klick.adx.se/exempelror/"), public_slug, no_slug_text, target_lp,
+target_external, suggested_slug.
+
+Slugen blir adressen klick.adx.se/<public_slug>/<slug>; tom slug görs av
+beskrivningen (flamingo-app-links.js visar förslaget som platshållare).
+Den går inte att ändra efteråt. Inga style-attribut, inga inline-skript.
+{% endcomment %}
+{% block app_title %}Ny länk{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick-links.css' %}?v={{ static_version }}"><script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-ut-crumb" href="{% url 'flamingo:app_links' %}">Länkar</a></p>
+    <h1 class="fl-app-title">Ny länk</h1>
+    <p class="fl-app-lead">En egen spårad länk för en affisch, en QR-kod, Instagram eller ett kvitto.</p>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+{% if not public_slug %}
+<p class="fl-notice fl-notice--warn"><span>{{ no_slug_text }}</span></p>
+{% else %}
+<form class="fl-form" method="post" action="{% url 'flamingo:app_link_new' %}" novalidate>
+  {% csrf_token %}
+  {% if errors.form %}<p class="fl-notice fl-notice--error" role="alert"><span>{{ errors.form }}</span></p>{% endif %}
+  <section class="fl-panel" aria-labelledby="ut-ln-what">
+    <h2 class="fl-panel__title" id="ut-ln-what">Länken</h2>
+    {% include "flamingo/app/utskick/_link_fields.html" %}
+  </section>
+  <section class="fl-panel" aria-labelledby="ut-ln-where">
+    <h2 class="fl-panel__title" id="ut-ln-where">Adressen</h2>
+    <div class="fl-field{% if errors.slug %} is-error{% endif %}">
+      <label class="fl-field__label" for="ut-ln-slug">Sista delen av adressen</label>
+      <div class="fl-ut-ln-slug">
+        <span class="fl-ut-ln-slug__prefix" aria-hidden="true">{{ prefix }}</span>
+        <input class="fl-input fl-ut-ln-slug__input" id="ut-ln-slug" type="text" name="slug" maxlength="40" value="{{ values.slug }}" placeholder="{{ suggested_slug|default:'vinter' }}" autocomplete="off" autocapitalize="off" spellcheck="false" data-ln-slug aria-describedby="ut-ln-slug-help{% if errors.slug %} ut-ln-slug-error{% endif %}"{% if errors.slug %} aria-invalid="true"{% endif %}>
+      </div>
+      <p class="fl-field__help" id="ut-ln-slug-help">Adressen blir {{ prefix }} och det du skriver. Små bokstäver, siffror och bindestreck. Lämnar du fältet tomt görs adressen av beskrivningen. Den går inte att ändra sedan, eftersom den kan stå på affischer och i QR-koder.</p>
+      {% if errors.slug %}<p class="fl-field__error" id="ut-ln-slug-error">{{ errors.slug }}</p>{% endif %}
+    </div>
+  </section>
+  <div class="fl-form__actions">
+    <a class="fl-btn fl-btn--ghost" href="{% url 'flamingo:app_links' %}">Avbryt</a>
+    <button type="submit" class="fl-btn">Skapa länken</button>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

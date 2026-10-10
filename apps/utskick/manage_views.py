@@ -52,6 +52,7 @@ from .access import (
     current_dpa,
     is_enabled,
     latest_acceptance,
+    retire_public_slug,
     settings_for,
     suggest_public_slug,
     validate_public_slug,
@@ -193,7 +194,8 @@ def card_context(customer):
             "settings": row,
             "saved": bool(row.pk),
             "enabled": is_enabled(account, row),
-            "suggested_slug": row.public_slug or suggest_public_slug(customer.name),
+            "suggested_slug": row.public_slug
+            or suggest_public_slug(customer.name, account_id=account.pk),
             "display_name": row.display_name or customer.name[:80],
         }
     )
@@ -206,9 +208,71 @@ def card_context(customer):
                 "sms_line": _sms_line(customer),
                 "export_line": export_text(last_export),
                 "enabled_by": _who(row.enabled_by),
+                # S4 (integrationen): adressen bär de namngivna länkarna.
+                "named_line": named_links_line(account, row),
             }
         )
     return context
+
+
+# --- S4 (integrationen): adressen bär de namngivna länkarna ---
+#
+# klick.adx.se/<public_slug>/<slug> (E.1) står på affischer och i QR-koder.
+# Byts public_slug sparas den gamla adressen som OldPublicSlug för kontot
+# (access.retire_public_slug, säkerhetsgranskningen): named, named_folded,
+# anmälan och integritetstexten prövar den efter den nuvarande, så tryckta
+# länkar fortsätter till samma kund, och ingen annan kund kan få den.
+# Kundkortet säger det under fältet, och sparningen kräver en extra ruta för
+# att byta adressen när kunden har namngivna länkar (S4-HANDOFF, begäran 2).
+
+SLUG_CONFIRM_TEXT = "Kunden har {n} på {prefix}. Kryssa i rutan för att byta adressen ändå."
+
+
+def _named_prefix(public_slug):
+    """Början på kundens namngivna länkar, till exempel klick.adx.se/exempelror/."""
+    from urllib.parse import urlsplit
+
+    from .links import email_link_base
+
+    return f"{urlsplit(email_link_base()).netloc}/{public_slug}/"
+
+
+def named_link_count(account):
+    from .models import TrackedLink
+
+    return TrackedLink.objects.filter(account=account, utskick__isnull=True).count()
+
+
+def _links_word(n):
+    return "en namngiven länk" if n == 1 else f"{n} namngivna länkar"
+
+
+def named_links_line(account, row):
+    """Meningen under adressfältet, eller "" utan namngivna länkar."""
+    n = named_link_count(account)
+    if not n or not row.public_slug:
+        return ""
+    return (
+        f"Kunden har {_links_word(n)} på {_named_prefix(row.public_slug)}. Byts adressen "
+        "visas de med den nya, och den gamla fortsätter att gå till kunden, också på "
+        "tryckta QR-koder. Den gamla kan aldrig bli en annan kunds."
+    )
+
+
+def slug_change_refused(request, account, row, new_slug):
+    """Texten när adressen byts utan rutan och kunden har namngivna länkar,
+    annars "" (bytet får gå)."""
+    if not row.pk or not new_slug or new_slug == row.public_slug:
+        return ""
+    if request.POST.get("slug_confirm"):
+        return ""
+    n = named_link_count(account)
+    if not n:
+        return ""
+    return SLUG_CONFIRM_TEXT.format(n=_links_word(n), prefix=_named_prefix(row.public_slug))
+
+
+# --- slut S4 (integrationen)
 
 
 class CustomerCardForm(forms.Form):
@@ -233,7 +297,11 @@ class CustomerCardForm(forms.Form):
         raw = str(self.cleaned_data.get("public_slug") or "").strip().lower()
         if not raw:
             return ""
-        return validate_public_slug(raw, exclude_pk=self.row.pk if self.row else None)
+        return validate_public_slug(
+            raw,
+            exclude_pk=self.row.pk if self.row else None,
+            account_id=self.row.account_id if self.row else None,
+        )
 
     def clean(self):
         data = super().clean()
@@ -287,12 +355,17 @@ def customer_update(request, pk):
         messages.error(request, FLAMINGO_OFF_TEXT)
         return _back(customer.pk)
 
+    # S4 (integrationen): en ny adress bryter de namngivna länkarna.
+    refused = slug_change_refused(request, account, row, data["public_slug"])
+    if refused:
+        messages.error(request, refused)
+        return _back(customer.pk)
     now = timezone.now()
     new_name = data["display_name"] or row.display_name or customer.name[:80]
     with transaction.atomic():
         if not row.pk:
             name = new_name[:80]
-            slug = data["public_slug"] or suggest_public_slug(customer.name)
+            slug = data["public_slug"] or suggest_public_slug(customer.name, account_id=account.pk)
             row = UtskickSettings(
                 account=account,
                 display_name=name,
@@ -306,6 +379,8 @@ def customer_update(request, pk):
                 _consent_texts_follow(row, row.display_name, new_name)
                 row.display_name = new_name[:80]
             if data["public_slug"]:
+                # S4 (säkerhetsgranskningen): den gamla adressen följer kontot.
+                retire_public_slug(row, data["public_slug"], now)
                 row.public_slug = data["public_slug"]
         if data["contact_limit"]:
             row.contact_limit = data["contact_limit"]
@@ -403,6 +478,21 @@ def _end_utskick(account):
     Utskick.objects.filter(account=account).delete()
 
 
+# --- S4 (foundation) ----------------------------------------------------------
+
+
+def _end_s4(account):
+    """S4-delen av "Avsluta utskick och radera allt": segmenten, skripten på
+    egen sajt och de namngivna länkarna (utskick null; utskickens egna länkar
+    gick med utskicken). Kontot finns kvar, så kaskaden från kontot tar dem
+    inte."""
+    from .models import Segment, SiteSnippet, TrackedLink
+
+    Segment.objects.filter(account=account).delete()
+    SiteSnippet.objects.filter(account=account).delete()
+    TrackedLink.objects.filter(account=account).delete()
+
+
 # --- S3 (sändnings-byggaren) ------------------------------------------------
 
 
@@ -433,7 +523,9 @@ def end_account(account, user=None):
     och anmälningssidan, och stäng av utskick. Spärrlistan och
     samtyckesloggen finns kvar som pseudonymt bevis (kontakten blir null,
     kundens anteckningar töms). Från S2 också utskicken, mottagarna,
-    sms-koderna, klicken och svarstrådarna. Returnerar antalen som togs bort."""
+    sms-koderna, klicken och svarstrådarna, från S3 mejlens bilder och
+    domänerna, från S4 segmenten, skripten och de namngivna länkarna.
+    Returnerar antalen som togs bort."""
     counts = end_counts(account)
     with transaction.atomic():
         # --- S2, sändningsmotorn (E.7): utskick, mottagare, sms-koder, klick
@@ -444,6 +536,9 @@ def end_account(account, user=None):
         # efter utskicken (sender_domain är RESTRICT).
         _end_email(account)
         # --- slut S3
+        # --- S4 (foundation): segmenten, skripten och de namngivna länkarna.
+        _end_s4(account)
+        # --- slut S4
         importer.delete_account_jobs(account)
         SignupForm.objects.filter(account=account).delete()
         # Kundens anteckningar på beviset töms, som vid en GDPR-borttagning (H.4).

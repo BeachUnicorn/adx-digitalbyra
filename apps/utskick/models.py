@@ -40,6 +40,15 @@ Steg S3 (e-post i Brev, egna domäner, leveranshälsan, svar på mejl):
     plus e-postens kolumner på Utskick (db_default, B.0), hälsospärren för
     e-post på UtskickSettings och SES-kontots läge på Switchboard.
 
+Steg S4 (segment, hela rapporten, skriptet på egen sajt, Länkar, sms från
+kontaktkortet):
+
+    Segment           regler som räknas om varje gång (segments.py)
+    SiteSnippet       skriptet på kundens egen webbplats, en rad per domän
+
+    plus händelsen site_visit på Event och regeln för namngivna länkar på
+    TrackedLink (utskick null kräver en slug).
+
 Varje rad hör till ett flamingo.FlamingoAccount, direkt eller via sin
 förälder, och varje fråga filtrerar på kontot (H.1). Inga personuppgifter i
 __str__ eller i loggar: bara pk (H.3). Telefonnummer och e-post skrivs efter
@@ -54,6 +63,7 @@ främmande nyckel som rör utskick får också sin raderingsregel i databasen
 
 import logging
 import secrets
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models, transaction
@@ -94,8 +104,24 @@ RESERVED_PUBLIC_SLUGS = frozenset(
         "integritet",
         "val",
         "tack",
+        # S4: de namngivna länkarna är klick.adx.se/<public_slug>/<slug>, så
+        # en adress får inte vara ett av länkvärdarnas egna första led (/s/,
+        # /p/, /b/ på k.adx.se, /m/, /a/, /v/, /w/, /o/, /c/ på klick.adx.se).
+        "a",
+        "b",
+        "c",
+        "m",
+        "o",
+        "p",
+        "s",
+        "v",
+        "w",
     }
 )
+#: S4: en adress som börjar så här når aldrig appen på länkvärdarna. nginx
+#: (server/lib.sh) och asgi_app svarar 404 för MCP och OAuth där, och prövar
+#: bara början av sökvägen: klick.adx.se/tokenbolaget/vinter vore borta.
+RESERVED_PUBLIC_SLUG_PREFIXES = ("mcp", "authorize", "token", "register", "revoke")
 
 #: Tidsfönstret för sms per kund i hela timmar (S2), med gränserna 8 till 21.
 SMS_WINDOW_DEFAULT = {"weekday": [9, 20], "weekend": [10, 18]}
@@ -856,6 +882,10 @@ class Event(models.Model):
     #: Öppnat mejl (S3, en indikation; bara mottagare med pixeln, H.5).
     OPENED = "opened"
     S3_KINDS = (OPENED,)
+    #: Besök på kundens egen webbplats via skriptet (S4, E.6): bara besöket
+    #: från länken, en gång per klick och 30 minuter (som lp_visit).
+    SITE_VISIT = "site_visit"
+    S4_KINDS = (SITE_VISIT,)
 
     account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="+")
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name="events")
@@ -1389,11 +1419,20 @@ class AllowedHost(models.Model):
 class TrackedLink(models.Model):
     """En spårad länk: i ett utskick (lp eller external) eller en namngiven
     länk (S4, utskick null). Koderna bär aldrig adresser, så det finns ingen
-    öppen omdirigering (E.3)."""
+    öppen omdirigering (E.3).
+
+    En namngiven länk (S4, klick.adx.se/<public_slug>/<slug>) har utskick
+    null och en slug, och kind är målets slag som för ett utskicks länkar:
+    lp (en Flamingo-sida, campaign satt) eller external (E.8). Då gäller
+    build_destination, bare_destination och destination_ok som de är; en
+    extern namngiven länk prövas igen vid varje klick. Kind.NAMED skrivs
+    aldrig (kvar bara för att valet finns i 0002); is_named säger vilka
+    länkar som är namngivna, och klicken på dem har kanalen named."""
 
     class Kind(models.TextChoices):
         LP = "lp", "Flamingo-sida"
         EXTERNAL = "external", "Extern"
+        # Skrivs aldrig: en namngiven länk har kind lp eller external (S4).
         NAMED = "named", "Namngiven"
 
     account = models.ForeignKey(
@@ -1440,10 +1479,30 @@ class TrackedLink(models.Model):
             models.UniqueConstraint(
                 fields=["account", "slug"], condition=~Q(slug=""), name="utskick_link_slug"
             ),
+            # S4: en länk utan utskick är en namngiven länk och har alltid en
+            # slug (adressen på klick.adx.se). Äldre versioner skapar bara
+            # länkar med utskick, så regeln stör dem inte.
+            models.CheckConstraint(
+                condition=Q(utskick__isnull=False) | ~Q(slug=""),
+                name="utskick_link_named_slug",
+            ),
+        ]
+        indexes = [
+            # S4: Länkar listar kontots namngivna länkar, nyast först.
+            models.Index(
+                fields=["account", "-created_at"],
+                condition=Q(utskick__isnull=True),
+                name="utskick_link_named",
+            ),
         ]
 
     def __str__(self):
         return f"Länk {self.pk} ({self.kind})"
+
+    @property
+    def is_named(self):
+        """En namngiven länk (S4): ingen utskick, en slug."""
+        return self.utskick_id is None and bool(self.slug)
 
 
 class LinkCode(models.Model):
@@ -1937,3 +1996,148 @@ class EventReceipt(models.Model):
 
     def __str__(self):
         return f"Kvitto {self.pk}"
+
+
+# ---------------------------------------------------------------------------
+# S4: segmenten och skriptet på kundens egen webbplats
+# ---------------------------------------------------------------------------
+
+
+class Segment(models.Model):
+    """Ett segment (README B.4, I.11): regler som räknas om varje gång de
+    används, så att "de som klickade men inte bokade" alltid är aktuellt.
+    Reglerna tolkas av segments.py, som alltid börjar från kontots egna
+    kontakter; varje list-, tagg- och utskicks-id i reglerna har prövats med
+    access.owned_ids när de sparades, och prövas igen med kontot i villkoret
+    när de används (H.1). Formen på rules står i segments.py.
+
+    cached_* är senaste räkningen (Listor visar den); utskicket räknar
+    alltid om (frysningen och Granska)."""
+
+    #: Högst så här många segment per konto (vyn nekar fler).
+    MAX_PER_ACCOUNT = 100
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_segments"
+    )
+    name = models.CharField("Namn", max_length=80)
+    #: {"all": [regel | {"any": [regel, ...]}]} (segments.py).
+    rules = models.JSONField(default=dict, blank=True)
+    #: Senaste räkningen: alla, kan få sms och kan få e-post (reklam).
+    cached_count = models.PositiveIntegerField(default=0)
+    cached_sms = models.PositiveIntegerField(default=0)
+    cached_email = models.PositiveIntegerField(default=0)
+    counted_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Segment"
+        verbose_name_plural = "Segment"
+        ordering = ["name", "pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["account", "name"], name="utskick_segment_name"),
+        ]
+
+    def __str__(self):
+        return f"Segment {self.pk}"
+
+    @property
+    def rule_count(self):
+        """Antalet regler, grupperna inräknade regel för regel ("Segment · 3
+        regler" i Listor). Ett trasigt värde räknas som noll."""
+        rows = self.rules.get("all") if isinstance(self.rules, dict) else None
+        if not isinstance(rows, list):
+            return 0
+        total = 0
+        for row in rows:
+            if isinstance(row, dict) and isinstance(row.get("any"), list):
+                total += len(row["any"])
+            elif isinstance(row, dict):
+                total += 1
+        return total
+
+
+def new_snippet_key():
+    """Skriptets nyckel (data-k i taggen): 16 tecken ur base64url. En
+    offentlig identitet, ingen hemlighet (B.4)."""
+    return secrets.token_urlsafe(12)
+
+
+class SiteSnippet(models.Model):
+    """Skriptet på kundens egen webbplats (README B.4, E.6), en rad per
+    domän. Skriptet sätter inga kakor och använder ingen lagring; det
+    rapporterar bara besöket från en länk (adx=<token> i adressen) till
+    klick.adx.se/v. Besöksanropet godtas bara när Origin är domänen eller
+    en underdomän till den och token är ett klick hos samma konto.
+    last_seen_at sätts av anropet, högst en gång per SEEN_EVERY; först då
+    får länkar till domänen adx= (E.3). Domänen gör inte länkar dit fria
+    från byråns granskning (S4-HANDOFF.md, avvikelser)."""
+
+    #: last_seen_at skrivs högst så här ofta (E.6).
+    SEEN_EVERY = timedelta(hours=1)
+    #: Högst så här många domäner per konto (vyn nekar fler).
+    MAX_PER_ACCOUNT = 5
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_sites"
+    )
+    #: Gemener, IDNA, utan www.: exempelror.example (exakt värd eller
+    #: registrerbar domän; underdomäner godtas i Origin).
+    domain = models.CharField("Domän", max_length=253)
+    key = models.CharField(max_length=16, unique=True, default=new_snippet_key)
+    last_seen_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Spårningsskript"
+        verbose_name_plural = "Spårningsskript"
+        ordering = ["domain", "pk"]
+        constraints = [
+            models.UniqueConstraint(fields=["account", "domain"], name="utskick_site_domain"),
+        ]
+
+    def __str__(self):
+        return f"Skript {self.pk}"
+
+    @property
+    def is_installed(self):
+        """Skriptet har rapporterat ett besök (E.6: "Installerat")."""
+        return self.last_seen_at is not None
+
+
+class OldPublicSlug(models.Model):
+    """En adress för anmälan som ett konto hade förut (S4, säkerhets-
+    granskningen). klick.adx.se/<adress>/<slug> och adx.se/utskick/<adress>/
+    står kvar på tryckta affischer och i QR-koder när ADX byter
+    UtskickSettings.public_slug, så den gamla adressen blir aldrig ett annat
+    kontos: access.validate_public_slug och suggest_public_slug räknar den
+    som upptagen, och de namngivna länkarna, anmälan och integritetstexten
+    prövar den efter den nuvarande (access.account_for_public_slug). Tas
+    kontot bort blir account null och adressen förblir upptagen, utan mål.
+    Tar kontot tillbaka en egen gammal adress tas raden bort."""
+
+    account = models.ForeignKey(
+        FlamingoAccount,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="utskick_old_slugs",
+    )
+    slug = models.SlugField("Tidigare adress", max_length=40, unique=True)
+    retired_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Tidigare adress för anmälan"
+        verbose_name_plural = "Tidigare adresser för anmälan"
+        ordering = ["-retired_at", "pk"]
+
+    def __str__(self):
+        return self.slug

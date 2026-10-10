@@ -1,0 +1,115 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Länkar (README I.11, E.1, E.8, S4, länk-byggaren). Kontext från
+app_views/links.link_list: named_rows ([{link, text, url, goes, chip_label,
+chip_tone, state, state_text, clicks, leads}]: kontots namngivna länkar,
+leads None för en extern adress), personal_rows ([{utskick, code, more,
+kind_text, destinations ([{text, label, tone}]), more_links, clicks,
+leads}]: en rad per utskick med personliga länkar), page (utskicken,
+?sida=), public_slug, no_slug_text, explainer, email_host.
+
+Under 760 px blir tabellerna kort (flamingo-app.css läser data-label).
+Tomma celler skrivs utan blanksteg, så att de döljs i kortläget. Kopiera
+visas av flamingo-app-links.js (dold utan skript). Inga style-attribut,
+inga inline-skript; .fl-ut-ln- i flamingo-app-utskick-links.css.
+{% endcomment %}
+{% block app_title %}Länkar{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick-links.css' %}?v={{ static_version }}"><script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Spårade länkar</h1>
+    <p class="fl-app-lead">Länkarna i utskicken skapas automatiskt. Egna länkar gör du för affischer, QR-koder, Instagram och kvitton. Du ser vart varje länk går, hur många som klickat och vad det ledde till.</p>
+  </div>
+  {% if public_slug %}
+  <div class="fl-app-head__actions">
+    <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_link_new' %}">Ny länk</a>
+  </div>
+  {% endif %}
+</header>
+{% endblock %}
+{% block ut_content %}
+{% if not public_slug %}<p class="fl-notice fl-notice--warn"><span>{{ no_slug_text }}</span></p>{% endif %}
+
+<section class="fl-panel" aria-labelledby="ut-ln-named">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="ut-ln-named">Dina länkar</h2>
+    <span class="fl-ut-ln-domain">Klickdomän: <strong>{{ email_host }}</strong></span>
+  </div>
+  {% if named_rows %}
+  <div class="fl-ut-tablebox"><div class="fl-table-wrap">
+    <table class="fl-table fl-ut-ln-table">
+      <thead>
+        <tr>
+          <th scope="col">Länk</th>
+          <th scope="col">Går till</th>
+          <th scope="col" class="is-num">Klick</th>
+          <th scope="col" class="is-num">Förfrågningar</th>
+          <th scope="col"><span class="fl-sr">Åtgärder</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in named_rows %}
+        <tr>
+          <td class="is-primary" data-label="Länk"><a class="fl-ut-name fl-ut-ln-addr" href="{% url 'flamingo:app_link' row.link.pk %}">{{ row.text }}</a><span class="fl-ut-sub">{{ row.link.label }}</span></td>
+          <td data-label="Går till"><span class="fl-ut-ln-cell"><span class="fl-ut-ln-goes"><span class="fl-ut-ln-dest">{{ row.goes }}</span> <span class="fl-ut-status fl-ut-status--{{ row.chip_tone }}">{{ row.chip_label }}</span></span>{% if row.state_text %}<span class="fl-ut-lock">{{ row.state_text }}</span>{% endif %}</span></td>
+          <td class="is-num" data-label="Klick">{{ row.clicks|tal }}</td>
+          <td class="is-num" data-label="Förfrågningar">{% if row.leads is not None %}<strong class="fl-ut-leads">{{ row.leads|tal }}</strong>{% endif %}</td>
+          <td data-label=""><span class="fl-ut-ln-actions"><a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_link' row.link.pk %}#qr">QR-kod<span class="fl-sr"> för {{ row.text }}</span></a><button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ln-copy="{{ row.url }}" hidden>Kopiera<span class="fl-sr"> {{ row.text }}</span></button></span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {% else %}
+  <p class="fl-panel__note">Inga egna länkar än. En länk som {{ email_host }}/{{ public_slug|default:"foretaget" }}/vinter passar på en affisch, i en QR-kod eller i Instagram-profilen, och du ser hur många som klickar.</p>
+  {% endif %}
+</section>
+
+<section class="fl-panel" aria-labelledby="ut-ln-personal">
+  <h2 class="fl-panel__title" id="ut-ln-personal">Länkar i utskicken</h2>
+  {% if personal_rows %}
+  <p class="fl-panel__text">Varje mottagare får en egen länk, så att du ser vem som klickade. Siffrorna och personerna finns i utskickets rapport.</p>
+  <div class="fl-ut-tablebox"><div class="fl-table-wrap">
+    <table class="fl-table fl-ut-ln-table">
+      <thead>
+        <tr>
+          <th scope="col">Länk</th>
+          <th scope="col">Går till</th>
+          <th scope="col" class="is-num">Klick</th>
+          <th scope="col" class="is-num">Förfrågningar</th>
+          <th scope="col"><span class="fl-sr">Åtgärder</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in personal_rows %}
+        <tr>
+          <td class="is-primary" data-label="Länk"><span class="fl-ut-ln-addr">{{ row.code }}{% if row.more %} + {{ row.more|tal }}{% endif %}</span><span class="fl-ut-sub">{{ row.utskick.name }} · {{ row.kind_text }}</span></td>
+          <td data-label="Går till"><span class="fl-ut-ln-cell">{% for dest in row.destinations %}<span class="fl-ut-ln-goes"><span class="fl-ut-ln-dest">{{ dest.text }}</span> <span class="fl-ut-status fl-ut-status--{{ dest.tone }}">{{ dest.label }}</span></span>{% endfor %}{% if row.more_links %}<span class="fl-ut-sub">och {{ row.more_links }} till</span>{% endif %}</span></td>
+          <td class="is-num" data-label="Klick">{{ row.clicks|tal }}</td>
+          <td class="is-num" data-label="Förfrågningar"><strong class="fl-ut-leads">{{ row.leads|tal }}</strong></td>
+          <td data-label=""><a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_utskick' row.utskick.pk %}">Rapport<span class="fl-sr"> för {{ row.utskick.name }}</span></a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div></div>
+  {% if page.has_other_pages %}
+  <nav class="fl-ut-pages" aria-label="Fler utskick">
+    {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?sida={{ page.previous_page_number }}">Föregående</a>{% endif %}
+    <span class="fl-ut-pages__at">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
+    {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?sida={{ page.next_page_number }}">Nästa</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="fl-panel__note">När ett utskick med länkar har skickats syns dess personliga länkar här.</p>
+  {% endif %}
+</section>
+
+<aside class="fl-panel fl-panel--soft fl-ut-ln-why" aria-label="Om klickdomänerna">
+  <p class="fl-panel__text"><strong>{{ explainer }}</strong> Ett sms räknar varje tecken, så den korta adressen kan spara en hel sms-del. Båda går till samma spårning.</p>
+  <p class="fl-panel__text">En länk till en Flamingo-sida spåras hela vägen utan att du gör något. En länk till din egen webbplats spåras till klicket, och hela besöket syns om du lägger in <a href="{% url 'flamingo:app_utskick_snippet' %}">spårningsskriptet</a>, en rad i webbplatsens sidhuvud.</p>
+</aside>
+{% endblock %}

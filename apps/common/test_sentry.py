@@ -137,6 +137,12 @@ class SentryLeakTests(TestCase):
         call("/utskick/bekrafta/" + "b" * 40 + "/")
         call("/api/utskick/46elks/inkommande/" + "c" * 32 + "/")
         call("/lp/rorjour/besok/", method="POST")
+        # S4: segmentbyggaren och dess räkning, Länkar, QR-koderna,
+        # Spårningsskript och sms från kontaktkortet.
+        call("/flamingo/app/kontakter/segment/antal/", method="POST")
+        call("/flamingo/app/kontakter/12/sms/")
+        call("/flamingo/app/utskick/lankar/3/qr.svg")
+        call("/flamingo/app/utskick/installningar/skript/")
         self.assertEqual(self.kinds(), [])
 
     def test_link_hosts_are_not_traced(self):
@@ -149,6 +155,10 @@ class SentryLeakTests(TestCase):
                 ),
                 0.0,
             )
+            # S4: skriptet, besöksanropet och de namngivna länkarna.
+            for path in ("/s.1a2b3c4d.js", "/v", "/exempelror/vinter"):
+                sampled = {"wsgi_environ": {"PATH_INFO": path, "HTTP_HOST": "klick.adx.se"}}
+                self.assertEqual(sentry.traces_sampler(sampled), 0.0, path)
         self.assertEqual(
             sentry.traces_sampler({"wsgi_environ": {"PATH_INFO": "/", "HTTP_HOST": "adx.se"}}), 0.1
         )
@@ -243,6 +253,16 @@ class ScrubTextTests(TestCase):
             "nyckel adxut_abcdefgh12345": "nyckel [Filtered]",
             "ut=AbC123.def4567890&x=1": "ut=[Filtered]&x=1",
             "/lp/rorjour/?adx=abc123": "/lp/rorjour/?adx=[Filtered]",
+            # S4: målet med adx= på kundens egen sajt, provlänken på sidan
+            # Spårningsskript och de namngivna länkarna, också utan schema.
+            "https://exempelror.example/boka?utm_source=utskick&adx=3d.AbCdEfGhIj": (
+                "https://exempelror.example/boka?utm_source=utskick&adx=[Filtered]"
+            ),
+            "https://exempelror.example/?adx=Ab.0123456789": (
+                "https://exempelror.example/?adx=[Filtered]"
+            ),
+            "Affischen: klick.adx.se/exempelror/vinter": "Affischen: klick.adx.se/[Filtered]",
+            "GET /flamingo/app/kontakter/segment/12/": "GET /flamingo/app/kontakter/segment/12/",
             "q=anna&sida=2": "q=[Filtered]&sida=2",
             # Sökningen bland utskickets mottagare (Mottagare, ?sok=).
             "sok=Anna+Lindqvist": "sok=[Filtered]",

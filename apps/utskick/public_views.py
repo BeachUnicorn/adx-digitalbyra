@@ -64,7 +64,14 @@ from apps.projects.access import is_agency_user
 from . import branding, capture, contacts, limits, normalize, optin, tokens
 from . import consent as consents
 from . import suppression as suppressions
-from .access import PERSON, actor_for, can_collect, is_enabled, settings_for
+from .access import (
+    PERSON,
+    account_for_public_slug,
+    actor_for,
+    can_collect,
+    is_enabled,
+    settings_for,
+)
 from .keys import KeyMismatch
 from .models import (
     CHANNEL_EMAIL,
@@ -139,12 +146,22 @@ def _base_context(account, row):
 # ---------------------------------------------------------------------------
 
 
-def _settings_for_slug(public_slug):
-    row = (
-        UtskickSettings.objects.filter(public_slug=public_slug)
+def _row_for_slug(public_slug):
+    """Kontots UtskickSettings för adressen, också för en tidigare adress som
+    kontot har kvar (OldPublicSlug: tryckta QR-koder och gamla mejl), eller
+    None."""
+    account_id = account_for_public_slug(public_slug)
+    if account_id is None:
+        return None
+    return (
+        UtskickSettings.objects.filter(account_id=account_id)
         .select_related("account__customer")
         .first()
     )
+
+
+def _settings_for_slug(public_slug):
+    row = _row_for_slug(public_slug)
     if row is None or not is_enabled(row.account, row):
         raise Http404
     return row
@@ -501,11 +518,7 @@ def privacy(request, public_slug):
     """Den genererade integritetstexten (H.5). Har kunden en egen policy
     (https) går sidan dit. Fungerar också när utskick stängts av, så att
     länken i ett gammalt mejl håller. 404 utan tillräckliga uppgifter."""
-    row = (
-        UtskickSettings.objects.filter(public_slug=public_slug)
-        .select_related("account__customer")
-        .first()
-    )
+    row = _row_for_slug(public_slug)
     if row is None:
         raise Http404
     own = capture.privacy_url(row.account, row)
@@ -520,6 +533,11 @@ def privacy(request, public_slug):
         "integritet_url": "",
         **branding.context(row.account, row.display_name),
     }
+    # --- S4 (länk-byggaren): skriptet på kundens egen webbplats (E.6, H.5) ---
+    from . import site_snippet
+
+    context["egen_sajt"] = site_snippet.privacy_domains(row.account)
+    # --- slut S4 ---
     return _page(request, "utskick/public/privacy.html", context)
 
 

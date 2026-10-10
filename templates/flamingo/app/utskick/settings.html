@@ -100,6 +100,22 @@ mig om svar.
 </section>
 {% comment %}slut S3{% endcomment %}
 
+{% comment %}S4 (länk-byggaren): Spårningsskript på egen sajt (README I.9, E.6). snippet_row är site_snippet.summary: sites, text, label, tone.{% endcomment %}
+<section class="fl-panel" aria-labelledby="ut-set-snippet">
+  <h2 class="fl-panel__title" id="ut-set-snippet">Din webbplats</h2>
+  <ul class="fl-list fl-ut-setrows">
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Spårningsskript på egen sajt</span>
+        <span class="fl-list__meta">{% if snippet_row.sites %}{{ snippet_row.text }}{% else %}En rad i webbplatsens sidhuvud visar hela besöket från en länk, utan kakor.{% endif %}</span>
+      </div>
+      {% if snippet_row.sites %}<span class="fl-ut-status fl-ut-status--{{ snippet_row.tone }}">{{ snippet_row.label }}</span>{% endif %}
+      <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_utskick_snippet' %}">{% if snippet_row.sites %}Hantera{% else %}Lägg in skriptet{% endif %}</a>
+    </li>
+  </ul>
+</section>
+{% comment %}slut S4{% endcomment %}
+
 <form class="fl-form" method="post" action="{% url 'flamingo:app_utskick_settings' %}">
   {% csrf_token %}
   {% comment %}S3 (redigerar-byggaren): Spåra öppningar (I.9, H.5){% endcomment %}

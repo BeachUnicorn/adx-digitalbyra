@@ -13,7 +13,12 @@ flamingo_demo.
                                 ett skickat (simulerat) med klick, förfrågningar,
                                 två svar och en STOPP, ett schemalagt och ett utkast;
                                 och e-posten (S3): ett skickat (simulerat) mejl i
-                                Brev med ett klick till Flamingo-sidan
+                                Brev med ett klick till Flamingo-sidan och ett
+                                till webbplatsen; och S4: två segment ("Service i
+                                höst" och uppföljningen av sms-utskicket), två
+                                namngivna länkar med klick och en förfrågan, och
+                                skriptet på webbplatsen (sett i går) med besöket
+                                från mejlet på kontaktkortet
 
 Utskicken går genom samma kod som en riktig kunds: bekräftelsen
 (sending.state), frysningen (sending.freeze), demots simulering
@@ -46,6 +51,16 @@ signerade som redigerarens), bekräftelsen, frysningen med mejlets
 ögonblicksbild och länkar (sending.email.freeze_email) och demots
 simulering (sending.email.simulate: levererat utan SES). Inget mejl
 skickas och transporten anropas aldrig.
+
+S4 (integrationen) går också genom den riktiga koden där den finns:
+segmenten räknas med segments.refresh och uppföljningen skapas med
+segments.create_follow_up, förfrågan via affischen får spåret med
+attribution.attach, och besöket på webbplatsen skrivs med
+attribution.record_site_visit (besöksanropet själv tar aldrig emot något
+för demot, link_views.snippet_beacon). Webbplatsen exempelror.example är
+demokundens egen (Customer.website), så länkarna dit behöver ingen
+granskning. Skriptets rad är "sett i går"; inget skript finns på någon
+riktig sajt.
 """
 
 from datetime import datetime, time, timedelta
@@ -78,8 +93,11 @@ from .models import (
     InboundMessage,
     LinkCode,
     ListMembership,
+    OldPublicSlug,
     Recipient,
+    Segment,
     SignupForm,
+    SiteSnippet,
     Suppression,
     Tag,
     Thread,
@@ -96,6 +114,11 @@ PUBLIC_SLUG = "exempelror-demo"
 ORG_NUMBER = "559999-0000"
 IMPORT_WHERE = "Kundregistret i kassan, kunder sedan 2023"
 IMPORT_FILE = "kunder-exempelror.csv"
+#: S4: demokundens webbplats (flamingo_demo.WEBSITE, Customer.website). Dit
+#: får länkar gå utan granskning, och där sitter skriptet (E.6).
+SITE_DOMAIN = "exempelror.example"
+SITE_PATH = "/vinterservice/"
+SITE_URL = f"https://{SITE_DOMAIN}{SITE_PATH}"
 
 
 def reset(account):
@@ -104,6 +127,7 @@ def reset(account):
     if not account.is_demo:
         raise ValueError("utskick.demo.reset gäller bara demokontot.")
     _reset_s2(account)
+    _reset_s4(account)
     importer.delete_account_jobs(account)
     SignupForm.objects.filter(account=account).delete()
     Contact.objects.filter(account=account).delete()
@@ -121,9 +145,11 @@ def reset(account):
 def _settings(account, staff, now):
     row = settings_for(account)
     slug = PUBLIC_SLUG
-    taken = UtskickSettings.objects.filter(public_slug=slug).exclude(account=account)
-    if taken.exists():
-        slug = suggest_public_slug(DISPLAY_NAME + " demo", exclude_pk=row.pk)
+    taken = UtskickSettings.objects.filter(public_slug=slug).exclude(account=account).exists()
+    # En annan kunds tidigare adress är inte ledig (OldPublicSlug).
+    taken = taken or OldPublicSlug.objects.filter(slug=slug).exclude(account=account).exists()
+    if taken:
+        slug = suggest_public_slug(DISPLAY_NAME + " demo", exclude_pk=row.pk, account_id=account.pk)
     if not row.pk:
         row = UtskickSettings(account=account)
     row.is_enabled = True
@@ -263,12 +289,14 @@ PEOPLE = [
     ("Omar", "Haddad", "+46701740622", "", "manual", 900, "inactive"),
 ]
 
+#: S4: föreningens senaste service (segmentet "Service i höst").
+BRF_SERVICE = "2025-08-14"
 FIELDS = {
     "+46701740612": {"fastighet": "Villa"},
     "+46701740613": {"fastighet": "Villa", "senaste-service": "2025-11-03"},
     "+46701740614": {"fastighet": "Lägenhet"},
     "+46701740620": {"fastighet": "Radhus", "senaste-service": "2024-09-18"},
-    "+46701740623": {"fastighet": "Radhus"},
+    "+46701740623": {"fastighet": "Radhus", "senaste-service": "2025-09-30"},
 }
 TAGS = {
     "+46701740610": ("Nacka",),
@@ -435,9 +463,12 @@ def seed(account, staff, now):
             "company_name": "Brf Exempelgården",
             "org_number": ORG_NUMBER.replace("-", ""),
             "email": "styrelsen@brf-exempelgarden.example",
+            # S4: med i segmentet "Service i höst" (_segments).
+            "fields": {"senaste-service": BRF_SERVICE},
         },
         source=Contact.Source.MANUAL,
         check_collect=False,
+        defs=fields,
         now=now - timedelta(days=9),
     )
     made["brf"] = brf
@@ -458,6 +489,7 @@ def seed(account, staff, now):
         is_active=False,
     )
     _utskick(account, staff, now, made, lists, tags)
+    _s4(account, staff, now, lists)
     return made
 
 
@@ -640,6 +672,36 @@ def _click(recipient, link, at, seconds, called=False):
         first_clicked_at=Coalesce(F("first_clicked_at"), Value(at)),
     )
     attribution.record_lp_visit(click, link.campaign, at)
+    return click
+
+
+def _site_click(recipient, link, at, seconds):
+    """S4: ett mänskligt klick till demokundens webbplats och besöket som
+    skriptet rapporterar (E.6): tiden på sidan, lp_visits och händelsen
+    site_visit på kontakten (attribution.record_site_visit, som
+    besöksanropet skriver den)."""
+    from . import attribution
+
+    click = Click.objects.create(
+        account_id=recipient.utskick.account_id,
+        utskick=recipient.utskick,
+        recipient=recipient,
+        link=link,
+        contact_id=recipient.contact_id,
+        channel=Click.Channel.EMAIL if recipient.channel == CHANNEL_EMAIL else Click.Channel.SMS,
+        kind=Click.Kind.HUMAN,
+        at=at,
+        device="mobile",
+        os="iOS",
+        browser="Safari",
+        engaged_seconds=seconds,
+        beacon_at=at + timedelta(seconds=seconds),
+    )
+    Recipient.objects.filter(pk=recipient.pk).update(
+        click_count=F("click_count") + 1,
+        first_clicked_at=Coalesce(F("first_clicked_at"), Value(at)),
+    )
+    attribution.record_site_visit(click, SITE_PATH, at, host=SITE_DOMAIN)
     return click
 
 
@@ -855,7 +917,10 @@ EMAIL_BLOCKS = (
             "Det här är bra att göra nu:\n\n"
             "- Stäng av och töm utekranen.\n"
             "- Se över rören i garage och källare.\n"
-            "- Spola avloppet innan löven fastnar."
+            "- Spola avloppet innan löven fastnar.\n\n"
+            # S4 (integrationen): en länk till demokundens egen webbplats, där
+            # skriptet rapporterar besöket (E.6).
+            f"Mer om vinterservice finns på [vår webbplats]({SITE_URL})."
         },
     ),
     (
@@ -871,6 +936,9 @@ EMAIL_BLOCKS = (
 )
 #: Klicket på knappen: (e-post, minuter efter, sekunder på sidan).
 EMAIL_CLICK = ("kim.andersson@hemma.example", 35, 40)
+#: S4: klicket på länken till webbplatsen, där skriptet såg besöket:
+#: (e-post, minuter efter, sekunder på sidan).
+EMAIL_SITE_CLICK = ("lena.ek@hemma.example", 95, 75)
 
 
 def _email_utskick(account, staff, now, lists, campaign):
@@ -929,6 +997,17 @@ def _email_utskick(account, staff, now, lists, campaign):
         if recipient is not None and link is not None:
             _click(recipient, link, sent_at + timedelta(minutes=minutes), seconds)
             TrackedLink.objects.filter(pk=link.pk).update(human_clicks=1)
+    # S4 (integrationen): länken till webbplatsen och besöket som skriptet såg.
+    email, minutes, seconds = EMAIL_SITE_CLICK
+    recipient = Recipient.objects.filter(
+        utskick=utskick, address=email, status=Recipient.Status.DELIVERED
+    ).first()
+    site_link = TrackedLink.objects.filter(
+        utskick=utskick, kind=TrackedLink.Kind.EXTERNAL, destination__startswith=SITE_URL
+    ).first()
+    if recipient is not None and site_link is not None:
+        _site_click(recipient, site_link, sent_at + timedelta(minutes=minutes), seconds)
+        TrackedLink.objects.filter(pk=site_link.pk).update(human_clicks=1)
     tick.finish(sent_at + timedelta(minutes=20), only=utskick.pk)
     return utskick
 
@@ -939,3 +1018,168 @@ def _audience(values):
     data = audiences.empty()
     data.update(values)
     return data
+
+
+# ---------------------------------------------------------------------------
+# S4 (integrationen): segment, namngivna länkar och skriptet på egen sajt
+# ---------------------------------------------------------------------------
+
+#: Acceptansens segment (J S4): Senaste service äldre än 5 månader, i listan
+#: Kunder och ingen förfrågan de senaste 30 dagarna.
+SEGMENT_NAME = "Service i höst"
+#: De namngivna länkarna: (beskrivning, slug, mål), där målet "lp" är
+#: Flamingo-sidan för avloppsspolningen (_campaign) och annars en adress.
+NAMED_LINKS = (
+    ("Affisch i verkstaden", "vinter", "lp"),
+    ("Länk i Instagram", "instagram", SITE_URL),
+)
+#: Klicken på länkarna: (slug, dagar sedan, timme, sekunder på sidan).
+NAMED_CLICKS = (
+    ("vinter", 6, 9, 55),
+    ("vinter", 5, 16, 20),
+    ("vinter", 4, 12, 140),
+    ("vinter", 2, 18, 35),
+    ("instagram", 3, 20, 60),
+    ("instagram", 1, 21, 45),
+)
+#: Förfrågan via affischen (formuläret på Flamingo-sidan), från klicket
+#: NAMED_CLICKS[2]. Numret ur PTS serie för film och böcker.
+NAMED_LEAD = (
+    "Lisa Ekholm",
+    "+46701740631",
+    "Såg affischen i verkstaden. Vill boka spolning i november.",
+)
+
+
+def _reset_s4(account):
+    """Segmenten, skripten och de namngivna länkarna (utskick null; klicken
+    tas bort med kontots klick i _reset_s2, utskickens länkar med utskicken)."""
+    Segment.objects.filter(account=account).delete()
+    SiteSnippet.objects.filter(account=account).delete()
+    TrackedLink.objects.filter(account=account, utskick__isnull=True).delete()
+
+
+def _s4(account, staff, now, lists):
+    _segments(account, staff, now, lists)
+    _named_links(account, now)
+
+
+def _segments(account, staff, now, lists):
+    """Segmentet "Service i höst" med segmentbyggarens regler (segments.clean
+    prövar dem som formuläret gör), och uppföljningen av sms-utskicket som
+    rapportens "Följ upp de som inte klickade" skapar den."""
+    from . import segments
+
+    rules = segments.clean(
+        account,
+        {
+            "all": [
+                {"f": "field:senaste-service", "op": "before_months", "v": 5},
+                {"f": "list", "op": "in", "v": [lists["Kunder"].pk]},
+                {"f": "lead", "op": "not_within_days", "v": 30},
+            ]
+        },
+    )
+    segment = Segment.objects.create(
+        account=account,
+        name=SEGMENT_NAME,
+        rules=rules,
+        created_by=staff,
+        created_at=now - timedelta(days=2),
+    )
+    segments.refresh(segment, now)
+    sent = Utskick.objects.filter(account=account, name=SENT_NAME).first()
+    if sent is not None:
+        segments.create_follow_up(sent, user=staff, now=now)
+
+
+def _named_links(account, now):
+    """Affischen till Flamingo-sidan och Instagram-länken till webbplatsen,
+    med klick (kanalen named, ingen kontakt), besöken och en förfrågan via
+    affischen; skriptet på webbplatsen, senast sett vid Instagram-klicket i
+    går. Numren rullas upp som ticken gör (links.rollup)."""
+    from apps.flamingo.models import Lead
+
+    from . import attribution, links
+
+    campaign = _campaign(account)
+    made = {}
+    for label, slug, target in NAMED_LINKS:
+        if target == "lp":
+            if campaign is None:
+                continue
+            from apps.flamingo.exports import landing_page_url
+
+            kind, destination = TrackedLink.Kind.LP, landing_page_url(campaign)
+        else:
+            kind = TrackedLink.Kind.EXTERNAL
+            destination = links.clean_external(account, target)
+        made[slug] = TrackedLink.objects.create(
+            account=account,
+            utskick=None,
+            kind=kind,
+            campaign=campaign if kind == TrackedLink.Kind.LP else None,
+            destination=destination[: links.URL_MAX],
+            label=label,
+            slug=slug,
+            created_at=now - timedelta(days=10),
+        )
+    today = timezone.localtime(now, STOCKHOLM).date()
+    seen = None
+    clicks = []
+    for slug, days, hour, seconds in NAMED_CLICKS:
+        link = made.get(slug)
+        if link is None:
+            continue
+        at = datetime.combine(today - timedelta(days=days), time(hour, 0), tzinfo=STOCKHOLM)
+        click = Click.objects.create(
+            account=account,
+            utskick=None,
+            recipient=None,
+            link=link,
+            contact=None,
+            channel=Click.Channel.NAMED,
+            kind=Click.Kind.HUMAN,
+            at=at,
+            device="mobile",
+            os="iOS" if days % 2 else "Android",
+            browser="Safari" if days % 2 else "Chrome",
+            engaged_seconds=seconds,
+            beacon_at=at + timedelta(seconds=seconds),
+        )
+        clicks.append(click)
+        if link.kind == TrackedLink.Kind.LP:
+            attribution.record_lp_visit(click, link.campaign, at)
+        else:
+            attribution.record_site_visit(click, SITE_PATH, at, host=SITE_DOMAIN)
+            seen = max(seen, at) if seen else at
+    poster = made.get("vinter")
+    lead = None
+    if poster is not None and len(clicks) > 2:
+        click = clicks[2]
+        name, phone, message = NAMED_LEAD
+        at = click.at + timedelta(minutes=2)
+        lead = Lead.objects.create(
+            account=account,
+            campaign=poster.campaign,
+            service=poster.campaign.service,
+            source=Lead.SOURCE_FORM,
+            name=name,
+            phone=_display(phone),
+            message=message,
+            status=Lead.STATUS_NEW,
+            created_at=at,
+            activity_at=at,
+        )
+        attribution.attach(lead, click, now=at)
+    for link in made.values():
+        TrackedLink.objects.filter(pk=link.pk).update(
+            human_clicks=Click.objects.filter(link=link, kind=Click.Kind.HUMAN).count(),
+            leads=1 if lead is not None and link == poster else 0,
+        )
+    SiteSnippet.objects.create(
+        account=account,
+        domain=SITE_DOMAIN,
+        last_seen_at=seen,
+        created_at=now - timedelta(days=12),
+    )

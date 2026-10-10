@@ -9,6 +9,9 @@ Demot får ligga i produktion (beslut 2026-10-03). Därför:
     DemoSmsTests          inga sms, oavsett inställningar och 46elks
     DemoUtskickS2Tests    utskicken (S2): skickat och simulerat, klick, förfrågningar,
                           svar och STOPP i Inkorgen; ticken och knapparna skickar inget
+    DemoUtskickS3Tests    e-posten (S3): mejlet i Brev, aldrig SES
+    DemoUtskickS4Tests    S4: segmenten, de namngivna länkarna med förfrågan, skriptet
+                          och besöket på kontaktkortet; knapparna ändrar och skickar inget
     DemoConversionTests   affärerna exporteras aldrig
     DemoGoogleTests       byråns knappar och Google-modulerna når aldrig Google
 
@@ -52,8 +55,10 @@ from apps.utskick.models import (
     InboundMessage,
     LinkCode,
     Recipient,
+    Segment,
     SenderDomain,
     SignupForm,
+    SiteSnippet,
     Suppression,
     Switchboard,
     Tag,
@@ -149,6 +154,12 @@ def counts():
         "mejl": Recipient.objects.filter(utskick__account=account, channel=CHANNEL_EMAIL).count(),
         "mejlbilder": EmailImage.objects.filter(account=account).count(),
         "avsändardomäner": SenderDomain.objects.filter(account=account).count(),
+        # S4: segmenten, de namngivna länkarna och skriptet.
+        "segment": Segment.objects.filter(account=account).count(),
+        "namngivna länkar": TrackedLink.objects.filter(
+            account=account, utskick__isnull=True
+        ).count(),
+        "skript": SiteSnippet.objects.filter(account=account).count(),
     }
 
 
@@ -553,6 +564,38 @@ class DemoContentTests(DemoFixture, TestCase):
             reverse("flamingo:app_utskick_health"),
             reverse("flamingo:app_utskick_domain"),
         ]
+        # S4 (integrationen): segmentbyggaren, Länkar med varje namngiven
+        # länk och dess QR-koder, anmälningssidans QR-koder, Spårningsskript,
+        # sms-rutan på varje kontaktkort, exportens bekräftelse och
+        # mottagarnas nya vyer för varje utskick som gått.
+        urls += [
+            reverse("flamingo:app_segment_new"),
+            reverse("flamingo:app_links"),
+            reverse("flamingo:app_link_new"),
+            reverse("flamingo:app_utskick_snippet"),
+            reverse("flamingo:app_signup_qr", args=["svg"]),
+            reverse("flamingo:app_signup_qr", args=["png"]),
+        ]
+        segments = Segment.objects.filter(account=self.account)
+        self.assertTrue(segments.exists())
+        urls += [reverse("flamingo:app_segment", args=[x.pk]) for x in segments]
+        urls += [reverse("flamingo:app_contacts") + f"?segment={x.pk}" for x in segments]
+        named = TrackedLink.objects.filter(account=self.account, utskick__isnull=True)
+        self.assertTrue(named.exists())
+        for link in named:
+            urls += [
+                reverse("flamingo:app_link", args=[link.pk]),
+                reverse("flamingo:app_link_qr", args=[link.pk, "svg"]),
+                reverse("flamingo:app_link_qr", args=[link.pk, "png"]),
+            ]
+        urls += [reverse("flamingo:app_contact_sms", args=[k.pk]) for k in kontakter]
+        for utskick in self.account.utskick_set.exclude(status__in=Utskick.EDITABLE):
+            urls.append(reverse("flamingo:app_utskick_export", args=[utskick.pk]))
+            recipients = reverse("flamingo:app_utskick_recipients", args=[utskick.pk])
+            urls += [
+                f"{recipients}?visa={view}"
+                for view in ("skickade", "klickade-inte", "stannade", "besokte", "formular")
+            ]
         # Ingen sida får nå 46elks (J S2) eller SES och AWS (J S3): ett anrop
         # fäller testet.
         ses_patch, aws_patch = no_mail_paths()
@@ -985,11 +1028,16 @@ class DemoUtskickS3Tests(DemoFixture, TestCase):
                 for version in block["versions"]
             )
         )
-        # Frysningen: ögonblicksbilden och länken till Flamingo-sidan.
+        # Frysningen: ögonblicksbilden, länken till Flamingo-sidan och (S4)
+        # länken till demokundens webbplats, där skriptet sitter.
         self.assertTrue(utskick.email_snapshot.get("blocks"))
-        link = TrackedLink.objects.get(utskick=utskick)
-        self.assertEqual(link.kind, TrackedLink.Kind.LP)
-        self.assertEqual(utskick.email_snapshot["links"], {f"{link.block_id}:0": link.pk})
+        link = TrackedLink.objects.get(utskick=utskick, kind=TrackedLink.Kind.LP)
+        site = TrackedLink.objects.get(utskick=utskick, kind=TrackedLink.Kind.EXTERNAL)
+        self.assertTrue(site.destination.startswith(utskick_demo.SITE_URL))
+        self.assertEqual(
+            utskick.email_snapshot["links"],
+            {f"{link.block_id}:0": link.pk, f"{site.block_id}:0": site.pk},
+        )
         recipients = Recipient.objects.filter(utskick=utskick)
         delivered = recipients.exclude(status="skipped")
         self.assertEqual(set(delivered.values_list("status", "simulated")), {("delivered", True)})
@@ -998,9 +1046,8 @@ class DemoUtskickS3Tests(DemoFixture, TestCase):
         self.assertEqual(set(delivered.values_list("ses_message_id", flat=True)), {""})
         skipped = set(recipients.filter(status="skipped").values_list("skip_reason", flat=True))
         self.assertEqual(skipped, {"no_address"})
-        click = Click.objects.get(utskick=utskick)
+        click = Click.objects.get(utskick=utskick, link=link)
         self.assertEqual(click.channel, Click.Channel.EMAIL)
-        self.assertEqual(click.link, link)
 
     def test_the_report_and_the_pages_show_the_mail_without_ses(self):
         client = self.staff_as_customer()
@@ -1070,6 +1117,183 @@ class DemoUtskickS3Tests(DemoFixture, TestCase):
         run_demo("--prod")
         self.assertEqual(Utskick.objects.filter(name=utskick_demo.EMAIL_NAME).count(), 1)
         self.assertNotEqual(self.email().pk, first)
+
+
+class DemoUtskickS4Tests(DemoFixture, TestCase):
+    """S4 i demot (integrationen): segmenten räknade som byggaren räknar,
+    de namngivna länkarna med klick och en förfrågan via affischen, skriptet
+    på webbplatsen och besöket från mejlet på kontaktkortet. Länkar,
+    Spårningsskript och sms-rutan ändrar och skickar inget för demot, och
+    skriptets besöksanrop tar aldrig emot något för det (D12)."""
+
+    def staff_as_customer(self):
+        client = self.staff_client()
+        session = client.session
+        session[VIEW_AS_KEY] = self.customer.pk
+        session.save()
+        return client
+
+    def kontakt(self, phone):
+        return Contact.objects.get(account=self.account, phone=phone)
+
+    def test_the_segments_count_like_the_builder_and_the_report(self):
+        from apps.utskick import segments
+
+        segment = Segment.objects.get(account=self.account, name=utskick_demo.SEGMENT_NAME)
+        # Senaste service äldre än 5 månader, i Kunder och ingen förfrågan på
+        # 30 dagar: Sofia och föreningen. Erik och Kim har förfrågningar på 30
+        # dagar (Googles och utskickets), Sofias klick på numret har ingen kontakt.
+        sofia = self.kontakt("+46701740623")
+        brf = Contact.objects.get(account=self.account, company_name="Brf Exempelgården")
+        matched = set(segments.contacts(self.account, segment.rules).values_list("pk", flat=True))
+        self.assertEqual(matched, {sofia.pk, brf.pk})
+        self.assertEqual(
+            (segment.cached_count, segment.cached_sms, segment.cached_email), (2, 1, 2)
+        )
+        self.assertEqual(segments.count(self.account, segment.rules)["total"], 2)
+        # Uppföljningen som rapportens knapp skapar: lika många som listan
+        # Klickade inte och som knappen räknar.
+        sent = Utskick.objects.get(account=self.account, name=utskick_demo.SENT_NAME)
+        follow = Segment.objects.get(account=self.account, rules=segments.follow_up_rules(sent))
+        self.assertEqual(follow.name, "Klickade inte: " + utskick_demo.SENT_NAME)
+        self.assertEqual(follow.cached_count, reports.follow_up_count(sent))
+        self.assertEqual(follow.cached_count, reports.recipients_for(sent, "klickade-inte").count())
+        client = self.staff_as_customer()
+        page = client.get(reverse("flamingo:app_lists"))
+        self.assertContains(page, utskick_demo.SEGMENT_NAME)
+        self.assertContains(page, "Segment · 3 regler")
+
+    def test_the_named_links_have_clicks_and_a_lead_without_an_utskick(self):
+        from apps.utskick import links
+
+        poster = TrackedLink.objects.get(account=self.account, slug="vinter", utskick=None)
+        self.assertEqual(poster.kind, TrackedLink.Kind.LP)
+        clicks = Click.objects.filter(link=poster)
+        self.assertEqual(set(clicks.values_list("channel", flat=True)), {Click.Channel.NAMED})
+        self.assertFalse(clicks.exclude(contact=None).exists())
+        self.assertFalse(clicks.exclude(recipient=None).exists())
+        lead = Lead.objects.get(account=self.account, attribution__link=poster.pk)
+        self.assertIsNone(lead.utskick_id)
+        self.assertEqual(lead.attribution["channel"], Click.Channel.NAMED)
+        self.assertEqual(lead.attribution["label"], "Affisch i verkstaden")
+        self.assertFalse(lead.can_send_to_google)
+        self.assertEqual((poster.human_clicks, poster.leads), (clicks.count(), 1))
+        instagram = TrackedLink.objects.get(account=self.account, slug="instagram", utskick=None)
+        self.assertEqual(instagram.kind, TrackedLink.Kind.EXTERNAL)
+        self.assertTrue(instagram.destination.startswith(utskick_demo.SITE_URL))
+
+        client = self.staff_as_customer()
+        inbox = client.get(reverse("flamingo:app_inbox"))
+        self.assertContains(inbox, "Länk: Affisch i verkstaden")
+        page = client.get(reverse("flamingo:app_link", args=[poster.pk]))
+        self.assertContains(page, links.named_link_text(poster))
+        listing = client.get(reverse("flamingo:app_links"))
+        self.assertContains(listing, "Affisch i verkstaden")
+        self.assertContains(listing, "Länk i Instagram")
+        # Översikten: förfrågan via affischen räknas inte som Googles.
+        from django.utils import timezone
+
+        from apps.flamingo.app_views.overview import numbers_for
+
+        numbers = numbers_for(self.account, timezone.now())
+        self.assertGreaterEqual(numbers.utskick_leads, 1)
+        named = self.account.leads.filter(attribution__channel=Click.Channel.NAMED)
+        self.assertEqual(numbers.leads - numbers.google_leads, numbers.utskick_leads)
+        self.assertTrue(named.exists())
+
+    def test_the_snippet_saw_the_visit_from_the_mail_on_the_card(self):
+        from apps.utskick import segments
+
+        site = SiteSnippet.objects.get(account=self.account)
+        self.assertEqual(site.domain, utskick_demo.SITE_DOMAIN)
+        self.assertTrue(site.is_installed)
+        lena = self.kontakt("+46701740614")
+        event = Event.objects.get(contact=lena, kind=Event.SITE_VISIT)
+        self.assertEqual(event.data["sida"], utskick_demo.SITE_PATH)
+        self.assertEqual(event.data["varde"], utskick_demo.SITE_DOMAIN)
+        self.assertEqual(event.utskick.name, utskick_demo.EMAIL_NAME)
+        client = self.staff_as_customer()
+        card = client.get(reverse("flamingo:app_contact", args=[lena.pk]))
+        self.assertContains(card, "Besökte webbplatsen")
+        # Segmentregeln "besökte sidan" läser också besöket på webbplatsen.
+        visited = segments.contacts(
+            self.account, {"all": [{"f": "visited_lp", "op": "within_days", "v": 30}]}
+        )
+        self.assertIn(lena, visited)
+        settings_page = client.get(reverse("flamingo:app_utskick_snippet"))
+        self.assertContains(settings_page, "Installerat")
+        self.assertContains(settings_page, utskick_demo.SITE_DOMAIN)
+
+    def test_the_s4_pages_change_and_send_nothing_for_the_demo(self):
+        from django.utils import timezone
+
+        SmsAccount.objects.create(customer=self.customer, is_enabled=True, sender_name="Exempel")
+        Switchboard.objects.update_or_create(
+            pk=Switchboard.SOLO_PK,
+            defaults={
+                "sms_enabled": True,
+                "links_ready_at": timezone.now(),
+                "sms_inbound_ready_at": timezone.now(),
+            },
+        )
+        client = self.staff_as_customer()
+        poster = TrackedLink.objects.get(account=self.account, slug="vinter", utskick=None)
+        site = SiteSnippet.objects.get(account=self.account)
+        lena = self.kontakt("+46701740614")
+        before = counts()
+        with mock.patch("apps.sms.elks._post", side_effect=no_elks) as api:
+            client.post(
+                reverse("flamingo:app_link_new"),
+                {"beskrivning": "Kvitto", "mal": "extern", "adress": "https://exempelror.example/"},
+            )
+            client.post(reverse("flamingo:app_link", args=[poster.pk]), {"action": "delete"})
+            client.post(
+                reverse("flamingo:app_utskick_snippet"), {"action": "remove", "site": site.pk}
+            )
+            response = client.post(
+                reverse("flamingo:app_contact_sms", args=[lena.pk]),
+                {"text": "Hej Lena, välkommen tillbaka.", "som_adx": "1"},
+            )
+            self.assertContains(response, "Demokontot skickar aldrig.")
+        api.assert_not_called()
+        self.assertFalse(SmsMessage.objects.exists())
+        self.assertEqual(counts(), before)
+
+    @override_settings(UTSKICK_LINK_HOSTS=["k.adx.se", "klick.adx.se"])
+    def test_the_snippet_beacon_takes_nothing_for_the_demo(self):
+        from apps.utskick import tokens
+
+        site = SiteSnippet.objects.get(account=self.account)
+        seen = site.last_seen_at
+        click = Click.objects.filter(account=self.account, link__kind="external").first()
+        events = Event.objects.filter(account=self.account).count()
+        body = json.dumps(
+            {"k": site.key, "t": tokens.adx_token(click.pk), "p": "/", "s": 5, "v": 1}
+        )
+        response = Client(enforce_csrf_checks=True).post(
+            "/v",
+            data=body,
+            content_type="text/plain",
+            HTTP_HOST="klick.adx.se",
+            HTTP_ORIGIN=f"https://{utskick_demo.SITE_DOMAIN}",
+        )
+        self.assertEqual(response.status_code, 204)
+        site.refresh_from_db()
+        self.assertEqual(site.last_seen_at, seen)
+        self.assertEqual(Event.objects.filter(account=self.account).count(), events)
+
+    def test_a_rerun_rebuilds_the_s4_rows(self):
+        first = Segment.objects.get(account=self.account, name=utskick_demo.SEGMENT_NAME).pk
+        run_demo("--prod")
+        self.assertEqual(Segment.objects.filter(name=utskick_demo.SEGMENT_NAME).count(), 1)
+        self.assertNotEqual(
+            Segment.objects.get(account=self.account, name=utskick_demo.SEGMENT_NAME).pk, first
+        )
+        self.assertEqual(SiteSnippet.objects.filter(account=self.account).count(), 1)
+        self.assertEqual(
+            TrackedLink.objects.filter(account=self.account, utskick__isnull=True).count(),
+            len(utskick_demo.NAMED_LINKS),
+        )
 
 
 class DemoConversionTests(DemoFixture, TestCase):

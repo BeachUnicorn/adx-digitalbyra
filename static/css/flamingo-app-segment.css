@@ -1,0 +1,120 @@
+/* ==========================================================================
+   ADX Flamingo - segmentbyggaren (flamingo-app-segment.css, README I.11, S4)
+
+   templates/flamingo/app/kontakter/segment.html med _segment_row.html,
+   _segment_opval.html och _segment_group.html. Bygger på flamingo-app.css
+   (.fl-form, .fl-field, .fl-input, .fl-panel, .fl-btn) och
+   flamingo-app-kontakter.css (.fl-kt-more, .fl-kt-crumb). Allt här har
+   prefixet .fl-sg-.
+
+   Komponenterna:
+     .fl-sg__cols          villkoren till vänster, räkningen till höger;
+                           en spalt under 900 px (räkningen efter villkoren)
+     .fl-sg-item           ett villkor eller en grupp; OCH mellan dem kommer
+                           härifrån (::before), ELLER inne i en grupp
+     .fl-sg-rule           ett villkor: fält, jämförelse, värde, Ta bort;
+                           radbryts, och staplas under 760 px
+     .fl-sg-group          en grupp (ELLER) med sina villkor
+     .fl-sg-count          "Matchar just nu", siffrorna och anteckningen
+     .fl-sg-lines          segmentet i klartext
+
+   Regler som i resten av verktyget: brödtext minst 16 px, inga
+   style-attribut, inget bredare än skärmen i 375 px. Skriptet döljer med
+   attributet hidden; .fl-sg [hidden] ser till att det gäller också för
+   knappar och spann som har en egen display.
+   ========================================================================== */
+
+.fl-sg [hidden]{display:none}
+
+/* ---------- Spalterna ---------- */
+.fl-sg__cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:20px;align-items:start;min-width:0}
+.fl-sg__main{display:flex;flex-direction:column;gap:18px;min-width:0}
+.fl-sg__side{position:sticky;top:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+
+/* ---------- Villkoren ---------- */
+.fl-sg-rules{gap:10px}
+.fl-sg-items{display:flex;flex-direction:column;min-width:0}
+.fl-sg-item{position:relative;min-width:0}
+.fl-sg-item + .fl-sg-item{margin-top:28px}
+.fl-sg-item + .fl-sg-item::before{
+  content:"OCH";position:absolute;top:-22px;left:12px;
+  font-family:var(--fl-mono);font-size:12px;font-weight:500;letter-spacing:.06em;line-height:16px;color:var(--fl-violet-ink);
+}
+
+.fl-sg-rule{
+  display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;padding:10px;
+  border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-panel);
+}
+.fl-sg-rule.is-error{border-color:#D92D20;background:#FFF8F7}
+/* "Villkor 3": samma nummer som anteckningarna och felen ("Villkor 3 och 4
+   räknas inte förrän de är ifyllda."), räknat i sidans ordning, också i
+   grupperna; css-räknaren numrerar om när skriptet lägger till eller tar bort. */
+.fl-sg-items{counter-reset:sg-villkor}
+.fl-sg-rule{counter-increment:sg-villkor}
+.fl-sg-rule__num{
+  flex:1 1 100%;margin:0;font-family:var(--fl-mono);font-size:12px;font-weight:500;
+  letter-spacing:.06em;line-height:16px;color:var(--fl-muted);
+}
+.fl-sg-rule__num::before{content:"Villkor " counter(sg-villkor)}
+.fl-sg-rule__fields{display:flex;flex:1 1 auto;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.fl-sg-rule__opval{display:flex;flex:1 1 auto;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}
+.fl-sg-rule .fl-input{width:auto;max-width:100%;min-width:0;min-height:44px;padding:9px 12px}
+.fl-sg-rule select.fl-input{padding-right:30px;text-overflow:ellipsis}
+.fl-sg-rule select[multiple].fl-input{min-height:88px;padding-right:12px}
+.fl-sg-rule__value{display:inline-flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0;max-width:100%}
+.fl-sg-rule__value--text,.fl-sg-rule__value--pick{flex:1 1 180px}
+.fl-sg-rule__value--text .fl-input,.fl-sg-rule__value--pick .fl-input{flex:1 1 auto}
+.fl-sg-rule .fl-sg-rule__short{width:7em;flex:0 0 auto}
+.fl-sg-rule__word{font-size:16px;line-height:1.4;color:var(--fl-body)}
+.fl-sg-rule__remove{margin-left:auto}
+.fl-sg-rule__error{flex:1 1 100%;margin:0}
+
+/* ---------- Grupperna (ELLER) ---------- */
+.fl-sg-group{
+  display:flex;flex-direction:column;gap:10px;padding:12px;
+  border:1px dashed #B9A5F7;border-radius:var(--fl-r-md);background:var(--fl-violet-tint);
+}
+.fl-sg-group__title{
+  margin:0;font-family:var(--fl-mono);font-size:12px;font-weight:500;letter-spacing:.06em;
+  line-height:1.4;text-transform:uppercase;color:var(--fl-violet-ink);
+}
+.fl-sg-group__rows{display:flex;flex-direction:column;min-width:0}
+.fl-sg-group__rows > .fl-sg-item + .fl-sg-item::before{content:"ELLER"}
+.fl-sg-group .fl-sg-rule{background:var(--fl-white)}
+.fl-sg-group > .fl-btn{align-self:flex-start}
+
+.fl-sg-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.fl-sg-limit,.fl-sg-locked{margin:0}
+
+/* ---------- Räkningen och klartexten ---------- */
+.fl-sg-count{gap:8px}
+.fl-sg-count__value{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1.2;color:var(--fl-ink)}
+.fl-sg-count__text{font-size:16px;line-height:1.5;color:var(--fl-body)}
+.fl-sg-summary{gap:8px}
+.fl-sg-lines{display:flex;flex-direction:column;gap:6px;margin:0;padding-left:20px;font-size:16px;line-height:1.45;color:var(--fl-body);overflow-wrap:anywhere}
+.fl-sg-lines__empty{list-style:none;margin-left:-20px;color:var(--fl-muted)}
+.fl-sg-danger{gap:10px}
+.fl-sg-templates{display:none}
+
+/* ---------- Smalare skärm ---------- */
+@media (max-width:900px){
+  .fl-sg__cols{grid-template-columns:minmax(0,1fr)}
+  .fl-sg__side{position:static}
+}
+
+/* Raderna staplas: varje val får hela bredden (README I.2). */
+@media (max-width:760px){
+  .fl-sg-rule{flex-direction:column;align-items:stretch}
+  .fl-sg-rule__fields,.fl-sg-rule__opval{flex-direction:column;align-items:stretch;width:100%}
+  .fl-sg-rule .fl-input{width:100%}
+  .fl-sg-rule__value,.fl-sg-rule__value--text,.fl-sg-rule__value--pick{display:flex;flex:0 0 auto;width:100%;flex-wrap:nowrap}
+  .fl-sg-rule__value .fl-input{flex:1 1 auto;width:auto}
+  .fl-sg-rule .fl-sg-rule__short{width:auto;flex:1 1 auto}
+  .fl-sg-rule__remove{margin-left:0;align-self:flex-start}
+}
+
+@media (max-width:560px){
+  .fl-sg-tools .fl-btn{flex:1 1 auto}
+  .fl-sg .fl-form__buttons{width:100%}
+  .fl-sg .fl-form__buttons .fl-btn{flex:1 1 auto}
+}

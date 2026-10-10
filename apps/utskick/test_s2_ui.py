@@ -1208,6 +1208,7 @@ class GuardTests(TestCase):
                 self.assertTrue(
                     text.startswith('{% extends "flamingo/app/utskick/_layout.html" %}')
                 )
+        # S4: den sista stubben (segmentbyggaren) är byggd; stubbmallen är borta.
         self.assertFalse((TEMPLATES / "_stub.html").exists())
 
     def test_tables_have_labels_and_a_header_row(self):

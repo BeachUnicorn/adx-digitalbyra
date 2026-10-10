@@ -14,6 +14,8 @@ S2 (länk-byggaren):
 
     ut_token(click_id) -> str                           ?ut= på landningssidan (E.2, E.4)
     read_ut(token) -> click_id | None
+    adx_token(click_id) -> str                          ?adx= till kundens egen sajt (S4, E.6):
+    read_adx(token) -> click_id | None                  samma form som ut, en egen signatur
     form_nonce(code, now) -> str                        formulären på länkvärdarna (E.1), 2 h
     read_form_nonce(code, nonce, now) -> bool
     undo_nonce(suppression_id, now) -> str              Ångra på k.adx.se/s/ (E.5), 30 min
@@ -326,9 +328,7 @@ def ut_token(click_id):
     return f"{body}.{_sig62('ut', body)}"
 
 
-def read_ut(token):
-    """Klickets id för en äkta token, annars None. Kontot prövas inte här:
-    det gör attribution.resolve mot klickets rad."""
+def _read_click_token(purpose, token):
     parts = str(token or "").split(".")
     if len(parts) != 2:
         return None
@@ -337,9 +337,35 @@ def read_ut(token):
         click_id = _from_b62(body)
     except ValueError:
         return None
-    if len(sig) != _UT_SIG_LEN or not _same(sig, _sig62("ut", body)):
+    if len(sig) != _UT_SIG_LEN or not _same(sig, _sig62(purpose, body)):
         return None
     return click_id or None
+
+
+def read_ut(token):
+    """Klickets id för en äkta token, annars None. Kontot prövas inte här:
+    det gör attribution.resolve mot klickets rad."""
+    return _read_click_token("ut", token)
+
+
+# --- S4: adx= på kundens egen sajt (E.3, E.6) ---
+# Samma form som ut men en egen signatur: adx står på kundens sajt, där
+# andra skript kan läsa adressen innan s.js tar bort den, och ska aldrig
+# gälla som ut på en landningssida (attribution.resolve); en ut från en
+# vidarebefordrad landningssida gäller aldrig i skriptets anrop.
+ADX_PURPOSE = "adx"
+
+
+def adx_token(click_id):
+    """Token för ?adx= på kundens egen sajt: klickets id och en signatur."""
+    body = _b62(click_id)
+    return f"{body}.{_sig62(ADX_PURPOSE, body)}"
+
+
+def read_adx(token):
+    """Klickets id för en äkta adx-token, annars None (kontot prövas av
+    link_views.snippet_beacon mot nyckelns konto)."""
+    return _read_click_token(ADX_PURPOSE, token)
 
 
 def _timed(purpose, subject, now=None):

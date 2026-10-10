@@ -107,7 +107,7 @@ def _utskick_on(account):
 
 def channel(lead):
     """Varifrån förfrågan kom, i ord: Google sök, samtal, manuell, Sms-svar,
-    Utskick: Höstservice ..."""
+    Utskick: Höstservice ..., Länk: Affisch i verkstaden (S4)."""
     if lead.source == Lead.SOURCE_REPLY:
         from apps.utskick.threads import channel_label
 
@@ -115,6 +115,11 @@ def channel(lead):
     if lead.utskick_id:
         attribution = lead.attribution if isinstance(lead.attribution, dict) else {}
         return ("Utskick: " + str(attribution.get("name", "")).strip())[:60].rstrip(": ")
+    # S4: en förfrågan via en namngiven länk (klick.adx.se/<konto>/<slug>,
+    # affischen eller QR-koden) har inget utskick men länken i spåret.
+    attribution = lead.attribution if isinstance(lead.attribution, dict) else {}
+    if attribution.get("channel") == "named":
+        return ("Länk: " + str(attribution.get("label", "")).strip())[:60].rstrip(": ")
     if lead.source == Lead.SOURCE_MANUAL:
         return "Lagd för hand"
     if lead.source == Lead.SOURCE_CALL:

@@ -8,8 +8,11 @@ OAuth nekas redan i asgi_app.
 Namnrymd "links", re_path och inget snedstreck sist (koderna står så i sms:en).
 Vilken värd en kod hör till avgör vyn (links.on_link_host): k för sms, klick
 för mejl. E-postens adresser (/m/, /a/, /v/, /w/, /o/, /c/) kom med S3; deras
-token bygger links.email_url och grannarna (tokens.py). De namngivna
-länkarna och skriptet kommer med S4.
+token bygger links.email_url och grannarna (tokens.py). S4 lägger till
+skriptet på egen sajt (/s.<version>.js och besöksanropet /v) och de
+namngivna länkarna (/<public_slug>/<slug>), sist: alla andra adresser med
+ett snedstreck prövas först, och public_slug kan aldrig vara ett av
+värdarnas egna första led (models.RESERVED_PUBLIC_SLUGS).
 
     reverse("links:click", urlconf="config.urls_links", args=["Ab12Cd"]) -> "/Ab12Cd"
 """
@@ -39,6 +42,20 @@ link_patterns = [
     re_path(r"^w/(?P<token>[A-Za-z0-9.]{16,40})$", v.web_view, name="web_view"),
     re_path(r"^o/(?P<token>[A-Za-z0-9.]{10,30})\.gif$", v.open_pixel, name="open_pixel"),
     re_path(r"^c/(?P<token>[A-Za-z0-9._]{20,60})\.ics$", v.calendar, name="calendar"),
+    # S4, klick.adx.se: skriptet på egen sajt och dess besöksanrop (E.6).
+    re_path(r"^s\.(?P<ver>[0-9a-f]{8})\.js$", v.snippet, name="snippet"),
+    re_path(r"^v$", v.snippet_beacon, name="snippet_beacon"),
+    # S4, klick.adx.se: de namngivna länkarna, sist (E.1). public_slug får
+    # understreck (access.validate_public_slug), slugen inte
+    # (links.NAMED_SLUG_RE).
+    re_path(r"^(?P<account>[a-z0-9_-]{1,40})/(?P<slug>[a-z0-9-]{1,40})$", v.named, name="named"),
+    # S4 (integrationen): samma adress med versaler (en telefon gör första
+    # bokstaven stor) får 301 till gemenerna, aldrig för värdarnas egna led.
+    re_path(
+        r"^(?P<account>[A-Za-z0-9_-]{1,40})/(?P<slug>[A-Za-z0-9-]{1,40})$",
+        v.named_folded,
+        name="named_folded",
+    ),
 ]
 
 urlpatterns = [path("", include((link_patterns, "links")))]

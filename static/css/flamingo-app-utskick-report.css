@@ -1,0 +1,78 @@
+/* ==========================================================================
+   ADX Flamingo - Utskick, hela rapporten (flamingo-app-utskick-report.css)
+
+   S4 (rapport-byggaren): templates/flamingo/app/utskick/_report_full.html
+   och knapparna i report.html (README I.8, I.2). Bygger på flamingo-app.css
+   (.fl-panel, .fl-table, .fl-kpis) och flamingo-app-utskick-views.css
+   (.fl-ut-). Allt här har prefixet .fl-ut-rp-.
+
+   Komponenterna:
+     .fl-ut-rp-grid      tratten och diagrammet till vänster, länkarna och
+                         landningssidan till höger; en spalt under 900 px
+     .fl-ut-rp-funnel    tratten som staplar i rader (en SVG per stapel);
+                         under 560 px står stapeln på en egen rad
+     .fl-ut-rp-chart     klick per timme: SVG med viewBox, bredden 100 %
+     .fl-ut-rp-links     länktabellen (kort under 760 px, data-label)
+     .fl-ut-rp-facts     landningssidans tal, varje tal en länk
+
+   Inga style-attribut, inget bredare än skärmen i 375 px.
+   ========================================================================== */
+
+.fl-ut-rp-grid{
+  display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:16px;align-items:start;min-width:0;
+}
+.fl-ut-rp-side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.fl-ut-rp-card{display:flex;flex-direction:column;gap:12px;min-width:0}
+.fl-ut-rp-sub{margin:8px 0 0;font-size:16px;font-weight:600;line-height:1.4;color:var(--fl-ink)}
+
+/* ---------- Tratten ---------- */
+.fl-ut-rp-funnel{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.fl-ut-rp-step{
+  display:grid;grid-template-columns:minmax(0,9.5em) minmax(0,1fr) auto;align-items:center;gap:12px;
+  min-height:40px;padding:4px 8px;margin:0 -8px;border-radius:var(--fl-r-sm);color:inherit;text-decoration:none;
+}
+.fl-ut-rp-step--link:hover{background:var(--fl-panel2)}
+.fl-ut-rp-step--link:hover .fl-ut-rp-step__label{text-decoration:underline;text-underline-offset:3px}
+.fl-ut-rp-step__label{font-size:16px;line-height:1.35;color:var(--fl-body)}
+.fl-ut-rp-step__bar{display:block;width:100%;height:12px;border-radius:6px;overflow:hidden}
+.fl-ut-rp-step__track{fill:var(--fl-soft)}
+.fl-ut-rp-step__fill{fill:var(--fl-violet)}
+.fl-ut-rp-step__value{
+  display:inline-flex;align-items:baseline;justify-content:flex-end;gap:8px;min-width:4.5em;
+  font-size:16px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--fl-ink);
+}
+.fl-ut-rp-step__pct{font-size:14px;font-weight:400;color:var(--fl-muted)}
+/* Talen som leder till en lista ser ut som länktabellens (a.fl-ut-rp-num):
+   på en telefon finns ingen hover som visar det. */
+.fl-ut-rp-step--link .fl-ut-rp-step__n{color:var(--fl-violet-ink);text-decoration:underline;text-underline-offset:3px}
+.fl-ut-rp-base{margin:0}
+
+/* ---------- Klick per timme ---------- */
+.fl-ut-rp-chart{display:flex;flex-direction:column;gap:6px;margin:0;min-width:0}
+.fl-ut-rp-chart__svg{display:block;width:100%;height:120px}
+/* Staplarna minst 3:1 mot vitt (WCAG 1.4.11): violett, timmen med flest i bläck. */
+.fl-ut-rp-chart__bar{fill:var(--fl-violet)}
+.fl-ut-rp-chart__bar.is-hi{fill:var(--fl-ink)}
+.fl-ut-rp-chart__base{stroke:var(--fl-line);stroke-width:1;vector-effect:non-scaling-stroke}
+.fl-ut-rp-chart__axis{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:var(--fl-muted)}
+.fl-ut-rp-chart__caption{font-size:16px;line-height:1.45;color:var(--fl-body)}
+
+/* ---------- Länkarna och landningssidan ---------- */
+.fl-ut-rp-links__name{font-weight:600;overflow-wrap:anywhere}
+.fl-ut-rp-num{font-weight:600;font-variant-numeric:tabular-nums;color:var(--fl-ink)}
+a.fl-ut-rp-num{color:var(--fl-violet-ink);text-underline-offset:3px}
+.fl-ut-rp-facts{display:flex;flex-direction:column;gap:6px;margin:0;padding:0;list-style:none}
+.fl-ut-rp-fact{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;font-size:16px;line-height:1.45;color:var(--fl-body)}
+.fl-ut-rp-fact a.fl-ut-rp-num{display:inline-flex;align-items:center;min-height:32px}
+
+/* ---------- Under 900 px: en spalt ---------- */
+@media (max-width:900px){
+  .fl-ut-rp-grid{grid-template-columns:minmax(0,1fr)}
+}
+
+/* ---------- Telefon: stapeln under rubriken och talet ---------- */
+@media (max-width:560px){
+  .fl-ut-rp-step{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}
+  .fl-ut-rp-step__bar{grid-column:1 / -1;grid-row:2}
+  .fl-ut-rp-chart__svg{height:96px}
+}

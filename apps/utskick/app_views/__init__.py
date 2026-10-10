@@ -17,6 +17,13 @@ En modul per del, och en ägare per modul:
                   kontrollerna, AI och förhandsvisningen
     health.py     Leveranshälsa (S3)
     domain.py     Egen domän och den egna svarsadressen (S3)
+    segments.py   segmentbyggaren och den levande räkningen (S4)
+    report.py     rapportens Följ upp och Exportera (S4; rapporten själv
+                  står kvar i utskick.py)
+    links.py      Länkar: listan, ny länk, en länk och QR-koderna, också
+                  anmälningssidans QR-kod (S4)
+    snippet.py    Spårningsskript under Inställningar för utskick (S4)
+    contact_sms.py  Skicka sms från kontaktkortet (S4)
 
 Varje vy skrivs så här:
 
@@ -56,8 +63,8 @@ def render_contacts(request, template, tab, context=None, status=200):
 
 def render_utskick(request, template, tab, context=None, status=200):
     """Som render_contacts, för en sida under Utskick: sidomenyns punkt är
-    "utskick" och flikraden har tab ("utskick", "health", "settings") markerad.
-    Mallarna utgår från flamingo/app/utskick/_layout.html."""
+    "utskick" och flikraden har tab ("utskick", "links", "health",
+    "settings") markerad. Mallarna utgår från flamingo/app/utskick/_layout.html."""
     merged = {
         "ut_nav": nav.utskick_tabs(tab),
         "utskick_settings": getattr(request, "utskick_settings", None),

@@ -109,8 +109,9 @@ Byråns sidor:
 ## Kontakter och utskick (`apps/utskick`)
 
 Flamingo 2.0 bor i en egen app: kontaktregistret, importen, samtyckena,
-anmälningssidan, (från S2) utskicken med sms och (från S3) e-posten i
-Brev. Kontraktet och läget står i `apps/utskick/README.md`; här bara det
+anmälningssidan, (från S2) utskicken med sms, (från S3) e-posten i Brev
+och (från S4) segmenten, hela rapporten, Länkar med QR-koder, skriptet på
+kundens egen webbplats och sms från kontaktkortet. Kontraktet och läget står i `apps/utskick/README.md`; här bara det
 som rör Flamingo:
 
 - Menyn visar Kontakter och Utskick efter Kampanjer bara när byrån
@@ -131,9 +132,11 @@ som rör Flamingo:
   till en befintlig kontakt med exakt samma nummer eller e-post. Inga kakor.
 - Demokunden har kontakter, listor, taggar, extrafält, en klar import och
   samtycken i varje läge, ett skickat utskick (simulerat) med klick,
-  förfrågningar, två svar och en STOPP, ett schemalagt och ett utkast, och
-  (S3) ett skickat mejl i Brev med ett klick till Flamingo-sidan
-  (`utskick.demo`), och skickar aldrig något.
+  förfrågningar, två svar och en STOPP, ett schemalagt och ett utkast,
+  (S3) ett skickat mejl i Brev med ett klick till Flamingo-sidan och (S4)
+  två segment, två namngivna länkar med klick och en förfrågan, och
+  skriptet på webbplatsen med ett besök från mejlet (`utskick.demo`), och
+  skickar aldrig något.
 - **Spåret från utskick (S2, D10, D11).** Klicket på `k.adx.se/<kod>` går
   till landningssidan med `ut=<token>` (aldrig en kaka); `flamingo-lp.js`
   tar bort `ut` ur adressfältet, lägger den i formuläret och i klicket på
@@ -170,6 +173,20 @@ som rör Flamingo:
   mejl kommer in genom SES i eu-west-1 och blir "E-postsvar" i Inkorgen;
   kunden svarar därifrån med mejl (`In-Reply-To`, svarsadress med trådens
   token).
+- **Namngivna länkar och skriptet (S4).** `klick.adx.se/<adress>/<slug>`
+  (affischer, QR-koder, Instagram) går till en Flamingo-sida med `ut` eller
+  till kundens egen webbplats; en adress med versaler får 301 till gemenerna.
+  En förfrågan via en sådan länk har inget utskick (`Lead.utskick` är null)
+  men spåret säger kanalen `named` och länken: Inkorgen visar "Länk:
+  <beskrivning>", och översikten räknar den under "Varav via utskick", aldrig
+  som Googles (`app_views/overview.numbers_for`). Ägarens sms om den går
+  direkt, som för en vanlig förfrågan. Skriptet på kundens egen webbplats
+  (`klick.adx.se/s.<version>.js`) sätter inga kakor och rapporterar bara
+  besöket från en länk med `adx=`; besöket står på kontaktkortet som
+  "Besökte webbplatsen". Kundkortet varnar innan adressen för anmälan byts
+  när kunden har namngivna länkar; den gamla adressen följer kunden
+  (`utskick.OldPublicSlug`), så tryckta QR-koder fortsätter att fungera och
+  adressen blir aldrig en annan kunds.
 
 ## Sidbyggaren (`pagebuilder/`)
 
@@ -883,7 +900,12 @@ sms, ingen SmsMessage) med tre klick, två förfrågningar via utskicket, två
 svar i Inkorgen (ett nytt, ett klart) och en STOPP; ett schemalagt om fem
 dagar (ticken simulerar det när tiden kommer) och ett utkast. E-posten
 (S3): "Höstbrevet" skickades för tre dagar sedan i Brev (simulerat, inget
-mejl, SES anropas aldrig) med ett klick till Flamingo-sidan. Demot behöver
+mejl, SES anropas aldrig) med ett klick till Flamingo-sidan och ett till
+webbplatsen. S4: segmenten "Service i höst" och "Klickade inte: Spolning
+inför vintern", de namngivna länkarna "Affisch i verkstaden" (fyra klick
+och en förfrågan) och "Länk i Instagram", och skriptet på
+exempelror.example, sett i går (besöksanropet tar aldrig emot något för
+demot). Demot behöver
 inget biträdesavtal. Kör det igen så byggs innehållet om (också demots
 spärrlista och samtyckeslogg); inget dubbleras.
 En annan kund med samma namn rörs aldrig.

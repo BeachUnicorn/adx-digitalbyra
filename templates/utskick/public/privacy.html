@@ -9,7 +9,7 @@ en egen policy (privacy_url). Texten ska granskas av en jurist innan en
 riktig kund går live (README K.1, punkt 15).
 
 Kontext: foretag, uppgifter (capture.PrivacyFacts: org_number, phone,
-email, address, website).
+email, address, website), egen_sajt (S4: domänerna med spårningsskriptet).
 {% endcomment %}
 {% block title %}Så hanterar {{ foretag }} dina uppgifter{% endblock %}
 {% block content %}
@@ -30,6 +30,9 @@ email, address, website).
   <li>Det du själv lämnar: förnamn, e-post och mobilnummer.</li>
   <li>Vad du har sagt ja eller nej till: den exakta texten du såg, var och när.</li>
   <li>Vad som händer med utskicken: om de kommer fram, om du klickar på en länk, hur länge du stannar på sidan som länken leder till, och om du svarar eller skickar en förfrågan.</li>
+  {% comment %}S4 (länk-byggaren): skriptet på kundens egen webbplats (README E.6, H.5). egen_sajt är domänerna med skriptet (site_snippet.privacy_domains).{% endcomment %}
+  {% if egen_sajt %}<li>Besök på {{ egen_sajt|join:", " }} från en länk i ett utskick: vilken sida du kom till, hur länge du stannade och om du gjorde något som webbplatsen markerar, till exempel en bokning. Det sker utan kakor och utan att något sparas i din webbläsare, och bara för besök från en sådan länk.</li>{% endif %}
+  {% comment %}slut S4{% endcomment %}
 </ul>
 
 <h2 class="up-h2">Varför</h2>

@@ -212,6 +212,8 @@ class Filters:
     samtycke: str = ""
     kanal: str = ""
     typ: str = ""
+    # S4 (segment-byggaren): ?segment=<id>, ett av kontots segment.
+    segment: object = None
 
     def params(self):
         """Filtret som fält för en adress eller dolda fält i ett formulär."""
@@ -222,6 +224,10 @@ class Filters:
             out["lista"] = str(self.lista.pk)
         if self.tagg is not None:
             out["tagg"] = str(self.tagg.pk)
+        # --- S4 (segment-byggaren) ---
+        if self.segment is not None:
+            out["segment"] = str(self.segment.pk)
+        # --- slut S4
         for name in ("samtycke", "kanal", "typ"):
             if getattr(self, name):
                 out[name] = getattr(self, name)
@@ -244,6 +250,10 @@ class Filters:
             parts.append(f"listan {self.lista.name}")
         if self.tagg is not None:
             parts.append(f"taggen {self.tagg.name}")
+        # --- S4 (segment-byggaren) ---
+        if self.segment is not None:
+            parts.append(f"segmentet {self.segment.name}")
+        # --- slut S4
         if self.samtycke:
             label = CONSENT_FILTERS[self.samtycke][0].lower()
             channel = f" ({CHANNEL_FILTERS[self.kanal][0].lower()})" if self.kanal else ""
@@ -281,7 +291,22 @@ def parse_filters(account, data, strict=False):
         samtycke=choice if choice in CONSENT_FILTERS else "",
         kanal=channel if channel in CHANNEL_FILTERS else "",
         typ=kind if kind in KIND_FILTERS else "",
+        segment=_segment_filter(account, data, strict),  # S4 (segment-byggaren)
     )
+
+
+# --- S4 (segment-byggaren): segmentet i filtret ---
+
+
+def _segment_filter(account, data, strict):
+    """Segmentet i ?segment= (som listan: owned_ids i ett formulär, annars
+    hoppas ett okänt id över)."""
+    from ..models import Segment
+
+    return _pick(Segment, account, data.get("segment"), strict)
+
+
+# --- slut S4
 
 
 def filtered(account, filters):
@@ -291,6 +316,12 @@ def filtered(account, filters):
         contacts = contacts.filter(memberships__list=filters.lista)
     if filters.tagg is not None:
         contacts = contacts.filter(tags=filters.tagg)
+    # --- S4 (segment-byggaren): segmentet räknas om nu, med kontot i villkoret ---
+    if filters.segment is not None:
+        from .. import segments as segment_rules
+
+        contacts = contacts.filter(segment_rules.matches_q(account.pk, [filters.segment.pk]))
+    # --- slut S4
     if filters.typ:
         contacts = contacts.filter(kind=KIND_FILTERS[filters.typ][1])
     channel = CHANNEL_FILTERS[filters.kanal][1] if filters.kanal else ""
@@ -476,6 +507,8 @@ def contact_list(request, account):
         "filter_hidden": list(filters.params().items()),
         "lists": ContactList.objects.filter(account=account).order_by("name"),
         "tags": Tag.objects.filter(account=account).order_by("name"),
+        # S4 (segment-byggaren): filtret Segment.
+        "segments": account.utskick_segments.order_by("name", "pk"),
         "consent_filters": [(k, v[0]) for k, v in CONSENT_FILTERS.items()],
         "channel_filters": [(k, v[0]) for k, v in CHANNEL_FILTERS.items()],
         "kind_filters": [(k, v[0]) for k, v in KIND_FILTERS.items()],
@@ -1106,7 +1139,9 @@ def _header_line(kontakt):
 ADDED_BY_HAND = (Contact.Source.MANUAL, Contact.Source.API)
 
 
-def _render_detail(request, account, kontakt, consent_form=None, status=200):
+def _render_detail(request, account, kontakt, consent_form=None, status=200, sms=None):
+    # S4 (rapport-byggaren): sms är None på kortet och {"text", "error"} när
+    # rutan "Skicka sms" är öppen (app_views/contact_sms.py).
     now = timezone.now()
     kontakt = (
         Contact.objects.filter(pk=kontakt.pk, account=account)
@@ -1155,6 +1190,16 @@ def _render_detail(request, account, kontakt, consent_form=None, status=200):
         "consent_form": consent_form,
         "new_value": NEW,
     }
+    # --- S4 (segment-byggaren): segmenten kontakten är med i (chipsen, I.7) ---
+    from .. import segments as segment_rules
+
+    context["segment_chips"] = segment_rules.for_contact(kontakt, now)
+    # --- slut S4
+    # --- S4 (rapport-byggaren): "Svarar oftast", "Skicka sms" och rutan (I.7) ---
+    from .contact_sms import card_context
+
+    context.update(card_context(request, account, kontakt, sms))
+    # --- slut S4
     return render_contacts(
         request, "flamingo/app/kontakter/detail.html", "contacts", context, status=status
     )

@@ -11,7 +11,7 @@ det så i rutan i stället för en siffra; en okänd kostnad visas aldrig som 0.
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 
-from django.db.models import Max, Q, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.http import Http404
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -79,14 +79,16 @@ class Numbers:
     #: När Googles rapport senast lästes.
     stats_read_at: object = None
     #: Utskick (apps/utskick, README C.2 och D11): förfrågningar och affärer
-    #: som kom via Google, det vill säga utan utskick och utan svar på
-    #: utskick. Kronor per förfrågan och affär räknas bara på dem. None för
+    #: som kom via Google, det vill säga utan utskick, utan svar på utskick
+    #: och (S4) utan en namngiven länk. Kronor per förfrågan och affär räknas bara på dem. None för
     #: ett konto där ingen räknat dem (samma tal som leads och deals).
     google_leads: int | None = None
     google_deals: int | None = None
-    #: "Varav via utskick: 31 förfrågningar, 4 affärer".
+    #: "Varav via utskick: 31 förfrågningar, 4 affärer" ("Varav via utskick
+    #: och dina länkar" när named_leads, de via en namngiven länk, finns med).
     utskick_leads: int = 0
     utskick_deals: int = 0
+    named_leads: int = 0
 
     @property
     def kr_per_lead(self):
@@ -116,12 +118,20 @@ def numbers_for(account, now):
     won = account.leads.filter(status=Lead.STATUS_WON).filter(
         Q(won_at__gte=since) | Q(won_at__isnull=True, updated_at__gte=since)
     )
-    via_utskick = Q(utskick__isnull=False) | Q(source=Lead.SOURCE_REPLY)
+    # S4: en förfrågan via en namngiven länk (affischen, QR-koden; Lead.utskick
+    # är null men spåret säger kanalen named) kom inte heller via Google.
+    named = Q(attribution__contains={"channel": "named"})
+    via_utskick = Q(utskick__isnull=False) | Q(source=Lead.SOURCE_REPLY) | named
     stats = ad_stats(account, since)
+    ours = leads.aggregate(
+        all=Count("pk", filter=Q(utskick__isnull=False) | named),
+        named=Count("pk", filter=named),
+    )
     return Numbers(
         google_leads=leads.exclude(via_utskick).count(),
         google_deals=won.exclude(via_utskick).count(),
-        utskick_leads=leads.filter(utskick__isnull=False).count(),
+        utskick_leads=ours["all"],
+        named_leads=ours["named"],
         utskick_deals=won.filter(via_utskick).count(),
         leads=leads.count(),
         deals=won.count(),

@@ -30,8 +30,10 @@ from .models import (
     FieldDef,
     ImportJob,
     ListMembership,
+    Segment,
     Suppression,
     Tag,
+    TrackedLink,
     Utskick,
     UtskickSettings,
 )
@@ -70,6 +72,11 @@ def _model_for(name):
     # S3: e-postredigeraren (app_views/brev.py) tar utskickets pk.
     if name.startswith(("app_utskick", "app_brev")):
         return Utskick
+    # S4: segmenten och de namngivna länkarna.
+    if name.startswith("app_segment"):
+        return Segment
+    if name.startswith("app_link"):
+        return TrackedLink
     if name.startswith("app_lead"):
         return Lead
     if "import" in name:
@@ -114,6 +121,21 @@ class ViewsFixture(UtskickFixture):
         self.foreign_lead = Lead.objects.create(
             account=self.other_account, source=Lead.SOURCE_REPLY
         )
+        # S4: ett segment och en namngiven länk per konto.
+        self.segment = Segment.objects.create(account=self.account, name="Service i höst")
+        self.foreign_segment = Segment.objects.create(account=self.other_account, name="Hemligt")
+        self.named_link = TrackedLink.objects.create(
+            account=self.account,
+            kind=TrackedLink.Kind.EXTERNAL,
+            slug="vinter",
+            destination="https://exempelror.example/vinter",
+        )
+        self.foreign_named_link = TrackedLink.objects.create(
+            account=self.other_account,
+            kind=TrackedLink.Kind.EXTERNAL,
+            slug="hemlig",
+            destination="https://annanfirma.example/",
+        )
 
     def own_pk(self, name):
         rows = {
@@ -122,6 +144,8 @@ class ViewsFixture(UtskickFixture):
             ImportJob: self.import_job,
             Utskick: self.utskick,
             Lead: self.reply_lead,
+            Segment: self.segment,
+            TrackedLink: self.named_link,
         }
         return rows[_model_for(name)].pk
 
@@ -132,6 +156,8 @@ class ViewsFixture(UtskickFixture):
             ImportJob: self.foreign_job,
             Utskick: self.foreign_utskick,
             Lead: self.foreign_lead,
+            Segment: self.foreign_segment,
+            TrackedLink: self.foreign_named_link,
         }
         return rows[_model_for(name)].pk
 
@@ -141,6 +167,10 @@ class ViewsFixture(UtskickFixture):
         if name == "app_utskick_reply_confirm":
             # S3: länken för den egna svarsadressen bär en token, inget pk.
             return reverse(f"flamingo:{name}", args=["abc.def"])
+        if name in ("app_link_qr", "app_signup_qr"):
+            # S4: QR-kodens format står i adressen.
+            args = [pk, "svg"] if pk is not None else ["svg"]
+            return reverse(f"flamingo:{name}", args=args)
         return reverse(f"flamingo:{name}", args=[pk] if pk is not None else [])
 
 

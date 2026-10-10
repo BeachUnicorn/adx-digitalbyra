@@ -77,6 +77,19 @@ class TemplateGuardTests(SimpleTestCase):
         names = {path.relative_to(TEMPLATES).as_posix() for path in _templates(*APP_FOLDERS)}
         self.assertIn("flamingo/app/kontakter/list.html", names)
         self.assertIn("flamingo/app/kontakter/import/map.html", names)
+        # S4 (integrationen): segmentbyggaren, rapporten, Länkar och skriptet
+        # ligger i samma mappar och vaktas av samma regler.
+        for name in (
+            "flamingo/app/kontakter/segment.html",
+            "flamingo/app/kontakter/_segment_row.html",
+            "flamingo/app/utskick/_report_full.html",
+            "flamingo/app/utskick/export.html",
+            "flamingo/app/utskick/links.html",
+            "flamingo/app/utskick/link.html",
+            "flamingo/app/utskick/link_form.html",
+            "flamingo/app/utskick/snippet.html",
+        ):
+            self.assertIn(name, names)
         self.assertIn(
             "manage/utskick/overview.html",
             {p.relative_to(TEMPLATES).as_posix() for p in _templates(MANAGE_FOLDER)},

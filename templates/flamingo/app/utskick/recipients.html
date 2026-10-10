@@ -8,6 +8,13 @@ rader), views (chipsen),
 numbers (reports.summary), lists (kontots listor för Spara som lista),
 with_contacts (hur många i vyn som har en kontakt kvar), default_list_name.
 
+S4 (rapport-byggaren, app_views/utskick.recipients_s4_context): kanal
+(?kanal=, "sms" eller "e-post", tomt för alla kanaler), kanal_chips (Alla
+kanaler, Sms, E-post när utskicket har båda), s4_views (fler chips: Skickade,
+Klickade inte, Stannade 30 s eller mer, och för e-post Öppnade, Studsade,
+Markerade som skräppost) och show_channel. Varje chip och sidbläddring
+behåller kanalen, och Spara som lista sparar samma urval.
+
 Spara som lista lägger mottagarnas kontakter (de som finns kvar) i en
 befintlig eller ny lista, till exempel "klickade men skickade ingen
 förfrågan", som sedan kan få ett eget utskick.
@@ -24,17 +31,25 @@ förfrågan", som sedan kan få ett eget utskick.
 </header>
 {% endblock %}
 {% block ut_content %}
-<nav class="fl-ut-chips" aria-label="Visa mottagare">
-  {% for key, label in views %}<a class="fl-ut-chip{% if view == key %} is-on{% endif %}" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}?visa={{ key }}"{% if view == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+{% comment %}S4 (rapport-byggaren): kanalen och fler vyer.{% endcomment %}
+{% if kanal_chips %}
+<nav class="fl-ut-chips" aria-label="Kanal">
+  {% for key, label in kanal_chips %}<a class="fl-ut-chip{% if kanal == key %} is-on{% endif %}" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}?visa={{ view }}{% if key %}&amp;kanal={{ key }}{% endif %}"{% if kanal == key %} aria-current="true"{% endif %}>{{ label }}</a>{% endfor %}
 </nav>
+{% endif %}
+<nav class="fl-ut-chips" aria-label="Visa mottagare">
+  {% for key, label in views %}<a class="fl-ut-chip{% if view == key %} is-on{% endif %}" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}?visa={{ key }}{% if kanal %}&amp;kanal={{ kanal }}{% endif %}"{% if view == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+  {% for key, label in s4_views %}<a class="fl-ut-chip{% if view == key %} is-on{% endif %}" href="{% url 'flamingo:app_utskick_recipients' utskick.pk %}?visa={{ key }}{% if kanal %}&amp;kanal={{ kanal }}{% endif %}"{% if view == key %} aria-current="page"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+{% comment %}slut S4{% endcomment %}
 
 {% if rows %}
 {% include "flamingo/app/utskick/_recipients_table.html" %}
 {% if page.has_other_pages %}
 <nav class="fl-ut-pages" aria-label="Fler mottagare">
-  {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?visa={{ view }}&amp;sida={{ page.previous_page_number }}">Föregående</a>{% endif %}
+  {% if page.has_previous %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?visa={{ view }}{% if kanal %}&amp;kanal={{ kanal }}{% endif %}&amp;sida={{ page.previous_page_number }}">Föregående</a>{% endif %}
   <span class="fl-ut-pages__at">Sida {{ page.number }} av {{ page.paginator.num_pages }}</span>
-  {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?visa={{ view }}&amp;sida={{ page.next_page_number }}">Nästa</a>{% endif %}
+  {% if page.has_next %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="?visa={{ view }}{% if kanal %}&amp;kanal={{ kanal }}{% endif %}&amp;sida={{ page.next_page_number }}">Nästa</a>{% endif %}
 </nav>
 {% endif %}
 
@@ -45,6 +60,7 @@ förfrågan", som sedan kan få ett eget utskick.
   <form class="fl-form fl-ut-savelist" method="post" action="{% url 'flamingo:app_utskick_save_list' utskick.pk %}">
     {% csrf_token %}
     <input type="hidden" name="visa" value="{{ view }}">
+    {% if kanal %}<input type="hidden" name="kanal" value="{{ kanal }}">{% endif %}
     <div class="fl-form__row">
       <div class="fl-field">
         <label class="fl-field__label" for="ut-savelist-list">Lista</label>

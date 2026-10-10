@@ -4,7 +4,7 @@
 Kontakter: listan (README I.7). Kontext från app_views/contacts.contact_list:
 kontakter (sidans rader), page, matching_count, total, sms_ok, email_ok
 ("kan få" = får reklam), filters, filter_hidden, lists, tags,
-consent_filters, channel_filters, kind_filters, can_collect, collect_reason,
+consent_filters, channel_filters, kind_filters, segments (S4), can_collect, collect_reason,
 dpa_missing, inactive_count, bulk_max, new_value.
 
 Sökningen och filtren är ett vanligt GET-formulär. Massändringen är ett
@@ -58,6 +58,15 @@ hör till åtgärden; utan skript syns allt och fungerar ändå.
       {% for tag in tags %}<option value="{{ tag.pk }}"{% if filters.tagg.pk == tag.pk %} selected{% endif %}>Tagg: {{ tag.name }}</option>{% endfor %}
     </select>
     {% endif %}
+    {# --- S4 (segment-byggaren): segmentet (?segment=) --- #}
+    {% if segments %}
+    <label class="fl-sr" for="kt-f-segment">Segment</label>
+    <select class="fl-input fl-kt-select" id="kt-f-segment" name="segment">
+      <option value="">Segment: alla</option>
+      {% for segment in segments %}<option value="{{ segment.pk }}"{% if filters.segment.pk == segment.pk %} selected{% endif %}>Segment: {{ segment.name }}</option>{% endfor %}
+    </select>
+    {% endif %}
+    {# --- slut S4 #}
     <label class="fl-sr" for="kt-f-consent">Samtycke</label>
     <select class="fl-input fl-kt-select" id="kt-f-consent" name="samtycke">
       <option value="">Samtycke: alla</option>

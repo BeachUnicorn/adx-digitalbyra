@@ -322,6 +322,20 @@ def table_sizes():
         return dict(cursor.fetchall())
 
 
+# --- S4 (segment-byggaren): segmentens räkning för Listor (D.1) ---
+
+
+def _recount_segments(now):
+    """Räkna om segmenten (Listor visar Segment.cached_*); utskicken räknar
+    alltid om själva. Högst två minuter, de äldsta räkningarna först."""
+    from . import segments
+
+    return segments.refresh_all(now, seconds=120)
+
+
+# --- slut S4
+
+
 def daily(now=None):
     """Dygnets städning (utskick_daily). Returnerar antal per del; ett fel
     i en del stoppar inte de andra (loggas)."""
@@ -337,6 +351,7 @@ def daily(now=None):
         ("stats", lambda: refresh_stats(now)),
         ("s2", lambda: purge_s2(now)),
         ("links", lambda: _rollup(now)),
+        ("segments", lambda: _recount_segments(now)),  # S4 (segment-byggaren)
         ("reserved", lambda: _month_end(now)),
         *s3_email_steps(now),
         ("disk_free", lambda: round(disk_check(now), 3)),

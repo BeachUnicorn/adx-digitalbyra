@@ -19,7 +19,10 @@ link_check, export, inbound_sms, click, test_send, probe, alert; S3:
 adx_mail (testmejl och svar från ADX-domänen, fönstret är nästa månads
 början, sending/email.py), inbound_mail (hela ADX per timme), inbound_mail_ref
 (per svarstoken och timme, inbound/email.py), reply_confirm (den egna
-svarsadressens bekräftelselänk). Nyckeln är en ip_hash, ett konto-id,
+svarsadressens bekräftelselänk); S4: segment_count (segmentbyggarens
+levande räkning per konto och minut, app_views/segments.py), site_beacon
+(skriptets besöksanrop per besökare och timme, link_views.snippet_beacon;
+klicken på namngivna länkar räknas i click). Nyckeln är en ip_hash, ett konto-id,
 f"{account}:{value_hash}", en token eller "" för hela ADX; aldrig en adress
 i klartext.
 

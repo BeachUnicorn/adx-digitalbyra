@@ -255,7 +255,8 @@
     var total = form.querySelector("[data-ut-count-total]");
     var text = form.querySelector("[data-ut-count-text]");
     var weekly = form.querySelector("[data-ut-count-weekly]");
-    var names = ["lists", "tags", "contacts", "exclude_lists", "exclude_tags", "exclude_recent"];
+    var names = ["lists", "tags", "contacts", "exclude_lists", "exclude_tags", "exclude_recent",
+      /* S4 (segment-byggaren) */ "segments", "exclude_segments"];
     var timer = null;
     var asked = 0;
 

@@ -18,7 +18,7 @@ public_views.signup).
   access.owned_ids (ett främmande id ger 400, H.1).
 - Rutan "Öppen" säger varför sidan ändå är stängd för besökarna, och hur
   det låses upp: biträdesavtalet, integritetstexten (H.5) eller att
-  bekräftelsemejlen inte är påslagna. QR-koden kommer med S4 och visas inte.
+  bekräftelsemejlen inte är påslagna. QR-koden (S4) laddas ned under Adress.
 - Förhandsgranska finns när sidan har en adress, också när den är stängd:
   ?forhandsgranska=1 visar sidan för kontots användare och byrån, med en
   remsa och utan att ta emot anmälningar.

@@ -18,6 +18,9 @@ Värdroutern (foundation, ändras inte av andra):
     email_url, unsubscribe_url, email_preferences_url, web_view_url,
     pixel_url, calendar_url, mailto_unsubscribe
                                 S3: mejlens adresser på klick.adx.se (se avsnittet nedan)
+    named_link_url, named_link_text, clean_named_slug, snippet_version,
+    snippet_body, snippet_integrity, snippet_url, beacon_url, snippet_tag
+                                S4: namngivna länkar och skriptet på egen sajt
 
 På en länkvärd sätter mellanvaran request.urlconf = "config.urls_links",
 request.is_link_host = True och request.link_host ("k" eller "klick"), och
@@ -252,6 +255,163 @@ def mailto_unsubscribe(account_id, recipient_id):
 
 
 # ---------------------------------------------------------------------------
+# S4 (foundation): namngivna länkar och skriptet på egen sajt (E.1, E.6)
+#
+#   NAMED_SLUG_RE, clean_named_slug(raw) -> str    slugens form, eller LinkRefused
+#   named_link_url(link, public_slug=None)  "https://klick.adx.se/exempelror/vinter"
+#   named_link_text(link, public_slug=None) "klick.adx.se/exempelror/vinter" (Kopiera, listan)
+#   SNIPPET_SOURCE                          static/utskick/s.js (källan, länk-byggaren i S4)
+#   snippet_version() -> "1a2b3c4d"         första 8 hex av källans sha256, "" utan fil
+#   snippet_body(ver) -> bytes | None       filen för en version: den aktuella, eller en
+#                                           sparad static/utskick/s.<ver>.js vars hash stämmer
+#   snippet_integrity(ver=None) -> "sha384-..."   SRI för exakt de byte som serveras
+#   snippet_url(ver=None)                   "https://klick.adx.se/s.1a2b3c4d.js"
+#   beacon_url()                            "https://klick.adx.se/v"
+#   snippet_tag(site)                       hela <script>-taggen för installationstexten
+#
+# Skriptets adress bär versionen, och taggen bär SRI-hashen: en ändring i
+# s.js ger en ny adress och en ny hash, och en installerad tagg med den
+# gamla versionen får 404 tills kunden klistrar in den nya. Spara därför den
+# gamla filen som static/utskick/s.<gammal version>.js när s.js ändras (då
+# serveras den vidare, snippet_body prövar hashen). Vyerna står i
+# link_views.py (snippet, snippet_beacon och named).
+# ---------------------------------------------------------------------------
+
+#: En namngiven länks slug: små bokstäver, siffror och bindestreck, 1 till
+#: 40 tecken, inget bindestreck först eller sist (klick.adx.se/<konto>/<slug>).
+NAMED_SLUG_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,38}[a-z0-9])?$")
+NAMED_SLUG_TEXT = "Adressen får bara ha små bokstäver, siffror och bindestreck."
+
+#: Skriptets källa under static/ (E.6).
+SNIPPET_SOURCE = "utskick/s.js"
+#: Filernas byte per process, nycklade på (sökväg, mtime, storlek).
+_FILE_CACHE = {}
+
+
+def clean_named_slug(raw):
+    """Slugen för en namngiven länk, i gemener, eller LinkRefused med texten
+    för kunden. Att den är ledig hos kontot prövar vyn (villkoret
+    utskick_link_slug)."""
+    slug = str(raw or "").strip().lower()
+    if not NAMED_SLUG_RE.match(slug):
+        raise LinkRefused(NAMED_SLUG_TEXT)
+    return slug
+
+
+def _public_slug(link, public_slug):
+    if public_slug:
+        return public_slug
+    from .models import UtskickSettings
+
+    return (
+        UtskickSettings.objects.filter(account_id=link.account_id)
+        .values_list("public_slug", flat=True)
+        .first()
+        or ""
+    )
+
+
+def named_link_url(link, public_slug=None):
+    """Den namngivna länkens adress med schema (QR-koden, mejl, kvitton)."""
+    return f"{email_link_base()}/{_public_slug(link, public_slug)}/{link.slug}"
+
+
+def named_link_text(link, public_slug=None):
+    """Som named_link_url, utan schema: så står den i listan och i Kopiera."""
+    url = named_link_url(link, public_slug)
+    return url.split("://", 1)[-1]
+
+
+def _static_root():
+    from pathlib import Path
+
+    return Path(settings.BASE_DIR) / "static"
+
+
+def _read(path):
+    """Filens byte, cachade per process tills filen ändras (mtime, storlek),
+    eller None när den saknas."""
+    try:
+        stat = path.stat()
+    except OSError:
+        return None
+    key = (str(path), stat.st_mtime_ns, stat.st_size)
+    if key not in _FILE_CACHE:
+        try:
+            data = path.read_bytes()
+        except OSError:
+            return None
+        if len(_FILE_CACHE) > 16:
+            _FILE_CACHE.clear()
+        _FILE_CACHE[key] = data
+    return _FILE_CACHE[key]
+
+
+def _version_of(data):
+    import hashlib
+
+    return hashlib.sha256(data).hexdigest()[:8]
+
+
+def snippet_version():
+    """Versionen i skriptets adress: de första 8 hex av sha256 för
+    static/utskick/s.js, eller "" när filen saknas."""
+    data = _read(_static_root() / SNIPPET_SOURCE)
+    return _version_of(data) if data is not None else ""
+
+
+def snippet_body(ver):
+    """Byte att servera för klick.adx.se/s.<ver>.js, eller None (404): den
+    aktuella källan när versionen stämmer, annars en sparad
+    static/utskick/s.<ver>.js vars innehåll har just den versionen."""
+    ver = str(ver or "")
+    if not re.fullmatch(r"[0-9a-f]{8}", ver):
+        return None
+    current = _read(_static_root() / SNIPPET_SOURCE)
+    if current is not None and _version_of(current) == ver:
+        return current
+    archived = _read(_static_root() / "utskick" / f"s.{ver}.js")
+    if archived is not None and _version_of(archived) == ver:
+        return archived
+    return None
+
+
+def snippet_integrity(ver=None):
+    """SRI-värdet (sha384, base64) för versionens byte, "" utan fil."""
+    import base64
+    import hashlib
+
+    data = snippet_body(ver or snippet_version())
+    if data is None:
+        return ""
+    return "sha384-" + base64.b64encode(hashlib.sha384(data).digest()).decode("ascii")
+
+
+def snippet_url(ver=None):
+    """https://klick.adx.se/s.<version>.js"""
+    return f"{email_link_base()}/s.{ver or snippet_version()}.js"
+
+
+def beacon_url():
+    """Besöksanropets adress: https://klick.adx.se/v (E.6)."""
+    return f"{email_link_base()}/v"
+
+
+def snippet_tag(site):
+    """Taggen kunden klistrar in i sin <head> (E.6), för en SiteSnippet."""
+    from django.utils.html import format_html
+
+    return str(
+        format_html(
+            '<script src="{}" integrity="{}" crossorigin="anonymous" data-k="{}" async></script>',
+            snippet_url(),
+            snippet_integrity(),
+            site.key,
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
 # Länkarnas regler (S2, länk-byggaren; README E.3, E.7, E.8, F.5)
 #
 #   GLOBAL_HOSTS                          värdar utan granskning (värd, sökväg)
@@ -279,12 +439,12 @@ def mailto_unsubscribe(account_id, recipient_id):
 # gbraid och wbraid tas bort (de hör till Googles annonser). Värdar utan
 # granskning: kundens webbplats i ADX kundregister (own_site: Customer.website,
 # som bara byrån skriver, aldrig FlamingoAccount.website_url som kunden själv
-# skriver), verifierade avsändardomäner (S3), skriptets domäner (S4) och
-# GLOBAL_HOSTS, alla med underdomäner. Ett offentligt suffix (github.io,
-# co.uk) är aldrig kundens eget. Annars en AllowedHost som byrån godkänner på
-# kundkortet; Granska, förkontrollerna och klicket blockerar tills dess
-# (destination_ok). Koderna bär aldrig adresser, så det finns ingen öppen
-# omdirigering.
+# skriver), verifierade avsändardomäner (S3) och GLOBAL_HOSTS, alla med
+# underdomäner; inte skriptets domäner (S4, se own_domains). Ett offentligt
+# suffix (github.io, co.uk) är aldrig kundens eget. Annars en AllowedHost som
+# byrån godkänner på kundkortet; Granska, förkontrollerna och klicket
+# blockerar tills dess (destination_ok). Koderna bär aldrig adresser, så det
+# finns ingen öppen omdirigering.
 # ---------------------------------------------------------------------------
 
 
@@ -428,8 +588,11 @@ PATH_TENANT_HOSTS = frozenset(
 )
 REDIRECT_TEXT = "Länken går till en omdirigering. Använd adressen till sidan den leder till."
 
-#: Tas bort ur externa adresser (Googles klick-id:n).
-STRIP_PARAMS = frozenset({"gclid", "gbraid", "wbraid"})
+#: Tas bort ur externa adresser (Googles klick-id:n, och adx: en inklistrad
+#: adress med en mottagares adx skulle annars ge varje besök utan sparat klick,
+#: till exempel ett testsms, till den mottagaren). ut tas inte bort: den gäller
+#: bara på Flamingo-sidorna, och en annan sajt kan ha en egen parameter ut.
+STRIP_PARAMS = frozenset({"gclid", "gbraid", "wbraid", "adx"})
 URL_MAX = 500
 KEY_MAX = 40
 _KEY_RE = re.compile(r"^[a-z0-9åäö][a-z0-9åäö_-]{0,39}$")
@@ -603,18 +766,20 @@ def own_site(account):
 
 def own_domains(account):
     """Kundens egna domäner, utan granskning: webbplatsen i kundregistret
-    (own_site), verifierade avsändardomäner (S3) och skriptets domäner (S4).
-    www. räknas inte."""
+    (own_site) och verifierade avsändardomäner (S3). www. räknas inte.
+
+    Skriptets domäner (S4, SiteSnippet) räknas inte: kunden skriver domänen
+    själv, och besöksanropet som sätter last_seen_at går att göra med vilken
+    Origin som helst utanför en webbläsare, så en skriptdomän bevisar inget
+    ägande. En skriptdomän som inte redan är kundens egen granskas av byrån
+    som vilken värd som helst (S4-HANDOFF.md, avvikelser)."""
     domains = set()
     site = own_site(account)
     if site:
         domains.add(site)
     from django.apps import apps
 
-    for label, filters in (
-        ("SenderDomain", {"status": "verified"}),
-        ("SiteSnippet", {}),
-    ):
+    for label, filters in (("SenderDomain", {"status": "verified"}),):
         try:
             model = apps.get_model("utskick", label)
         except LookupError:
@@ -902,9 +1067,14 @@ def build_destination(link, recipient=None, click=None):
         if click is not None and click.pk:
             params.insert(0, ("ut", tokens.ut_token(click.pk)))
         return _with_params(bare_destination(link), params, replace=True)
-    if not link.add_utm:
-        return link.destination
-    return _with_params(link.destination, utm, replace=False)
+    # --- S4 (länk-byggaren): adx= till kundens egen sajt med skriptet (E.3, E.6).
+    # Bara med ett sparat klick och bara när målets värd är en skriptdomän (eller
+    # en underdomän) vars skript redan har setts (last_seen_at); annars som förut.
+    url = link.destination if not link.add_utm else _with_params(link.destination, utm, False)
+    if click is not None and click.pk and adx_wanted(link):
+        url = _with_params(url, [("adx", tokens.adx_token(click.pk))], replace=True)
+    # --- slut S4
+    return url
 
 
 def _check_one(url):
@@ -986,7 +1156,7 @@ def rollup(now, deadline=None):
     kvar. deadline är time.monotonic() då ticken vill gå vidare."""
     import time
 
-    from django.db.models import Count
+    from django.db.models import Count, Q
     from django.db.models.functions import Greatest
 
     from apps.flamingo.models import Lead
@@ -999,8 +1169,12 @@ def rollup(now, deadline=None):
         .values_list("link_id", flat=True)
         .distinct()
     )
+    # --- S4 (länk-byggaren): förfrågningarna via en namngiven länk har inget
+    # utskick (Lead.utskick null), men attribution["channel"] är "named".
+    tracked = Q(utskick__isnull=False) | Q(attribution__channel=Click.Channel.NAMED)
+    # --- slut S4
     for value in (
-        Lead.objects.filter(created_at__gte=since, utskick__isnull=False)
+        Lead.objects.filter(tracked, created_at__gte=since)
         .values_list("attribution__link", flat=True)
         .distinct()
     ):
@@ -1019,9 +1193,9 @@ def rollup(now, deadline=None):
             .values_list("link_id", "n")
         )
         leads = {}
-        for value in Lead.objects.filter(
-            utskick__isnull=False, attribution__link__in=batch
-        ).values_list("attribution__link", flat=True):
+        for value in Lead.objects.filter(tracked, attribution__link__in=batch).values_list(
+            "attribution__link", flat=True
+        ):
             if isinstance(value, int):
                 leads[value] = leads.get(value, 0) + 1
         for link_id in batch:
@@ -1030,3 +1204,90 @@ def rollup(now, deadline=None):
                 leads=Greatest("leads", leads.get(link_id, 0)),
             )
     return {"links": updated} if updated else {}
+
+
+# --- S4 (länk-byggaren): skriptdomänerna och lägena i Länkar (E.3, E.6, E.8) ---
+#
+#   seen_snippet_domains(account_id) -> set     domäner vars skript har setts
+#   adx_wanted(link) -> bool                    får klicket adx=? (build_destination)
+#   destination_states(account, links) -> {pk: (läge, text)}
+#                                               läget för Länkar: "allowed", "pending"
+#                                               eller "refused" (med texten), två frågor
+#                                               för hela listan i stället för per länk
+#
+# Klicket prövar fortfarande med destination_ok (clean_external), som är
+# det som gäller; destination_states är bara det listan visar.
+
+
+def seen_snippet_domains(account_id):
+    """Kontots skriptdomäner (SiteSnippet) där skriptet har rapporterat
+    (last_seen_at satt): bara dit får länkar adx= (E.3)."""
+    from .models import SiteSnippet
+
+    rows = SiteSnippet.objects.filter(account_id=account_id, last_seen_at__isnull=False)
+    return {normalize_host(d) for d in rows.values_list("domain", flat=True) if d}
+
+
+def adx_wanted(link):
+    """Går en extern länk till en skriptdomän (eller en underdomän) vars
+    skript har setts? Då får klicket adx=<token> (E.3, E.6)."""
+    if link.kind != link.Kind.EXTERNAL or not link.account_id:
+        return False
+    try:
+        host = normalize_host(urlsplit(link.destination or "").hostname)
+    except ValueError:
+        return False
+    if not host:
+        return False
+    return any(_under(host, domain) for domain in seen_snippet_domains(link.account_id))
+
+
+def destination_states(account, tracked_links):
+    """{länkens pk: (läge, text)} för de externa länkarna i listan: samma
+    regler som clean_external (omdirigeringar, förkortare, fria värdar,
+    kundens egna domäner och byråns beslut) med en fråga för de egna
+    domänerna och en för AllowedHost. Flamingo-sidor är alltid "allowed"."""
+    from .models import AllowedHost
+
+    own = None
+    decided = None
+    out = {}
+    for link in tracked_links:
+        if link.kind != link.Kind.EXTERNAL:
+            out[link.pk] = (STATUS_ALLOWED, "")
+            continue
+        try:
+            parts = urlsplit(link.destination or "")
+            host = normalize_host(parts.hostname)
+        except ValueError:
+            out[link.pk] = (STATUS_REFUSED, ABSOLUTE_TEXT)
+            continue
+        path = resolve_dots(parts.path or "/")
+        if not host or host in link_hosts():
+            out[link.pk] = (STATUS_REFUSED, ABSOLUTE_TEXT)
+            continue
+        if _redirector(host, path):
+            out[link.pk] = (STATUS_REFUSED, REDIRECT_TEXT)
+            continue
+        if _global(host, path):
+            out[link.pk] = (STATUS_ALLOWED, "")
+            continue
+        if own is None:
+            own = own_domains(account)
+            decided = dict(
+                AllowedHost.objects.filter(account=account).values_list("host", "status")
+            )
+        if any(_under(host, domain) for domain in own):
+            out[link.pk] = (STATUS_ALLOWED, "")
+        elif _shortener(host):
+            out[link.pk] = (STATUS_REFUSED, SHORTENER_TEXT)
+        elif decided.get(host) == AllowedHost.Status.APPROVED:
+            out[link.pk] = (STATUS_ALLOWED, "")
+        elif decided.get(host) == AllowedHost.Status.REFUSED:
+            out[link.pk] = (STATUS_REFUSED, refused_text(host))
+        else:
+            out[link.pk] = (STATUS_PENDING, PENDING_TEXT)
+    return out
+
+
+# --- slut S4 ---

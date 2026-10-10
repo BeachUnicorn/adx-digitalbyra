@@ -13,8 +13,11 @@ avstängning mitt i en omgång gäller från nästa mottagare.
           spärrad, borttagen kontakt, nytt nummer, samtycket (reklam),
           veckotaket (reklam), kollision på svarsnumret utan namnavsändare
     reply_checks(account, contact, address, now=None) -> Check
-        svar från Inkorgen och kontaktkortets sms (G.2): utan fönster,
-        samtycke, veckotak och kollision; spärrad ger "Personen har svarat STOPP."
+        svar från Inkorgen (G.2): utan fönster, samtycke, veckotak och
+        kollision; spärrad ger "Personen har svarat STOPP."
+    contact_sms_checks(account, contact, now=None) -> Check
+        S4: sms från kontaktkortet: reply_checks plus kundens sms-konto,
+        tidsfönstret, kostnadstaket och kollisionen på svarsnumret (30 dagar)
     sender_for(recipient, now=None) -> (avsändare eller None, collided)
     sender_identified(utskick, body=None) -> bool     företagsnamnet i texten (H.5)
     information_problems(utskick) -> list[str]        H.5 för information
@@ -401,6 +404,96 @@ def reply_checks(account, contact, address, now=None):
     return Check(sender=reply_number())
 
 
+# --- S4 (rapport-byggaren): sms från kontaktkortet (I.7, J S4) ---
+
+#: Ett sms från kortet går inte till ett nummer som en annan kund skickat
+#: till från svarsnumret så här nyligen: svaret skulle då ha två kandidater
+#: och vänta hos byrån (inbound/routing.RECENT, G.1 punkt 5).
+CONTACT_SMS_COLLISION_DAYS = 30
+NO_PHONE_TEXT = "Kontakten har inget mobilnummer. Lägg till det under Redigera."
+CONTACT_SUPPRESSED_TEXT = "Numret är avregistrerat från sms. Sms kan inte skickas härifrån."
+SMS_ACCOUNT_TEXT = "Sms är inte aktiverat för dig. Be ADX slå på det."
+WINDOW_TEXT = (
+    "Sms från kortet går bara inom ditt tidsfönster för sms ({window}). Du kan skicka {next}."
+)
+CAP_TEXT = "Månadens kostnadstak för sms är nått, så inga sms kan skickas just nu."
+#: Hur taket lyfts (I.3): kunden som sköter sms-API:t själv höjer det på
+#: Inställningar (raden Kostnadstak, "Höj taket"), annars gör ADX det.
+CAP_OWN_TEXT = f"{CAP_TEXT} Höj taket under Utskick, Inställningar."
+CAP_ADX_TEXT = f"{CAP_TEXT} Be ADX höja taket."
+#: Kollisionen på svarsnumret säger aldrig att en annan kund har skickat
+#: till numret (det vore att avslöja en annan kunds kontakt); orsaken står
+#: i loggen för byrån.
+COLLISION_TEXT = "Sms från kortet går inte till numret just nu, så sms:et skickades inte."
+
+
+def cap_text(sms_account):
+    """Kostnadstakets text för kortet, med hur taket lyfts."""
+    if getattr(sms_account, "customer_manages_api", False):
+        return CAP_OWN_TEXT
+    return CAP_ADX_TEXT
+
+
+def contact_sms_checks(account, contact, now=None, *, sending=False):
+    """Kontrollerna för ett sms från kontaktkortet (README J S4 "all
+    send-time checks"): reply_checks (demot, Switchboard, nödbromsen, kontot
+    och spärren), kundens sms-konto, tidsfönstret (kortets sms är vi som
+    hör av oss, så fönstret gäller som för ett utskick), kostnadstaket och,
+    bara med sending=True (POST, i contact_sms.send), kollisionen på
+    svarsnumret: en GET på rutan får aldrig säga något om andra kunders sms
+    till numret. Inget samtycke och inget veckotak: ett enskilt sms är
+    ingen reklam. text är meningen för kortet."""
+    from apps.sms import pricing
+
+    from .sms_wrapper import sms_account_for
+
+    now = now or timezone.now()
+    address = getattr(contact, "phone", "") or ""
+    if account is not None and not getattr(account, "is_demo", False) and not address:
+        return _skip(Recipient.SkipReason.NO_ADDRESS, text=NO_PHONE_TEXT)
+    check = reply_checks(account, contact, address, now)
+    if not check.ok:
+        if check.reason == Recipient.SkipReason.SUPPRESSED:
+            return _skip(check.reason, text=CONTACT_SUPPRESSED_TEXT)
+        if check.reason == Recipient.SkipReason.NO_ADDRESS:
+            return _skip(check.reason, text=NO_PHONE_TEXT)
+        return check
+    sms_account = sms_account_for(account)
+    if sms_account is None or not sms_account.is_enabled:
+        return _defer("sms_not_enabled", text=SMS_ACCOUNT_TEXT)
+    settings_row = UtskickSettings.objects.filter(account_id=account.pk).first()
+    if not timing.sms_window_open(settings_row, now):
+        opens = timing.next_window_start(settings_row, now)
+        text = WINDOW_TEXT.format(
+            window=timing.window_text(settings_row, timezone.localtime(opens).date()),
+            next=timing.clock_text(opens, now),
+        )
+        return _defer("window", not_before=opens, text=text)
+    if pricing.usage(sms_account, now)["cap_reached"]:
+        return _defer("cap", text=cap_text(sms_account))
+    if not sending:
+        return check
+    clean = keys.clean_value(CHANNEL_SMS, address)
+    other = SmsMessage.objects.filter(
+        to=clean,
+        sender=reply_number(),
+        created_at__gte=now - timedelta(days=CONTACT_SMS_COLLISION_DAYS),
+    ).exclude(status__in=SmsMessage.STOPPED)
+    if other.exclude(account_id=sms_account.pk).exists():
+        logger.info(
+            "Utskick: sms från kortet till kontakt %s i konto %s stoppades: svarsnumret "
+            "har skickat till numret åt en annan kund de senaste %s dagarna",
+            getattr(contact, "pk", None),
+            account.pk,
+            CONTACT_SMS_COLLISION_DAYS,
+        )
+        return _skip(Recipient.SkipReason.REPLY_COLLISION, text=COLLISION_TEXT)
+    return check
+
+
+# --- slut S4
+
+
 # ---------------------------------------------------------------------------
 # Information (H.5)
 # ---------------------------------------------------------------------------
@@ -422,9 +515,9 @@ def looks_like_ad(text):
 
 def own_hosts(account):
     """Värdarna information får länka till: kundens egna domäner som
-    länkarna ser dem (links.own_domains: webbplatsen i ADX kundregister,
-    verifierade avsändardomäner från S3 och skriptets domäner från S4),
-    aldrig adressen kunden själv skrev i Flamingo."""
+    länkarna ser dem (links.own_domains: webbplatsen i ADX kundregister och
+    verifierade avsändardomäner från S3; inte skriptets domäner från S4, som
+    kunden skriver själv), aldrig adressen kunden själv skrev i Flamingo."""
     from .. import links
 
     return links.own_domains(account)

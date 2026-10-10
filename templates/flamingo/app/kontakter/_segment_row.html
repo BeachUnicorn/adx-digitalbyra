@@ -1,0 +1,26 @@
+{% comment %}
+Ett villkor i segmentbyggaren (segment.html). Kontext: row (Builder.row:
+n, group, field, spec, op, unit, values, scalar, count, widgets, error) och
+field_groups. n är "__N__" i skriptets mall; skriptet byter det mot radens
+nummer. Fältets jämförelse och värde står i _segment_opval.html.
+.fl-sg-rule__num visar "Villkor 3" ur en css-räknare (samma ordning som
+platserna i anteckningarna och felen, "Villkor 3 och 4 räknas inte ..."),
+så att numren stämmer också när skriptet lägger till och tar bort rader.
+{% endcomment %}<div class="fl-sg-item fl-sg-rule{% if row.error %} is-error{% endif %}" data-sg-row data-sg-n="{{ row.n }}">
+  <p class="fl-sg-rule__num"></p>
+  <input type="hidden" name="r{{ row.n }}_g" value="{{ row.group }}" data-sg-group-input>
+  <div class="fl-sg-rule__fields">
+    <label class="fl-sr" for="sg-r{{ row.n }}-f">Vad villkoret gäller</label>
+    <select class="fl-input fl-sg-rule__field" id="sg-r{{ row.n }}-f" name="r{{ row.n }}_f" data-sg-field>
+      {% if not row.spec %}<option value="" selected>Välj vad villkoret gäller</option>{% endif %}
+      {% for title, options in field_groups %}
+      <optgroup label="{{ title }}">
+        {% for value, label, locked in options %}<option value="{{ value }}"{% if value == row.field %} selected{% endif %}{% if locked %} disabled{% endif %}>{{ label }}</option>{% endfor %}
+      </optgroup>
+      {% endfor %}
+    </select>
+    <div class="fl-sg-rule__opval" data-sg-opval>{% if row.spec %}{% include "flamingo/app/kontakter/_segment_opval.html" %}{% endif %}</div>
+  </div>
+  <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm fl-sg-rule__remove" name="action" value="remove:{{ row.n }}" data-sg-remove>Ta bort<span class="fl-sr"> villkoret</span></button>
+  {% if row.error %}<p class="fl-field__error fl-sg-rule__error">{{ row.error }}</p>{% endif %}
+</div>

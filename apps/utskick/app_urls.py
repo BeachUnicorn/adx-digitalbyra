@@ -13,12 +13,20 @@ Flamingos egna inkorg/ och inkorg/<pk>/ i apps/flamingo/urls.py).
 S3 lägger till e-postredigeraren (app_views/brev.py), Leveranshälsa
 (app_views/health.py) och Egen domän med den egna svarsadressen
 (app_views/domain.py).
+
+S4 lägger till segmentbyggaren (app_views/segments.py), sms från
+kontaktkortet (app_views/contact_sms.py), anmälningssidans QR-kod och
+Länkar (app_views/links.py), rapportens Följ upp och Exportera
+(app_views/report.py) och Spårningsskript (app_views/snippet.py).
+QR-kodernas format står i adressen: qr.svg eller qr.png
+(reverse("flamingo:app_link_qr", args=[pk, "svg"])).
 """
 
 from django.urls import path, register_converter
 
 from .app_views import (
     brev,
+    contact_sms,
     contacts,
     domain,
     dpa,
@@ -26,8 +34,12 @@ from .app_views import (
     health,
     imports,
     inbox_reply,
+    links,
     lists,
+    report,
+    segments,
     signup,
+    snippet,
     utskick,
 )
 from .app_views import settings as settings_views
@@ -47,6 +59,21 @@ class _StepConverter:
 
 register_converter(_StepConverter, "utskick_steg")
 
+
+class _QrFormatConverter:
+    """QR-kodens format i adressen (S4): svg eller png (qr.FORMATS)."""
+
+    regex = "svg|png"
+
+    def to_python(self, value):
+        return value
+
+    def to_url(self, value):
+        return value
+
+
+register_converter(_QrFormatConverter, "qr_format")
+
 urlpatterns = [
     # Kontakter (app_views/contacts.py)
     path("kontakter/", contacts.contact_list, name="app_contacts"),
@@ -59,6 +86,8 @@ urlpatterns = [
     path("kontakter/<int:pk>/samtycke/", contacts.contact_consent, name="app_contact_consent"),
     path("kontakter/<int:pk>/export/", contacts.contact_export, name="app_contact_export"),
     path("kontakter/<int:pk>/ta-bort/", contacts.contact_delete, name="app_contact_delete"),
+    # S4: sms från kontaktkortet (app_views/contact_sms.py)
+    path("kontakter/<int:pk>/sms/", contact_sms.contact_sms, name="app_contact_sms"),
     # Importen (app_views/imports.py)
     path("kontakter/import/", imports.import_upload, name="app_import"),
     path("kontakter/import/<int:pk>/", imports.import_job, name="app_import_job"),
@@ -66,9 +95,15 @@ urlpatterns = [
     # Listor och taggar (app_views/lists.py)
     path("kontakter/listor/", lists.list_index, name="app_lists"),
     path("kontakter/listor/<int:pk>/", lists.list_detail, name="app_list"),
+    # S4: segmentbyggaren (app_views/segments.py), under fliken Listor
+    path("kontakter/segment/ny/", segments.segment_new, name="app_segment_new"),
+    path("kontakter/segment/antal/", segments.segment_count, name="app_segment_count"),
+    path("kontakter/segment/<int:pk>/", segments.segment_detail, name="app_segment"),
     # Extrafält, anmälan, inställningar och biträdesavtalet
     path("kontakter/falt/", fields.field_list, name="app_fields"),
     path("kontakter/anmalan/", signup.signup_settings, name="app_signup"),
+    # S4: anmälningssidans QR-kod (app_views/links.py)
+    path("kontakter/anmalan/qr.<qr_format:fmt>", links.signup_qr, name="app_signup_qr"),
     path(
         "kontakter/installningar/",
         settings_views.contacts_settings,
@@ -91,6 +126,16 @@ urlpatterns = [
         domain.reply_confirm,
         name="app_utskick_reply_confirm",
     ),
+    # S4: Spårningsskript (app_views/snippet.py) och Länkar (app_views/links.py)
+    path(
+        "utskick/installningar/skript/",
+        snippet.snippet_settings,
+        name="app_utskick_snippet",
+    ),
+    path("utskick/lankar/", links.link_list, name="app_links"),
+    path("utskick/lankar/ny/", links.link_new, name="app_link_new"),
+    path("utskick/lankar/<int:pk>/", links.link_detail, name="app_link"),
+    path("utskick/lankar/<int:pk>/qr.<qr_format:fmt>", links.link_qr, name="app_link_qr"),
     path("utskick/<int:pk>/", utskick.utskick_report, name="app_utskick"),
     path(
         "utskick/<int:pk>/steg/<utskick_steg:step>/",
@@ -117,6 +162,9 @@ urlpatterns = [
         utskick.utskick_save_list,
         name="app_utskick_save_list",
     ),
+    # S4: rapportens Följ upp och Exportera (app_views/report.py)
+    path("utskick/<int:pk>/folj-upp/", report.utskick_follow_up, name="app_utskick_follow_up"),
+    path("utskick/<int:pk>/export/", report.utskick_export, name="app_utskick_export"),
     # S3: e-postredigeraren (app_views/brev.py, README F och I.1)
     path("utskick/<int:pk>/brev/", brev.brev_editor, name="app_brev"),
     path("utskick/<int:pk>/brev/spara/", brev.brev_save, name="app_brev_save"),

@@ -287,10 +287,11 @@ class SizeTests(BrandingFixture, TestCase):
 
     def test_the_stylesheet_keeps_the_size_from_the_attributes(self):
         """Ingen fast höjd eller bredd på loggan: en height:40px med width:auto
-        ritade en bred logga 476 x 40 trots width="220" height="18"."""
+        ritade en bred logga 476 x 40 trots width="220" height="18". Loggan
+        är centrerad sedan 3c86d8a (margin:0 auto), utan att ändra måtten."""
         css = PUBLIC_CSS.read_text("utf-8")
         rule = css_rule(css, ".up-logo")
-        self.assertEqual(rule, "display:block;max-width:100%;height:auto")
+        self.assertEqual(rule, "display:block;max-width:100%;height:auto;margin:0 auto")
         self.assertNotIn("object-fit", css)
 
     def test_the_adx_logo_has_its_margin_and_a_44_px_tap_target(self):

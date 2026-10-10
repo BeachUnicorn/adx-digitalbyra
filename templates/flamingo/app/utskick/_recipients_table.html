@@ -2,7 +2,8 @@
 Mottagarnas tabell (README I.8): rapporten (de första raderna) och
 mottagarsidan. Kontext: rows (Recipient med ut_name, ut_delivered,
 ut_clicked, ut_engaged, ut_reply, ut_result, ut_tone och contact, från
-app_views/utskick.decorate_recipients). Under 760 px blir raderna kort
+app_views/utskick.decorate_recipients) och, från S4, show_channel (utskicket
+har mottagare i båda kanalerna: kanalen står under namnet). Under 760 px blir raderna kort
 (flamingo-app.css läser data-label); tomma celler skrivs utan blanksteg så
 att de döljs i kortläget.
 {% endcomment %}<div class="fl-ut-tablebox"><div class="fl-table-wrap">
@@ -20,7 +21,7 @@ att de döljs i kortläget.
     <tbody>
       {% for mottagare in rows %}
       <tr>
-        <td class="is-primary" data-label="Kontakt">{% if mottagare.contact %}<a class="fl-ut-name" href="{% url 'flamingo:app_contact' mottagare.contact.pk %}">{{ mottagare.ut_name }}</a>{% else %}{{ mottagare.ut_name }}{% endif %}</td>
+        <td class="is-primary" data-label="Kontakt">{% if mottagare.contact %}<a class="fl-ut-name" href="{% url 'flamingo:app_contact' mottagare.contact.pk %}">{{ mottagare.ut_name }}</a>{% else %}{{ mottagare.ut_name }}{% endif %}{% if show_channel %}<span class="fl-ut-sub">{% if mottagare.channel == "email" %}E-post{% else %}Sms{% endif %}</span>{% endif %}</td>
         <td data-label="Levererat">{{ mottagare.ut_delivered }}</td>
         <td data-label="Klick">{{ mottagare.ut_clicked }}</td>
         <td data-label="Tid på sidan">{{ mottagare.ut_engaged }}</td>

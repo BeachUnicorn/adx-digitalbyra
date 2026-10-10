@@ -24,10 +24,11 @@ Formen på Utskick.audience:
 
 recent_days 0 betyder inget undantag ("Fick ett utskick senaste 14 dagarna"
 är recent_days 14: kontakter som fick ett utskick, i någon kanal, de
-senaste 14 dagarna). Segment kommer med S4; till dess är varje segment-id
-främmande. Ett id som ändå hamnat i databasen utan att höra till kontot
-(manipulerat) ger inga mottagare: listor och taggar matchas alltid med
-kontot i villkoret (H.1).
+senaste 14 dagarna). Segmenten (S4) prövas med owned_ids som listorna och
+räknas om varje gång (segments.matches_q, samma regler i Granska och i
+frysningen). Ett id som ändå hamnat i databasen utan att höra till kontot
+(manipulerat) ger inga mottagare: listor, taggar och segment matchas alltid
+med kontot i villkoret (H.1).
 """
 
 import operator
@@ -41,7 +42,7 @@ from django.utils import timezone
 from apps.sms.pricing import STOCKHOLM
 
 from . import consent as consents
-from . import keys
+from . import keys, segments
 from .access import ForeignIds, owned_ids
 from .models import (
     CHANNEL_EMAIL,
@@ -52,6 +53,7 @@ from .models import (
     ContactList,
     ListMembership,
     Recipient,
+    Segment,
     Suppression,
     Tag,
     Utskick,
@@ -133,20 +135,23 @@ def clean(account, data):
         return empty()
     if not hasattr(data, "getlist") and not isinstance(data, dict):
         raise ForeignIds
-    if _values(data, "segments") or _values(data, "segments", "exclude"):
-        # Segment finns från S4; inget id kan höra till kontot före dess.
-        raise ForeignIds
     return {
         "lists": owned_ids(ContactList, account, _values(data, "lists"), limit=MAX_GROUPS),
         "tags": owned_ids(Tag, account, _values(data, "tags"), limit=MAX_GROUPS),
-        "segments": [],
+        # --- S4 (segment-byggaren): segmenten, prövade som listorna ---
+        "segments": owned_ids(Segment, account, _values(data, "segments"), limit=MAX_GROUPS),
+        # --- slut S4
         "contacts": owned_ids(Contact, account, _values(data, "contacts"), limit=MAX_CONTACTS),
         "exclude": {
             "lists": owned_ids(
                 ContactList, account, _values(data, "lists", "exclude"), limit=MAX_GROUPS
             ),
             "tags": owned_ids(Tag, account, _values(data, "tags", "exclude"), limit=MAX_GROUPS),
-            "segments": [],
+            # --- S4 (segment-byggaren) ---
+            "segments": owned_ids(
+                Segment, account, _values(data, "segments", "exclude"), limit=MAX_GROUPS
+            ),
+            # --- slut S4
             "recent_days": _recent_days(data),
         },
     }
@@ -179,20 +184,31 @@ def stored(utskick):
     return {
         "lists": _ints(raw.get("lists")),
         "tags": _ints(raw.get("tags")),
-        "segments": [],
+        "segments": _ints(raw.get("segments")),  # S4 (segment-byggaren)
         "contacts": _ints(raw.get("contacts")),
         "exclude": {
             "lists": _ints(exclude.get("lists")),
             "tags": _ints(exclude.get("tags")),
-            "segments": [],
+            "segments": _ints(exclude.get("segments")),  # S4 (segment-byggaren)
             "recent_days": recent,
         },
     }
 
 
 def is_empty(utskick):
-    aud = stored(utskick)
-    return not (aud["lists"] or aud["tags"] or aud["contacts"])
+    return chosen_nothing(stored(utskick))
+
+
+# --- S4 (segment-byggaren): ett urval utan listor, taggar, segment och kontakter ---
+
+
+def chosen_nothing(aud):
+    """Är urvalet (audience.clean eller stored) tomt: inga listor, taggar,
+    segment eller enstaka kontakter? Undantagen räknas inte."""
+    return not (aud["lists"] or aud["tags"] or aud["segments"] or aud["contacts"])
+
+
+# --- slut S4
 
 
 # ---------------------------------------------------------------------------
@@ -246,6 +262,10 @@ def contacts(utskick, now=None):
         include.append(Q(_in_tags(account_id, aud["tags"])))
     if aud["contacts"]:
         include.append(Q(pk__in=aud["contacts"]))
+    # --- S4 (segment-byggaren): segmenten räknas om nu, med kontot i villkoret ---
+    if aud["segments"]:
+        include.append(segments.matches_q(account_id, aud["segments"], now))
+    # --- slut S4
     if not include:
         return qs.none()
     qs = qs.filter(reduce(operator.or_, include))
@@ -254,6 +274,10 @@ def contacts(utskick, now=None):
         qs = qs.exclude(_in_lists(account_id, exclude["lists"]))
     if exclude["tags"]:
         qs = qs.exclude(_in_tags(account_id, exclude["tags"]))
+    # --- S4 (segment-byggaren): matches_q är pk IN (...), aldrig NULL ---
+    if exclude["segments"]:
+        qs = qs.exclude(segments.matches_q(account_id, exclude["segments"], now))
+    # --- slut S4
     if exclude["recent_days"]:
         qs = qs.exclude(recently_sent(account_id, exclude["recent_days"], now, utskick.pk))
     return qs.order_by("pk")
@@ -548,6 +572,18 @@ def describe(utskick):
     )
     if tags:
         parts.append(("Tagg " if len(tags) == 1 else "Taggar ") + ", ".join(tags))
+    # --- S4 (segment-byggaren): "Segment Service i höst" ---
+    if aud["segments"]:
+        found = list(
+            Segment.objects.filter(account_id=utskick.account_id, pk__in=aud["segments"])
+            .order_by("name")
+            .values_list("name", flat=True)
+        )
+        if found:
+            parts.append("Segment " + ", ".join(found))
+        elif not parts and not aud["contacts"]:
+            parts.append("Ett borttaget segment")
+    # --- slut S4
     if aud["contacts"]:
         n = len(aud["contacts"])
         parts.append(f"{_group(n)} {'kontakt' if n == 1 else 'kontakter'}")

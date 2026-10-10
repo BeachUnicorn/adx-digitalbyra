@@ -4,8 +4,15 @@
 Kontaktkortet (README I.7). Kontext från app_views/contacts._render_detail:
 kontakt, header_line, channels ([{"key", "word", "address", "href", "chip",
 "proof"}]), fields_shown ([(rubrik, värde)]), member_lists, own_tags,
-other_lists, other_tags, summary, timeline_page, timeline_items,
+other_lists, other_tags, segment_chips (S4), summary, timeline_page, timeline_items,
 consent_form (bara på kontakter/<pk>/samtycke/), new_value.
+
+S4 (rapport-byggaren, app_views/contact_sms.card_context): reply_habit
+("Svarar oftast på sms, kvällstid" under Sammanfattning), cs_button (knappen
+"Skicka sms" när kontakten har ett nummer), cs_open (rutan, på
+kontakter/<pk>/sms/) med cs_problem (varför sms inte kan skickas nu),
+cs_text, cs_error, cs_to, cs_number, cs_counter, cs_suffix, cs_company,
+cs_ore, cs_demo, cs_staff och cs_staff_text (byråns kryssruta, I.4).
 
 Rutorna ligger till höger i bred skärm och ovanför tidslinjen under
 900 px, samtycket först. "Ändra samtycke" öppnar rutan på samma kort
@@ -21,6 +28,9 @@ Rutorna ligger till höger i bred skärm och ovanför tidslinjen under
     <p class="fl-app-lead">{{ header_line }}</p>
   </div>
   <div class="fl-app-head__actions">
+    {% comment %}S4 (rapport-byggaren): Skicka sms.{% endcomment %}
+    {% if cs_button %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contact_sms' kontakt.pk %}#sms">Skicka sms</a>{% endif %}
+    {% comment %}slut S4{% endcomment %}
     <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contact_edit' kontakt.pk %}">Redigera</a>
     <form class="fl-kt-inline" method="post" action="{% url 'flamingo:app_contact_export' kontakt.pk %}">
       {% csrf_token %}
@@ -33,6 +43,37 @@ Rutorna ligger till höger i bred skärm och ovanför tidslinjen under
 {% block kt_content %}
 <div class="fl-kt-card">
   <div class="fl-kt-card__side">
+    {% comment %}S4 (rapport-byggaren): Skicka sms (I.7, I.4).{% endcomment %}
+    {% if cs_open %}
+    <section class="fl-panel fl-panel--accent fl-kt-sms" id="sms" aria-labelledby="kt-sms-title">
+      <h2 class="fl-panel__title" id="kt-sms-title">Skicka sms</h2>
+      {% if cs_problem %}
+      <p class="fl-notice fl-notice--info"><span>{{ cs_problem }}</span></p>
+      <div class="fl-form__actions"><a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contact' kontakt.pk %}">Tillbaka till kortet</a></div>
+      {% elif cs_read_only %}
+      <p class="fl-panel__note">Sms kan inte skickas i den här vyn.</p>
+      {% else %}
+      <form class="fl-form" method="post" action="{% url 'flamingo:app_contact_sms' kontakt.pk %}">
+        {% csrf_token %}
+        {% if cs_error %}<p class="fl-notice fl-notice--error" role="alert" id="kt-sms-error"><span>{{ cs_error }}</span></p>{% endif %}
+        <div class="fl-field{% if cs_error %} is-error{% endif %}">
+          <label class="fl-field__label" for="kt-sms-text">Sms till {{ cs_to }}</label>
+          <textarea class="fl-input fl-kt-sms__text" id="kt-sms-text" name="text" rows="4" maxlength="918" required data-ut-sms data-ut-sms-count="kt-sms-count" data-ut-sms-suffix="{{ cs_suffix }}"{% if cs_ore %} data-ut-sms-ore-per-part="{{ cs_ore }}"{% endif %}{% if cs_error %} aria-describedby="kt-sms-error"{% endif %}>{{ cs_text }}</textarea>
+          <p class="fl-field__help">Skickas från {{ cs_number }} · <span id="kt-sms-count">{{ cs_counter }}</span></p>
+          {% if cs_suffix %}<p class="fl-field__help">Står inte {{ cs_company }} i sms:et läggs "{{ cs_suffix|slice:"1:" }}" till sist, så att personen ser vem som skriver.</p>{% endif %}
+          <p class="fl-field__help">Svarar personen hamnar svaret i Inkorgen, i samma tråd.</p>
+          {% if cs_demo %}<p class="fl-field__help">Demokontot skickar aldrig.</p>{% endif %}
+        </div>
+        {% if cs_staff %}<label class="fl-check"><input type="checkbox" name="som_adx" value="1" required><span>{{ cs_staff_text }}</span></label>{% endif %}
+        <div class="fl-form__actions">
+          <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contact' kontakt.pk %}">Avbryt</a>
+          <button type="submit" class="fl-btn fl-btn--sm">{% if cs_staff %}Skicka som ADX{% else %}Skicka sms{% endif %}</button>
+        </div>
+      </form>
+      {% endif %}
+    </section>
+    {% endif %}
+    {% comment %}slut S4{% endcomment %}
     {% if consent_form %}
     <section class="fl-panel fl-panel--accent fl-kt-consent" id="samtycke" aria-labelledby="kt-consent-title">
       <h2 class="fl-panel__title" id="kt-consent-title">Ändra samtycke</h2>
@@ -135,6 +176,13 @@ Rutorna ligger till höger i bred skärm och ovanför tidslinjen under
       {% else %}
       <p class="fl-panel__note">Inte med i någon lista och utan taggar.</p>
       {% endif %}
+      {# --- S4 (segment-byggaren): segmenten kontakten är med i just nu (I.7) --- #}
+      {% if segment_chips %}
+      <ul class="fl-kt-chips fl-kt-chips--list" aria-label="Segment">
+        {% for segment in segment_chips %}<li class="fl-kt-tag fl-kt-tag--list"><a href="{% url 'flamingo:app_segment' segment.pk %}">Segment: {{ segment.name }}</a></li>{% endfor %}
+      </ul>
+      {% endif %}
+      {# --- slut S4 #}
       <details class="fl-kt-more">
         <summary class="fl-btn fl-btn--ghost fl-btn--sm">Lägg i lista eller tagga</summary>
         <form class="fl-kt-addrow" method="post" action="{% url 'flamingo:app_contact' kontakt.pk %}">
@@ -173,6 +221,9 @@ Rutorna ligger till höger i bred skärm och ovanför tidslinjen under
     <section class="fl-panel fl-panel--soft fl-kt-box" aria-labelledby="kt-sum-title">
       <h2 class="fl-kt-box__title" id="kt-sum-title">Sammanfattning</h2>
       <p class="fl-panel__text">{{ summary|default:"Inga förfrågningar än." }}</p>
+      {% comment %}S4 (rapport-byggaren): "Svarar oftast" (I.7).{% endcomment %}
+      {% if reply_habit %}<p class="fl-panel__text fl-kt-habit">{{ reply_habit }}</p>{% endif %}
+      {% comment %}slut S4{% endcomment %}
     </section>
   </div>
 
@@ -182,4 +233,5 @@ Rutorna ligger till höger i bred skärm och ovanför tidslinjen under
   </section>
 </div>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>
+{% comment %}S4 (rapport-byggaren): räknaren i sms-rutan.{% endcomment %}{% if cs_open %}<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>{% endif %}{% endblock %}

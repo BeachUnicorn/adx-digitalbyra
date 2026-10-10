@@ -1,0 +1,29 @@
+{% comment %}
+Jämförelsen och värdet för ett villkor (_segment_row.html och skriptets
+mallar per fält). Kontext: row (Builder.row). Varje värde står i en
+<span data-sg-ops="..."> med jämförelserna det gäller för; skriptet döljer
+de andra. Utan skript syns alla och servern läser det som hör till
+jämförelsen.
+{% endcomment %}<label class="fl-sr" for="sg-r{{ row.n }}-op">Hur det ska jämföras</label>
+<select class="fl-input fl-sg-rule__op" id="sg-r{{ row.n }}-op" name="r{{ row.n }}_op" data-sg-op>
+  {% for value, label in row.spec.ops %}<option value="{{ value }}"{% if value == row.op %} selected{% endif %}>{{ label }}</option>{% endfor %}
+</select>
+{% for widget in row.widgets %}<span class="fl-sg-rule__value fl-sg-rule__value--{{ widget.kind }}" data-sg-ops="{{ widget.ops }}">
+  {% if widget.kind == "pick" %}<label class="fl-sr" for="sg-r{{ row.n }}-v">{{ widget.label }}</label>
+  <select class="fl-input" id="sg-r{{ row.n }}-v" name="r{{ row.n }}_v"{% if widget.multiple %} multiple{% endif %}>
+    {% if not widget.multiple %}<option value="">{{ widget.placeholder }}</option>{% endif %}
+    {% for value, label in widget.options %}<option value="{{ value }}"{% if value in row.values %} selected{% endif %}>{{ label }}</option>{% endfor %}
+  </select>
+  {% elif widget.kind == "text" %}<label class="fl-sr" for="sg-r{{ row.n }}-t">{{ widget.label }}</label>
+  <input class="fl-input" id="sg-r{{ row.n }}-t" type="text" name="r{{ row.n }}_v" value="{{ row.scalar }}" maxlength="100" autocomplete="off">
+  {% elif widget.kind == "number" %}<label class="fl-sr" for="sg-r{{ row.n }}-t">{{ widget.label }}</label>
+  <input class="fl-input fl-sg-rule__short" id="sg-r{{ row.n }}-t" type="text" inputmode="decimal" name="r{{ row.n }}_v" value="{{ row.scalar }}" maxlength="20" autocomplete="off">
+  {% elif widget.kind == "count" %}<label class="fl-sr" for="sg-r{{ row.n }}-n">Antal</label>
+  <input class="fl-input fl-sg-rule__short" id="sg-r{{ row.n }}-n" type="number" name="r{{ row.n }}_n" value="{{ row.count }}" min="1" max="{{ widget.max }}" step="1" inputmode="numeric">
+  {% if widget.units %}<label class="fl-sr" for="sg-r{{ row.n }}-u">Dagar eller månader</label>
+  <select class="fl-input fl-sg-rule__unit" id="sg-r{{ row.n }}-u" name="r{{ row.n }}_unit">
+    <option value="days"{% if row.unit != "months" %} selected{% endif %}>dagar</option>
+    <option value="months"{% if row.unit == "months" %} selected{% endif %}>månader</option>
+  </select>{% else %}<span class="fl-sg-rule__word">dagar</span>{% endif %}
+  {% elif widget.kind == "word" %}<span class="fl-sg-rule__word">{{ widget.text }}</span>{% endif %}
+</span>{% endfor %}

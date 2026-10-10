@@ -1,0 +1,41 @@
+{% comment %}
+Fälten för en namngiven länks beskrivning och mål (S4, länk-byggaren),
+i link_form.html (ny länk) och link.html (ändra). Kontext: values (label,
+target, campaign, address), errors, campaigns (kontots publicerade
+Flamingo-sidor), target_lp, target_external. Fälten som bara gäller ett
+mål visas av flamingo-app-links.js ([data-ln-show-when]); utan skript syns
+båda och målet avgörs av valet.
+{% endcomment %}
+<div class="fl-field{% if errors.beskrivning %} is-error{% endif %}">
+  <label class="fl-field__label" for="ut-ln-label">Beskrivning</label>
+  <input class="fl-input" id="ut-ln-label" type="text" name="beskrivning" maxlength="120" value="{{ values.label }}" autocomplete="off" data-ln-label aria-describedby="ut-ln-label-help{% if errors.beskrivning %} ut-ln-label-error{% endif %}"{% if errors.beskrivning %} aria-invalid="true"{% endif %}>
+  <p class="fl-field__help" id="ut-ln-label-help">Syns bara för dig, till exempel Affisch i verkstaden eller Instagram-profilen.</p>
+  {% if errors.beskrivning %}<p class="fl-field__error" id="ut-ln-label-error">{{ errors.beskrivning }}</p>{% endif %}
+</div>
+<fieldset class="fl-field{% if errors.mal %} is-error{% endif %}">
+  <legend class="fl-field__label">Vart går länken?</legend>
+  <div class="fl-seg">
+    <label class="fl-seg__opt"><input type="radio" name="mal" value="{{ target_lp }}"{% if values.target == target_lp %} checked{% endif %}><span>Flamingo-sida</span></label>
+    <label class="fl-seg__opt"><input type="radio" name="mal" value="{{ target_external }}"{% if values.target == target_external %} checked{% endif %}><span>Egen adress</span></label>
+  </div>
+  {% if errors.mal %}<p class="fl-field__error">{{ errors.mal }}</p>{% endif %}
+</fieldset>
+<div class="fl-field{% if errors.kampanj %} is-error{% endif %}" data-ln-show-when="mal={{ target_lp }}">
+  <label class="fl-field__label" for="ut-ln-campaign">Flamingo-sida</label>
+  {% if campaigns %}
+  <select class="fl-input" id="ut-ln-campaign" name="kampanj"{% if errors.kampanj %} aria-invalid="true" aria-describedby="ut-ln-campaign-error"{% endif %}>
+    <option value="">Välj sida</option>
+    {% for campaign in campaigns %}<option value="{{ campaign.pk }}"{% if values.campaign == campaign.pk|stringformat:"d" %} selected{% endif %}>{{ campaign.name }}</option>{% endfor %}
+  </select>
+  <p class="fl-field__help">Full spårning: besök, tid på sidan och förfrågningar.</p>
+  {% else %}
+  <p class="fl-field__help">Du har ingen publicerad Flamingo-sida än. Publicera en kampanj under Kampanjer, eller välj Egen adress.</p>
+  {% endif %}
+  {% if errors.kampanj %}<p class="fl-field__error" id="ut-ln-campaign-error">{{ errors.kampanj }}</p>{% endif %}
+</div>
+<div class="fl-field{% if errors.adress %} is-error{% endif %}" data-ln-show-when="mal={{ target_external }}">
+  <label class="fl-field__label" for="ut-ln-address">Egen adress</label>
+  <input class="fl-input" id="ut-ln-address" type="url" name="adress" maxlength="500" value="{{ values.address }}" placeholder="https://" autocomplete="off" inputmode="url" aria-describedby="ut-ln-address-help{% if errors.adress %} ut-ln-address-error{% endif %}"{% if errors.adress %} aria-invalid="true"{% endif %}>
+  <p class="fl-field__help" id="ut-ln-address-help">Hela adressen, med https:// först. Länkar till nya webbplatser godkänns av ADX innan de fungerar.</p>
+  {% if errors.adress %}<p class="fl-field__error" id="ut-ln-address-error">{{ errors.adress }}</p>{% endif %}
+</div>

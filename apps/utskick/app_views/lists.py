@@ -6,8 +6,9 @@ Listor och taggar (README I.1 och I.7): översikten och en lista.
     list_detail   en lista: namn och beskrivning, kontakterna i den (50 per
                   sida), ta bort en kontakt ur listan, byt namn, ta bort listan
 
-Listor fyller kunden själv (segment, regler som räknas om, kommer i S4 och
-får ingen flik eller knapp innan dess). Att ta bort en lista eller en tagg
+Listor fyller kunden själv. Segmenten (S4, regler som räknas om varje gång
+de används) listas här med sin senaste räkning och byggs i
+app_views/segments.py. Att ta bort en lista eller en tagg
 tar aldrig bort kontakterna. POST går genom en ordbok med handlers
 (onboarding._BUSINESS_ACTIONS), och varje id ur formuläret genom
 access.owned_ids (400 för ett främmande).
@@ -23,7 +24,7 @@ from django.utils import timezone
 
 from .. import contacts as register
 from ..access import owned, owned_ids, utskick_view
-from ..models import Contact, ContactList, Tag
+from ..models import Contact, ContactList, Segment, Tag
 from . import render_contacts
 from .contacts import (
     PER_PAGE,
@@ -127,6 +128,10 @@ def list_index(request, account):
     tags = Tag.objects.filter(account=account).annotate(size=Count("contacts")).order_by("name")
     # ?ny=1 (knappen Ny lista i sidhuvudet) öppnar formuläret direkt.
     context = {"lists": lists, "tags": tags, "ny_lista": request.GET.get("ny") == "1"}
+    # --- S4 (segment-byggaren): segmenten med senaste räkningen ---
+    context["segments"] = list(Segment.objects.filter(account=account).order_by("name", "pk"))
+    context["segments_full"] = len(context["segments"]) >= Segment.MAX_PER_ACCOUNT
+    # --- slut S4
     return render_contacts(request, "flamingo/app/kontakter/lists.html", "lists", context)
 
 

@@ -9,6 +9,8 @@ adressen (tokens.ut_token) och loggas här, på servern, nycklat på klicket.
     resolve(ut, campaign) -> Click | None       samma konto som sidan, annars None
     record_lp_visit(click, campaign, now)       besöket (lp_visits, händelsen lp_visit)
     record_beacon(click, seconds, now) -> bool  tiden på sidan (/lp/<slug>/besok/)
+    record_named_click, record_site_visit, record_site_goal
+                                                S4: namngivna länkar och skriptet på egen sajt
     usable_for_lead(click, now) -> bool         högst LEADS_PER_CLICK_HOUR i timmen
     attach(lead, click, now)                    förfrågan får utskicket och spåret
     mark_called(click)                          klick på numret med token
@@ -256,7 +258,9 @@ def record_beacon(click, seconds, now=None):
     now = now or timezone.now()
     try:
         value = int(float(seconds))
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
+        # OverflowError: "inf" i formuläret, eller 1e999 och Infinity i
+        # skriptets JSON (json.loads ger float("inf")).
         return False
     value = max(0, min(value, Click.MAX_ENGAGED_SECONDS))
     updated = Click.objects.filter(
@@ -269,6 +273,130 @@ def record_beacon(click, seconds, now=None):
         if upgraded and click.recipient_id:
             _count_human(click.recipient_id, click.at or now)
     return True
+
+
+# --- S4 (länk-byggaren): de namngivna länkarna och skriptet på egen sajt ---
+#
+#   record_named_click(link, kind, request, ip_hash, now) -> Click
+#       ett klick på klick.adx.se/<public_slug>/<slug>: kanalen named, ingen
+#       mottagare och ingen kontakt (affischer och QR-koder är anonyma)
+#   record_site_visit(click, path, now, host="")
+#       besöket på kundens egen sajt via skriptet (E.6): lp_visits och första
+#       besöket som för en landningssida, och händelsen site_visit på kontakten
+#       högst en gång per klick och VISIT_EVENT_EVERY
+#   record_site_goal(click, path, goal, now, host="")
+#       adxFlamingo.track(namn) på samma sida: händelsen site_visit med "mal",
+#       en gång per klick och namn (bara med en kontakt)
+#
+# Tiden på sidan och skannern som blir en människa sköts av record_beacon,
+# precis som för landningssidan.
+
+
+def record_named_click(link, kind, request, ip_hash="", now=None):
+    """Spara ett klick på en namngiven länk (S4). Högst CLICK_ROWS_PER_HOUR
+    rader per besökare (ip_hash) och länk och timme; fler träffar räknas i
+    repeat_count på besökarens senaste rad. Returnerar raden som ut pekar på."""
+    from apps.analytics.utils import parse_user_agent
+
+    now = now or timezone.now()
+    subject = f"n{ip_hash or '-'}"[:60]
+    row = None
+    if limits.hit("click", f"{subject}:{link.pk}", limits.hour_window(now), CLICK_ROWS_PER_HOUR):
+        row = (
+            Click.objects.filter(
+                account_id=link.account_id,
+                link=link,
+                channel=Click.Channel.NAMED,
+                ip_hash=(ip_hash or "")[:64],
+            )
+            .order_by("-at", "-pk")
+            .first()
+        )
+        if row is not None:
+            Click.objects.filter(pk=row.pk).update(
+                repeat_count=Least(F("repeat_count") + 1, Value(SMALL_MAX))
+            )
+    if row is None:
+        agent = parse_user_agent(_user_agent(request))
+        row = Click.objects.create(
+            account_id=link.account_id,
+            utskick_id=None,
+            recipient=None,
+            link=link,
+            contact_id=None,
+            channel=Click.Channel.NAMED,
+            kind=kind,
+            at=now,
+            device=str(agent.get("device_type") or "")[:8],
+            os=str(agent.get("os") or "")[:20],
+            browser=str(agent.get("browser") or "")[:20],
+            ip_hash=(ip_hash or "")[:64],
+        )
+    return row
+
+
+def _site_event_data(click, path, host):
+    return {
+        "klick": click.pk,
+        "sida": str(path or "/")[:80],
+        "varde": str(host or "")[:253],
+    }
+
+
+def record_site_visit(click, path, now=None, host=""):
+    """Besöket på kundens egen webbplats från klicket (skriptet, E.6):
+    lp_visits och first_visit_at som på en landningssida, och händelsen
+    site_visit på kontakten högst en gång per klick och VISIT_EVENT_EVERY.
+    Ett klick utan kontakt (en namngiven länk) räknas bara på klicket."""
+    now = now or timezone.now()
+    Click.objects.filter(pk=click.pk).update(
+        lp_visits=Least(F("lp_visits") + 1, Value(SMALL_MAX)),
+        first_visit_at=Coalesce(F("first_visit_at"), Value(now)),
+    )
+    if not click.contact_id:
+        return
+    recent = Event.objects.filter(
+        contact_id=click.contact_id,
+        kind=Event.SITE_VISIT,
+        at__gte=now - VISIT_EVENT_EVERY,
+        data__klick=click.pk,
+    ).exists()
+    if recent:
+        return
+    Event.objects.create(
+        account_id=click.account_id,
+        contact_id=click.contact_id,
+        kind=Event.SITE_VISIT,
+        at=now,
+        utskick_id=click.utskick_id,
+        recipient_id=click.recipient_id,
+        data=_site_event_data(click, path, host),
+    )
+
+
+def record_site_goal(click, path, goal, now=None, host=""):
+    """adxFlamingo.track(namn) (E.6): händelsen site_visit med "mal" på
+    kontakten, en gång per klick och namn. True när den skrevs."""
+    if not goal or not click.contact_id:
+        return False
+    now = now or timezone.now()
+    if Event.objects.filter(
+        contact_id=click.contact_id, kind=Event.SITE_VISIT, data__klick=click.pk, data__mal=goal
+    ).exists():
+        return False
+    Event.objects.create(
+        account_id=click.account_id,
+        contact_id=click.contact_id,
+        kind=Event.SITE_VISIT,
+        at=now,
+        utskick_id=click.utskick_id,
+        recipient_id=click.recipient_id,
+        data={**_site_event_data(click, path, host), "mal": str(goal)[:40]},
+    )
+    return True
+
+
+# --- slut S4 ---
 
 
 # ---------------------------------------------------------------------------

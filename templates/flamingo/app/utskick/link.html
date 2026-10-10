@@ -1,0 +1,105 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+En namngiven länk (README I.11, E.8, S4, länk-byggaren): Rapport för en
+länk i Länkar. Kontext från app_views/links.link_detail: link, text
+("klick.adx.se/exempelror/vinter"), url (med https), goes, chip_label,
+chip_tone, state ("allowed", "pending", "refused"), state_text, numbers
+(clicks, week, last, leads (None för en extern adress), visits (None utan
+spårning på målet)), qr_svg och qr_png (adresserna till QR-koden), och
+formulärets values, errors, campaigns, target_lp, target_external.
+
+QR-koden visas som SVG (bredd och höjd ur CSS) och laddas ned som SVG
+(tryck) eller PNG (?ladda=1). Slugen ändras aldrig. Inga style-attribut,
+inga inline-skript; .fl-ut-ln- i flamingo-app-utskick-links.css.
+{% endcomment %}
+{% block app_title %}{{ link.label|default:text }}{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick-links.css' %}?v={{ static_version }}"><script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-ut-crumb" href="{% url 'flamingo:app_links' %}">Länkar</a></p>
+    <h1 class="fl-app-title">{{ link.label|default:text }}</h1>
+    <p class="fl-app-lead fl-ut-ln-addr">{{ text }}</p>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+{% if state == "pending" %}
+<p class="fl-notice fl-notice--warn" role="status"><span>{{ state_text }} Tills dess leder adressen ingenstans.</span></p>
+{% elif state == "refused" %}
+<p class="fl-notice fl-notice--error" role="status"><span>{{ state_text }} Adressen leder ingenstans. Välj ett annat mål nedan.</span></p>
+{% endif %}
+
+<section class="fl-kpis fl-ut-ln-kpis" aria-label="Siffror för länken">
+  <div class="fl-kpi">
+    <span class="fl-kpi__label">Klick</span>
+    <span class="fl-kpi__value">{{ numbers.clicks|tal }}</span>
+    <span class="fl-kpi__note">{% if numbers.last %}Senast {{ numbers.last }}{% else %}Inga klick än{% endif %}</span>
+  </div>
+  <div class="fl-kpi">
+    <span class="fl-kpi__label">Senaste 7 dagarna</span>
+    <span class="fl-kpi__value">{{ numbers.week|tal }}</span>
+    <span class="fl-kpi__note">Förhandsvisningar och bottar räknas inte</span>
+  </div>
+  {% if numbers.visits is not None %}
+  <div class="fl-kpi">
+    <span class="fl-kpi__label">{% if link.kind == "lp" %}Besök på sidan{% else %}Besök med skriptet{% endif %}</span>
+    <span class="fl-kpi__value">{{ numbers.visits|tal }}</span>
+    <span class="fl-kpi__note">Klick som sidan har sett</span>
+  </div>
+  {% endif %}
+  {% if numbers.leads is not None %}
+  <div class="fl-kpi">
+    <span class="fl-kpi__label">Förfrågningar</span>
+    <span class="fl-kpi__value">{{ numbers.leads|tal }}</span>
+    <span class="fl-kpi__note">Via den här länken</span>
+  </div>
+  {% endif %}
+</section>
+
+<section class="fl-panel" aria-labelledby="ut-ln-address">
+  <h2 class="fl-panel__title" id="ut-ln-address">Adressen</h2>
+  <div class="fl-ut-ln-copyrow">
+    <code class="fl-ut-ln-code">{{ url }}</code>
+    <button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ln-copy="{{ url }}" hidden>Kopiera</button>
+  </div>
+  <p class="fl-panel__note">Går till <span class="fl-ut-url">{{ goes_full }}</span> <span class="fl-ut-status fl-ut-status--{{ chip_tone }}">{{ chip_label }}</span></p>
+</section>
+
+<section class="fl-panel" id="qr" aria-labelledby="ut-ln-qr">
+  <h2 class="fl-panel__title" id="ut-ln-qr">QR-kod</h2>
+  <div class="fl-ut-ln-qr">
+    <img class="fl-ut-ln-qr__img" src="{{ qr_svg }}" width="185" height="185" alt="QR-kod som leder till {{ text }}">
+    <div class="fl-ut-ln-qr__text">
+      <p class="fl-panel__text">Skriv ut den på affischer, skyltar och kvitton. Den som skannar den kommer till samma adress, och klicket räknas här.</p>
+      <div class="fl-ut-ln-actions">
+        <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ qr_svg }}?ladda=1" download>Ladda ner SVG</a>
+        <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ qr_png }}?ladda=1" download>Ladda ner PNG</a>
+      </div>
+      <p class="fl-field__help">SVG blir skarp i alla storlekar och passar för tryck. PNG passar i dokument och sociala medier.</p>
+    </div>
+  </div>
+</section>
+
+<form class="fl-form" method="post" action="{% url 'flamingo:app_link' link.pk %}" novalidate>
+  {% csrf_token %}
+  <section class="fl-panel" aria-labelledby="ut-ln-edit">
+    <h2 class="fl-panel__title" id="ut-ln-edit">Ändra länken</h2>
+    {% include "flamingo/app/utskick/_link_fields.html" %}
+    <p class="fl-field__help">Byter du mål går affischer och QR-koder som redan finns till det nya målet. Adressen {{ text }} ändras inte.</p>
+  </section>
+  <div class="fl-form__actions">
+    <button type="submit" class="fl-btn" name="action" value="save">Spara ändringarna</button>
+  </div>
+</form>
+
+<details class="fl-panel fl-ut-ln-delete">
+  <summary class="fl-ut-ln-delete__summary">Ta bort länken</summary>
+  <form method="post" action="{% url 'flamingo:app_link' link.pk %}">
+    {% csrf_token %}
+    <p class="fl-panel__text">Adressen slutar fungera, också på affischer och i QR-koder som redan finns. Det går inte att ångra.</p>
+    <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="delete">Ta bort {{ text }}</button>
+  </form>
+</details>
+{% endblock %}

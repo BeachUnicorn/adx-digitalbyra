@@ -3,7 +3,8 @@
 {% comment %}
 Listor och taggar (README I.1). Kontext från app_views/lists.list_index:
 lists (med size), tags (med size), ny_lista (?ny=1: formuläret Ny lista
-står öppet). Listor fyller kunden själv; kontakter
+står öppet), segments och segments_full (S4: segmenten med senaste
+räkningen, Segment.cached_*). Listor fyller kunden själv; kontakter
 läggs i en lista från Kontakter (markera, Lägg i lista), från kortet eller
 vid importen. Att ta bort en lista eller tagg tar aldrig bort kontakterna.
 {% endcomment %}
@@ -18,6 +19,7 @@ vid importen. Att ta bort en lista eller tagg tar aldrig bort kontakterna.
   </div>
   <div class="fl-app-head__actions">
     <a class="fl-btn fl-btn--sm" href="?ny=1#ny-lista">Ny lista</a>
+    {# --- S4 (segment-byggaren) --- #}{% if not segments_full %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_segment_new' %}">Nytt segment</a>{% endif %}{# --- slut S4 #}
   </div>
 </header>
 {% endblock %}
@@ -61,6 +63,32 @@ vid importen. Att ta bort en lista eller tagg tar aldrig bort kontakterna.
     </form>
   </details>
 </section>
+
+{# --- S4 (segment-byggaren): segmenten, regler som räknas om (I.11) --- #}
+<section class="fl-panel" id="segment" aria-labelledby="kt-segments-title">
+  <h2 class="fl-panel__title" id="kt-segments-title">Segment</h2>
+  {% if segments %}
+  <ul class="fl-list fl-kt-rows">
+    {% for segment in segments %}
+    <li class="fl-list__item">
+      <a class="fl-list__main" href="{% url 'flamingo:app_segment' segment.pk %}">
+        <span class="fl-list__title">{{ segment.name }}</span>
+        <span class="fl-list__meta">Segment · {{ segment.rule_count }} {% if segment.rule_count == 1 %}regel{% else %}regler{% endif %}{% if segment.counted_at %} · {{ segment.cached_sms|tal }} kan få sms · {{ segment.cached_email|tal }} kan få e-post{% endif %}</span>
+      </a>
+      <span class="fl-kt-count">{{ segment.cached_count|tal }} {% if segment.cached_count == 1 %}kontakt{% else %}kontakter{% endif %}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="fl-panel__note">Inga segment än. Ett segment är villkor som räknas om varje gång du använder det, till exempel kunder vars senaste service är äldre än fem månader.</p>
+  {% endif %}
+  {% if segments_full %}
+  <p class="fl-panel__note">Du har {{ segments|length }} segment. Ta bort ett för att skapa ett nytt.</p>
+  {% else %}
+  <div class="fl-panel__actions"><a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_segment_new' %}">Nytt segment</a></div>
+  {% endif %}
+</section>
+{# --- slut S4 #}
 
 <section class="fl-panel" id="taggar" aria-labelledby="kt-tags-title">
   <h2 class="fl-panel__title" id="kt-tags-title">Taggar</h2>

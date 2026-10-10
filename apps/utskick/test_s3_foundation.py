@@ -591,7 +591,8 @@ class AppRouteTests(UtskickFixture, TestCase):
 
     def test_the_health_tab(self):
         keys = [key for key, _name, _label in nav.UTSKICK_TABS]
-        self.assertEqual(keys, ["utskick", "health", "settings"])
+        # S4 lägger Länkar före Leveranshälsa.
+        self.assertEqual(keys, ["utskick", "links", "health", "settings"])
         html = self.client.get(reverse("flamingo:app_utskick_health")).content.decode()
         self.assertIn(reverse("flamingo:app_utskick_health"), html)
         self.assertIn('<summary class="fl-subnav__summary">Utskick: Leveranshälsa</summary>', html)

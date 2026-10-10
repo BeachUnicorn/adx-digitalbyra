@@ -689,6 +689,9 @@ def _audience_choices(account, utskick, search=""):
         "chosen": chosen,
         "lists": lists.order_by("name"),
         "tags": tags.order_by("name"),
+        # --- S4 (segment-byggaren): segmenten, med senaste räkningen ---
+        "segments": account.utskick_segments.order_by("name", "pk"),
+        # --- slut S4
         "kontakter_valda": picked,
         "kontakter_hittade": found,
         "search": search,
@@ -713,7 +716,8 @@ def _step_mottagare(request, account, utskick):
         # Nästa kräver ett urval; Spara utkast, Tillbaka och chipsen sparar ändå
         # (Granska blockerar ett tomt urval).
         forward = (request.POST.get("nasta") or "") in ("", "kanal")
-        if forward and not (aud["lists"] or aud["tags"] or aud["contacts"]):
+        # S4 (segment-byggaren): segmenten räknas som ett urval.
+        if forward and audience.chosen_nothing(aud):
             messages.error(request, EMPTY_AUDIENCE)
             return redirect(_step_url(utskick, "mottagare"))
         return _after_save(request, utskick, "mottagare")
@@ -1795,7 +1799,17 @@ _STEP_VIEWS = {
 # JSON: antal, förhandsvisning och länkkontroll
 # ---------------------------------------------------------------------------
 
-_AUDIENCE_KEYS = ("lists", "tags", "contacts", "exclude_lists", "exclude_tags", "exclude_recent")
+_AUDIENCE_KEYS = (
+    "lists",
+    "tags",
+    "contacts",
+    "exclude_lists",
+    "exclude_tags",
+    "exclude_recent",
+    # S4 (segment-byggaren)
+    "segments",
+    "exclude_segments",
+)
 
 
 @utskick_view
@@ -2684,6 +2698,12 @@ def utskick_report(request, account, pk):
             else None,
         }
     )
+    # --- S4 (rapport-byggaren): tratten, klick per timme, länkarna,
+    # landningssidan, Följ upp och Exportera, mejlens rutor med länkar (I.8) ---
+    from .report import report_context
+
+    context.update(report_context(request, account, utskick, numbers, now))
+    # --- slut S4
     return render_utskick(request, "flamingo/app/utskick/report.html", "utskick", context)
 
 
@@ -2698,6 +2718,21 @@ EMPTY_TEXTS = {
     "forfragan": "Ingen har skickat en förfrågan än.",
     "hoppades-over": "Ingen hoppades över.",
 }
+# --- S4 (rapport-byggaren): de nya vyernas tomma sidor (I.8) ---
+EMPTY_TEXTS.update(
+    {
+        "skickade": "Inget har skickats än.",
+        "klickade-inte": "Alla som fick utskicket har klickat.",
+        "stannade": "Ingen har stannat 30 sekunder eller mer på sidan än.",
+        "studsade": "Inget mejl har studsat.",
+        "klagomal": "Ingen har markerat mejlet som skräppost.",
+        "oppnade": "Inga öppningar än. Öppningar mäts bara hos dem som sagt ja till det.",
+        "besokte": "Ingen har besökt Flamingo-sidan via utskicket än.",
+        "ringde": "Ingen har ringt från Flamingo-sidan än.",
+        "formular": "Ingen har skickat formuläret än.",
+    }
+)
+# --- slut S4
 
 
 def _empty_text(view):
@@ -2711,10 +2746,13 @@ def utskick_recipients(request, account, pk):
     utskick = owned(Utskick, account, pk)
     now = timezone.now()
     view = request.GET.get("visa") or "alla"
-    rows = reports.recipients_for(utskick, view)
+    # --- S4 (rapport-byggaren): kanalen (?kanal=sms|e-post, utan den alla) ---
+    channel = reports.channel_from(request.GET.get("kanal"))
+    rows = reports.recipients_for(utskick, view, channel)
     if rows is None:
         view = "alla"
-        rows = reports.recipients_for(utskick, view)
+        rows = reports.recipients_for(utskick, view, channel)
+    # --- slut S4
     page = Paginator(rows, RECIPIENTS_PER_PAGE).get_page(request.GET.get("sida"))
     items = decorate_recipients(list(page.object_list), now)
     numbers = reports.summary(utskick, now)
@@ -2739,16 +2777,57 @@ def utskick_recipients(request, account, pk):
             "rows": items,
             "page": page,
             "view": view,
-            "view_label": reports.view_label(view),
+            "view_label": reports.view_label(view, utskick),
             "empty_text": _empty_text(view),
             "views": views,
             "numbers": numbers,
             "lists": ContactList.objects.filter(account=account).order_by("name"),
             "with_contacts": rows.exclude(contact=None).count() if page.paginator.count else 0,
-            "default_list_name": f"{utskick.name[:50]}: {reports.view_label(view).lower()}"[:80],
+            "default_list_name": (
+                f"{utskick.name[:50]}: {reports.view_label(view, utskick).lower()}"[:80]
+            ),
         }
     )
+    # --- S4 (rapport-byggaren): kanalens chips och fler vyer (I.8) ---
+    context.update(recipients_s4_context(utskick, view, channel))
+    # --- slut S4
     return render_utskick(request, "flamingo/app/utskick/recipients.html", "utskick", context)
+
+
+# --- S4 (rapport-byggaren): mottagarsidans kanal och vyer (I.8) ---
+
+#: Vyerna som får ett eget chip i S4 (efter S2:s), när de har något att visa.
+S4_VIEW_CHIPS = ("skickade", "klickade-inte", "stannade")
+#: E-postens egna vyer: chips bara när sidan visar e-post.
+EMAIL_VIEW_CHIPS = ("oppnade", "studsade", "klagomal")
+
+
+def recipients_s4_context(utskick, view, channel):
+    """Kanalens chips (Alla kanaler, Sms, E-post) när utskicket har båda,
+    S4:s vyer bland chipsen (e-postens bara när sidan visar e-post) och
+    ?kanal= till sidans länkar och formulär."""
+    from ..models import CHANNEL_EMAIL
+
+    channels = reports.channels_of(utskick)
+    kanal = reports.channel_param(channel)
+    keys = list(S4_VIEW_CHIPS)
+    if channel == CHANNEL_EMAIL or (channel is None and channels == [CHANNEL_EMAIL]):
+        keys += EMAIL_VIEW_CHIPS
+    chips = []
+    if len(channels) > 1:
+        chips = [("", "Alla kanaler")] + [
+            (reports.channel_param(c), reports.CHANNEL_LABELS[c]) for c in channels
+        ]
+    return {
+        "s4_views": [(key, reports.VIEWS[key]) for key in keys],
+        "kanal": kanal,
+        "kanal_query": f"&kanal={kanal}" if kanal else "",
+        "kanal_chips": chips,
+        "show_channel": len(channels) > 1,
+    }
+
+
+# --- slut S4
 
 
 @utskick_view
@@ -2758,12 +2837,16 @@ def utskick_save_list(request, account, pk):
     lista (kontots, annars 400) eller en ny."""
     utskick = owned(Utskick, account, pk)
     view = request.POST.get("visa") or "alla"
-    rows = reports.recipients_for(utskick, view)
+    # --- S4 (rapport-byggaren): kanalen som sidan visade (?kanal=) ---
+    channel = reports.channel_from(request.POST.get("kanal"))
+    rows = reports.recipients_for(utskick, view, channel)
+    query = {"visa": view}
+    if channel:
+        query["kanal"] = reports.channel_param(channel)
     back = redirect(
-        reverse("flamingo:app_utskick_recipients", args=[utskick.pk])
-        + "?"
-        + urlencode({"visa": view})
+        reverse("flamingo:app_utskick_recipients", args=[utskick.pk]) + "?" + urlencode(query)
     )
+    # --- slut S4
     if rows is None:
         return HttpResponseBadRequest("Okänd vy.", content_type="text/plain")
     raw = str(request.POST.get("lista_id") or "").strip()
@@ -2945,8 +3028,25 @@ def utskick_settings(request, account):
         else row.open_tracking,
         "tracking_help": TRACKING_HELP,
         # --- slut S3 ---
+        # --- S4 (länk-byggaren): raden Spårningsskript (I.9, E.6) ---
+        "snippet_row": _snippet_row(account, now),
+        # --- slut S4 ---
     }
     return render_utskick(request, "flamingo/app/utskick/settings.html", "settings", context)
+
+
+# --- S4 (länk-byggaren): raden Spårningsskript i Inställningar (I.9, E.6) ---
+
+
+def _snippet_row(account, now):
+    """Domänerna med skriptet och läget ("exempelror.example · senast sett i
+    går", Installerat eller Inte sett än); sidan är app_utskick_snippet."""
+    from .. import site_snippet
+
+    return site_snippet.summary(account, now)
+
+
+# --- slut S4 ---
 
 
 # --- S3 (redigerar-byggaren): e-postens rader i Inställningar (I.9) ---

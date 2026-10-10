@@ -3,12 +3,14 @@
 {% comment %}
 Guidens steg 1: Mottagare (README I.8). Kontext från
 app_views/utskick._step_mottagare: utskick, wizard, chosen (urvalet ur
-audience.stored), lists och tags (med n medlemmar), kontakter_valda,
+audience.stored), lists och tags (med n medlemmar), segments (S4, med
+senaste räkningen; utskicket räknar om), kontakter_valda,
 kontakter_hittade (sökningen ?sok=), search, recent_days, counted
 (audience.count), count_text, weekly_text, empty.
 
-Fälten heter som audience.clean läser dem: lists, tags, contacts,
-exclude_lists, exclude_tags och exclude_recent (14 dagar). Sök-knappen
+Fälten heter som audience.clean läser dem: lists, tags, segments,
+contacts, exclude_lists, exclude_tags, exclude_segments och exclude_recent
+(14 dagar). Sök-knappen
 sparar urvalet och öppnar sidan igen med träffarna (inget försvinner, inget
 skript behövs). flamingo-app-utskick.js räknar om rutan till höger medan
 kunden kryssar (data-ut-count, app_utskick_count med det osparade urvalet).
@@ -41,9 +43,17 @@ kunden kryssar (data-ut-count, app_utskick_count med det osparade urvalet).
           {% for tag in tags %}<label class="fl-check"><input type="checkbox" name="tags" value="{{ tag.pk }}"{% if tag.pk in chosen.tags %} checked{% endif %}><span>{{ tag.name }} <span class="fl-ut-muted">{{ tag.n|tal }}</span></span></label>{% endfor %}
         </div>
         {% endif %}
-        {% if not lists and not tags %}
-        <p class="fl-field__help">Du har inga listor eller taggar än. Skapa en under <a href="{% url 'flamingo:app_lists' %}">Kontakter, Listor</a>, eller välj enstaka kontakter nedanför.</p>
+        {# --- S4 (segment-byggaren): segmenten räknas om när utskicket skickas --- #}
+        {% if segments %}
+        <p class="fl-ut-group__title">Segment</p>
+        <div class="fl-ut-picks">
+          {% for segment in segments %}<label class="fl-check"><input type="checkbox" name="segments" value="{{ segment.pk }}"{% if segment.pk in chosen.segments %} checked{% endif %}><span>{{ segment.name }} <span class="fl-ut-muted">{{ segment.cached_count|tal }}</span></span></label>{% endfor %}
+        </div>
         {% endif %}
+        {% if not lists and not tags and not segments %}
+        <p class="fl-field__help">Du har inga listor, taggar eller segment än. Skapa en under <a href="{% url 'flamingo:app_lists' %}">Kontakter, Listor</a>, eller välj enstaka kontakter nedanför.</p>
+        {% endif %}
+        {# --- slut S4 #}
       </fieldset>
 
       <fieldset class="fl-field fl-ut-group" id="ut-kontakter">
@@ -77,6 +87,7 @@ kunden kryssar (data-ut-count, app_utskick_count med det osparade urvalet).
           <label class="fl-check"><input type="checkbox" name="exclude_recent" value="1"{% if chosen.exclude.recent_days %} checked{% endif %}><span>Fick ett utskick senaste {{ recent_days }} dagarna</span></label>
           {% for lista in lists %}<label class="fl-check"><input type="checkbox" name="exclude_lists" value="{{ lista.pk }}"{% if lista.pk in chosen.exclude.lists %} checked{% endif %}><span>Listan {{ lista.name }}</span></label>{% endfor %}
           {% for tag in tags %}<label class="fl-check"><input type="checkbox" name="exclude_tags" value="{{ tag.pk }}"{% if tag.pk in chosen.exclude.tags %} checked{% endif %}><span>Taggen {{ tag.name }}</span></label>{% endfor %}
+          {# --- S4 (segment-byggaren) --- #}{% for segment in segments %}<label class="fl-check"><input type="checkbox" name="exclude_segments" value="{{ segment.pk }}"{% if segment.pk in chosen.exclude.segments %} checked{% endif %}><span>Segmentet {{ segment.name }}</span></label>{% endfor %}{# --- slut S4 #}
         </div>
       </fieldset>
     </div>

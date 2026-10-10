@@ -1,12 +1,11 @@
 # apps/utskick: Flamingo 2.0 (Kontakter och Utskick)
 
-Architecture and build plan. Status 2026-10-10: **S1 and S2 are built, committed and deployed**
-(see "S1 as built" and "S2 as built"). **S3 is built and committed (`f86adf4`), not deployed**
-(none of the J S3 checklist steps has run, and the S3 AWS resources do not exist yet; see "S3 as
-built"). "After S3" lists Giovanni's three changes on top of it (branding on the recipient pages,
-instant replies, empty fields in the Brev editor), built and tested locally, not committed. S4 to
-S6 are not built. This file is the contract for the build; update it when a stage ships or a
-decision changes. Revision 2 (2026-10-09) folds in the security, ops and product reviews; what
+Architecture and build plan. Status 2026-10-10: **S1, S2, S3 and "After S3" (Giovanni's three
+changes: branding on the recipient pages, instant replies, empty fields in the Brev editor) are
+built, committed and deployed** (see "S1 as built", "S2 as built", "S3 as built" and "After S3").
+**S4 is built and tested locally, not committed and not deployed** (see "S4 as built" and its
+checklist). S5 and S6 are not built. This file is the contract for the build; update it when a
+stage ships or a decision changes. Revision 2 (2026-10-09) folds in the security, ops and product reviews; what
 was not taken over is listed in section L.
 
 Inputs: `mockups/flamingo-utskick.html` (all views, flowcharts, data model, "Senare", "Medvetet
@@ -416,7 +415,7 @@ Checklist notes for the lead (in addition to J S2):
   the first page, and the 46elks part price against the 5 200 fallback.
 - Before a real customer: the ADX privacy page slug the link-host home page links to.
 
-## S3 as built (2026-10-10, not committed, not deployed)
+## S3 as built (2026-10-10, committed and deployed)
 
 Everything in J S3 exists in code; the AWS side (checklist steps 1 to 3) does not, and every S3
 path works without it: empty `UTSKICK_SQS_*` and `UTSKICK_SES_INBOUND_BUCKET` mean off, and no
@@ -643,7 +642,7 @@ Checklist notes for the lead (in addition to J S3):
   and the 375 px pass over the editor, Leveranshälsa, Avsändare och svar, the settings rows and
   the `klick.adx.se` pages in the real browser.
 
-### After S3: Giovanni's three changes (2026-10-10, not committed, not deployed)
+### After S3: Giovanni's three changes (2026-10-10, committed and deployed)
 
 - **Branding on the recipient pages** (`branding.py`, `templates/utskick/public/_base.html`,
   which `links/_base.html` extends, `utskick-public.css`). Every page a recipient can land on
@@ -706,6 +705,246 @@ Checklist notes for the lead (in addition to J S3):
   `display:inline-block`. The page
   builder's `pb_empty`, `flamingo-pb.css` and profile are unchanged. Tests:
   `test_s3_placeholders.py`.
+
+## S4 as built (2026-10-10, not committed, not deployed)
+
+Everything in J S4 exists in code. Nothing in S4 needs AWS, 46elks or DNS: the only server-side
+steps are `uv sync` (segno 1.6.6) and the migrations `utskick.0004` and `utskick.0005`, all run by
+`./deploy`. Built
+by a foundation agent, three builders (A segments and the audience, B the full report, the
+timeline and the contact-card sms, C links, QR codes and the own-site snippet) and an
+integration pass. `S4-HANDOFF.md` has the file ownership, the helper APIs and the per-builder
+notes; delete it when S4 ships.
+
+What exists, by layer:
+
+- **Data**: `utskick.0004_segment_och_skript`: `Segment` and `SiteSnippet` (B.4), on
+  `TrackedLink` the check `utskick_link_named_slug` (a link without utskick has a slug), the
+  partial index `utskick_link_named` for the Länkar list and the property `is_named`,
+  `Event.SITE_VISIT`. The migration ends with `dbfk.apply` for the new FKs and adds no column to
+  an older table (B.0). `utskick.0005_gamla_adresser` (review fix): `OldPublicSlug` (account
+  `SET_NULL` also in the database, slug unique), a public address an account had before. `segno>=1.6` in `pyproject.toml`; `qr.py` makes SVG and PNG (always a
+  full QR code, level M, quiet zone 4). No new settings.
+- **Segments** (`segments.py`, `app_views/segments.py`, `kontakter/segment.html` with
+  `_segment_row.html`, `_segment_opval.html`, `_segment_group.html`, `flamingo-app-segment.css`
+  and `.js`): the rule vocabulary is the module docstring. The compiler always starts from
+  `Contact.objects.filter(account=...)`, every subquery carries the account, ids from a body go
+  through `owned_ids` (a foreign list, tag, utskick or segment id is 400 in the builder, the
+  count, Mottagare, `app_utskick_count` and the contact filter). 20 rules, 5 groups (ELLER), 50
+  ids per rule, 100 segments per account. The live count ("388 kan få sms · 301 kan få
+  e-post") runs about 0.4 s after the last change, 60 per minute per account (Counter
+  `segment_count`), skips rules not filled in with a note and shows the segment in plain text.
+  Every button works without JavaScript. "Öppnade" is locked with the I.11 text until open
+  tracking has been on. Wired into `audience.py` (include and exclude), so Mottagare, Granska
+  and the freeze count segments like lists; Listor lists them ("Segment · 3 regler", the cached
+  count); the contact list has a Segment filter; the card has segment chips;
+  `retention.daily` recounts the oldest counts.
+- **Report** (`reports.py` S4 section, `app_views/report.py`, `utskick/_report_full.html`,
+  `utskick/export.html`, `flamingo-app-utskick-report.css`): one funnel per channel
+  (Skickade, Levererade, Klickade, Stannade 30 s+, Förfrågan), clicks per hour as a
+  server-rendered SVG (from the start hour, at most 48 hours, at least 12 shown), the per-link
+  table, "Vad de gjorde på sidan" (median time, share on mobile, visited, called, form), and every
+  number opens its recipient list counted with the same condition (`reports.view_q`). The
+  recipient list has the new views and Alla kanaler / Sms / E-post chips. "Följ upp de som inte
+  klickade" creates the segment through `segments.create_follow_up` (or reuses one with exactly
+  `follow_up_rules`) and a draft "Uppföljning: <namn>" with that segment, then opens Mottagare;
+  a second press opens the same draft. Export: a confirmation page, the CSV only on POST,
+  `safe_cell`, deleted contacts without name or address, `ExportLog` with the actor (staff marked
+  as ADX), the contacts export's 10-a-day limit.
+- **Contact card** (`timeline.py` S4 section, `contact_sms.py`, `app_views/contact_sms.py`,
+  `checks.contact_sms_checks`): "Skicka sms" with the thread counter and every send-time check
+  (suppression, window, cost cap, breaker, Switchboard, blocked account, SmsAccount, reply-number
+  collision over 30 days); staff tick "Jag skickar det här som ADX åt <företaget>." and the
+  button reads "Skicka som ADX"; the demo never sends; a double submit sends once; the reply lands
+  in the same Inkorg thread. The timeline shows the customer's own sms to the contact and
+  "Besökte webbplatsen" (and "Gjorde på webbplatsen: <mål>" for `adxFlamingo.track`);
+  "Svarar oftast på sms, kvällstid" from 3 replies.
+- **Links, QR and the snippet** (`link_views.py` S4 section, `app_views/links.py`,
+  `app_views/snippet.py`, `site_snippet.py`, `static/utskick/s.js`, `utskick/links.html`,
+  `link_form.html`, `_link_fields.html`, `link.html`, `snippet.html`,
+  `flamingo-app-utskick-links.css`, `flamingo-app-links.js`): named links
+  `klick.adx.se/<public_slug>/<slug>` (a Flamingo page gets `ut`, an external address is checked
+  again at every click; clicks with channel `named` and no recipient; bots counted only; HEAD
+  saves nothing; 20 rows per visitor and hour; a lead through the link is credited to the link),
+  Länkar with named links (chips, live clicks and leads, Kopiera, QR) and one row per utskick for
+  the personal links, Ny länk and a link's page (description and target editable, never the
+  slug; delete), QR codes for named links and the signup page (`?ladda=1` downloads). The script
+  is 1.9 kB, sets no cookie and stores nothing, does nothing without `adx=` in the address, reads
+  it once, removes it and reports to `/v`. The file route serves the version with SRI, a one-year
+  cache and CORS; the beacon checks the Origin (the domain or a subdomain), the key and the
+  account of the click token, has a size limit and a per-visitor limit (Counter `site_beacon`),
+  always answers 204 and ignores the demo. `adx=` is appended only to links whose host has a
+  snippet that has been seen (sms, email and named links alike). Spårningsskript (at most 5
+  domains, a new domain goes to ADX's host review), the settings row, and a line on the
+  generated privacy page naming the snippet domains.
+- **Integration** (this pass): `klick.adx.se/Exempelror/Vinter` gets a 301 to the lower-case
+  address (`link_views.named_folded`, a second pattern after `named` in `config/urls_links.py`;
+  never for the link hosts' own first segments or the reserved prefixes, and only when the named
+  link exists, so `/S/Ab12Cd` is still the plain 404); the customer card says how many named links
+  hang on the address and refuses a new `public_slug` without the box "Byt adressen ändå. Den gamla
+  följer med kunden." (`manage_views.named_links_line`, `slug_change_refused`; the old address is
+  kept as `OldPublicSlug`, see "Review fixes" below);
+  the Inkorg channel of a lead through a named link is "Länk: <beskrivning>"
+  (`apps/flamingo/app_views/inbox.channel`); such leads are not Google's on the overview
+  (`overview.numbers_for` counts them under "Varav via utskick", like utskick leads, D11); the
+  S4 Counter scopes are in the `limits.py` docstring; `test_s3_branding` follows Giovanni's
+  centred logo (`3c86d8a`).
+- **Demo**: `demo.seed` adds the segment "Service i höst" (the J S4 acceptance rules, through
+  `segments.clean`; Sofia and Brf Exempelgården match, so the field Senaste service is set on
+  them), the follow-up segment "Klickade inte: Spolning inför vintern" (through
+  `segments.create_follow_up`), the named links "Affisch i verkstaden" (`/vinter`, to the
+  Flamingo page, four clicks and a lead from Lisa Ekholm through `attribution.attach`) and "Länk i
+  Instagram" (`/instagram`, to `https://exempelror.example/vinterservice/`, two clicks with
+  visits), the snippet on `exempelror.example` (seen at the Instagram click yesterday), and in
+  Höstbrevet a text link to the same page with Lena's click and the visit the snippet reported
+  (`attribution.record_site_visit`), so her card shows "Besökte webbplatsen". `demo.reset` also
+  removes the account's segments, snippets and named links. Nothing reaches the beacon, 46elks or
+  SES.
+- **Tests**: `test_s4_{foundation,segments,report,contact_sms,links,snippet,flow}.py`, plus the S4
+  extensions in `apps/flamingo/test_demo.py` (counts, the page walk over every S4 page incl. the
+  QR codes, the sms box on every card and the export confirmation, `DemoUtskickS4Tests`),
+  `test_s1_guards.py` (the S4 templates are walked), `apps/common/test_sentry.py` (the S4 pages
+  and the klick host are not traced, `adx=` and named links are masked), `test_s1_views.py`,
+  `test_s2_ui.py`, `test_s3_foundation.py`. `test_s4_flow.py` walks the acceptance with the real
+  views, the tick and apps/sms: the segment builder (form and live count), Mottagare with the
+  segment and with an excluded segment, Granska, the freeze (the same count all the way); the
+  report's funnel and link table against their lists and "Följ upp de som inte klickade"; Ny
+  länk, the click (also with capitals), the landing page with `ut`, the lead with the trail in
+  the Inkorg, the link page, the rollup and the overview; Spårningsskript, the test link that
+  makes it Installerat, `adx=` only after that, the beacon from a subdomain, the visit on the card
+  and in the segment rule, refused Origins and another account's snippet; the customer card's
+  slug guard.
+
+Deviations from this contract, decided while building S4 (the builders' notes in
+`S4-HANDOFF.md` have the detail):
+
+- **Data.** Named links keep `kind` lp or external, never `named`: every rule keys on the kind
+  (`destination_ok` re-checks only `external`, `build_destination` adds `ut` only for `lp`), so a
+  named link is `utskick IS NULL` plus a slug (`TrackedLink.is_named`); clicks on them use
+  `Click.Channel.NAMED`. No new settings: the `adx` parameter is `tokens.adx_token(click.pk)`, the
+  shape of `ut` with its own signature purpose `adx` (review fix: it was the `ut` token itself).
+- **Snippet domains are not free from review** (E.8 lists them). The customer types the domain
+  and the beacon's Origin can be forged outside a browser, so a snippet domain proves nothing:
+  `links.own_domains` reads only `Customer.website` and verified sender domains (also for
+  information utskick, H.5). The `SiteSnippet` branch was dead code before 0004, so nothing that
+  ran before changes. **Giovanni to confirm.**
+- **Reserved public slugs.** `a`, `b`, `c`, `m`, `o`, `p`, `s`, `v`, `w` join
+  `RESERVED_PUBLIC_SLUGS`, and a slug may not start with `mcp`, `authorize`, `token`, `register`
+  or `revoke` (nginx and `asgi_app` 404 every link-host path that merely starts with those words);
+  `suggest_public_slug` puts `kund-` in front. A tighter nginx and ASGI match was not done (it
+  changes the MCP routing on adx.se).
+- **Routes.** The account part of a named link allows `_` (as `validate_public_slug` does);
+  `app_segment_count` is `kontakter/segment/antal/` without a pk (it counts an unsaved segment)
+  and takes JSON `{"rules"}` or the form fields; an extra `app_link` page for a named link
+  (I.11's "Rapport"); the QR routes take the format (`qr.svg`, `qr.png`); follow-up and export
+  live in `app_views/report.py`, the card sms in `app_views/contact_sms.py`. Old script versions
+  keep loading from `static/utskick/s.<ver>.js` when their own hash is that version: **copy the
+  old `s.js` there whenever it changes.**
+- **Segments.** Wider rule set: `contact:<field>` rules for the contact's own fields, consent as
+  "kan få erbjudanden" (eligible) or not, date fields also "inom kommande". The form picks one
+  value per rule (several values are an ELLER group; the stored format still holds lists). "Kan
+  få" uses the Kontakter header's check (consent and suppression); the weekly cap and the allowed
+  countries apply only in the utskick. A segment used by an utskick that is not sent or cancelled
+  cannot be deleted. A saved segment whose list or tag is gone is counted as stored and the row is
+  marked (no 400).
+- **Report.** The recipient list shows all channels by default (S2 showed sms only, so an
+  email-only utskick's Förfrågningar tile opened an empty list). The funnel's and the link
+  table's Förfrågan count recipients with a lead, not leads, so the number equals its list (the
+  S2 tile Förfrågningar still counts leads). After retention the funnel comes from `stats`
+  without links, the chart is gone, the link table shows the rolled-up sums, and Följ upp and
+  Exportera are hidden. The SVG numbers are strings with a dot (the Swedish locale would render a
+  comma).
+- **Card sms.** No consent check and no weekly cap (it is not marketing); a suppression always
+  stops it. A number another customer texted from the reply number in the last 30 days is refused
+  when the sms is sent (the routing window: a reply would be held as ambiguous for both
+  customers); the text never mentions another customer and the check never runs on a GET. A new thread is
+  kind `direct` and its Inkorg lead starts "Klar" without `Lead.contact`, so the customer's own
+  sms is never "1 förfrågan" on the card.
+- **Links and the snippet.** The first `last_seen_at` comes from a test link on the
+  Spårningsskript page (`https://<domän>/?adx=<install token>`, the shape of `ut` with its own
+  signature purpose `adxsite`, never a click). The beacon adds `"v": 1` for the landing and
+  `"e"` for `adxFlamingo.track(namn)` (a `site_visit` event with `"mal"`). A site that sends
+  `Referrer-Policy: no-referrer` makes the browser send `Origin: null`, and its beacons are
+  ignored (not worked around). The script is served as `text/javascript`. The install text says
+  "Uteslut parametern adx ..." (imperative). Named links can be deleted, at most 200 per account;
+  their numbers on Länkar are live (click rows and leads), and `links.rollup` also counts leads
+  whose `attribution.channel` is `named`. `links.snippet_tag` is escaped as text on the settings
+  page (it returned a safe string that rendered a live tag).
+- **Integration.** The capitals route answers 301 only for a named link that exists (else the
+  same 404, without a hop). Changing `public_slug` keeps the old address as an alias of the same
+  account (`OldPublicSlug`, review fix); the card still warns and needs the box. A lead through a named link counts under "Varav via utskick" on the overview and is never
+  Google's; its owner sms goes at once like any form lead (only utskick leads are batched with the
+  replies). The demo's acceptance segment uses Sofia and the housing association, since every
+  other demo customer with a service date has a lead in the last 30 days.
+
+Review fixes (2026-10-10, security, correctness and UX reviews of the S4 working tree):
+
+- **Old public addresses** (`OldPublicSlug`, `utskick.0005`). `customer_update` keeps the old
+  `public_slug` for the account (`access.retire_public_slug`); `validate_public_slug` and
+  `suggest_public_slug` treat another account's old address as taken (also a deleted account's:
+  the row stays with `account` null); `named`, `named_folded`, the signup, thanks and privacy pages
+  try the old address after the current one (`access.account_for_public_slug`), so printed posters
+  and QR codes keep reaching the same customer. An account may take back its own old address (the
+  row goes). `demo._settings` skips another account's old address.
+- **`adx` is its own token** (`tokens.adx_token` / `read_adx`, purpose `adx`): `snippet_beacon`
+  accepts only it (or the install token), a landing page's `ut` is never a beacon token and the
+  reverse. `adx` is in `links.STRIP_PARAMS` (a pasted recipient's `adx` would otherwise follow every
+  visit without a saved click). `ut` is not stripped: it only means something on Flamingo pages, and
+  another site may have its own `ut` parameter.
+- **Beacon**: `attribution.record_beacon` catches `OverflowError` (`"s": 1e999`, `Infinity`, `"inf"`
+  also on the S2 landing-page beacon), and `snippet_beacon` answers 204 whatever the body holds.
+- **Card sms**: the reply-number collision runs only on the POST (`contact_sms_checks(...,
+  sending=True)`), says "Sms från kortet går inte till numret just nu, så sms:et skickades inte."
+  and logs the reason with pks. The demo gets the form with "Demokontot skickar aldrig." (the POST
+  refuses it). The cost cap says how to lift it ("Höj taket under Utskick, Inställningar." when
+  `customer_manages_api`, else "Be ADX höja taket.").
+- **"Svarar oftast"** skips STOPP, START and unsubscribe in Python (the inbound's keyword, else
+  `inbound.stop.classify` on the kept body, so it also holds after the inbound rows are purged); the
+  SQL exclude dropped every real reply.
+- **Segments**: `consent.eligible_q(channel, purpose)` is the eligibility as a condition on the
+  contact; "Kan få erbjudanden" and `segments.count` use it (one query, no account-wide subquery
+  per segment in `for_contact`). "Fick X" (`got_utskick in`) never includes a contact who reported X
+  as spam (a complaint suppresses email only, and the follow-up would reach them by sms);
+  `reports.follow_up_count` agrees. "Fick inte X" does not include them either.
+- **Segment builder**: the live count shows its 400 and 429 notes, writes "-" instead of stale
+  numbers and retries once after a 429; every row shows "Villkor N" (a CSS counter, the same
+  numbers as the notes); "1 kontakt", also while counting (final verification: the word after the
+  number stayed as the page drew it, so a live 1 read "1 kontakter"; now `data-sg-unit`).
+- **Report**: an utskick without links has no Klickade, Stannade, chart or "Följ upp de som inte
+  klickade"; the funnel says "Procenten räknas av Skickade." (and " av skickade" for screen
+  readers); funnel numbers look like links; the chart bars are violet with the peak in ink, the
+  sentence under the chart is visible, the axis has a middle mark.
+- **Länkar**: "+ N" counts recipients, not codes; an email-only utskick reads "klick.adx.se/m/..."
+  and "personlig länk i mejlet till N mottagare"; cut destinations end in "..."; a link's page shows
+  the whole target. Copy: "Lägg till fler webbplatser", "skapas automatiskt", "ADX:s godkännande",
+  "Ladda ner". Spårningsskript documents `adxFlamingo.track('bokning')` (same page only) and has a
+  "Står det Inte sett än" box (a redirect that drops `?adx=`, `Referrer-Policy` no-referrer or
+  same-origin, CSP). The overview says "Varav via utskick och dina länkar" when named-link leads
+  are counted. The generated privacy page mentions goals ("om du gjorde något som webbplatsen
+  markerar, till exempel en bokning").
+
+Checklist for the lead (in addition to J S4):
+
+- After an automatic rollback to S3 code: pause scheduled utskick whose audience includes or
+  excludes a segment. The S3 `audience.stored()` drops `segments`, so such an utskick would freeze
+  without its exclusion, or with 0 recipients when it only had a segment.
+
+- Before deploy: no production `UtskickSettings.public_slug` may be one of the reserved letters
+  or start with a reserved prefix (expected none); read-only query, ask before running anything
+  on the box.
+- Giovanni: confirm "snippet domains are not free from review" above, and that "Fick X" (and so
+  "Följ upp de som inte klickade") leaves out contacts who reported X as spam.
+- J S4: ADX's own privacy policy line for the snippet (cookieless, the `adx` parameter, only
+  visits from a link, and goals marked with `adxFlamingo.track`, for example a booking); ask
+  Giovanni before changing the published page. The generated fallback
+  `/utskick/<public_slug>/integritet/` already names the snippet domains.
+- The 375 px pass in the real browser, logged in, over the segment builder, Listor, the full
+  report, the recipient list with the channel chips, the export confirmation, Länkar, Ny länk, a
+  link's page, Spårningsskript, the contact card with chips, "Svarar oftast" and the sms box, and
+  the customer card's slug warning. The builders and the integration checked server-rendered
+  pages at 375 px (no sideways overflow), not a logged-in session.
+- Acceptance on a real test site: install the snippet on a page you own, open the test link
+  (Installerat), then a klick link from a test mail, and see the visit on the contact card.
 
 ---
 
@@ -2100,8 +2339,9 @@ response sets a cookie.
 | `^w/(?P<token>...)$` | `web_view` ("Visa i webbläsaren") | klick | S3 |
 | `^o/(?P<token>...)\.gif$` | `open_pixel` | klick | S3 |
 | `^c/(?P<token>...)\.ics$` | `calendar` (event block) | klick | S3 |
-| `^(?P<account>[a-z0-9-]+)/(?P<slug>[a-z0-9-]+)$` | `named` | klick | S4 |
 | `^s\.(?P<ver>[0-9a-f]{8})\.js$`, `^v$` | `snippet`, `snippet_beacon` | klick | S4 |
+| `^(?P<account>[a-z0-9_-]{1,40})/(?P<slug>[a-z0-9-]{1,40})$` | `named` | klick | S4 |
+| the same with capitals (`[A-Za-z0-9_-]`), after `named` | `named_folded` (301 to lower case) | klick | S4 as built |
 
 ### E.2 Codes and tokens
 
@@ -2281,10 +2521,10 @@ adds the absolute check and refuses IP literals, ports other than 80 and 443, us
 (`user@host`), known URL shorteners (bit.ly, tinyurl.com, t.co, goo.gl, ow.ly, is.gd, buff.ly,
 rebrand.ly, cutt.ly, shorturl.at), and the link hosts themselves. gclid/gbraid/wbraid are stripped.
 
-Hosts allowed without review: the account's verified sender domains, its snippet domains, the
-website in ADX's customer register (`Customer.website`, which only staff edit; never
-`FlamingoAccount.website_url`, which the customer types in onboarding before anything is fetched),
-and `links.GLOBAL_HOSTS` (google.com/maps, maps.app.goo.gl, g.page, search.google.com,
+Hosts allowed without review: the account's verified sender domains, its snippet domains (not
+as built, see "S4 as built"; pending Giovanni), the website in ADX's customer register
+(`Customer.website`, which only staff edit; never `FlamingoAccount.website_url`, which the
+customer types in onboarding before anything is fetched), and `links.GLOBAL_HOSTS` (google.com/maps, maps.app.goo.gl, g.page, search.google.com,
 facebook.com, instagram.com, linkedin.com, youtube.com, tiktok.com, reco.se, each with
 subdomains). A public suffix or shared host (`links.SHARED_HOSTS`: co.uk, org.se, github.io and
 the like; `PATH_TENANT_HOSTS`: sites.google.com, facebook.com, linktr.ee and the like) is never
@@ -2864,7 +3104,7 @@ a dict of handlers (`onboarding._BUSINESS_ACTIONS` pattern).
 | Inställningar för utskick | `utskick/installningar/` | `app_utskick_settings` | `utskick/settings.html` | | S2 (rows per stage, I.9) |
 | Egen domän | `utskick/installningar/doman/` | `app_utskick_domain` | `utskick/domain.html` | | S3 |
 | Spårningsskript | `utskick/installningar/skript/` | `app_utskick_snippet` | `utskick/snippet.html` | | S4 |
-| Länkar | `utskick/lankar/`, `lankar/ny/`, `lankar/<pk>/qr.svg`, `qr.png` | `app_links`, `app_link_new`, `app_link_qr` | `utskick/links.html` | | S4 |
+| Länkar | `utskick/lankar/`, `lankar/ny/`, `lankar/<pk>/` (S4 as built), `lankar/<pk>/qr.svg`, `qr.png` | `app_links`, `app_link_new`, `app_link`, `app_link_qr` | `utskick/links.html`, `link_form.html`, `link.html` | `flamingo-app-links.js` (Kopiera) | S4 |
 | Automatiska flöden | `utskick/floden/`, `floden/ny/`, `floden/<pk>/`, `floden/<pk>/lage/` | `app_flows`, `app_flow_new`, `app_flow`, `app_flow_state` | `utskick/flows.html`, `utskick/flow.html` | `flamingo-app-flows.js` | S5 |
 | API-nycklar | `utskick/installningar/api/` | `app_utskick_api` | in `settings.html#api` | | S5 |
 | Inkorgen | existing `inkorg/`, `inkorg/<pk>/`, new `inkorg/<pk>/svara/`, `inkorg/<pk>/avregistrera/` | `app_inbox`, `app_lead`, `app_lead_reply`, `app_lead_unsubscribe` | existing + `utskick/_thread.html` | `flamingo-app-utskick.js` (counter) | S2 |
@@ -3600,7 +3840,7 @@ reports a visit from a klick link.
 
 ### S5: Automated flows and API events
 
-Models: `utskick.0005` (Flow, FlowStep, FlowRun, UtskickApiKey, Recipient.flow_run with
+Models: `utskick.0006` (`0005` is S4's `OldPublicSlug`; Flow, FlowStep, FlowRun, UtskickApiKey, Recipient.flow_run with
 `db_default` null, the flow-run recipient constraint, Event.idempotency_key constraint). Create:
 `flows/engine.py` (tick phase 7: wake due runs with skip_locked, execute one step per run per tick;
 send steps create recipients with `flow_run` on the step's hidden Utskick and reuse the sms/email

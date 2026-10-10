@@ -40,6 +40,11 @@ på. Ingenting här mejlar kunden.
       <div class="m-field"><label for="ut-name">Företagsnamn i utskick (kunden ser det men kan inte ändra det)</label><input id="ut-name" name="display_name" value="{{ ut.display_name }}" maxlength="80" class="tv-input" autocomplete="off"></div>
       <div class="m-field"><label for="ut-slug">Adress för anmälan på adx.se/utskick/</label><input id="ut-slug" name="public_slug" value="{{ ut.suggested_slug }}" maxlength="40" pattern="[a-z0-9\-]+" class="tv-input" autocomplete="off"></div>
     </div>
+    {% comment %}S4 (integrationen): adressen bär de namngivna länkarna (klick.adx.se/<adress>/<slug>), manage_views.named_links_line.{% endcomment %}
+    {% if ut.named_line %}
+    <p class="tv-prop__note">{{ ut.named_line }}</p>
+    <label class="tv-checklabel tv-checklabel--box"><input type="checkbox" name="slug_confirm"> Byt adressen ändå. Den gamla följer med kunden.</label>
+    {% endif %}
     <div class="tv-form__pair">
       <div class="m-field"><label for="ut-limit">Högsta antal kontakter</label><input id="ut-limit" type="number" name="contact_limit" min="1" max="1000000" value="{{ ut.settings.contact_limit|default:25000 }}" class="tv-input"></div>
       <div class="m-field"><label for="ut-cap">Mejl per dag (0 = upptrappningen)</label><input id="ut-cap" type="number" name="email_daily_cap" min="0" max="1000000" value="{{ ut.settings.email_daily_cap|default:0 }}" class="tv-input"></div>
