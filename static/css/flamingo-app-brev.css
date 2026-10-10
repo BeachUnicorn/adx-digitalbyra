@@ -216,16 +216,27 @@
 [data-brev-canvas] [data-pb-field][contenteditable]:focus,
 [data-brev-canvas] [data-pb-field][contenteditable]:focus-visible{outline:2px dashed rgba(107,78,240,.75);outline-offset:4px;caret-color:#6B4EF0}
 [data-brev-canvas] [data-pb-multi]{white-space:pre-wrap}
-[data-brev-canvas] [data-pb-field][contenteditable]:empty{display:inline-block;min-width:4ch}
-[data-brev-canvas] [data-pb-field][contenteditable]:empty::before{content:attr(data-pb-placeholder);color:#9AA0A6;pointer-events:none}
+/* Ett tomt fält visar sin etikett. Ett block-element (rubrik, stycke) står
+   kvar på sin egen rad med samma inline-stil som ifyllt (brev_tags
+   pb_empty_attrs); bara ett inline-element (knappens text, rabattkoden) blir
+   inline-block för att gå att klicka i. :where håller specificiteten, så att
+   tomma fält i ett block som inte är valt förblir dolda (data-pb-blank). */
+[data-brev-canvas] :where(span,a,strong,b,em)[data-pb-field][contenteditable]:empty{display:inline-block;min-width:4ch}
+[data-brev-canvas] [data-pb-field][contenteditable]:empty::before,
+[data-brev-canvas] [data-pb-panel-field]:empty::before{content:attr(data-pb-placeholder);color:#9AA0A6;pointer-events:none}
+/* Rubrik och bild: en tom överrubrik som syns står där rubriken annars har
+   sitt avstånd till bilden (som när överrubriken är ifylld). */
+[data-brev-canvas] .pb-is-sel [data-pb-blank][data-pb-field="kicker"] + [data-pb-field="title"]{margin-top:0 !important}
 [data-brev-canvas] [data-pb-was="button"]{cursor:default}
 
 /* Fält som ändras i panelen Fält: länkar, datum, text med fetstil. */
 [data-brev-canvas] [data-pb-panel-field]{cursor:pointer;outline:1px dashed transparent;outline-offset:3px}
 [data-brev-canvas] [data-pb-panel-field]:hover{outline-color:rgba(107,78,240,.6)}
 
-/* Tomma fält syns bara i det valda blocket. */
-[data-brev-canvas] [data-pb-block]:not(.pb-is-sel) [data-pb-blank]{display:none}
+/* Tomma fält syns bara i det valda blocket. !important: ett tomt fält har
+   fältets inline-stil (brev_tags pb_empty_attrs), och rabattkodens stil har
+   display:inline-block. */
+[data-brev-canvas] [data-pb-block]:not(.pb-is-sel) [data-pb-blank]{display:none !important}
 [data-brev-canvas] [data-pb-blank][data-pb-list]{display:block;min-height:36px;padding:8px 14px;border:1.5px dashed #C9BFFF;border-radius:10px;color:#6B4EF0;font-size:16px;cursor:pointer}
 [data-brev-canvas] [data-pb-blank][data-pb-list]::before{content:"+ " attr(data-pb-placeholder)}
 [data-brev-canvas] [data-pb-list]{cursor:pointer}

@@ -258,11 +258,11 @@ def brev_styles(palette):
         # Sidhuvudet
         "pre": f"{reset}margin-bottom:16px;" + _font(400, 12, 1.4),
         "pre_link": f"color:{HDR_MUTED};text-decoration:underline;",
-        "logo": "display:block;height:40px;width:auto;max-width:220px;border:0;outline:none;",
-        "logo_center": (
-            "display:block;height:40px;width:auto;max-width:220px;border:0;outline:none;"
-            "margin:0 auto;"
-        ),
+        # Loggans mått sätter _header.html efter (width:Wpx;height:Hpx; som
+        # attributen, render._logo_info): en fast höjd med max-width klämde
+        # ihop en bred logga.
+        "logo": "display:block;border:0;outline:none;",
+        "logo_center": "display:block;border:0;outline:none;margin:0 auto;",
         "logo_text": _font(800, 20, 1) + f"color:{TOKENS['hdr-ink']};letter-spacing:-.01em;",
         # Text
         "kick": (

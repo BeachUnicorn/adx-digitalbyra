@@ -31,6 +31,9 @@ Låsens nycklar (pg_advisory_xact_lock), bredvid flamingo.limits._LOCK_SPACE
     CONTACT_LIMIT_LOCK   (0x5556 << 32) + konto     kontaktgränsen per kund
     INBOUND_LOCK         (0x5557 << 32) + nummer    inbound/routing.py, ett nummer i taget (S2)
     INBOUND_MAIL_LOCK    (0x5558 << 32) + adress    inbound/email.py, en adress hos ett konto (S3)
+    ANSWER_LOCK          (0x5559 << 32) + meddelande  threads._claimed: ett svar på STOPP/START
+                                                    sänds av en körning i taget, ticken eller
+                                                    knuffen (pg_try_advisory_lock, sessionen)
 """
 
 from datetime import timedelta
@@ -41,6 +44,7 @@ from django.utils import timezone
 TICK_LOCK = 0x5554 << 32
 ADX_MAIL_LOCK = 0x5555 << 32
 CONTACT_LIMIT_LOCK = 0x5556 << 32
+ANSWER_LOCK = 0x5559 << 32
 
 #: Räknarna behövs inte längre än så (utskick_daily rensar).
 KEEP = timedelta(days=2)

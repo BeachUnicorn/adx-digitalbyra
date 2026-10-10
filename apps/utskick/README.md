@@ -1,11 +1,13 @@
 # apps/utskick: Flamingo 2.0 (Kontakter och Utskick)
 
 Architecture and build plan. Status 2026-10-10: **S1 and S2 are built, committed and deployed**
-(see "S1 as built" and "S2 as built"). **S3 is built and tested locally, not committed or
-deployed** (none of the J S3 checklist steps has run, and the S3 AWS resources do not exist yet;
-see "S3 as built"). S4 to S6 are not built. This file is the contract for the build; update it
-when a stage ships or a decision changes. Revision 2 (2026-10-09) folds in the security, ops and
-product reviews; what was not taken over is listed in section L.
+(see "S1 as built" and "S2 as built"). **S3 is built and committed (`f86adf4`), not deployed**
+(none of the J S3 checklist steps has run, and the S3 AWS resources do not exist yet; see "S3 as
+built"). "After S3" lists Giovanni's three changes on top of it (branding on the recipient pages,
+instant replies, empty fields in the Brev editor), built and tested locally, not committed. S4 to
+S6 are not built. This file is the contract for the build; update it when a stage ships or a
+decision changes. Revision 2 (2026-10-09) folds in the security, ops and product reviews; what
+was not taken over is listed in section L.
 
 Inputs: `mockups/flamingo-utskick.html` (all views, flowcharts, data model, "Senare", "Medvetet
 bortvalt"), `mockups/flamingo-epost-brev.html` (the chosen email style Brev, 24 elements), memory
@@ -640,6 +642,70 @@ Checklist notes for the lead (in addition to J S3):
   Mail light and dark, Outlook 365 web, classic Outlook) with screenshots in the stage notes,
   and the 375 px pass over the editor, Leveranshälsa, Avsändare och svar, the settings rows and
   the `klick.adx.se` pages in the real browser.
+
+### After S3: Giovanni's three changes (2026-10-10, not committed, not deployed)
+
+- **Branding on the recipient pages** (`branding.py`, `templates/utskick/public/_base.html`,
+  which `links/_base.html` extends, `utskick-public.css`). Every page a recipient can land on
+  (signup, thanks, confirm, Mina utskick, privacy on adx.se; `/s/`, `/p/`, `/b/` on `k.adx.se`;
+  `/a/`, `/v/` on `klick.adx.se`) shows the account's own logo at the top on a white band: the
+  mail PNG of `MediaAsset(is_logo=True)` (`email.images.rendition(..., LOGO)`, built once, never
+  purged while it is the logo), at most 40 px high and 220 wide with its proportions, never
+  larger than the file (`email.images.display_size`, the same sizes as the mail header; the
+  `width`/`height` attributes are the shown size and the CSS only adds `max-width:100%;
+  height:auto`), alt the company name, with an absolute `SITE_BASE_URL + /media/...` address (the
+  link hosts have no `/media/`). The account comes only from the code or token. The first view of
+  a logo without a rendition builds it in the request, one thread at a time per process
+  (`images._making`, re-checked under that lock; the save is outside the decode semaphore so two
+  threads cannot block each other); a logo that cannot be built is not tried again for
+  `branding.BROKEN_SECONDS` (10 min, the cache). Without a logo, or when the file cannot be read,
+  the company name stands as text as before. Decision (review 2026-10-10): the logo also shows
+  when the account's utskick are turned off, like the company name, since the D.8 pages keep
+  working then. The bottom of every page, the generic ones too (link-host home, 404, 429), ends
+  with `static/images/adx-logo.png` (18 px high, dimmed to 60 %, a 44 px tap target, 8 px under
+  the privacy link) linking to `https://adx.se` with `rel="noopener"`, no target, no parameters
+  and `referrerpolicy="no-referrer"` (a token in a `/utskick/val/` address must never reach
+  adx.se's own analytics as a referrer). The web view `/w/` is the mail itself (its header
+  already has the logo) and has no page chrome, so it is unchanged. The link hosts stay
+  cookie-free; `/media/` on adx.se and `/static/` on the link hosts are nginx aliases. Fixed in
+  S3's mail header on the way: a wide logo got `height="40"` and `height:40px;max-width:220px`
+  and was squeezed; the header now uses `display_size` in the attributes and the inline style.
+  Not done (product call): a tall or square logo stays small (a 120 x 400 logo shows 12 x 40),
+  in the mail header too. Tests: `test_s3_branding.py`.
+- **Instant replies** (`sending/kick.py`, `UTSKICK_KICK`, default on, off in
+  `config/test_runner.py`). After the 46elks webhook has committed an inbound sms that queued a
+  STOPP/START answer, or a routed reply that may give an owner notice, `transaction.on_commit`
+  starts a daemon thread that runs the tick's own phase 3 (`threads.send_due`) at once, with the
+  tick's key check, a 15 s budget, one thread per process (a second kick makes the running one
+  take another round) and its own connection closed at the end. The owner notice still only
+  counts replies older than `NOTICE_SETTLE`, so the kick waits those 5 s when a notice is due and
+  runs once more; a kick that arrives during that wait wakes the thread, so its STOPP answer goes
+  at once, and a kick that arrives after the budget is spent gets a fresh thread instead of
+  waiting for the tick. Never for the demo, never for a duplicate id, never from the reconcile
+  (phase 3 follows in the same tick). The tick is the fallback. Accepted gap: `reply_notice_at`
+  is saved before the owner notice is sent (that is what keeps a notice from going twice), so a
+  notice is lost if the process stops between the two (a deploy restarts gunicorn and the daemon
+  thread dies with it); the tick has the same gap. STOPP/START answers are not lost that way. Claim: STOPP/START answers had none (only
+  the `x<inbound>` reference in apps/sms); each answer is now taken with `threads._claimed`, a
+  session `pg_try_advisory_lock` on `limits.ANSWER_LOCK + message` held through the send and
+  re-checked under the lock (a row lock would have to hold a transaction open across apps/sms'
+  own transactions and the 46elks call); owner notices already used
+  `select_for_update(skip_locked=True)` on `UtskickSettings` with `reply_notice_at`. Inbox replies
+  (sms and email) are not kicked: they were already sent synchronously in the request
+  (`threads.send_reply`, `send_email_reply`), nothing is queued there. Not kicked either: the
+  confirm sms of `/p/`, Mina utskick and the signup page (`optin.send_due_sms`), and inbound email
+  (SQS, tick phase 2). Tests: `test_s3_kick.py` (incl. a real two-thread race of tick and kick).
+- **Empty fields in the Brev editor** (`templatetags/brev_tags.py` `pb_empty_attrs`, the Brev
+  block templates, `flamingo-app-brev.css`). An empty field is now drawn in the same element, with
+  the same inline style and class, as the filled field (only in editing), so "Överrubrik",
+  "Rubrik" and "Ingress" stand on their own lines in the mail's layout (24 empty fields in 14
+  blocks; lists keep their box). The canvas makes only inline elements (`span`, `a`, ...)
+  `inline-block` when empty, and an empty panel field (rich text) shows its label. Empty fields
+  in a block that is not selected are hidden with `!important` (the canvas rule, and the rule
+  before the editor's script runs in `render.render_html`): the offer code's own inline style has
+  `display:inline-block`. The page
+  builder's `pb_empty`, `flamingo-pb.css` and profile are unchanged. Tests:
+  `test_s3_placeholders.py`.
 
 ---
 
@@ -2445,7 +2511,8 @@ Endpoint `POST /api/utskick/46elks/inkommande/<token>/` (`webhook_urls.py`, name
    (a duplicate commits nothing new and returns 200), routing, keyword handling, thread and lead
    writes. **Response: HTTP 200 with an empty body, only after commit**; any exception returns 500
    with an empty body (46elks sends any response text back as a reply sms). No outbound call happens
-   in the request: confirmations and owner notices are queued for tick phase 3.
+   in the request: confirmations and owner notices are queued for tick phase 3, and sent right
+   after commit by `sending/kick.py` (see "After S3"; the tick is the fallback).
 4. **Reconcile** (tick phase 2, every 10 minutes): `elks.list_messages(since=now - 48 h)` (GET
    `/a1/sms`, newest first, paged with `end`), keep incoming rows to the reply number and insert any
    missing id through the same handler function. A lost webhook delays a STOPP by at most 10

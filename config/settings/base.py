@@ -399,6 +399,10 @@ UTSKICK_REPLY_NUMBER = env.str("UTSKICK_REPLY_NUMBER", default="") or "+46766860
 # (/api/utskick/46elks/inkommande/<token>/), minst 32 tecken. Tomt = inkommande
 # sms är av. I produktion vägrar adressen också när SMS_DLR_ALLOWED_IPS är tom.
 UTSKICK_ELKS_INBOUND_TOKEN = env.str("UTSKICK_ELKS_INBOUND_TOKEN", default="")
+# Svaren på STOPP/START och ägarens sms om svar skickas direkt efter
+# webbanropet, i en kort tråd (apps/utskick/sending/kick.py), i stället för
+# att vänta på nästa tick. Ticken är reserven. Av i testerna.
+UTSKICK_KICK = env.bool("UTSKICK_KICK", default=True)
 # Utskickens del av minutgränserna i apps/sms: per kund (resten, 60 - 45,
 # lämnas åt kundens API) och för hela byrån (80 - 60 åt API:t; Flamingos
 # egna sms räknas också av, D.4).

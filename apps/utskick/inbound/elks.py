@@ -26,8 +26,11 @@ Webbanropet (G.1 punkt 1 till 3):
   inget och får 200), routningen, nyckelorden och trådarna. Svaret är 200 med
   tom kropp först efter commit; ett fel ger 500 med tom kropp. 46elks skickar
   varje svarstext tillbaka som ett sms, så kroppen är alltid tom. Inget
-  anrop går ut härifrån: svar på STOPP/START och ägarens sms köas till
-  ticken (threads.send_due).
+  anrop går ut i själva förfrågan: svar på STOPP/START och ägarens sms köas
+  (threads.send_due), och efter commit skickar en kort bakgrundstråd dem
+  direkt (sending/kick.py, av med UTSKICK_KICK=False och aldrig för demot).
+  Ticken är reserven. Avstämningen (ticken) knuffar inte: fas 3 kommer
+  strax efter i samma tick.
 
 nginx loggar inte /api/utskick/ (C.5) och Sentry visar inte adressen (C.3):
 token står i den.
@@ -142,10 +145,16 @@ def inbound(request, token):
     if not ID_RE.fullmatch(str(fields.get("id") or "")):
         return _empty(400)
     try:
-        handle(fields)
+        message, created = handle(fields)
     except Exception:
         logger.exception("Utskick: inkommande sms kunde inte hanteras")
         return _empty(500)
+    if created:
+        # Svaret på STOPP/START och ägarens sms går direkt efter commit, inte
+        # först med nästa tick (sending/kick.py; ticken är reserven).
+        from ..sending import kick
+
+        kick.after_inbound(message)
     return _empty(200)
 
 

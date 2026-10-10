@@ -1,4 +1,4 @@
-{% load flamingo_pb %}{% comment %}
+{% load flamingo_pb brev_tags %}{% comment %}
 Element 4, Text: rich_basic ritad av render.rich_html (stycken, fetstil,
 kursiv, länkar i accentfärgen och punktlistor). Varje textbit är escapad.
-{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">{% if v.html %}<div{% pb "body" %}>{{ v.html }}</div>{% else %}{% pb_empty "body" "div" %}{% endif %}</td></tr>
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">{% if v.html or editing %}<div{% if v.html %}{% pb "body" %}{% else %}{% pb_empty_attrs "body" %}{% endif %}>{{ v.html }}</div>{% endif %}</td></tr>

@@ -568,12 +568,10 @@ def build_data(utskick, *, create=True, doc=None, now=None):
 def _existing_logo(account):
     """Loggans rendition om den redan finns, annars arkivets logga (bara
     redigeraren)."""
-    from apps.flamingo.models import MediaAsset
-
     from ..models import EmailImage
     from . import images
 
-    logo = MediaAsset.objects.filter(account=account, is_logo=True).order_by("-pk").first()
+    logo = images.logo_asset(account)
     if logo is None:
         return None
     size = images.target_size(logo.width, logo.height, images.LOGO)
@@ -582,7 +580,8 @@ def _existing_logo(account):
 
 
 def _logo_info(row):
-    """Loggan i sidhuvudet: 40 px hög, högst 220 bred."""
+    """Loggan i sidhuvudet: högst 40 px hög och 220 bred med proportionerna
+    kvar, aldrig större än filen (images.display_size)."""
     from apps.flamingo.models import MediaAsset
 
     from . import images
@@ -599,8 +598,14 @@ def _logo_info(row):
         alt = row.asset.alt if row.asset_id and row.asset is not None else ""
     if not url or not width or not height:
         return None
-    shown_width = min(220, max(1, round(width * 40 / height)))
-    return {"id": image_id, "url": url, "width": shown_width, "height": 40, "alt": alt or ""}
+    shown_width, shown_height = images.display_size(width, height)
+    return {
+        "id": image_id,
+        "url": url,
+        "width": shown_width,
+        "height": shown_height,
+        "alt": alt or "",
+    }
 
 
 def snapshot(utskick, *, now=None):
@@ -1243,7 +1248,8 @@ def render_html(utskick, ctx, mode=None):
     preheader = preheader_for(utskick, ctx)
     css = style.mobile_css()
     if ctx.editing:
-        css += "body[data-brev-editing] [data-pb-empty]{display:none}"
+        # !important: rabattkodens tomma span har display i sin inline-stil.
+        css += "body[data-brev-editing] [data-pb-empty]{display:none !important}"
     html = render_to_string(
         LAYOUT_TEMPLATE,
         {

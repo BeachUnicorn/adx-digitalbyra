@@ -38,13 +38,24 @@ body.up{
 
 .up-wrap{width:100%;max-width:640px;margin:0 auto;padding:0 16px}
 
-/* Sidhuvud och sidfot */
-.up-top{padding:24px 0 8px}
+/* Sidhuvud och sidfot. Överst kundens logga (eller namnet) på ett vitt band:
+   loggan är mejlens PNG, lagd på vitt (apps/utskick/branding.py). Dess width
+   och height är måtten den visas i (högst 40 hög och 220 bred, aldrig större
+   än filen), så här sätts ingen bredd eller höjd: bara max-width på en smal
+   skärm, med höjden i proportion. Nederst alltid ADX logga, dämpad på den
+   ljusa botten, med en klickyta på 44 px. */
+.up-top{padding:16px 0;background:var(--up-white);border-bottom:1px solid var(--up-line-soft)}
 .up-brand{font-size:20px;font-weight:800;color:var(--up-ink);letter-spacing:-.01em;overflow-wrap:anywhere}
-.up-main{flex:1 0 auto;padding:8px 0 24px}
+.up-brand--logo{line-height:0}
+.up-logo{display:block;max-width:100%;height:auto}
+.up-main{flex:1 0 auto;padding:24px 0}
 .up-foot{padding:0 0 32px;font-size:15px;color:var(--up-muted)}
 .up-foot p{margin:0}
 .up-link{color:var(--up-primary)}
+.up-foot .up-adx{margin-top:8px;line-height:0}
+.up-adx__link{display:inline-block;padding:13px 0;border-radius:4px}
+.up-adx__logo{display:block;width:auto;height:18px;opacity:.6}
+.up-adx__link:hover .up-adx__logo,.up-adx__link:focus-visible .up-adx__logo{opacity:1}
 
 /* Kortet */
 .up-card{background:var(--up-white);border:1px solid var(--up-line-soft);border-radius:var(--up-r);padding:28px 20px;box-shadow:0 1px 2px rgba(60,64,67,.06),0 6px 24px rgba(60,64,67,.06)}

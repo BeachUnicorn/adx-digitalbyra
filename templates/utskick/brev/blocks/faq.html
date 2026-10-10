@@ -1,7 +1,7 @@
-{% load flamingo_pb %}{% comment %}
+{% load flamingo_pb brev_tags %}{% comment %}
 Element 18, Vanliga frågor: frågan i fetstil och svaret under, utan
 dragspel (mejl har inga skript).
 {% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
-{% if v.title %}<h3 style="{{ S.h3 }}margin-bottom:10px;"{% pb "title" %}>{{ v.title }}</h3>{% else %}{% pb_empty "title" "h3" %}{% endif %}
+{% if v.title or editing %}<h3 style="{{ S.h3 }}margin-bottom:10px;"{% if v.title %}{% pb "title" %}{% else %}{% pb_empty_attrs "title" %}{% endif %}>{{ v.title }}</h3>{% endif %}
 {% for item in v.items %}<p style="{{ S.p }}"><strong style="{{ S.strong_ink }}"{% pb "items" item.index "q" %}>{{ item.q }}</strong></p><p style="{{ S.p }}{% if not item.last %}margin-bottom:10px;{% endif %}"{% pb "items" item.index "a" %}>{{ item.a|linebreaksbr }}</p>
 {% endfor %}</td></tr>

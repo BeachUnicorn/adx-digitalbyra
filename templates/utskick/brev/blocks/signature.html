@@ -1,11 +1,11 @@
-{% load flamingo_pb %}{% comment %}
+{% load flamingo_pb brev_tags %}{% comment %}
 Element 21, Underskrift: hälsningen, namnet i skrivstil (bara systemets
 typsnitt: Snell Roundhand, Segoe Script, Bradley Hand, cursive), bilden
 eller initialerna i en ring, namnet och raden under med telefonen som tel:.
 {% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
-{% if v.greeting %}<p style="{{ S.p }}"{% pb "greeting" %}>{{ v.greeting }}</p>{% else %}{% pb_empty "greeting" "p" %}{% endif %}{% if v.script_name %}<p style="{{ S.sig }}"{% pb "script_name" %}>{{ v.script_name }}</p>{% else %}{% pb_empty "script_name" "p" %}{% endif %}
+{% if v.greeting or editing %}<p style="{{ S.p }}"{% if v.greeting %}{% pb "greeting" %}{% else %}{% pb_empty_attrs "greeting" %}{% endif %}>{{ v.greeting }}</p>{% endif %}{% if v.script_name or editing %}<p style="{{ S.sig }}"{% if v.script_name %}{% pb "script_name" %}{% else %}{% pb_empty_attrs "script_name" %}{% endif %}>{{ v.script_name }}</p>{% endif %}
 {% if v.name or v.line or v.phone or editing %}<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 <td width="66" valign="middle">{% if v.photo %}<img src="{{ v.photo.url }}" width="48" height="48" alt="{{ v.name }}" style="{{ S.av_img_sm }}"{% pb_media "photo" %}>{% else %}<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="48" height="48" align="center" valign="middle" bgcolor="#F5F7FA" style="{{ S.av_sm }}"{% pb_media "photo" %}>{{ v.initials }}</td></tr></table>{% endif %}</td>
-<td valign="middle">{% if v.name %}<p style="{{ S.p }}{{ S.strong_ink }}"{% pb "name" %}>{{ v.name }}</p>{% else %}{% pb_empty "name" "p" %}{% endif %}{% if v.line or v.phone %}<p style="{{ S.sm }}">{% if v.line %}<span{% pb "line" %}>{{ v.line }}</span>{% endif %}{% if v.line and v.phone %} · {% endif %}{% if v.phone %}<a href="{{ v.tel }}" style="{{ S.link }}">{{ v.phone }}</a>{% endif %}</p>{% endif %}</td>
+<td valign="middle">{% if v.name or editing %}<p style="{{ S.p }}{{ S.strong_ink }}"{% if v.name %}{% pb "name" %}{% else %}{% pb_empty_attrs "name" %}{% endif %}>{{ v.name }}</p>{% endif %}{% if v.line or v.phone %}<p style="{{ S.sm }}">{% if v.line %}<span{% pb "line" %}>{{ v.line }}</span>{% endif %}{% if v.line and v.phone %} · {% endif %}{% if v.phone %}<a href="{{ v.tel }}" style="{{ S.link }}">{{ v.phone }}</a>{% endif %}</p>{% endif %}</td>
 </tr></table>{% endif %}
 </td></tr>

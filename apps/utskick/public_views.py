@@ -61,7 +61,7 @@ from apps.common.botcheck import botcheck_passes
 from apps.common.net import client_ip
 from apps.projects.access import is_agency_user
 
-from . import capture, contacts, limits, normalize, optin, tokens
+from . import branding, capture, contacts, limits, normalize, optin, tokens
 from . import consent as consents
 from . import suppression as suppressions
 from .access import PERSON, actor_for, can_collect, is_enabled, settings_for
@@ -125,9 +125,12 @@ def _ip_hash(request):
 
 
 def _base_context(account, row):
+    """Sidans skal: kundens namn, kundens logga överst (branding.logo) och
+    integritetstexten."""
     return {
         "foretag": row.display_name,
         "integritet_url": capture.privacy_url(account, row),
+        **branding.context(account, row.display_name),
     }
 
 
@@ -511,7 +514,12 @@ def privacy(request, public_slug):
     facts = capture.privacy_facts(row.account, row)
     if not facts.complete:
         raise Http404
-    context = {"foretag": row.display_name, "uppgifter": facts, "integritet_url": ""}
+    context = {
+        "foretag": row.display_name,
+        "uppgifter": facts,
+        "integritet_url": "",
+        **branding.context(row.account, row.display_name),
+    }
     return _page(request, "utskick/public/privacy.html", context)
 
 

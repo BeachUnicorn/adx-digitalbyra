@@ -45,7 +45,7 @@ from django.views.decorators.http import require_http_methods, require_safe
 from apps.common.botcheck import botcheck_passes
 from apps.common.net import client_ip
 
-from . import attribution, capture, limits, link_actions, normalize, tokens
+from . import attribution, branding, capture, limits, link_actions, normalize, tokens
 from .access import settings_for
 from .keys import KeyMismatch
 from .links import (
@@ -146,13 +146,16 @@ def _page(request, template, context, status=200):
 
 
 def _base(account, row):
-    """Sidans skal: kundens namn och integritetstexten (H.5). Länken går
-    alltid till adx.se (eller kundens egen policy), aldrig till länkvärden."""
+    """Sidans skal: kundens namn, kundens logga överst (branding.logo, från
+    adx.se) och integritetstexten (H.5). Länken går alltid till adx.se
+    (eller kundens egen policy), aldrig till länkvärden."""
     with site_urls():
         privacy = capture.privacy_url(account, row, absolute=True)
+    company = row.display_name or getattr(account.customer, "name", "") or "Företaget"
     return {
-        "foretag": row.display_name or getattr(account.customer, "name", "") or "Företaget",
+        "foretag": company,
         "integritet_url": privacy,
+        **branding.context(account, company),
     }
 
 

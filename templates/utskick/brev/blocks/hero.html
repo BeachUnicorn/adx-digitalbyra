@@ -1,12 +1,12 @@
-{% load flamingo_pb %}{% comment %}
+{% load flamingo_pb brev_tags %}{% comment %}
 Element 2, Rubrik och bild: bilden (560 px, 504 visas), överrubriken,
 rubriken (h1), ingressen och en knapp. Mallen ritar bara det vyn har
 (render._prepare); i redigeraren har varje fält sitt data-pb-field.
 {% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
 {% if v.image %}<img src="{{ v.image.url }}" width="{{ v.image.width }}" height="{{ v.image.height }}" alt="{{ v.image.alt }}" style="{{ S.img }}"{% pb_media "image" %}>
 {% elif editing %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="220" style="{{ S.img_ph }}height:220px;"{% pb_media "image" %}>Välj en bild</td></tr></table>
-{% endif %}{% if v.kicker %}<p style="{{ S.kick }}{% if v.image or editing %}margin-top:24px;{% endif %}"{% pb "kicker" %}>{{ v.kicker }}</p>
-{% else %}{% pb_empty "kicker" "p" %}{% endif %}{% if v.title %}<h1 class="br-h1" style="{{ S.h1 }}{% if v.image and not v.kicker %}margin-top:24px;{% endif %}"{% pb "title" %}>{{ v.title }}</h1>
-{% else %}{% pb_empty "title" "h1" %}{% endif %}{% if v.lead %}<p style="{{ S.lead }}"{% pb "lead" %}>{{ v.lead|linebreaksbr }}</p>
-{% else %}{% pb_empty "lead" "p" %}{% endif %}{% if v.button_href %}<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-top:22px;">{% include "utskick/brev/_button.html" with text=v.button_text href=v.button_href field="button_text" outline=False %}</td></tr></table>
+{% endif %}{% if v.kicker or editing %}<p style="{{ S.kick }}{% if v.image or editing %}margin-top:24px;{% endif %}"{% if v.kicker %}{% pb "kicker" %}{% else %}{% pb_empty_attrs "kicker" %}{% endif %}>{{ v.kicker }}</p>
+{% endif %}{% if v.title or editing %}<h1 class="br-h1" style="{{ S.h1 }}{% if v.image and not v.kicker %}margin-top:24px;{% endif %}"{% if v.title %}{% pb "title" %}{% else %}{% pb_empty_attrs "title" %}{% endif %}>{{ v.title }}</h1>
+{% endif %}{% if v.lead or editing %}<p style="{{ S.lead }}"{% if v.lead %}{% pb "lead" %}{% else %}{% pb_empty_attrs "lead" %}{% endif %}>{{ v.lead|linebreaksbr }}</p>
+{% endif %}{% if v.button_href %}<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-top:22px;">{% include "utskick/brev/_button.html" with text=v.button_text href=v.button_href field="button_text" outline=False %}</td></tr></table>
 {% endif %}</td></tr>

@@ -1,10 +1,10 @@
-{% load flamingo_pb %}{% comment %}
+{% load flamingo_pb brev_tags %}{% comment %}
 Element 15, Kontaktperson: bilden (56 px, rund där det går) eller
 initialerna i en ring, namnet, rollen och telefon (tel:) och e-post
 (mailto:) i accentfärgen.
 {% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
 <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
 <td width="72" valign="middle">{% if v.photo %}<img src="{{ v.photo.url }}" width="56" height="56" alt="{{ v.name }}" style="{{ S.av_img }}"{% pb_media "photo" %}>{% else %}<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="56" height="56" align="center" valign="middle" bgcolor="#F5F7FA" style="{{ S.av }}"{% pb_media "photo" %}>{{ v.initials }}</td></tr></table>{% endif %}</td>
-<td valign="middle">{% if v.name %}<h3 style="{{ S.h3 }}"{% pb "name" %}>{{ v.name }}</h3>{% else %}{% pb_empty "name" "h3" %}{% endif %}{% if v.role %}<p style="{{ S.sm }}"{% pb "role" %}>{{ v.role }}</p>{% else %}{% pb_empty "role" "p" %}{% endif %}{% if v.phone or v.email %}<p style="{{ S.p }}margin-top:2px;">{% if v.phone %}<a href="{{ v.tel }}" style="{{ S.link }}">{{ v.phone }}</a>{% endif %}{% if v.phone and v.email %} · {% endif %}{% if v.email %}<a href="{{ v.mailto }}" style="{{ S.link }}">{{ v.email }}</a>{% endif %}</p>{% endif %}</td>
+<td valign="middle">{% if v.name or editing %}<h3 style="{{ S.h3 }}"{% if v.name %}{% pb "name" %}{% else %}{% pb_empty_attrs "name" %}{% endif %}>{{ v.name }}</h3>{% endif %}{% if v.role or editing %}<p style="{{ S.sm }}"{% if v.role %}{% pb "role" %}{% else %}{% pb_empty_attrs "role" %}{% endif %}>{{ v.role }}</p>{% endif %}{% if v.phone or v.email %}<p style="{{ S.p }}margin-top:2px;">{% if v.phone %}<a href="{{ v.tel }}" style="{{ S.link }}">{{ v.phone }}</a>{% endif %}{% if v.phone and v.email %} · {% endif %}{% if v.email %}<a href="{{ v.mailto }}" style="{{ S.link }}">{{ v.email }}</a>{% endif %}</p>{% endif %}</td>
 </tr></table>
 </td></tr>

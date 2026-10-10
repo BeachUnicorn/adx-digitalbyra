@@ -11,7 +11,12 @@ porträtten (kontaktperson, underskrift) beskärs kvadratiska. Avkodningen går
 genom mediaarkivets semafor (media._DECODE): en bild åt gången i processen.
 
 Raden återanvänds för (asset, purpose, width): bredden räknas ur bildens
-mått innan något avkodas, så samma val ger samma rad. Filen ligger under
+mått innan något avkodas, så samma val ger samma rad. En rad som inte finns
+görs av en tråd i taget per (asset, purpose, width) i processen (_making), och
+raden prövas igen under det låset: flera samtidiga besökare på en sida med
+loggan (branding.py) läser och avkodar filen en gång, inte en gång var. Låset
+hålls inte av en tråd som väntar på semaforen för en annan bild, så två trådar
+kan inte låsa varandra. Filen ligger under
 MEDIA_ROOT/utskick-img/<slump>/ (publik, absolut adress i mejlet) och går
 med raden (post_delete i models.py). När MediaAsset tas bort blir asset
 null och filen ligger kvar, så att skickade mejl behåller sina bilder tills
@@ -21,9 +26,15 @@ retentionen tar raden (E.7, purge_unused).
     JPEG_QUALITY = 82
     rendition(asset, purpose, *, width=MAX_WIDTH) -> EmailImage
                                      kastar media.MediaError när bilden inte går att läsa
+    logo_asset(account) -> MediaAsset | None
+                                     kontots logga i mediaarkivet (is_logo)
     logo_for(account) -> EmailImage | None
                                      PNG av MediaAsset(is_logo=True), 80 px hög fil
                                      (40 px visas), högst 440 bred fil (220 visas)
+    display_size(width, height) -> (bredd, höjd)
+                                     loggans visade mått för en fil i width x height:
+                                     högst 40 hög och 220 bred, proportionerna kvar,
+                                     aldrig uppskalad (mejlets sidhuvud, branding.py)
     absolute_url(image) -> str       exports.landing_base_url() + file.url
     used_by(account_id, *, lock=False) -> {asset_id: [utskickens namn]}
                                      bilderna i utkast, schemalagda, pågående och
@@ -36,6 +47,8 @@ retentionen tar raden (E.7, purge_unused).
 
 import io
 import logging
+import threading
+from contextlib import contextmanager
 from datetime import timedelta
 
 from django.core.files.base import ContentFile
@@ -49,6 +62,9 @@ JPEG_QUALITY = 82
 #: Loggans fil: 80 px hög (40 visas), högst 440 bred (220 visas).
 LOGO_HEIGHT = 80
 LOGO_MAX_WIDTH = 440
+#: Loggan visas högst så här hög och bred (mejlets sidhuvud och mottagarens sidor).
+LOGO_SHOWN_HEIGHT = 40
+LOGO_SHOWN_MAX_WIDTH = 220
 #: Porträttets fil: 112 px i kvadrat (56 visas).
 AVATAR_SIDE = 112
 #: En rendition som skapats men ännu inte sparats i ett utkast får ligga så
@@ -157,6 +173,38 @@ def _render(asset, purpose, size):
         return _encode(image, fmt), fmt, image.width, image.height
 
 
+#: _making: ett lås per rendition som görs just nu i processen, med antalet
+#: trådar som håller eller väntar på det (låset tas bort när ingen gör det).
+_MAKING = {}
+_MAKING_GUARD = threading.Lock()
+
+
+@contextmanager
+def _making(key):
+    """En tråd i taget gör renditionen key = (asset, purpose, width) i
+    processen; de andra väntar och hittar sedan raden (rendition)."""
+    with _MAKING_GUARD:
+        entry = _MAKING.setdefault(key, [threading.Lock(), 0])
+        entry[1] += 1
+    try:
+        with entry[0]:
+            yield
+    finally:
+        with _MAKING_GUARD:
+            entry[1] -= 1
+            if entry[1] <= 0:
+                _MAKING.pop(key, None)
+
+
+def _existing(asset, purpose, width):
+    from ..models import EmailImage
+
+    row = (
+        EmailImage.objects.filter(asset=asset, purpose=purpose, width=width).order_by("pk").first()
+    )
+    return row if row is not None and row.file else None
+
+
 def rendition(asset, purpose, *, width=MAX_WIDTH):
     """EmailImage för bilden i mejlens format, skapad en gång per (asset,
     purpose, bredd). Kastar media.MediaError när filen inte går att läsa."""
@@ -169,53 +217,78 @@ def rendition(asset, purpose, *, width=MAX_WIDTH):
     if not asset.file:
         raise media.MediaError(media.BROKEN)
     size = target_size(asset.width, asset.height, purpose, width)
-    existing = (
-        EmailImage.objects.filter(asset=asset, purpose=purpose, width=size[0])
-        .order_by("pk")
-        .first()
-    )
-    if existing is not None and existing.file:
+    existing = _existing(asset, purpose, size[0])
+    if existing is not None:
         return existing
-    try:
-        data, fmt, _file_width, file_height = _render(asset, purpose, size)
-    except media.MediaError:
-        raise
-    except Exception:  # noqa: BLE001 - en fil som inte går att läsa är en trasig bild
-        logger.warning("Utskick: bilden %s gick inte att göra om för mejl", asset.pk)
-        raise media.MediaError(media.BROKEN) from None
-    row = EmailImage(
-        account_id=asset.account_id,
-        asset=asset,
-        purpose=purpose,
-        format=EmailImage.Format.PNG if fmt == "png" else EmailImage.Format.JPEG,
-        width=size[0],
-        height=file_height,
-        bytes=len(data),
-    )
-    row.file.save("bild.png" if fmt == "png" else "bild.jpg", ContentFile(data), save=False)
-    try:
-        with transaction.atomic():
-            row.save()
-    except IntegrityError:
-        # Någon annan skapade samma rendition samtidigt: deras rad gäller.
-        row.file.storage.delete(row.file.name)
-        return EmailImage.objects.get(asset=asset, purpose=purpose, width=size[0])
-    return row
+    with _making((asset.pk, purpose, size[0])):
+        # En annan tråd i processen kan ha gjort samma rendition medan den här
+        # väntade (flera besökare samtidigt): den gäller, och filen läses inte
+        # en gång till.
+        existing = _existing(asset, purpose, size[0])
+        if existing is not None:
+            return existing
+        try:
+            data, fmt, _file_width, file_height = _render(asset, purpose, size)
+        except media.MediaError:
+            raise
+        except Exception:  # noqa: BLE001 - en fil som inte går att läsa är en trasig bild
+            logger.warning("Utskick: bilden %s gick inte att göra om för mejl", asset.pk)
+            raise media.MediaError(media.BROKEN) from None
+        row = EmailImage(
+            account_id=asset.account_id,
+            asset=asset,
+            purpose=purpose,
+            format=EmailImage.Format.PNG if fmt == "png" else EmailImage.Format.JPEG,
+            width=size[0],
+            height=file_height,
+            bytes=len(data),
+        )
+        row.file.save("bild.png" if fmt == "png" else "bild.jpg", ContentFile(data), save=False)
+        try:
+            with transaction.atomic():
+                row.save()
+        except IntegrityError:
+            # En annan process (eller en transaktion som inte var klar när raden
+            # prövades) skapade samma rendition samtidigt: deras rad gäller.
+            row.file.storage.delete(row.file.name)
+            return EmailImage.objects.get(asset=asset, purpose=purpose, width=size[0])
+        return row
+
+
+def logo_asset(account):
+    """Kontots logga i mediaarkivet (den senaste med is_logo), eller None."""
+    from apps.flamingo.models import MediaAsset
+
+    return MediaAsset.objects.filter(account=account, is_logo=True).order_by("-pk").first()
 
 
 def logo_for(account):
     """Loggans rendition (PNG på vitt), eller None utan logga eller när
     filen inte går att läsa."""
     from apps.flamingo import media
-    from apps.flamingo.models import MediaAsset
 
-    logo = MediaAsset.objects.filter(account=account, is_logo=True).order_by("-pk").first()
+    logo = logo_asset(account)
     if logo is None:
         return None
     try:
         return rendition(logo, LOGO)
     except media.MediaError:
         return None
+
+
+def display_size(width, height):
+    """(bredd, höjd) som loggan visas i, för en fil i width x height: högst
+    LOGO_SHOWN_HEIGHT hög och LOGO_SHOWN_MAX_WIDTH bred med proportionerna
+    kvar, och aldrig större än filen (en liten logga blir annars suddig).
+    width- och height-attributen ska stämma med det som visas: Outlook läser
+    bara dem."""
+    width, height = max(1, int(width or 1)), max(1, int(height or 1))
+    shown_height = min(LOGO_SHOWN_HEIGHT, height)
+    shown_width = round(width * shown_height / height)
+    if shown_width > LOGO_SHOWN_MAX_WIDTH:
+        shown_width = LOGO_SHOWN_MAX_WIDTH
+        shown_height = round(height * LOGO_SHOWN_MAX_WIDTH / width)
+    return max(1, shown_width), max(1, shown_height)
 
 
 def absolute_url(image):

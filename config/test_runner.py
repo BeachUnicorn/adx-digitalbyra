@@ -14,6 +14,8 @@ AWS och Google. NoNetworkRunner gör därför tre saker för hela körningen:
   och hinken för inkommande post tomma (UTSKICK_AWS_ROLE_ARN,
   UTSKICK_SQS_*, UTSKICK_SES_INBOUND_BUCKET): ett test som vill pröva dem
   sätter egna värden med override_settings och en attrapp för boto3.
+  UTSKICK_KICK=False: webbanropet för inkommande sms startar ingen
+  bakgrundstråd (testerna kör apps/utskick/sending/kick.run synkront).
 
 Ett test som vill pröva en integration lägger sin egen attrapp ovanpå
 (FakeElks, FakeSes, mock av urlopen). Ett försök att nå nätet blir
@@ -121,6 +123,9 @@ SAFE_SETTINGS = {
     "UTSKICK_SQS_EVENTS_URL": "",
     "UTSKICK_SQS_INBOUND_URL": "",
     "UTSKICK_SES_INBOUND_BUCKET": "",
+    # Knuffen efter webbanropet (apps/utskick/sending/kick.py) startar ingen
+    # tråd i testerna: testerna anropar kick.run själva.
+    "UTSKICK_KICK": False,
 }
 
 

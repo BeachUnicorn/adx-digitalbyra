@@ -11,9 +11,15 @@ kundens namn (foretag är byråns display_name), inte i ADX eller Flamingos
 design. Typsnittet (Figtree, OFL) är självhostat; inget hämtas från andra
 domäner, ingen statistik och inga kakor utöver CSRF-nyckeln.
 
-Kontext: foretag, integritet_url (tom när länken inte ska visas) och
-botcheck (sidan har ett formulär med botskydd: då laddas
-static/js/utskick-public.js, som bara fyller i botskyddets bevis).
+Kontext: foretag, integritet_url (tom när länken inte ska visas), logga
+(apps/utskick/branding.py: kundens logga från adx.se, eller tom: då står
+företagets namn som text överst) och botcheck (sidan har ett formulär med
+botskydd: då laddas static/js/utskick-public.js, som bara fyller i
+botskyddets bevis).
+
+Sidfoten slutar alltid med ADX logga och en länk till adx.se (utan
+parametrar och utan referrer, så att en token i adressen aldrig följer med
+till adx.se), också på sidor som tömmer {% block footer %}.
 
 Sidan fyller {% block title %}, {% block content %}. Inga style-attribut och
 inga inline-skript (vakten i test_s1_guards): css i
@@ -27,7 +33,7 @@ static/css/utskick-public.css, js i static/js/utskick-public.js.
 <body class="up">
 <header class="up-top">
   <div class="up-wrap">
-    <p class="up-brand">{{ foretag }}</p>
+    {% if logga %}<p class="up-brand up-brand--logo"><img class="up-logo" src="{{ logga.url }}" width="{{ logga.width }}" height="{{ logga.height }}" alt="{{ logga.alt|default:foretag }}" referrerpolicy="no-referrer"></p>{% else %}<p class="up-brand">{{ foretag }}</p>{% endif %}
   </div>
 </header>
 <main class="up-main" id="innehall">
@@ -40,6 +46,7 @@ static/css/utskick-public.css, js i static/js/utskick-public.js.
 <footer class="up-foot">
   <div class="up-wrap">
     {% block footer %}{% if integritet_url %}<p><a class="up-link" href="{{ integritet_url }}">Så hanterar {{ foretag }} dina uppgifter</a></p>{% endif %}{% endblock %}
+    <p class="up-adx"><a class="up-adx__link" href="https://adx.se" rel="noopener" referrerpolicy="no-referrer"><img class="up-adx__logo" src="{% static 'images/adx-logo.png' %}" width="52" height="18" alt="ADX"></a></p>
   </div>
 </footer>
 </body>

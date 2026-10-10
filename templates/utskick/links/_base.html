@@ -7,5 +7,7 @@ csrf_token här: länkvärdarna sätter inga kakor. Formulären bär i
 stället en signerad nonce (E.1) och vyerna är csrf_exempt.
 
 Kontext som för utskick/public/_base.html: foretag (kundens display_name,
-eller "ADX Flamingo" på startsidan) och integritet_url.
+eller "ADX Flamingo" på startsidan, 404 och 429), integritet_url och logga
+(kundens logga, absolut adress på adx.se: länkvärdarna har ingen /media/).
+ADX logga nederst kommer från skalet och laddas från länkvärdens /static/.
 {% endcomment %}

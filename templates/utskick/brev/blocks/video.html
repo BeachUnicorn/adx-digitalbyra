@@ -1,9 +1,9 @@
-{% load flamingo_pb %}{% comment %}
+{% load flamingo_pb brev_tags %}{% comment %}
 Element 16, Video: bilden med en ritad spelknapp (email/images.py, Pillow)
 som länkar till videon, och rubriken under. Ingen inbäddad video: mejl kan
 inte spela den.
 {% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
 {% if v.image %}{% if v.href %}<a href="{{ v.href }}" style="text-decoration:none;">{% endif %}<img src="{{ v.image.url }}" width="{{ v.image.width }}" height="{{ v.image.height }}" alt="{{ v.image.alt|default:v.title }}" style="{{ S.img }}"{% pb_media "thumbnail" %}>{% if v.href %}</a>{% endif %}
 {% elif editing %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="230" style="{{ S.img_ph }}height:230px;"{% pb_media "thumbnail" %}>Välj en bild till videon</td></tr></table>
-{% endif %}{% if v.title %}<p style="{{ S.caption }}"{% pb "title" %}>{% if v.href %}<a href="{{ v.href }}" style="{{ S.link }}">{{ v.title }}</a>{% else %}{{ v.title }}{% endif %}</p>{% else %}{% pb_empty "title" "p" %}{% endif %}
+{% endif %}{% if v.title %}<p style="{{ S.caption }}"{% pb "title" %}>{% if v.href %}<a href="{{ v.href }}" style="{{ S.link }}">{{ v.title }}</a>{% else %}{{ v.title }}{% endif %}</p>{% elif editing %}<p style="{{ S.caption }}"{% pb_empty_attrs "title" %}></p>{% endif %}
 </td></tr>

@@ -26,11 +26,18 @@ Inkorgen (app_views/inbox_reply.py):
     unsubscribe(thread, actor=, now=)          "Avregistrera från sms"
     rows(thread) -> list[Row]                  meddelandena som mallen visar
 
-Ticken (sending/tick.py, fas 3):
+Ticken (sending/tick.py, fas 3) och knuffen (sending/kick.py, direkt efter
+webbanropet för inkommande sms; ticken är reserven):
 
     work_exists(now) -> bool            köade svar på STOPP/START eller ägarsms att skicka
     send_due(now, deadline) -> dict     {"answers", "notices", "skipped"}; deadline är
                                         time.monotonic() när fasen ska sluta
+
+Ticken och knuffen kan köra samtidigt utan att något går två gånger: varje
+svar på STOPP/START tas med _claimed (pg_try_advisory_lock per meddelande,
+en annan körning hoppar över det) och prövas igen under låset, och ägarens
+sms tas med select_for_update(skip_locked=True) på kundens UtskickSettings
+och reply_notice_at i samma transaktion.
 
 Svaren på STOPP och START går från svarsnumret med källan system och
 referensen x<inkommande>, betalas av kunden tråden hör till, prövas mot
@@ -44,11 +51,12 @@ Kunden mejlas aldrig. Inga personuppgifter i loggarna, bara pk.
 
 import logging
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import timedelta
 
 from django.conf import settings
-from django.db import transaction
+from django.db import connection, transaction
 from django.db.models import Exists, OuterRef, Q, Value
 from django.db.models.functions import Coalesce, Greatest
 from django.urls import reverse
@@ -56,7 +64,7 @@ from django.utils import timezone
 
 from apps.flamingo.models import Lead
 
-from . import keys, normalize
+from . import keys, limits, normalize
 from . import suppression as suppressions
 from .access import settings_for
 from .models import (
@@ -786,8 +794,30 @@ def cap_allows(sms_account, to, body, now=None):
     return use["remaining"] >= estimate
 
 
+@contextmanager
+def _claimed(message_pk):
+    """Ett svar på STOPP/START sänds av en körning i taget: ticken (fas 3)
+    eller knuffen efter webbanropet (sending/kick.py). pg_try_advisory_lock
+    på limits.ANSWER_LOCK plus meddelandet, i sessionen och utan öppen
+    transaktion (apps/sms reserverar och anropar 46elks i egna
+    transaktioner), så att en annan körning hoppar över svaret i stället för
+    att vänta, som select_for_update(skip_locked=True). Låset släpps efter
+    sändningen, när sms:et redan är kopplat till meddelandet, och av
+    Postgres om processen dör. Ger True när låset togs."""
+    key = limits.ANSWER_LOCK + (int(message_pk) & 0x7FFFFFFF)
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_try_advisory_lock(%s)", [key])
+        (got,) = cursor.fetchone()
+    try:
+        yield bool(got)
+    finally:
+        if got:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(%s)", [key])
+
+
 def _send_answers(now, deadline, counts):
-    from .sending import checks, sms_wrapper
+    from .sending import checks
 
     queued = list(
         answers_queued()
@@ -798,65 +828,86 @@ def _send_answers(now, deadline, counts):
     for message in queued:
         if time.monotonic() > deadline:
             break
-        thread = message.thread
-        account = thread.account
-        if now - message.at > ANSWER_MAX_AGE:
-            _fail_answer(message, "expired")
-            counts["skipped"] += 1
-            continue
-        if account.is_demo:
-            _fail_answer(message, "demo")
-            counts["skipped"] += 1
-            continue
-        if breaker is None:
-            breaker = checks.breaker_active(now)
-        if breaker:
-            break
-        sms_account = sms_wrapper.sms_account_for(account)
-        if sms_account is None or not sms_account.is_enabled:
-            _fail_answer(message, "not_enabled")
-            counts["skipped"] += 1
-            continue
-        if not cap_allows(sms_account, thread.address, message.body, now):
-            _fail_answer(message, "cap")
-            counts["skipped"] += 1
-            continue
-        try:
-            out = sms_wrapper.send(
-                account,
-                to=thread.address,
-                body=message.body,
-                sender=reply_number(),
-                source="system",
-                reference=f"x{message.inbound_id}",
-            )
-        except sms_wrapper.DemoRefused:
-            _fail_answer(message, "demo")
-            counts["skipped"] += 1
-            continue
-        sms = out.message
-        if out.ok or (out.unknown and sms is not None):
-            status = (
-                ThreadMessage.Status.SENT
-                if sms is not None and sms.status in ("sent", "delivered")
-                else ThreadMessage.Status.SENDING
-            )
-            ThreadMessage.objects.filter(pk=message.pk).update(sms_message=sms, status=status)
-            _sync_late_report(sms)
-            Thread.objects.filter(pk=thread.pk).update(last_out_at=timezone.now())
-            _record_answer(message, "sent")
-            counts["answers"] += 1
-            continue
-        if out.error == "rate_limited":
-            # Minutgränsen eller 46elks 429: resten väntar till nästa tick.
-            break
-        reason = {"monthly_cap_reached": "cap", "sms_not_enabled": "not_enabled"}.get(
-            out.error, "failed"
-        )
-        if sms is not None:
-            ThreadMessage.objects.filter(pk=message.pk).update(sms_message=sms)
-        _fail_answer(message, reason)
+        with _claimed(message.pk) as mine:
+            # En annan körning sänder svaret just nu, eller hann före: det
+            # hoppas över (referensen x<inkommande> i apps/sms är den andra
+            # spärren mot att samma svar går två gånger).
+            if not mine or not answers_queued().filter(pk=message.pk).exists():
+                continue
+            if now - message.at <= ANSWER_MAX_AGE and not message.thread.account.is_demo:
+                if breaker is None:
+                    breaker = checks.breaker_active(now)
+                if breaker:
+                    break
+            if _send_answer(message, now, counts) == STOP_QUEUE:
+                break
+
+
+#: _send_answer: resten av kön väntar till nästa körning.
+STOP_QUEUE = "stop"
+
+
+def _send_answer(message, now, counts):
+    """Ett svar på STOPP/START, under _claimed. Returnerar STOP_QUEUE när
+    resten av kön ska vänta (minutgränsen), annars ""."""
+    from .sending import sms_wrapper
+
+    thread = message.thread
+    account = thread.account
+    if now - message.at > ANSWER_MAX_AGE:
+        _fail_answer(message, "expired")
         counts["skipped"] += 1
+        return ""
+    if account.is_demo:
+        _fail_answer(message, "demo")
+        counts["skipped"] += 1
+        return ""
+    sms_account = sms_wrapper.sms_account_for(account)
+    if sms_account is None or not sms_account.is_enabled:
+        _fail_answer(message, "not_enabled")
+        counts["skipped"] += 1
+        return ""
+    if not cap_allows(sms_account, thread.address, message.body, now):
+        _fail_answer(message, "cap")
+        counts["skipped"] += 1
+        return ""
+    try:
+        out = sms_wrapper.send(
+            account,
+            to=thread.address,
+            body=message.body,
+            sender=reply_number(),
+            source="system",
+            reference=f"x{message.inbound_id}",
+        )
+    except sms_wrapper.DemoRefused:
+        _fail_answer(message, "demo")
+        counts["skipped"] += 1
+        return ""
+    sms = out.message
+    if out.ok or (out.unknown and sms is not None):
+        status = (
+            ThreadMessage.Status.SENT
+            if sms is not None and sms.status in ("sent", "delivered")
+            else ThreadMessage.Status.SENDING
+        )
+        ThreadMessage.objects.filter(pk=message.pk).update(sms_message=sms, status=status)
+        _sync_late_report(sms)
+        Thread.objects.filter(pk=thread.pk).update(last_out_at=timezone.now())
+        _record_answer(message, "sent")
+        counts["answers"] += 1
+        return ""
+    if out.error == "rate_limited":
+        # Minutgränsen eller 46elks 429: resten väntar till nästa tick.
+        return STOP_QUEUE
+    reason = {"monthly_cap_reached": "cap", "sms_not_enabled": "not_enabled"}.get(
+        out.error, "failed"
+    )
+    if sms is not None:
+        ThreadMessage.objects.filter(pk=message.pk).update(sms_message=sms)
+    _fail_answer(message, reason)
+    counts["skipped"] += 1
+    return ""
 
 
 def _single_reply_text(message, url):
