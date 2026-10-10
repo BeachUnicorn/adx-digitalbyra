@@ -43,13 +43,14 @@ body.up{
    och height är måtten den visas i (högst 40 hög och 220 bred, aldrig större
    än filen), så här sätts ingen bredd eller höjd: bara max-width på en smal
    skärm, med höjden i proportion. Nederst alltid ADX logga, dämpad på den
-   ljusa botten, med en klickyta på 44 px. */
+   ljusa botten, med en klickyta på 44 px. Båda loggorna och sidfoten är
+   centrerade (Giovanni 2026-10-10). */
 .up-top{padding:16px 0;background:var(--up-white);border-bottom:1px solid var(--up-line-soft)}
-.up-brand{font-size:20px;font-weight:800;color:var(--up-ink);letter-spacing:-.01em;overflow-wrap:anywhere}
+.up-brand{font-size:20px;font-weight:800;color:var(--up-ink);letter-spacing:-.01em;overflow-wrap:anywhere;text-align:center}
 .up-brand--logo{line-height:0}
-.up-logo{display:block;max-width:100%;height:auto}
+.up-logo{display:block;max-width:100%;height:auto;margin:0 auto}
 .up-main{flex:1 0 auto;padding:24px 0}
-.up-foot{padding:0 0 32px;font-size:15px;color:var(--up-muted)}
+.up-foot{padding:0 0 32px;font-size:15px;color:var(--up-muted);text-align:center}
 .up-foot p{margin:0}
 .up-link{color:var(--up-primary)}
 .up-foot .up-adx{margin-top:8px;line-height:0}
