@@ -14,6 +14,7 @@ import threading
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.db import connections
 from django.template.loader import render_to_string
 from django.utils.translation import gettext as _
 
@@ -43,7 +44,17 @@ def _as_list(value):
 
 def _send_in_thread(target, *args, **kwargs):
     """Fire-and-forget email sending in a background thread."""
-    thread = threading.Thread(target=target, args=args, kwargs=kwargs, daemon=True)
+
+    def run():
+        try:
+            target(*args, **kwargs)
+        finally:
+            # Sändningen rör inte databasen i dag, men en tråd som öppnar en
+            # anslutning och aldrig stänger den tar en plats i
+            # anslutningspoolen för gott (config/settings/base.py, DB_POOL).
+            connections.close_all()
+
+    thread = threading.Thread(target=run, daemon=True)
     thread.start()
 
 

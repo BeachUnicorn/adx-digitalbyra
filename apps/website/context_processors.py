@@ -2,19 +2,17 @@
 Sajtens chrome i EN kontextprocessor: inställningar, menyer, tjänstelistan
 och aktiv nav-markering. Vyerna slipper ladda samma saker var för sig, och
 header/footer/mobilmeny kan aldrig visa olika sanningar (mönsterkatalogen §1).
+Uppslagen görs en gång per förfrågan och delas med vyerna (chrome.py).
 """
 
-from apps.services.models import Service
-from apps.website.models import Menu, SiteSettings
+from apps.website import chrome
+from apps.website.models import SiteSettings
 
 
 def site_chrome(request):
-    settings = SiteSettings.load()
-    header_menu = Menu.objects.filter(location="header").prefetch_related("items__page").first()
-    footer_menus = list(
-        Menu.objects.filter(location="footer").order_by("order").prefetch_related("items__page")
-    )
-    services = list(Service.objects.filter(is_active=True).order_by("order", "name"))
+    settings = SiteSettings.cached()
+    header_menu, footer_menus = chrome.menus()
+    services = chrome.active_services()
 
     # Aktiv menymarkering: tjänstesidorna räknas till "Tjänster" (guidens
     # NAV_PARENT), övriga matchas på URL-prefix - längsta träff vinner.

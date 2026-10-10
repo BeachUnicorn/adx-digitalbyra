@@ -6,8 +6,9 @@ Provides block rendering, media URL resolution, and color resolution.
 
 from django import template
 
+from apps.website import chrome
 from apps.website.css_generator import resolve_color as _resolve_color
-from apps.website.models import MediaFile, SiteSettings
+from apps.website.models import SiteSettings
 
 register = template.Library()
 
@@ -76,12 +77,12 @@ def media_url(media_id):
 
     Usage: {% media_url media_id as img_url %}
     """
-    if not media_id:
+    media = chrome.media_file(media_id)
+    if media is None:
         return ""
     try:
-        media = MediaFile.objects.get(pk=media_id)
         return media.file.url
-    except (MediaFile.DoesNotExist, ValueError, TypeError):
+    except ValueError:  # raden finns men filen saknas
         return ""
 
 
@@ -99,14 +100,11 @@ def media(media_id):
         {% if img %}<img src="{{ img.file.url }}" alt="{{ img.alt_text }}"
              width="{{ img.width }}" height="{{ img.height }}">{% endif %}
 
-    Returns None if the ID is empty or the file doesn't exist.
+    Returns None if the ID is empty or the file doesn't exist. Looked up
+    once per request (chrome.media_file): the hero's image is also read by
+    the view for the LCP preload.
     """
-    if not media_id:
-        return None
-    try:
-        return MediaFile.objects.get(pk=media_id)
-    except (MediaFile.DoesNotExist, ValueError, TypeError):
-        return None
+    return chrome.media_file(media_id)
 
 
 class ResolveColorNode(template.Node):
@@ -184,7 +182,11 @@ def faq_section(context, section_id):
     block = context.get("block")
     design = getattr(getattr(block, "page", None), "design", "") or ""
     try:
-        return sections_for_design(design).get(pk=section_id, is_active=True)
+        # Mallen läser section.items.all två gånger (schemat och listan):
+        # hämta frågorna en gång.
+        return (
+            sections_for_design(design).prefetch_related("items").get(pk=section_id, is_active=True)
+        )
     except (FAQSection.DoesNotExist, ValueError, TypeError):
         return None
 
@@ -220,10 +222,9 @@ def inquiry_form():
 @register.simple_tag
 def active_services():
     """Aktiva tjänster i ordning - för svc_list-blocket (render_block ger
-    blocken en egen kontext, så processorernas nav_services når inte hit)."""
-    from apps.services.models import Service
-
-    return Service.objects.filter(is_active=True).order_by("order", "name")
+    blocken en egen kontext, så processorernas nav_services når inte hit).
+    Samma lista som nav_services, hämtad en gång per förfrågan."""
+    return chrome.active_services()
 
 
 @register.simple_tag(name="resolve_link")

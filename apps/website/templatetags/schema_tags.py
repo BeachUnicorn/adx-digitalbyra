@@ -145,9 +145,10 @@ def service_schema(page, site_settings):
     """
     if page is None:
         return ""
-    from apps.services.models import Service
+    from apps.website.chrome import active_services
 
-    service = Service.objects.filter(slug=page.slug, is_active=True).first()
+    # Samma lista som menyerna redan hämtat (slug är unik).
+    service = next((s for s in active_services() if s.slug == page.slug), None)
     if service is None:
         return ""
     base = _base_url()

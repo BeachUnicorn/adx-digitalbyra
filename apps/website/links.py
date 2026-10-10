@@ -28,6 +28,9 @@ from dataclasses import dataclass
 
 from django.urls import Resolver404, resolve, reverse
 
+from apps.common.request_memo import active as memo_active
+from apps.common.request_memo import memo
+
 OK = "ok"
 MISSING = "missing"
 UNPUBLISHED = "unpublished"
@@ -90,9 +93,9 @@ def parse_href(value):
             return {"kind": "area", "id": area.pk}
         return {"kind": "path", "path": value}
     if path == "/":
-        home = _homepage()
-        if home:
-            return {"kind": "page", "id": home.pk}
+        home_id = _homepage_id()
+        if home_id:
+            return {"kind": "page", "id": home_id}
         return {"kind": "path", "path": "/"}
 
     slug = path.strip("/")
@@ -103,32 +106,145 @@ def parse_href(value):
     return {"kind": "path", "path": value}
 
 
-def _homepage():
+def _homepage_id():
     from apps.website.models import SiteSettings
 
-    return SiteSettings.load().homepage
+    return SiteSettings.cached().homepage_id
+
+
+def _page_key(raw_id):
+    """Sidans id som heltal, eller None för det som inte är ett id."""
+    if isinstance(raw_id, bool):
+        return None
+    if isinstance(raw_id, int):
+        return raw_id
+    if isinstance(raw_id, str) and raw_id.isascii() and raw_id.isdigit():
+        return int(raw_id)
+    return None
+
+
+def _pages_seen():
+    """{id: BlockPage eller None} för förfrågan (apps/common/request_memo.py)."""
+    return memo("links:pages", dict)
+
+
+def _adx_pages_seen():
+    """{slug: ADX-sida eller None} för förfrågan, till path-länkarna."""
+    return memo("links:adx_pages_by_slug", dict)
+
+
+def _adx_page_by_slug(slug):
+    from apps.website.models import BlockPage
+
+    pages = _adx_pages_seen()
+    if slug in pages:
+        return pages[slug]
+    page = BlockPage.objects.filter(slug=slug, design=BlockPage.DESIGN_ADX).first()
+    pages[slug] = page
+    return page
+
+
+def _page_by_id(raw_id):
+    from apps.website.models import BlockPage
+
+    key = _page_key(raw_id)
+    pages = _pages_seen()
+    if key is not None and key in pages:
+        return pages[key]
+    page = BlockPage.objects.filter(pk=raw_id).first()
+    if key is not None:
+        pages[key] = page
+    return page
+
+
+def prime_pages(blocks):
+    """Hämta sidorna som blockens länkfält pekar på, en fråga för sidlänkarna
+    och en för path-länkarna till /<slug>/.
+
+    Mallarna löser länkarna en i taget ({% resolve_link %}); utan det här
+    blev varje länk en egen fråga (Sentry ADX-DIGITALBYRA-H, 12 på
+    /hosting/). Fälten läses ur blockschemat precis som i iter_link_usages.
+    Gör ingenting utanför en förfrågan, där det inte finns något att minnas
+    till.
+
+    Blockdata av oväntad form (en lista där schemat säger objekt, ett tal där
+    det ska stå en adress) hoppas över: mallarna tål den, och en förhämtning
+    får aldrig fälla sidan.
+    """
+    if not memo_active():
+        return
+    from apps.website.models import BlockPage
+
+    wanted_ids, wanted_slugs = set(), set()
+    for block in blocks:
+        data = block.data if isinstance(block.data, dict) else {}
+        for key, list_key in _schema_url_fields(block.block_type):
+            if list_key:
+                rows = data.get(list_key)
+                rows = rows if isinstance(rows, list) else []
+                values = [row.get(key) for row in rows if isinstance(row, dict)]
+            else:
+                values = [_nested_get(data, key, None)]
+            for value in values:
+                if not isinstance(value, dict):
+                    continue
+                path = value.get("path")
+                if value.get("kind") == "page":
+                    page_key = _page_key(value.get("id"))
+                    if page_key is not None:
+                        wanted_ids.add(page_key)
+                elif value.get("kind") == "path" and isinstance(path, str) and path:
+                    match = _match_path(path)
+                    if match is not None and _view_name(match) == "page_detail":
+                        slug = match.kwargs.get("slug")
+                        if isinstance(slug, str) and slug:
+                            wanted_slugs.add(slug)
+
+    pages = _pages_seen()
+    missing = wanted_ids - pages.keys()
+    if missing:
+        found = {page.pk: page for page in BlockPage.objects.filter(pk__in=missing)}
+        for page_key in missing:
+            pages[page_key] = found.get(page_key)
+
+    by_slug = _adx_pages_seen()
+    missing = {slug for slug in wanted_slugs if slug} - by_slug.keys()
+    if missing:
+        found = {
+            page.slug: page
+            for page in BlockPage.objects.filter(slug__in=missing, design=BlockPage.DESIGN_ADX)
+        }
+        for slug in missing:
+            by_slug[slug] = found.get(slug)
+
+
+def _match_path(path):
+    """Routen för en rå intern sökväg, eller None när ingen route matchar."""
+    clean = path.split("?")[0].split("#")[0]
+    if not clean.endswith("/") and "." not in clean.rsplit("/", 1)[-1]:
+        clean += "/"
+    try:
+        return resolve(clean)
+    except Resolver404:
+        return None
+
+
+def _view_name(match):
+    return getattr(match.func, "__name__", "")
 
 
 def _resolve_path_status(path):
     """Döm en rå intern sökväg (flyktvägen "path"). Ruttmatchning räcker
     inte - catch-all-rutten <slug>/ matchar allt, så vyer som slår upp
     objekt måste få sina objekt kontrollerade."""
-    clean = path.split("?")[0].split("#")[0]
-    if not clean.endswith("/") and "." not in clean.rsplit("/", 1)[-1]:
-        clean += "/"
-    try:
-        match = resolve(clean)
-    except Resolver404:
+    match = _match_path(path)
+    if match is None:
         return MISSING
 
-    view_name = getattr(match.func, "__name__", "")
+    view_name = _view_name(match)
     if view_name == "page_detail":
-        from apps.website.models import BlockPage
-
         # Flamingo-sidor svarar aldrig på /<slug>/ (de bor under /flamingo/).
-        page = BlockPage.objects.filter(
-            slug=match.kwargs.get("slug"), design=BlockPage.DESIGN_ADX
-        ).first()
+        page = _adx_page_by_slug(match.kwargs.get("slug"))
         if page is None:
             return MISSING
         return OK if page.is_published else UNPUBLISHED
@@ -160,9 +276,7 @@ def resolve_link(value):
     kind = value.get("kind", "")
 
     if kind == "page":
-        from apps.website.models import BlockPage
-
-        page = BlockPage.objects.filter(pk=value.get("id")).first()
+        page = _page_by_id(value.get("id"))
         if page is None:
             return ResolvedLink(status=MISSING)
         if page.is_flamingo:
@@ -170,8 +284,8 @@ def resolve_link(value):
             # till en 404. Väljaren erbjuder dem inte; en gammal eller
             # handskriven länk flaggas som död i stället för att visas.
             return ResolvedLink(status=MISSING, label=page.title)
-        home = _homepage()
-        href = "/" if home and home.pk == page.pk else page.get_absolute_url()
+        home_id = _homepage_id()
+        href = "/" if home_id is not None and home_id == page.pk else page.get_absolute_url()
         return ResolvedLink(
             href=href, status=OK if page.is_published else UNPUBLISHED, label=page.title
         )
@@ -194,7 +308,7 @@ def resolve_link(value):
     if kind == "email":
         from apps.website.models import SiteSettings
 
-        address = value.get("address") or SiteSettings.load().email
+        address = value.get("address") or SiteSettings.cached().email
         return (
             ResolvedLink(href=f"mailto:{address}", status=OK, label=address)
             if address
@@ -204,7 +318,7 @@ def resolve_link(value):
     if kind == "phone":
         from apps.website.models import SiteSettings
 
-        number = value.get("number") or SiteSettings.load().phone
+        number = value.get("number") or SiteSettings.cached().phone
         return (
             ResolvedLink(href=f"tel:{number}", status=OK, label=number)
             if number

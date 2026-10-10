@@ -24,6 +24,7 @@ import re
 import time
 
 from django.conf import settings
+from django.db import connection
 from django.db.models import Sum
 from django.utils import timezone
 
@@ -43,6 +44,14 @@ DIRECT_PRICES = {
     "claude-sonnet-5": (3.0, 15.0),
 }
 DEFAULT_PRICE = (5.0, 25.0)
+
+#: Anrop som en webbförfrågan väntar på (sidbyggaren, Flamingos läsning av
+#: hemsidan, kampanjtexterna). Förfrågan ger upp efter 15-30 s, men tråden
+#: med anropet går vidare tills klienten ger upp: med klientens standard
+#: (600 s och två nya försök) kunde den leva i en halvtimme. Assistentens
+#: turer har ingen väntande förfrågan och behåller standarden.
+REQUEST_TIMEOUT = 60.0
+REQUEST_RETRIES = 1
 
 #: Kundens regel, 2026-08-21: bara Sonnet eller Opus från 4.6 och uppåt,
 #: aldrig Haiku. Skälet är innehållskvalitet - adx såg Haiku producera
@@ -159,20 +168,30 @@ def check_budget():
         )
 
 
-def client():
+def client(*, timeout=None, max_retries=None):
     """
     Bedrock via instansrollen i produktion, CLI-profilen lokalt.
 
     Ingen nyckel skickas med: boto3:s vanliga kedja hittar rollen på EC2 och
     ~/.aws lokalt. Det är hela poängen med att gå via Bedrock - det finns
     ingen hemlighet att läcka eller rotera.
+
+    timeout och max_retries lämnas till klienten bara när de är satta
+    (REQUEST_TIMEOUT); annars gäller klientens standard.
     """
+    limits = {}
+    if timeout is not None:
+        limits["timeout"] = timeout
+    if max_retries is not None:
+        limits["max_retries"] = max_retries
+
     if provider() == "bedrock":
         from anthropic import AnthropicBedrock
 
         return AnthropicBedrock(
             aws_region=getattr(settings, "ASSISTANT_BEDROCK_REGION", "eu-central-1"),
             aws_profile=getattr(settings, "ASSISTANT_AWS_PROFILE", "") or None,
+            **limits,
         )
 
     key = getattr(settings, "ANTHROPIC_API_KEY", "") or ""
@@ -180,7 +199,7 @@ def client():
         raise ModelUnavailable("ANTHROPIC_API_KEY saknas - den inbyggda assistenten är avstängd.")
     import anthropic
 
-    return anthropic.Anthropic(api_key=key)
+    return anthropic.Anthropic(api_key=key, **limits)
 
 
 def is_configured():
@@ -240,22 +259,43 @@ def _friendly(exc):
     return text
 
 
-def call(*, system, messages, tools, user, job=None, max_tokens=8000):
+def _release_connection():
+    """Lämna tillbaka trådens anslutning innan det långa väntandet på modellen.
+
+    check_budget() har just öppnat den, och modellen kan ta minuter på sig.
+    I webbprocessen delar varje worker på en liten pool
+    (config/settings/base.py, DB_POOL), och trådarna med modellanrop räknas
+    inte av grinden för förfrågningar: några hängande anrop tog annars
+    platserna som sidorna behöver. Nästa fråga i tråden (AICall-raden nedan)
+    lånar en ny. Inuti en transaktion får anslutningen inte bytas, och där
+    står den kvar.
+    """
+    if not connection.in_atomic_block:
+        connection.close()
+
+
+def call(
+    *, system, messages, tools, user, job=None, max_tokens=8000, timeout=None, max_retries=None
+):
     """
     Ett modellanrop. Returnerar svaret och bokför kostnaden.
 
     Budgetvakten körs före anropet, aldrig efter: poängen är att inte göra
     det dyra anropet, inte att upptäcka i efterhand att det var dyrt.
+
+    Medan modellen svarar håller tråden ingen databasanslutning (se
+    _release_connection). timeout och max_retries går till client().
     """
     from .models import AICall
 
     assert_model_allowed(model_id())
     check_budget()
+    _release_connection()
 
     started = time.monotonic()
     model = model_id()
     try:
-        response = client().messages.create(
+        response = client(timeout=timeout, max_retries=max_retries).messages.create(
             model=model,
             max_tokens=max_tokens,
             system=system,

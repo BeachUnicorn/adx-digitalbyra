@@ -1,5 +1,6 @@
 """Public FAQ views: list all sections + detail for one section."""
 
+from django.db.models import Count
 from django.shortcuts import get_object_or_404, render
 
 from apps.website.views import _get_site_context
@@ -10,7 +11,14 @@ from .visibility import public_sections
 def section_list(request):
     # Bara ADX-sektioner: en sektion för ADX Flamingo hör till Flamingos
     # sidor, inte till /faq/ (visibility.py).
+    # Antalet frågor per sektion i samma fråga: mallen frågade annars en
+    # gång per sektion (102 frågor på /faq/). Med GROUP BY gäller inte
+    # Meta.ordering av sig själv, så ordningen anges (id sist: två sektioner
+    # kan heta likadant).
     sections = public_sections()
+    sections = sections.annotate(item_count=Count("items")).order_by(
+        *sections.model._meta.ordering, "pk"
+    )
     context = _get_site_context()
     context["sections"] = sections
     return render(request, "faq/section_list.html", context)

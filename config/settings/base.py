@@ -64,6 +64,9 @@ MIDDLEWARE = [
     # Utskickens länkvärdar k.adx.se och klick.adx.se: där svarar bara
     # config.urls_links (apps/utskick/links.py, README E.1).
     "apps.utskick.links.LinkHostMiddleware",
+    # Sajtens uppslag (inställningar, menyer, startsidan) en gång per GET
+    # i stället för en gång per länk (apps/common/request_memo.py).
+    "apps.common.request_memo.request_memo_middleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -78,6 +81,9 @@ MIDDLEWARE = [
     "apps.flamingo.middleware.FlamingoGateMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.analytics.middleware.AnalyticsMiddleware",
+    # Sist: vyernas 404 ritas i förfrågans tråd, med en anslutning i
+    # stället för två (apps/core/middleware.py).
+    "apps.core.middleware.NotFoundInRequestThreadMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -132,6 +138,66 @@ def _refuse_foreign_database(name):
 
 
 _refuse_foreign_database(DATABASES["default"].get("NAME", ""))
+
+# Anslutningarna till Postgres. Servern delar en Postgres (max_connections
+# 100, varav 3 reserverade) med sju andra sajter. 2026-10-09 23:50 tog en
+# skannerskur (122 förfrågningar på 5 s) slut på alla: Django under ASGI ger
+# varje förfrågan en egen tråd med en egen anslutning, och inget begränsade
+# hur många som körde samtidigt.
+#
+# Nu, per uvicorn-worker (GUNICORN_WORKERS=2 i server/sites.d/adx.conf):
+#   - högst ADX_WEB_CONCURRENT_REQUESTS = 6 Django-förfrågningar åt gången
+#     (apps/assistant/asgi_app.py). Resten väntar i händelseloopen utan tråd
+#     och utan anslutning, högst nginx 60 s, i stället för att få en 500.
+#   - en pool på högst ADX_DB_POOL_MAX_SIZE = 12 anslutningar för allt i
+#     processen. Förfrågningarna håller högst 6; de 6 som blir över delar
+#     felsidornas trådar, MCP och bakgrundstrådarna (knuffen, assistenten,
+#     Flamingos modellanrop). Poolen är dubbelt så stor som grinden: en
+#     förfrågan kan behöva en andra anslutning medan den håller sin första
+#     (en 404 som ritas utanför förfrågans tråd, sidbyggarens modelltråd),
+#     och med bara 2 över räckte två bakgrundstrådar för att alla sex skulle
+#     vänta ut poolen (lasttestet 2026-10-10). Gränsen måste ligga under
+#     poolen.
+#   - timeout 30 s: får en tråd ingen anslutning på 30 s blir det en 500
+#     (PoolTimeout), före nginx 60 s. max_idle 300 s: lediga anslutningar
+#     utöver min_size 2 stängs efter fem minuter.
+# Totalt högst 2 x 12 = 24 för webben, plus en per cron-process
+# (utskick_tick varje minut, monitor_check var femte, timjobben). Mätt i
+# lasttestet 2026-10-10: 12 under en skur på 300 sidor och 404:or, 24 (hela
+# poolen) när 300 inloggade 404:or kom medan fem bakgrundstrådar per worker
+# höll var sin anslutning; inga fel. Under en deploy (systemctl reload) går
+# gamla och nya workers sida vid sida en stund.
+#
+# Poolen slås på av config/asgi.py (ADX_DB_POOL=1) och gäller bara
+# webbprocessen. manage.py, cron och testerna läser samma .env men har en
+# vanlig anslutning var. ADX_DB_POOL=0 i .env stänger av poolen (omstart).
+# Poolen kräver CONN_MAX_AGE=0; CONN_HEALTH_CHECKS ger varje utlåning en
+# kontroll, så att döda anslutningar efter en Postgres-omstart (som
+# 2026-10-09) slängs i stället för att ge fel. En tråd som aldrig stänger sin
+# anslutning tar en plats i poolen för gott: stäng i finally (se
+# apps/assistant/tasks.py; apps/common/test_db_connections.py vaktar).
+# Sessionens tillstånd följer med anslutningen tillbaka till poolen: ett
+# rådgivande lås (pg_advisory_lock) släpps inte längre av att anslutningen
+# stängs, bara av unlock (apps/utskick/threads.py gör det i finally).
+DB_POOL = env.bool("ADX_DB_POOL", default=False)
+DB_POOL_MAX_SIZE = env.int("ADX_DB_POOL_MAX_SIZE", default=12)
+WEB_CONCURRENT_REQUESTS = env.int("ADX_WEB_CONCURRENT_REQUESTS", default=6)
+if DB_POOL and DATABASES["default"]["ENGINE"] == "django.db.backends.postgresql":
+    if not 0 < WEB_CONCURRENT_REQUESTS < DB_POOL_MAX_SIZE:
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured(
+            "ADX_WEB_CONCURRENT_REQUESTS måste vara minst 1 och mindre än "
+            "ADX_DB_POOL_MAX_SIZE, annars kan felsidorna vänta ut poolen."
+        )
+    DATABASES["default"]["CONN_MAX_AGE"] = 0
+    DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
+    DATABASES["default"].setdefault("OPTIONS", {})["pool"] = {
+        "min_size": 2,
+        "max_size": DB_POOL_MAX_SIZE,
+        "timeout": 30,
+        "max_idle": 300,
+    }
 
 # Parallella testkörningar (flera agenter samtidigt) krockar annars på samma
 # testdatabas: den ena droppar den andras mitt i körningen.

@@ -19,11 +19,11 @@ OTHER_TOPIC = "Annat / vet inte än"
 
 def topic_choices():
     """Tjänsterna + paketen + Annat. Läses ur databasen vid varje rendering
-    så listan aldrig glider ifrån tjänsteutbudet."""
-    from apps.services.models import Service
+    så listan aldrig glider ifrån tjänsteutbudet (inne i en sidvisning samma
+    lista som menyerna, apps/website/chrome.py)."""
+    from apps.website.chrome import active_services
 
-    services = Service.objects.filter(is_active=True).order_by("order", "name")
-    choices = [(s.name, s.name) for s in services]
+    choices = [(s.name, s.name) for s in active_services()]
     choices += [(p, p) for p in PACKAGE_TOPICS]
     choices.append((OTHER_TOPIC, OTHER_TOPIC))
     return choices

@@ -8,9 +8,11 @@ Autentiseringen sitter här och inte inne i verktygen: en request utan giltig
 bearer-token når aldrig MCP-lagret.
 """
 
+import asyncio
 import os
+import weakref
 
-from .db import db_sync
+from .db import db_sync, install_tidy_executor
 
 MCP_PATH = "/mcp"
 
@@ -163,6 +165,46 @@ class AuthenticatedMCPApp:
         return await db_sync(_lookup)()
 
 
+class DjangoGate:
+    """
+    Högst `limit` Django-förfrågningar åt gången i den här workern.
+
+    Django under ASGI ger varje förfrågan en egen tråd, och varje tråd en
+    egen Postgres-anslutning som hålls tills svaret är skickat. Ingenting
+    begränsade hur många som körde samtidigt: 2026-10-09 tog en skannerskur
+    100 anslutningar på en worker, och Postgres nekade alla sajter på
+    servern. Resten väntar här, i händelseloopen, utan tråd och utan
+    anslutning, i den ordning de kom (config/settings/base.py, DB_POOL).
+
+    MCP, OAuth och lifespan går utanför: MCP håller långa strömmar öppna,
+    och dess databasjobb går genom db_sync (en tråd per worker).
+
+    Första gången i varje händelseloop byts också loopens standardpool mot
+    TidyExecutor (apps/assistant/db.py), där Django ritar felsidorna.
+    Semaforen hör till loopen den skapades i, så det finns en per loop
+    (testerna kör en ny loop per anrop).
+    """
+
+    def __init__(self, limit):
+        self.limit = limit
+        self._semaphores = weakref.WeakKeyDictionary()
+
+    def _semaphore(self):
+        loop = asyncio.get_running_loop()
+        if loop not in self._semaphores:
+            install_tidy_executor(loop)
+            self._semaphores[loop] = asyncio.Semaphore(self.limit) if self.limit > 0 else None
+        return self._semaphores[loop]
+
+    async def __call__(self, app, scope, receive, send):
+        semaphore = self._semaphore()
+        if semaphore is None:
+            await app(scope, receive, send)
+            return
+        async with semaphore:
+            await app(scope, receive, send)
+
+
 def build_application():
     """Router: /mcp/* -> MCP-appen, allt annat -> Django."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
@@ -240,6 +282,8 @@ def build_application():
 
     from apps.utskick.links import host_of_scope, link_host_kind
 
+    gate = DjangoGate(getattr(settings, "WEB_CONCURRENT_REQUESTS", 0))
+
     async def application(scope, receive, send):
         path = scope.get("path", "")
         is_mcp = path == MCP_PATH or path.startswith(MCP_PATH + "/")
@@ -271,6 +315,6 @@ def build_application():
             # session manager startar sina bakgrundsuppgifter där.
             await mcp_app(scope, receive, send)
             return
-        await django_app(scope, receive, send)
+        await gate(django_app, scope, receive, send)
 
     return application

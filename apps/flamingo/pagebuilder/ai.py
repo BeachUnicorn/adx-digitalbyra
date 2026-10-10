@@ -883,6 +883,8 @@ def _call_model(system, payload, tool, user, max_tokens):
             tools=[tool],
             user=user if getattr(user, "is_authenticated", False) else None,
             max_tokens=max_tokens,
+            timeout=llm.REQUEST_TIMEOUT,
+            max_retries=llm.REQUEST_RETRIES,
         )
     finally:
         connection.close()

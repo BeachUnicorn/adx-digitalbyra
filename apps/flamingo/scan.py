@@ -930,6 +930,8 @@ def _call_model(messages, user):
             tools=[AI_TOOL],
             user=user,
             max_tokens=AI_MAX_TOKENS,
+            timeout=llm.REQUEST_TIMEOUT,
+            max_retries=llm.REQUEST_RETRIES,
         )
     finally:
         connection.close()

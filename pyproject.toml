@@ -9,7 +9,8 @@ dependencies = [
     #   uv lock --upgrade-package django
     "django>=6.0,<6.1",
     "gunicorn>=23.0",
-    "psycopg[binary]>=3.2",
+    # pool: anslutningspoolen i webbprocessen (config/settings/base.py, DB_POOL).
+    "psycopg[binary,pool]>=3.2",
     "django-environ>=0.12",
     "sentry-sdk[django]>=2.0",
     # HTML sanitization for all customer-supplied, outward-facing content.
@@ -32,6 +33,9 @@ dependencies = [
     "openpyxl>=3.1",
     "defusedxml>=0.7",
     "boto3>=1.40",
+    # QR-koderna (S4: namngivna länkar och anmälningssidan) som SVG och PNG,
+    # ren Python utan Pillow.
+    "segno>=1.6",
 ]
 
 [dependency-groups]

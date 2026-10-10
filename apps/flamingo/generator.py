@@ -726,6 +726,8 @@ def ai_texts(info, user=None, account=None):
             tools=[TOOL],
             user=user if getattr(user, "is_authenticated", False) else None,
             max_tokens=2000,
+            timeout=llm.REQUEST_TIMEOUT,
+            max_retries=llm.REQUEST_RETRIES,
         )
     except llm.BudgetExceeded:
         return None, None, "Dagens AI-budget är slut, så texterna bygger på mallar."

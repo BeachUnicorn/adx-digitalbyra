@@ -13,6 +13,9 @@ WSGI (gunicorn/runserver) fungerar fortfarande för sajten, men då svarar
 import os
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.development")
+# Anslutningspoolen gäller bara webbprocessen (config/settings/base.py,
+# DB_POOL). ADX_DB_POOL=0 i .env stänger av den.
+os.environ.setdefault("ADX_DB_POOL", "1")
 
 from apps.assistant.asgi_app import build_application  # noqa: E402
 

@@ -2,6 +2,27 @@ from django.core.validators import MaxValueValidator
 from django.db import models
 from django.utils.text import slugify
 
+from apps.common.request_memo import memo
+
+#: Startsidans id när ingen SiteSettings-rad finns (se _homepage_id).
+_NO_SETTINGS = object()
+
+
+def _homepage_id():
+    """homepage_id på första SiteSettings-raden, eller _NO_SETTINGS.
+
+    get_absolute_url anropas för varje menylänk, två gånger per länk i
+    huvudet och mobilmenyn: 80-96 frågor per sida (Sentry
+    ADX-DIGITALBYRA-8, F, G och J). Nu en gång per förfrågan
+    (apps/common/request_memo.py).
+    """
+
+    def lookup():
+        rows = list(SiteSettings.objects.order_by("pk").values_list("homepage_id", flat=True)[:1])
+        return rows[0] if rows else _NO_SETTINGS
+
+    return memo("website:homepage_id", lookup)
+
 
 class MediaFile(models.Model):
     """Uploaded media files (images, documents, etc.)."""
@@ -128,13 +149,10 @@ class BlockPage(models.Model):
             if self.slug == self.FLAMINGO_HOME_SLUG:
                 return "/flamingo/"
             return f"/flamingo/{self.slug}/"
-        # Check if this page is the homepage
-        try:
-            settings = SiteSettings.objects.first()
-            if settings and settings.homepage_id == self.pk:
-                return "/"
-        except SiteSettings.DoesNotExist:
-            pass
+        # Startsidan svarar på "/".
+        homepage_id = _homepage_id()
+        if homepage_id is not _NO_SETTINGS and homepage_id == self.pk:
+            return "/"
         return f"/{self.slug}/"
 
     @property
@@ -381,3 +399,11 @@ class SiteSettings(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+    @classmethod
+    def cached(cls):
+        """load() en gång per förfrågan (apps/common/request_memo.py). Samma
+        objekt delas av kontextprocessorn, vars-filtren och länkarna, så det
+        är bara till för läsning: den som ska ändra inställningarna tar
+        load()."""
+        return memo("website:site_settings", cls.load)

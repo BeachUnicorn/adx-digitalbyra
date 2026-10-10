@@ -162,11 +162,12 @@ def vars_url_filter(value):
 
 
 def _load_site_settings():
-    """Cheap loader so filters work without template-context plumbing."""
+    """Cheap loader so filters work without template-context plumbing.
+    Once per request (SiteSettings.cached), not once per filter."""
     try:
         from apps.website.models import SiteSettings
 
-        return SiteSettings.load()
+        return SiteSettings.cached()
     except Exception:  # noqa: BLE001
         return None
 
