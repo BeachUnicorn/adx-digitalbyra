@@ -4,12 +4,12 @@ att namnen blir manage:utskick_... som resten av panelen (som apps.sms).
 
 S2: en modul per byggare (S2-HANDOFF.md): manage_inbound.py (inkommande
 sms), manage_links.py (länkvärdarna), manage_sending.py (undantag och
-provsms).
+provsms). S3: manage_email.py (hälsospärren, domänerna, köerna).
 """
 
 from django.urls import path
 
-from . import manage_inbound, manage_links, manage_sending
+from . import manage_email, manage_inbound, manage_links, manage_sending
 from . import manage_views as v
 
 urlpatterns = [
@@ -31,4 +31,12 @@ urlpatterns = [
         name="utskick_info_override",
     ),
     path("utskick/prov/", manage_sending.probe, name="utskick_probe"),
+    # S3
+    path(
+        "utskick/konto/<int:pk>/halsa/",
+        manage_email.health_release,
+        name="utskick_health_release",
+    ),
+    path("utskick/doman/<int:pk>/", manage_email.domain_admin, name="utskick_domain_admin"),
+    path("utskick/koer/", manage_email.dlq, name="utskick_dlq"),
 ]

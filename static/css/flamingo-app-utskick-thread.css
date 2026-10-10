@@ -48,3 +48,8 @@
   .fl-th__form .fl-form__actions .fl-btn{width:100%}
   .fl-th__unsub .fl-btn{width:100%}
 }
+
+/* ---------- S3: e-posttrådar (inkorg-byggaren) ---------- */
+.fl-th__subject{font-size:15px;line-height:1.4;font-weight:600;color:var(--fl-ink);margin:0;overflow-wrap:anywhere}
+.fl-th__files{font-size:14px;line-height:1.45;color:var(--fl-muted);margin:0;overflow-wrap:anywhere}
+.fl-th__to{overflow-wrap:anywhere}

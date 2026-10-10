@@ -104,13 +104,14 @@ Byråns sidor:
 | `/manage/flamingo/google/tillbaka/` | Googles omdirigering efter inloggningen (OAuth) |
 | `/manage/kunder/<pk>/flamingo/google/api/` (POST) | Kundkortets knappar: kopplingsförfrågan, nytt konto, läget från Google |
 | Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering, knapparna med API:t), kampanjerna, och sist Kontakter och utskick (`#utskick`, apps/utskick) |
-| `/manage/utskick/` | Kontakter och utskick för byrån: kunderna, kön för bekräftelsemejl, ticken, sändningen med informationsutskicken och "Provsms till mig" (S2), inkommande sms som väntar på byrån, länkar till nya webbplatser att godkänna, nödstoppet med klarmarkeringarna och biträdesavtalet (apps/utskick/README.md) |
+| `/manage/utskick/` | Kontakter och utskick för byrån: kunderna, kön för bekräftelsemejl, ticken, sändningen med informationsutskicken och "Provsms till mig" (S2), inkommande sms som väntar på byrån, länkar till nya webbplatser att godkänna, e-posten (S3: SES-kontot, köerna och DLQ:erna, kunder med e-postspärr och "Släpp spärren", kundernas domäner, "Provmejl till mig"), nödstoppet med klarmarkeringarna och biträdesavtalet (apps/utskick/README.md) |
 
 ## Kontakter och utskick (`apps/utskick`)
 
 Flamingo 2.0 bor i en egen app: kontaktregistret, importen, samtyckena,
-anmälningssidan och (från S2) utskicken. Kontraktet och läget står i
-`apps/utskick/README.md`; här bara det som rör Flamingo:
+anmälningssidan, (från S2) utskicken med sms och (från S3) e-posten i
+Brev. Kontraktet och läget står i `apps/utskick/README.md`; här bara det
+som rör Flamingo:
 
 - Menyn visar Kontakter och Utskick efter Kampanjer bara när byrån
   aktiverat utskick för kunden (`utskick.nav.nav_for`, kundkortet
@@ -130,7 +131,8 @@ anmälningssidan och (från S2) utskicken. Kontraktet och läget står i
   till en befintlig kontakt med exakt samma nummer eller e-post. Inga kakor.
 - Demokunden har kontakter, listor, taggar, extrafält, en klar import och
   samtycken i varje läge, ett skickat utskick (simulerat) med klick,
-  förfrågningar, två svar och en STOPP, ett schemalagt och ett utkast
+  förfrågningar, två svar och en STOPP, ett schemalagt och ett utkast, och
+  (S3) ett skickat mejl i Brev med ett klick till Flamingo-sidan
   (`utskick.demo`), och skickar aldrig något.
 - **Spåret från utskick (S2, D10, D11).** Klicket på `k.adx.se/<kod>` går
   till landningssidan med `ut=<token>` (aldrig en kaka); `flamingo-lp.js`
@@ -156,6 +158,18 @@ anmälningssidan och (från S2) utskicken. Kontraktet och läget står i
   riktigt men måste kryssa i att den svarar som ADX; demot svarar aldrig.
   Kanalen i listan: "Sms-svar", "STOPP" eller "Utskick: <namn>" för en
   förfrågan via ett utskick.
+- **E-posten (S3).** Mejlen byggs i Brev med sidbyggarens redigerare:
+  `flamingo-pb.js` har en profil per redigerare (`pages.PAGE_PROFILE` för
+  sidorna, oförändrad och prövad i `test_pagebuilder_editor.py`; profilen
+  `brev` för mejlen, `utskick/app_views/brev.py`). `pagebuilder/blocks.py`
+  tar `types=` och `salt=` (mejlens block har egna typer och en egen
+  signatur), och `media.delete_asset` vägrar ta bort en bild som ett
+  osänt utskick använder (`MediaInUse`). En länk i mejlet till kundens
+  egen Flamingo-sida går genom `klick.adx.se/m/<token>` till sidan med
+  `ut`, precis som sms:ens `k.adx.se`, och förfrågan får spåret. Svar på
+  mejl kommer in genom SES i eu-west-1 och blir "E-postsvar" i Inkorgen;
+  kunden svarar därifrån med mejl (`In-Reply-To`, svarsadress med trådens
+  token).
 
 ## Sidbyggaren (`pagebuilder/`)
 
@@ -867,7 +881,9 @@ har fel kontrollsiffra och kan inte vara ett riktigt företags. Utskicken:
 "Spolning inför vintern" skickades för åtta dagar sedan (simulerat, inget
 sms, ingen SmsMessage) med tre klick, två förfrågningar via utskicket, två
 svar i Inkorgen (ett nytt, ett klart) och en STOPP; ett schemalagt om fem
-dagar (ticken simulerar det när tiden kommer) och ett utkast. Demot behöver
+dagar (ticken simulerar det när tiden kommer) och ett utkast. E-posten
+(S3): "Höstbrevet" skickades för tre dagar sedan i Brev (simulerat, inget
+mejl, SES anropas aldrig) med ett klick till Flamingo-sidan. Demot behöver
 inget biträdesavtal. Kör det igen så byggs innehållet om (också demots
 spärrlista och samtyckeslogg); inget dubbleras.
 En annan kund med samma namn rörs aldrig.

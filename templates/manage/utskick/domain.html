@@ -1,0 +1,53 @@
+{% extends "manage/base.html" %}
+{% load static %}
+{% comment %}
+En kunds avsändardomän (apps/utskick/manage_email.domain_admin, README B.3,
+J S3 "Be ADX om hjälp"). Kontext: row (SenderDomain), records ([{record,
+state, seen}]), snapshot (senaste GetEmailIdentity), expires_at. Byrån kan
+kontrollera igen och ta bort domänen; kunden mejlas inte. <thead> i varje
+tabell, inga style-attribut.
+{% endcomment %}
+{% block title %}Domän {{ row.domain }}{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/manage-utskick.css' %}?v={{ static_version }}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+  <h1 class="m-page-head__title">{{ row.domain }}</h1>
+  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:utskick_overview' %}#epost-domaner">Tillbaka till översikten</a> · <a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}#utskick">{{ row.account.customer.name }}</a></p>
+</div>
+
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Läge: <b>{{ row.get_status_display }}</b>{% if row.status == "pending" %}, går ut {{ expires_at|date:"j b Y" }}{% endif %}. Mejlen kommer från {{ row.from_name }} &lt;{{ row.from_address }}&gt;, studsadressen (MAIL FROM) är {{ row.mail_from_domain }}. {% if row.ses_created %}Identiteten skapades av appen och tas bort hos SES med domänen.{% else %}Appen skapade inte identiteten hos SES och tar aldrig bort den.{% endif %}</p>
+  <p class="tv-prop__note">SES: {% if snapshot %}{% if snapshot.error %}gick inte att läsa ({{ snapshot.error }}){% else %}verifierad för sändning {% if snapshot.VerifiedForSendingStatus %}ja{% else %}nej{% endif %}, DKIM {{ snapshot.DkimStatus|default:"okänt" }}, MAIL FROM {{ snapshot.MailFromDomainStatus|default:"okänt" }}{% endif %}{% else %}inte läst än{% endif %}.{% if row.checked_at %} Kontrollerad {{ row.checked_at|date:"j b H:i" }}.{% endif %}{% if row.verified_at %} Verifierad {{ row.verified_at|date:"j b Y" }}.{% endif %}{% if row.probe_passed_at %} Provet godkänt {{ row.probe_passed_at|date:"j b Y" }}.{% endif %}</p>
+  <div class="m-table-wrap">
+    <table class="m-table mu-table">
+      <thead><tr><th>Typ</th><th>Namn</th><th>Värde</th><th>Läge</th><th>Sett i DNS</th></tr></thead>
+      <tbody>
+      {% for item in records %}
+      <tr>
+        <td>{{ item.record.kind }}</td>
+        <td><span class="mu-em-mono">{{ item.record.name }}</span></td>
+        <td><span class="mu-em-mono">{% if item.record.priority %}{{ item.record.priority }} {% endif %}{{ item.record.value }}</span></td>
+        <td>{% if item.state == "ok" %}OK{% elif item.state == "missing" %}Saknas{% elif item.state == "wrong" %}Fel värde{% elif item.state == "unknown" %}Gick inte att läsa{% else %}<span class="tv-muted">inte kontrollerad</span>{% endif %}</td>
+        <td><span class="mu-em-mono">{{ item.seen|default:"" }}</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if row.status != "removed" and row.status != "expired" %}
+  <div class="mu-stop">
+    <form method="post" action="{% url 'manage:utskick_domain_admin' row.pk %}" class="mu-form">{% csrf_token %}
+      <button type="submit" class="m-btn m-btn--small m-btn--ghost" name="action" value="check">Kontrollera igen</button>
+    </form>
+    <details class="mu-details">
+      <summary>Ta bort domänen</summary>
+      <form method="post" action="{% url 'manage:utskick_domain_admin' row.pk %}" class="mu-form">{% csrf_token %}
+        <p class="tv-prop__note">Kundens mejl kommer från ADX-domänen igen. Kunden mejlas inte.</p>
+        <button type="submit" class="m-btn m-btn--small mu-stop__btn" name="action" value="remove">Ta bort {{ row.domain }}</button>
+      </form>
+    </details>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -9,11 +9,27 @@ Varje vy går via access.utskick_view (404 när utskick är av för kontot).
 S2 lägger till Utskick (app_views/utskick.py) och svaren i Inkorgen
 (app_views/inbox_reply.py: inkorg/<pk>/svara/ och avregistrera/, bredvid
 Flamingos egna inkorg/ och inkorg/<pk>/ i apps/flamingo/urls.py).
+
+S3 lägger till e-postredigeraren (app_views/brev.py), Leveranshälsa
+(app_views/health.py) och Egen domän med den egna svarsadressen
+(app_views/domain.py).
 """
 
 from django.urls import path, register_converter
 
-from .app_views import contacts, dpa, fields, imports, inbox_reply, lists, signup, utskick
+from .app_views import (
+    brev,
+    contacts,
+    domain,
+    dpa,
+    fields,
+    health,
+    imports,
+    inbox_reply,
+    lists,
+    signup,
+    utskick,
+)
 from .app_views import settings as settings_views
 
 
@@ -67,6 +83,14 @@ urlpatterns = [
         utskick.utskick_settings,
         name="app_utskick_settings",
     ),
+    # S3: Leveranshälsa, Egen domän och den egna svarsadressen
+    path("utskick/halsa/", health.utskick_health, name="app_utskick_health"),
+    path("utskick/installningar/doman/", domain.utskick_domain, name="app_utskick_domain"),
+    path(
+        "utskick/installningar/svarsadress/<str:token>/",
+        domain.reply_confirm,
+        name="app_utskick_reply_confirm",
+    ),
     path("utskick/<int:pk>/", utskick.utskick_report, name="app_utskick"),
     path(
         "utskick/<int:pk>/steg/<utskick_steg:step>/",
@@ -92,6 +116,18 @@ urlpatterns = [
         "utskick/<int:pk>/mottagare/lista/",
         utskick.utskick_save_list,
         name="app_utskick_save_list",
+    ),
+    # S3: e-postredigeraren (app_views/brev.py, README F och I.1)
+    path("utskick/<int:pk>/brev/", brev.brev_editor, name="app_brev"),
+    path("utskick/<int:pk>/brev/spara/", brev.brev_save, name="app_brev_save"),
+    path("utskick/<int:pk>/brev/rita/", brev.brev_render_block, name="app_brev_render_block"),
+    path("utskick/<int:pk>/brev/bild/", brev.brev_image, name="app_brev_image"),
+    path("utskick/<int:pk>/brev/kontroller/", brev.brev_checks, name="app_brev_checks"),
+    path("utskick/<int:pk>/brev/ai/", brev.brev_ai, name="app_brev_ai"),
+    path(
+        "utskick/<int:pk>/brev/forhandsvisning/",
+        brev.brev_preview,
+        name="app_brev_preview",
     ),
     # Svaren i Inkorgen (app_views/inbox_reply.py, README G.2)
     path("inkorg/<int:pk>/svara/", inbox_reply.lead_reply, name="app_lead_reply"),

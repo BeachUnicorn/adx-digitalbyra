@@ -10,8 +10,10 @@ Svaren i Inkorgen (README C.2 app_views/inbox.py, G.1 punkt 8, G.2, I.4).
 Båda vyerna går genom utskick_view (404 när utskick är av, också för byrån
 i kundvyn) och owned (förfrågan ska vara kontots, och ha en svarstråd).
 Svaret skickas direkt, ett sms från svarsnumret med källan reply
-(threads.send_reply); demokontot skickar aldrig. Byrån i kundvyn svarar på
-riktigt men måste kryssa i "Jag svarar som ADX åt Exempelrör." först, och
+(threads.send_reply), eller i en e-posttråd ett mejl från kundens avsändare
+med trådens Reply-To (threads.send_email_reply, S3); demokontot skickar
+aldrig. Byrån i kundvyn svarar på riktigt men måste kryssa i "Jag svarar
+som ADX åt Exempelrör." först, och
 meddelandet sparas med vem som skickade (sent_by, sent_as_staff). Ett nekat
 svar visar förfrågan igen med texten kvar i rutan och felet ovanför.
 """
@@ -27,12 +29,16 @@ from apps.flamingo.models import Lead
 
 from .. import threads
 from ..access import NOT_ENABLED_TEXT, actor_for, is_enabled, owned, utskick_view
-from ..models import CHANNEL_SMS, Thread
+from ..models import CHANNEL_EMAIL, CHANNEL_SMS, Thread
 
 STAFF_TEXT = "Jag svarar som ADX åt {name}."
 STAFF_REQUIRED_TEXT = "Kryssa i att du svarar som ADX åt kunden. Svaret skickades inte."
 SENT_TEXT = "Svaret är skickat."
 SUPPRESSED_NOTE = "Numret är avregistrerat från sms. Svar kan inte skickas härifrån."
+#: S3 (inkorg-byggaren): e-posttrådarna.
+EMAIL_SUPPRESSED_NOTE = "Adressen är avregistrerad från e-post. Svar kan inte skickas härifrån."
+#: Svarsrutan tar emot så här mycket text (sms: högst sex delar prövas sedan).
+SMS_TEXT_MAX = 2000
 
 
 def _thread(account, pk):
@@ -83,7 +89,7 @@ def thread_context(request, account, lead, text="", error=""):
     suffix = f" /{company}" if company else ""
     ore = threads.part_ore(account) if is_sms else None
     can_reply = enabled and is_sms and not suppressed and not read_only
-    return {
+    context = {
         "thread": thread,
         "th_rows": threads.rows(thread),
         "th_enabled": enabled,
@@ -110,6 +116,32 @@ def thread_context(request, account, lead, text="", error=""):
         ),
         "th_done": lead.status == Lead.STATUS_NEW and not read_only,
     }
+    if thread.channel == CHANNEL_EMAIL:
+        context.update(_email_context(thread, enabled, read_only))
+    return context
+
+
+def _email_context(thread, enabled, read_only):
+    """S3 (inkorg-byggaren, svar och avregistrering): en e-posttråd. Raderna
+    med ämne och bilagor, svarsrutan för mejl när e-posten kan gå
+    (threads.email_reply_problem annars), och "Avregistrera från e-post"."""
+    from ..inbound.email import ATTACHMENTS_TEXT
+
+    suppressed = threads.is_email_suppressed(thread)
+    problem = threads.email_reply_problem(thread) if enabled and not suppressed else ""
+    return {
+        "th_is_email": True,
+        "th_rows": threads.email_rows(thread),
+        "th_suppressed": suppressed,
+        "th_suppressed_note": EMAIL_SUPPRESSED_NOTE,
+        "th_can_reply": enabled and not suppressed and not read_only and not problem,
+        "th_can_unsubscribe": enabled and not suppressed and not read_only,
+        "th_email_problem": problem if not read_only else "",
+        "th_email_to": thread.address,
+        "th_subject": threads.reply_subject(thread),
+        "th_attachments_text": ATTACHMENTS_TEXT,
+        "th_text_max": threads.EMAIL_REPLY_MAX,
+    }
 
 
 def _again(request, account, lead, text, error):
@@ -128,14 +160,23 @@ def _back(lead):
 def lead_reply(request, account, pk):
     """Svara på en svarstråd med sms (README G.2)."""
     lead, thread = _thread(account, pk)
-    text = str(request.POST.get("text") or "")[:2000]
+    is_email = thread.channel == CHANNEL_EMAIL
+    limit = threads.EMAIL_REPLY_MAX + 1 if is_email else SMS_TEXT_MAX
+    text = str(request.POST.get("text") or "")[:limit]
     actor = actor_for(request)
     if actor.staff and request.POST.get("staff_ok") != "1":
         return _again(request, account, lead, text, STAFF_REQUIRED_TEXT)
-    result = threads.send_reply(thread, text, actor=actor, now=timezone.now())
+    if is_email:
+        # S3 (inkorg-byggaren): svar med mejl (G.2).
+        result = threads.send_email_reply(thread, text, actor=actor, now=timezone.now())
+    else:
+        result = threads.send_reply(thread, text, actor=actor, now=timezone.now())
     if not result.ok:
         return _again(request, account, lead, text, result.error)
-    messages.success(request, result.error or SENT_TEXT)
+    if is_email and result.error == threads.EMAIL_UNKNOWN_TEXT:
+        messages.warning(request, result.error)
+    else:
+        messages.success(request, result.error or SENT_TEXT)
     return _back(lead)
 
 
@@ -145,6 +186,8 @@ def lead_unsubscribe(request, account, pk):
     """ "Avregistrera från sms" i en svarstråd (README G.1 punkt 8): spärr
     med orsak reply och samtyckesloggen med den som tryckte."""
     lead, thread = _thread(account, pk)
+    if thread.channel == CHANNEL_EMAIL and thread.address:
+        return _unsubscribe_email(request, account, lead, thread)
     if thread.channel != CHANNEL_SMS or not thread.address:
         raise Http404
     company = _company(account)
@@ -153,4 +196,16 @@ def lead_unsubscribe(request, account, pk):
         return _back(lead)
     threads.unsubscribe(thread, actor=actor_for(request), now=timezone.now())
     messages.success(request, f"Numret är avregistrerat från sms från {company}.")
+    return _back(lead)
+
+
+def _unsubscribe_email(request, account, lead, thread):
+    """S3 (inkorg-byggaren): "Avregistrera från e-post" i en e-posttråd (H.6):
+    spärr med orsak reply och samtyckesloggen med den som tryckte."""
+    company = _company(account)
+    if threads.is_email_suppressed(thread):
+        messages.info(request, f"Adressen var redan avregistrerad från e-post från {company}.")
+        return _back(lead)
+    threads.unsubscribe_email(thread, actor=actor_for(request), now=timezone.now())
+    messages.success(request, f"Adressen är avregistrerad från e-post från {company}.")
     return _back(lead)

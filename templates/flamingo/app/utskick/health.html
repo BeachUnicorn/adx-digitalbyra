@@ -1,0 +1,104 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Leveranshälsa (README I.11, D.9, I.5). Kontext från app_views/health.utskick_health:
+email_live, blocked och blocked_text (kontots hälsospärr), banners
+([{utskick, text}], utskick pausade för hälsan), waits ([{utskick, text}],
+provet och dygnstaket), verdict (health.Verdict för 30 dagar), bounce_text,
+complaint_text, has_outcomes, bounced_contacts, domain (domains.summary) och
+rows (händelsetabellen: address maskerad, label, tone, done, utskick, at).
+
+Inga style-attribut, inga inline-skript; .fl-ut-em- i
+flamingo-app-utskick-email.css. data-label på varje tabellcell (kortläget
+under 760 px).
+{% endcomment %}
+{% block app_title %}Leveranshälsa{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick-email.css' %}?v={{ static_version }}">{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker">{{ customer.name }}</p>
+    <h1 class="fl-app-title">Leveranshälsa</h1>
+    <p class="fl-app-lead">Alla som skickar med ADX delar rykte hos e-posttjänsten. Studsar och klagomål tas om hand direkt, och ett utskick pausas innan gränserna hos AWS nås.</p>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+{% if not email_live %}
+<p class="fl-notice"><span>E-post är inte påslaget än. Här ser du studsar och klagomål när du har skickat mejl.</span></p>
+{% endif %}
+
+{% if blocked %}
+<div class="fl-notice fl-notice--error fl-ut-banner" role="status"><span>{{ blocked_text }}</span></div>
+{% endif %}
+
+{% for banner in banners %}
+<div class="fl-notice fl-notice--warn fl-ut-banner" role="status">
+  <span><strong>Pausat: {{ banner.utskick.name }}</strong><br>{{ banner.text }}</span>
+  <div class="fl-ut-banner__actions">
+    <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_utskick' banner.utskick.pk %}">Öppna utskicket</a>
+    <details class="fl-ut-more">
+      <summary class="fl-btn fl-btn--ghost fl-btn--sm">Avbryt utskicket</summary>
+      <form class="fl-ut-confirm" method="post" action="{% url 'flamingo:app_utskick_state' banner.utskick.pk %}">
+        {% csrf_token %}
+        <p>Inget mer skickas, och det går inte att ångra.</p>
+        <button type="submit" class="fl-btn fl-btn--sm" name="action" value="avbryt">Avbryt utskicket</button>
+      </form>
+    </details>
+  </div>
+</div>
+{% endfor %}
+
+{% for wait in waits %}
+<p class="fl-notice"><span><strong>{{ wait.utskick.name }}</strong>: {{ wait.text }}</span><a href="{% url 'flamingo:app_utskick' wait.utskick.pk %}">Öppna</a></p>
+{% endfor %}
+
+<section class="fl-ut-em-kpis" aria-label="Siffror de senaste 30 dagarna">
+  <div class="fl-kpi">
+    <span class="fl-kpi__label">Studsar 30 d</span>
+    <span class="fl-kpi__value">{% if has_outcomes %}{{ bounce_text }}{% else %}Inga mejl än{% endif %}</span>
+    <span class="fl-kpi__note">Paus vid 4 % · AWS gräns 5 %</span>
+  </div>
+  <div class="fl-kpi">
+    <span class="fl-kpi__label">Klagomål 30 d</span>
+    <span class="fl-kpi__value">{% if has_outcomes %}{{ complaint_text }}{% else %}Inga mejl än{% endif %}</span>
+    <span class="fl-kpi__note">Paus vid 0,08 % · AWS gräns 0,1 %</span>
+  </div>
+  <div class="fl-kpi">
+    <span class="fl-kpi__label">Studsade adresser</span>
+    <span class="fl-kpi__value">{{ bounced_contacts|tal }}</span>
+    <span class="fl-kpi__note">Får aldrig mejl igen</span>
+  </div>
+  <div class="fl-kpi">
+    <span class="fl-kpi__label">Domän</span>
+    <span class="fl-kpi__value fl-ut-em-kpi-domain">{% if domain.domain %}{{ domain.domain.domain }}{% else %}ADX-domänen{% endif %}</span>
+    <span class="fl-kpi__note">{% if domain.domain %}{{ domain.dns_text }}{% else %}{{ domain.adx_text }}{% endif %}</span>
+  </div>
+</section>
+
+<section class="fl-panel" aria-labelledby="ut-em-events">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="ut-em-events">Studsar och klagomål</h2>
+    <a class="fl-panel__link" href="{% url 'flamingo:app_utskick_domain' %}">Avsändare och svar</a>
+  </div>
+  {% if rows %}
+  <div class="fl-table-wrap">
+    <table class="fl-table fl-ut-em-events">
+      <thead><tr><th scope="col">Adress</th><th scope="col">Händelse</th><th scope="col">Vad vi gjorde</th></tr></thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td class="is-primary" data-label="Adress">{% if row.address %}{{ row.address }}{% else %}Borttagen kontakt{% endif %}<span class="fl-ut-em-sub">{{ row.utskick.name }}{% if row.at %} · {{ row.at|date:"j b" }}{% endif %}</span></td>
+          <td data-label="Händelse"><span class="fl-ut-status fl-ut-status--{{ row.tone }}">{{ row.label }}</span></td>
+          <td data-label="Vad vi gjorde">{{ row.done }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="fl-panel__note">Inga studsar eller klagomål de senaste 30 dagarna.</p>
+  {% endif %}
+  <p class="fl-panel__note">En adress som inte finns får aldrig mejl igen. Den som markerar ett mejl som skräppost avregistreras från dina mejl direkt. Tillfälliga studsar, som en full inkorg, räknas, och efter fem i rad blir adressen studsad.</p>
+</section>
+{% endblock %}

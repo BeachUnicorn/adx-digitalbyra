@@ -9,7 +9,10 @@ bekräftelsen prövar), reconfirm (ett pausat utskick som ska bekräftas igen:
 stegen går inte att ändra, så Ändra och Byt automatiskt visas inte, och har
 tiden passerat skickas det när det bekräftas), dialog_text ("388 sms skickas
 nu. Kostnad cirka 151 kr.", demokontot säger att inget skickas), report_url,
-is_staff_actor, staff_text, sender_text, is_demo.
+is_staff_actor, staff_text, sender_text, is_demo. S3: review.n_email,
+review.uses_sms, review.uses_email, en rad med brev=True rättas i
+e-postredigeraren, och brev (app_views/brev.card_context) när utskicket går
+med e-post.
 
 Inget skickas utan knappen. Ett blockerande fel gör knappen inaktiv (och
 bekräftelsen prövar allt igen). Skicka nu öppnar en <dialog> som upprepar
@@ -18,7 +21,7 @@ mening ovanför knappen. Byrån i kundvyn måste kryssa i rutan och knappen
 heter Skicka som ADX (I.4).
 {% endcomment %}
 {% block app_title %}{{ utskick.name }}: Granska{% endblock %}
-{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% if brev %}<link rel="stylesheet" href="{% static 'css/flamingo-app-brev.css' %}?v={{ static_version }}">{% endif %}{% endblock %}
 {% block ut_header %}{% include "flamingo/app/utskick/_step_header.html" %}{% endblock %}
 {% block ut_content %}
 {% if reconfirm %}<p class="fl-notice fl-notice--warn"><span>Utskicket är pausat och behöver bekräftas igen innan det fortsätter.{% if review.send_now %} Det skickas när du bekräftar.{% endif %} Stegen går inte att ändra nu.</span></p>{% endif %}
@@ -31,6 +34,8 @@ heter Skicka som ADX (I.4).
         <span class="fl-ut-check__icon" aria-hidden="true"></span>
         <span class="fl-ut-check__text"><span class="fl-sr">{% if item.level == "block" %}Måste rättas{% elif item.level == "warn" %}Varning{% elif item.level == "ok" %}Klart{% else %}Information{% endif %}: </span>{{ item.text }}</span>
         {% if item.step and not reconfirm %}<a class="fl-ut-check__link" href="{% url 'flamingo:app_utskick_step' utskick.pk item.step %}">Ändra</a>{% endif %}
+        {% if item.brev and brev.editable and not reconfirm %}<a class="fl-ut-check__link" href="{{ brev.url }}">Ändra i mejlet</a>{% endif %}
+        {% if item.fix_url and not reconfirm %}<a class="fl-ut-check__link" href="{{ item.fix_url }}">{{ item.fix_label }}</a>{% endif %}
         {% if item.fix and not reconfirm %}
         <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_step' utskick.pk 'innehall' %}">
           {% csrf_token %}
@@ -53,8 +58,15 @@ heter Skicka som ADX (I.4).
   <div class="fl-ut-review__side">
     <section class="fl-panel fl-panel--accent fl-ut-summary" aria-labelledby="ut-summary-title">
       <h2 class="fl-panel__title" id="ut-summary-title">Sammanfattning</h2>
+      {% comment %}S3 (redigerar-byggaren): "388 sms · 24 mejl" och "E-post ingår." (I.6){% endcomment %}
+      {% if review.uses_email %}
+      <p class="fl-ut-summary__big">{% if review.uses_sms %}{{ review.n_sms|tal }} sms · {% endif %}{{ review.n_email|tal }} mejl</p>
+      <p class="fl-panel__text">{% if review.uses_sms %}Uppskattad kostnad {{ review.cost_text }}. Kostnaden räknas mot ditt kostnadstak för sms. {% endif %}E-post ingår.</p>
+      {% else %}
+      {% comment %}slut S3{% endcomment %}
       <p class="fl-ut-summary__big">{{ review.n_sms|tal }} sms</p>
       <p class="fl-panel__text">Uppskattad kostnad {{ review.cost_text }}. Kostnaden räknas mot ditt kostnadstak för sms.</p>
+      {% comment %}S3{% endcomment %}{% endif %}{% comment %}slut S3{% endcomment %}
       <p class="fl-panel__text">{% if review.send_now %}Skickas när du bekräftar.{% else %}Schemalagt {{ review.when_text }}.{% endif %}</p>
       <form class="fl-form" method="post" action="{% url 'flamingo:app_utskick_confirm' utskick.pk %}">
         {% csrf_token %}
@@ -79,9 +91,27 @@ heter Skicka som ADX (I.4).
       {% endif %}
     </section>
 
+    {% if review.uses_sms %}
     <section class="fl-panel fl-panel--soft" aria-label="Förhandsvisning">
       {% include "flamingo/app/utskick/_phone.html" with preview=review.preview bubble_id="" %}
     </section>
+    {% endif %}
+    {% comment %}S3 (redigerar-byggaren): mejlet som ett kort{% endcomment %}
+    {% if brev %}
+    <section class="fl-panel fl-panel--soft fl-br-card" aria-labelledby="ut-review-brev">
+      <h2 class="fl-panel__title" id="ut-review-brev">Mejlet</h2>
+      <dl class="fl-kv">
+        <div><dt>Från</dt><dd>{{ brev.sender|default:"ADX-domänen" }}</dd></div>
+        <div><dt>Ämnesrad</dt><dd>{{ brev.subject|default:"Ingen ämnesrad än" }}</dd></div>
+        <div><dt>Innehåll</dt><dd>{% if brev.count %}{{ brev.count }} block{% else %}Mejlet är tomt än.{% endif %}</dd></div>
+      </dl>
+      <div class="fl-br-card__actions">
+        <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ brev.preview_url }}" target="_blank" rel="noopener">Förhandsvisa mejlet</a>
+        {% if brev.editable and not reconfirm %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ brev.url }}">Ändra mejlet</a>{% endif %}
+      </div>
+    </section>
+    {% endif %}
+    {% comment %}slut S3{% endcomment %}
   </div>
 </div>
 {% endblock %}

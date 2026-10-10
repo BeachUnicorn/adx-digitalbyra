@@ -11,7 +11,9 @@ flamingo_demo.
                                 import, en avstängd anmälningssida och förfrågningar
                                 kopplade till sina kontakter; och utskicken (S2):
                                 ett skickat (simulerat) med klick, förfrågningar,
-                                två svar och en STOPP, ett schemalagt och ett utkast
+                                två svar och en STOPP, ett schemalagt och ett utkast;
+                                och e-posten (S3): ett skickat (simulerat) mejl i
+                                Brev med ett klick till Flamingo-sidan
 
 Utskicken går genom samma kod som en riktig kunds: bekräftelsen
 (sending.state), frysningen (sending.freeze), demots simulering
@@ -38,6 +40,12 @@ beviset ser ut precis som hos en riktig kund.
 Det schemalagda utskicket går i väg av sig självt när tiden kommer (ticken
 simulerar det, demot skickar aldrig); nästa körning av flamingo_demo
 bygger om det.
+
+E-posten (S3) går samma väg: blocken genom email.blocks (rensade och
+signerade som redigerarens), bekräftelsen, frysningen med mejlets
+ögonblicksbild och länkar (sending.email.freeze_email) och demots
+simulering (sending.email.simulate: levererat utan SES). Inget mejl
+skickas och transporten anropas aldrig.
 """
 
 from datetime import datetime, time, timedelta
@@ -501,10 +509,15 @@ KIM_MESSAGE = "Vill boka spolning av avloppet, helst en förmiddag."
 def _reset_s2(account):
     """Utskickens rader för demot: utskicken (mottagarna och länkarna följer
     med), koderna, klicken, svarstrådarna med sina förfrågningar, de
-    inkommande sms:en och länkvärdarna."""
+    inkommande sms:en och länkvärdarna. S3: mejlens bilder och
+    avsändardomänerna (efter utskicken, som pekar på domänen med RESTRICT)."""
     from apps.flamingo.models import Lead
 
+    from .models import EmailImage, SenderDomain
+
     Utskick.objects.filter(account=account).delete()
+    EmailImage.objects.filter(account=account).delete()
+    SenderDomain.objects.filter(account=account).delete()
     LinkCode.objects.filter(account=account).delete()
     Click.objects.filter(account=account).delete()
     Lead.objects.filter(account=account, source=Lead.SOURCE_REPLY).delete()
@@ -543,7 +556,7 @@ def _confirm(utskick, staff, now):
     counted = audience.count(utskick, now)
     summary = {
         "sms": counted["sms"],
-        "email": 0,
+        "email": counted["email"],
         "skipped": counted["skipped"],
         "skipped_by_reason": counted["skipped_by_reason"],
         "total": counted["total"],
@@ -591,6 +604,10 @@ def _send(utskick, at):
         if result is None or result["done"]:
             break
     loop.simulate(utskick.account, at + timedelta(minutes=1), only=utskick.pk)
+    # S3: mejlen simuleras på samma sätt (levererat, simulated, aldrig SES).
+    from .sending import email as email_loop
+
+    email_loop.simulate(utskick.account, at + timedelta(minutes=1), only=utskick.pk)
     utskick.refresh_from_db()
     if utskick.status != Utskick.Status.SENDING:
         raise RuntimeError(f"Demots utskick fastnade i läget {utskick.status}.")
@@ -598,7 +615,8 @@ def _send(utskick, at):
 
 def _click(recipient, link, at, seconds, called=False):
     """Ett mänskligt klick från en telefon, besöket på sidan och tiden där
-    (som klicket, landningssidan och besöksanropet skriver dem, E.3, E.4)."""
+    (som klicket, landningssidan och besöksanropet skriver dem, E.3, E.4).
+    Kanalen följer mottagaren (sms eller e-post, S3)."""
     from . import attribution
 
     click = Click.objects.create(
@@ -607,7 +625,7 @@ def _click(recipient, link, at, seconds, called=False):
         recipient=recipient,
         link=link,
         contact_id=recipient.contact_id,
-        channel=Click.Channel.SMS,
+        channel=Click.Channel.EMAIL if recipient.channel == CHANNEL_EMAIL else Click.Channel.SMS,
         kind=Click.Kind.HUMAN,
         at=at,
         device="mobile",
@@ -805,3 +823,119 @@ def _utskick(account, staff, now, made, lists, tags):
         {"tags": [tags["Nacka"].pk]},
         now - timedelta(hours=3),
     )
+    _email_utskick(account, staff, now, lists, campaign)
+
+
+# ---------------------------------------------------------------------------
+# E-posten (S3, integrationen)
+# ---------------------------------------------------------------------------
+
+#: Mejlet gick för så här många dagar sedan, klockan 10.00.
+EMAIL_DAYS_AGO = 3
+EMAIL_NAME = "Höstbrevet"
+EMAIL_SUBJECT = "Hej {förnamn|du}, så klarar huset vintern"
+EMAIL_PREHEADER = "Tre saker att göra innan det blir minusgrader"
+#: Mejlets block i Brev (F.1): (typ, fält). Knappen till Flamingo-sidan
+#: läggs till när demot har en.
+EMAIL_BLOCKS = (
+    (
+        "hero",
+        {
+            "kicker": "Höstservice",
+            "title": "Så klarar huset vintern",
+            "lead": "Tre saker som är bra att göra innan det blir minusgrader, "
+            "och hur Exempelrör kan hjälpa till.",
+            "button_text": "Boka spolning",
+        },
+    ),
+    (
+        "text",
+        {
+            "body": "Hej {förnamn|du},\n\nnär det blir kallt kan rör i kalla utrymmen frysa. "
+            "Det här är bra att göra nu:\n\n"
+            "- Stäng av och töm utekranen.\n"
+            "- Se över rören i garage och källare.\n"
+            "- Spola avloppet innan löven fastnar."
+        },
+    ),
+    (
+        "callout",
+        {
+            "text": "**PS.** Har du en värmepump? Fråga om service när vi ändå är hos dig.",
+        },
+    ),
+    (
+        "signature",
+        {"greeting": "Vänliga hälsningar,", "name": "Johan Lind", "line": "Exempelrör"},
+    ),
+)
+#: Klicket på knappen: (e-post, minuter efter, sekunder på sidan).
+EMAIL_CLICK = ("kim.andersson@hemma.example", 35, 40)
+
+
+def _email_utskick(account, staff, now, lists, campaign):
+    """Ett skickat (simulerat) mejl i Brev till listan Kunder: de med e-post
+    och samtycke (eller som befintliga kunder eller företag) får det, de
+    utan adress hoppas över. Blocken går genom email.blocks som
+    redigerarens, frysningen gör länkarna och ögonblicksbilden, och demots
+    simulering levererar utan SES. Ett klick på knappen till Flamingo-sidan."""
+    from apps.flamingo.exports import landing_page_url
+
+    from .email import blocks as email_blocks
+    from .email import registry as email_registry
+    from .sending import tick
+
+    today = timezone.localtime(now, STOCKHOLM).date()
+    sent_at = _at_ten(today - timedelta(days=EMAIL_DAYS_AGO))
+    has_logo, _why = email_registry.logo_state(account)
+    utskick = Utskick.objects.create(
+        account=account,
+        name=EMAIL_NAME,
+        purpose=REKLAM,
+        channel_mode=Utskick.ChannelMode.EMAIL_ONLY,
+        audience=_audience({"lists": [lists["Kunder"].pk]}),
+        subject=EMAIL_SUBJECT,
+        preheader=EMAIL_PREHEADER,
+        logo_position=Utskick.LogoPosition.LEFT if has_logo else Utskick.LogoPosition.NONE,
+        send_mode=Utskick.SendMode.AT,
+        scheduled_at=sent_at,
+        created_by=staff,
+        created_at=sent_at - timedelta(days=1),
+        status_changed_at=sent_at - timedelta(days=1),
+    )
+    made = []
+    for type_key, fields in EMAIL_BLOCKS:
+        fields = dict(fields)
+        if type_key == "hero":
+            if campaign is not None:
+                fields["button_url"] = landing_page_url(campaign)
+            else:
+                fields.pop("button_text")
+        block = email_blocks.new_block(type_key, account, utskick, user=staff, now=now)
+        email_blocks.add_version(
+            block, fields, "adx", staff, account=account, utskick=utskick, now=now
+        )
+        made.append(block)
+    email_blocks.save(utskick, made, rev=0, user=staff, account=account, now=now)
+    utskick.refresh_from_db()
+    _confirm(utskick, staff, sent_at - timedelta(hours=20))
+    _send(utskick, sent_at)
+    if campaign is not None:
+        email, minutes, seconds = EMAIL_CLICK
+        recipient = Recipient.objects.filter(
+            utskick=utskick, address=email, status=Recipient.Status.DELIVERED
+        ).first()
+        link = TrackedLink.objects.filter(utskick=utskick, kind=TrackedLink.Kind.LP).first()
+        if recipient is not None and link is not None:
+            _click(recipient, link, sent_at + timedelta(minutes=minutes), seconds)
+            TrackedLink.objects.filter(pk=link.pk).update(human_clicks=1)
+    tick.finish(sent_at + timedelta(minutes=20), only=utskick.pk)
+    return utskick
+
+
+def _audience(values):
+    from . import audience as audiences
+
+    data = audiences.empty()
+    data.update(values)
+    return data

@@ -32,7 +32,7 @@
       data-ut-target="id" hidden> visas och skriver där markören står.
       [data-ut-insert-row] visas och [data-ut-insert-plain] döljs.
    4. Fält som bara gäller ett val: [data-ut-show-when="namn=värde"] visas
-      bara när radioknappen namn har värdet.
+      bara när radioknappen namn har värdet; "namn!=värde" döljs bara då.
    5. Bekräftelsen: <button data-ut-dialog="id"> öppnar <dialog id> i stället
       för att skicka; [data-ut-dialog-ok] skickar formuläret,
       [data-ut-dialog-cancel] stänger (README I.4: Skicka nu upprepar siffrorna).
@@ -334,14 +334,18 @@
   // ---------------------------------------------------------------- visa när
 
   function setupShowWhen(block) {
-    var rule = (block.getAttribute("data-ut-show-when") || "").split("=");
+    var raw = block.getAttribute("data-ut-show-when") || "";
+    // "namn=värde" visar bara vid värdet, "namn!=värde" döljer bara vid det.
+    var negate = raw.indexOf("!=") > 0;
+    var rule = raw.split(negate ? "!=" : "=");
     var form = block.closest("form");
     if (rule.length !== 2 || !form) {
       return;
     }
     function update() {
       var checked = form.querySelector('input[name="' + rule[0] + '"]:checked');
-      block.hidden = !checked || checked.value !== rule[1];
+      var same = !!checked && checked.value === rule[1];
+      block.hidden = negate ? same : !same;
     }
     form.querySelectorAll('input[name="' + rule[0] + '"]').forEach(function (input) {
       input.addEventListener("change", update);

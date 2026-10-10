@@ -1,0 +1,11 @@
+{% load flamingo_pb %}{% comment %}
+Element 12, Omdömen: betyget i en rad (stjärnor i #E8A400, "4,8 av 5 · 162
+omdömen på Google") och de valda omdömena som citat med en linje i
+accentfärgen. Texten ur källan ändras aldrig (kortas bara när den är lång).
+Källan och siffrorna kommer ur underlaget (render._reviews_data, fryst vid
+frysningen).
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
+{% if v.summary %}<p style="{{ S.p }}"><span style="{{ S.stars }}">{{ v.stars }}</span> <strong style="{{ S.strong_ink }}">{{ v.rating }} av 5</strong> <span style="{{ S.sm }}">· {{ v.count_text }}</span></p>
+{% endif %}{% for quote in v.quotes %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="{% if v.summary or not forloop.first %}padding-top:14px;{% endif %}"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="{{ S.quote }}"><p style="{{ S.p }}">{{ quote.text }}</p>{% if quote.author %}<p style="{{ S.sm }}margin-top:4px;">{{ quote.author }}</p>{% endif %}</td></tr></table></td></tr></table>
+{% endfor %}{% if editing and v.hidden %}<p style="{{ S.sm }}">Omdömena syns när källan har ett betyg eller valda omdömen.</p>{% endif %}
+</td></tr>

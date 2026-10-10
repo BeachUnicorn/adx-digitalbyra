@@ -661,6 +661,8 @@ def export_contact(contact):
             "källa": contact.get_source_display(),
             "skapad": _iso(contact.created_at),
             "senaste aktivitet": _iso(contact.last_activity_at),
+            # S3 (integrationen): en adress som studsat får aldrig mejl igen.
+            "e-postadressen studsade": _iso(contact.email_bounced_at),
         },
         "samtycken": consents_out,
         "samtyckeslogg": log,
@@ -793,6 +795,8 @@ def _export_s2(contact):
                 "tid": _iso(message.at),
                 "riktning": "in" if message.direction == ThreadMessage.Direction.IN else "ut",
                 "text": message.body,
+                # S3 (integrationen): mejlsvarens ämnesrad.
+                **({"ämne": message.subject} if message.subject else {}),
             }
         )
     recipient_sms = [r.sms_message_id for r in recipients if r.sms_message_id]
@@ -809,6 +813,8 @@ def _export_s2(contact):
                 "klick": r.click_count,
                 "svarade": _iso(r.replied_at),
                 "avregistrerade": _iso(r.stopped_at),
+                # S3 (integrationen): öppningen är en indikation (pixeln, H.5).
+                "öppnade (indikation)": _iso(r.opened_at),
             }
             for r in recipients
         ],
@@ -860,4 +866,5 @@ def _erase_s2(contact, account):
         inbound |= Q(account=account, from_address=contact.phone)
     if contact.email:
         inbound |= Q(account=account, from_address=contact.email)
-    InboundMessage.objects.filter(inbound).update(from_address="", body="")
+    # S3 (integrationen): ett mejlsvar har också en ämnesrad (G.3, H.4).
+    InboundMessage.objects.filter(inbound).update(from_address="", body="", subject="")

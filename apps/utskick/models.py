@@ -31,6 +31,15 @@ Steg S2 (sms-utskick, länkvärdarna, svar och STOPP):
     Thread, ThreadMessage   svarstrådarna i Inkorgen
     InboundMessage    varje inkommande sms (och från S3 mejl), idempotent
 
+Steg S3 (e-post i Brev, egna domäner, leveranshälsan, svar på mejl):
+
+    SenderDomain      kundens egen avsändardomän (SES-identiteten i eu-west-1)
+    EmailImage        en bild i mejlens format (JPEG eller PNG, absolut adress)
+    EventReceipt      kvittot för en SES-händelse ur SQS (idempotensen, D.7)
+
+    plus e-postens kolumner på Utskick (db_default, B.0), hälsospärren för
+    e-post på UtskickSettings och SES-kontots läge på Switchboard.
+
 Varje rad hör till ett flamingo.FlamingoAccount, direkt eller via sin
 förälder, och varje fråga filtrerar på kontot (H.1). Inga personuppgifter i
 __str__ eller i loggar: bara pk (H.3). Telefonnummer och e-post skrivs efter
@@ -38,16 +47,23 @@ att kontakten skapats bara av contacts.change_address, och samtycket bara av
 consent.set_status.
 
 Regeln för migreringar (B.0): ett nytt fält på en tabell som en tidigare
-version skriver till ska vara null=True eller ha db_default.
+version skriver till ska vara null=True eller ha db_default. En ny
+främmande nyckel som rör utskick får också sin raderingsregel i databasen
+(dbfk.py, sist i migreringen).
 """
 
+import logging
+import secrets
+
 from django.conf import settings
-from django.db import models
-from django.db.models import Q
+from django.db import models, transaction
+from django.db.models import Q, Value
 from django.utils import timezone
 
 from apps.flamingo.models import FlamingoAccount
 from apps.projects.models import private_storage
+
+logger = logging.getLogger(__name__)
 
 CHANNEL_SMS = "sms"
 CHANNEL_EMAIL = "email"
@@ -101,6 +117,12 @@ def default_consent_text(channel, display_name):
     return f"Ja, jag vill få erbjudanden från {name} via {via}."
 
 
+def json_db_default(value):
+    """db_default för ett JSON-fält som läggs till på en tabell som en
+    tidigare version skriver (B.0): {} eller []."""
+    return Value(value, output_field=models.JSONField())
+
+
 # ---------------------------------------------------------------------------
 # Byråns brytare och kundens inställningar
 # ---------------------------------------------------------------------------
@@ -130,6 +152,12 @@ class Switchboard(models.Model):
     last_tick_summary = models.JSONField(default=dict, blank=True)
     last_queue_poll_at = models.DateTimeField(null=True, blank=True)
     last_elks_reconcile_at = models.DateTimeField(null=True, blank=True)
+    #: SES-kontot i eu-west-1 som GetAccount gav senast (S3, utskick_daily):
+    #: {"production", "enforcement", "sending_enabled", "max_24h", "sent_24h",
+    #:  "max_rate", "bounce_rate", "complaint_rate"}. Inga adresser.
+    #: db_default: S2-koden skriver raden utan fältet (B.0).
+    ses_account = models.JSONField(default=dict, blank=True, db_default=json_db_default({}))
+    ses_checked_at = models.DateTimeField(null=True, blank=True)
     changed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -206,6 +234,23 @@ class UtskickSettings(models.Model):
     email_first_sent_at = models.DateTimeField(null=True, blank=True)
     email_probe_passed_at = models.DateTimeField(null=True, blank=True)
     first_utskick_alerted = models.BooleanField(default=False)
+    #: Hälsospärren för e-post (D.9, S3): kontots studsar eller klagomål
+    #: senaste 30 dagarna gick över gränsen. Nya mejl skickas inte förrän
+    #: byrån släppt spärren (manage:utskick_health_release); efter det räknas
+    #: bara utfall efter email_released_at. Inte samma sak som sending_blocked.
+    #: Nullbara eller db_default: S2-koden skriver raden utan fälten (B.0).
+    email_blocked_at = models.DateTimeField("E-post spärrad (hälsan)", null=True, blank=True)
+    email_blocked_reason = models.CharField(
+        "Varför e-posten är spärrad", max_length=20, blank=True, default="", db_default=""
+    )
+    email_released_at = models.DateTimeField("Spärren släppt", null=True, blank=True)
+    email_released_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -808,6 +853,9 @@ class Event(models.Model):
     START = "start"
     #: Slagen som tillkommer i S2.
     S2_KINDS = (LP_VISIT, CALL_CLICK, REPLY, STOP, START)
+    #: Öppnat mejl (S3, en indikation; bara mottagare med pixeln, H.5).
+    OPENED = "opened"
+    S3_KINDS = (OPENED,)
 
     account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="+")
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name="events")
@@ -947,6 +995,13 @@ class Utskick(models.Model):
         NOW = "now", "Nu"
         AT = "at", "Vid en tid"
 
+    class LogoPosition(models.TextChoices):
+        """Loggans plats i Brev (D9, F.1 element 1)."""
+
+        LEFT = "left", "Till vänster"
+        CENTER = "center", "I mitten"
+        NONE = "none", "Ingen logga"
+
     class PauseReason(models.TextChoices):
         """Varför ett utskick är pausat, med listans etikett (README I.5;
         rapportens text och knappar står där)."""
@@ -1013,6 +1068,62 @@ class Utskick(models.Model):
     #: {"förnamn": "du"}: det som står när värdet saknas (F.3). Används av
     #: sms från S2 och av e-posten från S3.
     merge_fallbacks = models.JSONField(default=dict, blank=True)
+    # E-posten (S3, README B.2 och F). Varje kolumn har db_default: S2-koden
+    # skriver utskick utan dem mellan migrate och reload, och för gott efter
+    # en tillbakarullning (B.0).
+    subject = models.CharField("Ämnesrad", max_length=150, blank=True, default="", db_default="")
+    preheader = models.CharField(
+        "Förhandstext", max_length=150, blank=True, default="", db_default=""
+    )
+    #: {"blocks": [...]}: Brev-blocken med sidbyggarens block-JSON (id, type,
+    #: variant, active, versions, sig), email/registry.py och email/blocks.py.
+    email_doc = models.JSONField(default=dict, blank=True, db_default=json_db_default({}))
+    #: Optimistiskt lås för email_doc, som LandingPage.rev (F.2).
+    email_rev = models.PositiveIntegerField(default=0, db_default=0)
+    #: Utskickets accentfärg ^#[0-9A-Fa-f]{6}$; tom = standarden (email/style.py).
+    accent = models.CharField("Accentfärg", max_length=7, blank=True, default="", db_default="")
+    logo_position = models.CharField(
+        "Logga",
+        max_length=6,
+        choices=LogoPosition.choices,
+        default=LogoPosition.LEFT,
+        db_default=LogoPosition.LEFT,
+    )
+    #: Null = ADX-domänen (utskick.adx.se). RESTRICT, inte PROTECT: en domän
+    #: som ett utskick använder går inte att ta bort ensam, men kontot med
+    #: både domänen och utskicken går att ta bort (README S3-avvikelse).
+    sender_domain = models.ForeignKey(
+        "SenderDomain",
+        null=True,
+        blank=True,
+        on_delete=models.RESTRICT,
+        related_name="utskick_set",
+    )
+    #: Avsändarnamnet; bara med en verifierad egen domän, annars display_name.
+    from_name = models.CharField(
+        "Avsändarnamn", max_length=80, blank=True, default="", db_default=""
+    )
+    #: Villkoren kunden bekräftat ("Uppgifterna stämmer", F.7):
+    #: [{"label": "Erbjudandet gäller", "value": "till 31 oktober"}].
+    confirmed_terms = models.JSONField(default=list, blank=True, db_default=json_db_default([]))
+    terms_confirmed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    terms_confirmed_at = models.DateTimeField(null=True, blank=True)
+    #: Kopierat från inställningarna när utskicket skapas; pixeln bara för
+    #: mottagare med tracking_ok (H.5).
+    open_tracking = models.BooleanField("Spåra öppningar", default=False, db_default=False)
+    #: Textversionen som kunden ändrat själv; tom = byggd ur blocken (F.4).
+    text_override = models.TextField("Textversion", blank=True, default="", db_default="")
+    #: Mejlet som det frystes (S3-avvikelse): blocken med omdömenas summering,
+    #: Företagets uppgifter, loggans och bildernas adresser och länkarna
+    #: (TrackedLink-id per block och plats), så att varje mottagare och
+    #: webbversionen (/w/) får samma mejl. Skrivs av frysningen.
+    email_snapshot = models.JSONField(default=dict, blank=True, db_default=json_db_default({}))
     send_mode = models.CharField(max_length=5, choices=SendMode.choices, default=SendMode.AT)
     scheduled_at = models.DateTimeField("Skickas", null=True, blank=True)
     status = models.CharField(max_length=14, choices=Status.choices, default=Status.DRAFT)
@@ -1077,6 +1188,15 @@ class Utskick(models.Model):
     @property
     def is_information(self):
         return self.purpose == INFORMATION
+
+    @property
+    def has_email(self):
+        """Går utskicket (också) med e-post? (ChannelMode, S3)"""
+        return self.channel_mode != self.ChannelMode.SMS_ONLY
+
+    @property
+    def has_sms(self):
+        return self.channel_mode != self.ChannelMode.EMAIL_ONLY
 
 
 class Recipient(models.Model):
@@ -1614,3 +1734,206 @@ class ThreadMessage(models.Model):
 
     def __str__(self):
         return f"Meddelande {self.pk} ({self.direction}, {self.status})"
+
+
+# ---------------------------------------------------------------------------
+# S3: e-posten i Brev, kundernas domäner, bilderna och SES-händelserna
+# ---------------------------------------------------------------------------
+
+
+class SenderDomain(models.Model):
+    """Kundens egen avsändardomän (README B.3, J S3 "Domain flow"). Appen
+    skapar SES-identiteten i eu-west-1 (Easy DKIM) och MAIL FROM
+    studs.<domän>; kunden lägger in posterna hos sin DNS. Bara en verifierad
+    domän går att skicka från, och samma domän kan vara verifierad hos högst
+    ett konto (partiellt unikt villkor). Reglerna för vem som får göra
+    anspråk på en domän står i email/domains.py. En borttagen domän ligger
+    kvar som rad (status removed): skickade utskick pekar på den."""
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Väntar på DNS"
+        VERIFIED = "verified", "Verifierad"
+        FAILED = "failed", "Misslyckades"
+        EXPIRED = "expired", "Gick ut"
+        REMOVED = "removed", "Borttagen"
+
+    #: En domän som inte verifierats på så här många dagar går ut (B.3).
+    PENDING_DAYS = 14
+    #: Lägen där domänen gör anspråk på namnet (förälder och barn prövas mot dem).
+    CLAIMING = (Status.PENDING, Status.VERIFIED)
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_domains"
+    )
+    #: Gemener, IDNA: en registrerbar domän eller en underdomän till den.
+    domain = models.CharField("Domän", max_length=253)
+    from_local = models.CharField("Avsändaradressens första del", max_length=64, default="hej")
+    from_name = models.CharField("Avsändarnamn", max_length=80)
+    #: MAIL FROM: <mail_from_sub>.<domän> (studs.exempelror.example).
+    mail_from_sub = models.CharField(max_length=40, default="studs")
+    status = models.CharField(max_length=8, choices=Status.choices, default=Status.PENDING)
+    #: Vi skapade SES-identiteten; bara då får vi ta bort den (B.3).
+    ses_created = models.BooleanField(default=False)
+    #: De tre DKIM-nycklarna från CreateEmailIdentity.
+    dkim_tokens = models.JSONField(default=list, blank=True)
+    #: Per post: {"dkim1": {"state": "ok" | "missing" | "wrong", "seen": "..."}, ...}
+    #: (dnspython, email/domains.py).
+    checks = models.JSONField(default=dict, blank=True)
+    #: Senaste GetEmailIdentity (utan hemligheter).
+    ses_snapshot = models.JSONField(default=dict, blank=True)
+    checked_at = models.DateTimeField(null=True, blank=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    #: Domänens prov (D.9): de första 200 mejlen och en timmes väntan.
+    probe_passed_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Avsändardomän"
+        verbose_name_plural = "Avsändardomäner"
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["domain"],
+                condition=Q(status="verified"),
+                name="utskick_domain_verified",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["account", "status"], name="utskick_domain_account"),
+            models.Index(fields=["domain"], name="utskick_domain_name"),
+            models.Index(fields=["status", "created_at"], name="utskick_domain_status"),
+        ]
+
+    def __str__(self):
+        return f"Domän {self.pk} ({self.status})"
+
+    @property
+    def from_address(self):
+        """hej@exempelror.example"""
+        return f"{self.from_local}@{self.domain}"
+
+    @property
+    def mail_from_domain(self):
+        """studs.exempelror.example"""
+        return f"{self.mail_from_sub}.{self.domain}"
+
+    @property
+    def is_verified(self):
+        return self.status == self.Status.VERIFIED
+
+
+def email_image_path(instance, filename):
+    """utskick-img/<slump>/<slump>.<jpg|png> under MEDIA_ROOT: publik (mejlen
+    pekar dit med en absolut adress), men inte att gissa. Filens
+    ursprungliga namn sparas aldrig (som media_upload_path i apps/flamingo)."""
+    ext = "png" if str(filename).lower().endswith(".png") else "jpg"
+    return f"utskick-img/{secrets.token_urlsafe(18)}/{secrets.token_hex(8)}.{ext}"
+
+
+class EmailImage(models.Model):
+    """En bild i mejlens format (README F.4, email/images.py): JPEG med
+    kvalitet 82, högst 1120 px bred (560 visas), PNG när källan har alfa
+    (loggor), aldrig WebP (klassiska Outlook). Skapas när kunden väljer en
+    bild i redigeraren. Filen ligger kvar när MediaAsset tas bort (asset
+    blir null), så att skickade mejl behåller sina bilder tills retentionen
+    tar raden (E.7); då tas filen bort."""
+
+    class Purpose(models.TextChoices):
+        CONTENT = "content", "Bild i mejlet"
+        LOGO = "logo", "Logotyp"
+        VIDEO = "video", "Videobild med spelknapp"
+        AVATAR = "avatar", "Porträtt"
+
+    class Format(models.TextChoices):
+        JPEG = "jpeg", "JPEG"
+        PNG = "png", "PNG"
+
+    account = models.ForeignKey(
+        FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_email_images"
+    )
+    asset = models.ForeignKey(
+        "flamingo.MediaAsset",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="email_images",
+    )
+    #: max_length 7 ("content"), inte 6 som i B.3.
+    purpose = models.CharField(max_length=7, choices=Purpose.choices)
+    file = models.ImageField(upload_to=email_image_path, max_length=200)
+    format = models.CharField(max_length=4, choices=Format.choices)
+    #: Filens mått i pixlar (bredden är upp till två gånger den som visas).
+    width = models.PositiveIntegerField(default=0)
+    height = models.PositiveIntegerField(default=0)
+    bytes = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Bild i mejl"
+        verbose_name_plural = "Bilder i mejl"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["asset", "purpose", "width"],
+                condition=Q(asset__isnull=False),
+                name="utskick_emailimage_rendition",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["account", "created_at"], name="utskick_emailimage_account"),
+        ]
+
+    def __str__(self):
+        return f"Bild i mejl {self.pk} ({self.purpose}, {self.width} px)"
+
+
+def _delete_email_image_file(sender, instance, **kwargs):
+    """Filen går med raden, men först när borttagningen är sparad (som
+    bilderna i apps/flamingo): en återrullad transaktion lämnar ingen rad
+    utan fil."""
+    image = instance.file
+    if not image:
+        return
+
+    def remove():
+        try:
+            image.storage.delete(image.name)
+        except Exception:  # noqa: BLE001 - en kvarglömd fil fäller ingenting
+            logger.warning("Utskick: mejlbilden %s kunde inte tas bort", instance.pk)
+
+    transaction.on_commit(remove)
+
+
+models.signals.post_delete.connect(_delete_email_image_file, sender=EmailImage)
+
+
+class EventReceipt(models.Model):
+    """Kvittot för en SES-händelse eller ett inkommande mejl ur SQS (D.7):
+    nyckeln skrivs i samma transaktion som effekterna, så en händelse som
+    levereras två gånger gör ingenting andra gången. Sparas KEEP_DAYS dagar
+    (E.7); SQS behåller ett meddelande högst 14 dagar, men ett kvitto behövs
+    bara medan meddelandet kan levereras igen."""
+
+    #: Kvittona tas bort efter så här många dagar (E.7).
+    KEEP_DAYS = 3
+
+    #: f"{mail.messageId}:{eventType}" (händelser) eller
+    #: f"in:{mail.messageId}" (inkommande post).
+    key = models.CharField(max_length=140, unique=True)
+    at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Kvitto för SES-händelse"
+        verbose_name_plural = "Kvitton för SES-händelser"
+        indexes = [
+            models.Index(fields=["at"], name="utskick_receipt_at"),
+        ]
+
+    def __str__(self):
+        return f"Kvitto {self.pk}"

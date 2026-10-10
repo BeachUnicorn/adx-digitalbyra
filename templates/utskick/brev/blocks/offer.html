@@ -1,0 +1,8 @@
+{% load flamingo_pb %}{% comment %}
+Element 10, Erbjudande med kod: en ruta med streckad kant, sista dagen
+("Till 31 oktober"), erbjudandet, villkoren och koden. Låst för information.
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="#F5F7FA" style="{{ S.offer }}">
+{% if v.valid %}<p style="{{ S.offer_kick }}">{{ v.valid }}</p>{% endif %}{% if v.title %}<h3 style="{{ S.offer_h }}"{% pb "title" %}>{{ v.title }}</h3>{% else %}{% pb_empty "title" "h3" %}{% endif %}{% if v.text %}<p style="{{ S.offer_sm }}"{% pb "text" %}>{{ v.text }}</p>{% else %}{% pb_empty "text" "p" %}{% endif %}{% if v.code %}<span style="{{ S.code }}"{% pb "code" %}>{{ v.code }}</span>{% else %}{% pb_empty "code" "span" %}{% endif %}
+</td></tr></table>
+</td></tr>

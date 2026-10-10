@@ -1,0 +1,41 @@
+{% extends "manage/base.html" %}
+{% load static %}
+{% comment %}
+Köerna för e-post (apps/utskick/manage_email.dlq, README D.7): SES-händelserna
+och svaren på mejl, med sina DLQ:er. Kontext: rows ([{which, label, setting,
+on, queued, dlq}]; None när ett antal inte gick att läsa), last_poll. "Skicka
+tillbaka" flyttar DLQ:ns meddelanden till kön (StartMessageMoveTask).
+<thead> i varje tabell, inga style-attribut.
+{% endcomment %}
+{% block title %}Köerna för e-post{% endblock %}
+{% block extra_head %}<link rel="stylesheet" href="{% static 'css/tavla.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/manage-utskick.css' %}?v={{ static_version }}">{% endblock %}
+
+{% block content %}
+<div class="m-page-head">
+  <h1 class="m-page-head__title">Köerna för e-post</h1>
+  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:utskick_overview' %}#epost">Tillbaka till översikten</a></p>
+</div>
+
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">SES lägger händelserna (leveranser, studsar, klagomål) och svaren på mejl i SQS-köer i eu-west-1, och ticken läser dem. Ett meddelande som misslyckas fem gånger flyttas till kön med -dlq. Rätta felet först (se backups/utskick.log), skicka sedan tillbaka.{% if last_poll %} Köerna lästes senast {{ last_poll|date:"j b H:i" }}.{% endif %}</p>
+  <div class="m-table-wrap">
+    <table class="m-table mu-table">
+      <thead><tr><th>Kö</th><th>Inställning</th><th class="m-num">I kön</th><th class="m-num">I DLQ</th><th>Åtgärd</th></tr></thead>
+      <tbody>
+      {% for row in rows %}
+      <tr{% if not row.on %} class="is-off"{% endif %}>
+        <td><b>{{ row.label }}</b></td>
+        <td>{% if row.on %}{{ row.setting }}{% else %}{{ row.setting }} är inte satt{% endif %}</td>
+        <td class="m-num">{% if row.queued is None %}<span class="tv-muted">okänt</span>{% else %}{{ row.queued }}{% endif %}</td>
+        <td class="m-num">{% if row.dlq is None %}<span class="tv-muted">okänt</span>{% else %}{{ row.dlq }}{% endif %}</td>
+        <td>{% if row.on and row.dlq %}<form method="post" action="{% url 'manage:utskick_dlq' %}" class="mu-form">{% csrf_token %}
+          <input type="hidden" name="which" value="{{ row.which }}">
+          <button type="submit" class="m-btn m-btn--small m-btn--ghost" name="action" value="redrive">Skicka tillbaka</button>
+        </form>{% else %}<span class="tv-muted">inget att göra</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

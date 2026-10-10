@@ -5,7 +5,8 @@ Guidens steg 4: Tid (README I.8, D.4 tidsfönstret, I.9 veckotaket).
 Kontext från app_views/utskick._step_tid: utskick, wizard, errors, form
 (nar, datum, klockan), today (min för datumet), window ({open, text}: inom
 eller utanför fönstret för den valda tiden), window_rule (kundens fönster i
-ord), weekly (veckotaket i ord, med hur många det hoppar över).
+ord), weekly (veckotaken i ord, med hur många det hoppar över), uses_sms
+och uses_email (S3: tidsfönstret och dess text bara när sms används).
 
 Nu betyder när utskicket bekräftas i Granska. Utanför fönstret väntar sms:en
 tills det öppnar; det är ingen paus.
@@ -17,9 +18,9 @@ tills det öppnar; det är ingen paus.
 <form id="ut-tid" class="fl-form fl-ut-form" data-ut-guard method="post" action="{% url 'flamingo:app_utskick_step' utskick.pk 'tid' %}">
   {% csrf_token %}
   <fieldset class="fl-field{% if errors.nar %} is-error{% endif %}">
-    <legend class="fl-field__label">När ska sms:en gå i väg?</legend>
+    <legend class="fl-field__label">{% if uses_sms and not uses_email %}När ska sms:en gå i väg?{% else %}När ska utskicket gå i väg?{% endif %}</legend>
     <div class="fl-ut-options">
-      <label class="fl-ut-option"><input type="radio" name="nar" value="now"{% if form.nar == "now" %} checked{% endif %} data-ut-toggle="ut-tid-at"><span class="fl-ut-option__body"><span class="fl-ut-option__title">Nu</span><span class="fl-ut-option__text">När du har bekräftat i Granska, inom tidsfönstret.</span></span></label>
+      <label class="fl-ut-option"><input type="radio" name="nar" value="now"{% if form.nar == "now" %} checked{% endif %} data-ut-toggle="ut-tid-at"><span class="fl-ut-option__body"><span class="fl-ut-option__title">Nu</span><span class="fl-ut-option__text">När du har bekräftat i Granska{% if uses_sms %}, {% if uses_email %}sms:en {% endif %}inom tidsfönstret{% endif %}.</span></span></label>
       <label class="fl-ut-option"><input type="radio" name="nar" value="at"{% if form.nar == "at" %} checked{% endif %} data-ut-toggle="ut-tid-at"><span class="fl-ut-option__body"><span class="fl-ut-option__title">Vid en tid</span><span class="fl-ut-option__text">Välj dag och klockslag. Du kan ändra eller avbryta fram till dess.</span></span></label>
     </div>
     {% if errors.nar %}<p class="fl-field__error">{{ errors.nar }}</p>{% endif %}
@@ -37,11 +38,11 @@ tills det öppnar; det är ingen paus.
     </div>
   </div>
 
-  <p class="fl-notice{% if window.open %} fl-notice--ok{% else %} fl-notice--warn{% endif %}"><span>{{ window.text }}</span></p>
+  {% if uses_sms %}<p class="fl-notice{% if window.open %} fl-notice--ok{% else %} fl-notice--warn{% endif %}"><span>{{ window.text }}</span></p>{% endif %}
 
   <section class="fl-panel fl-panel--soft" aria-labelledby="ut-tid-rules">
-    <h2 class="fl-panel__title" id="ut-tid-rules">Tidsfönster och veckotak</h2>
-    <p class="fl-panel__text">Sms går bara i väg inom tidsfönstret: {{ window_rule }} Det som inte hinner i väg fortsätter när fönstret öppnar igen.</p>
+    <h2 class="fl-panel__title" id="ut-tid-rules">{% if uses_sms %}Tidsfönster och veckotak{% else %}Veckotak{% endif %}</h2>
+    {% if uses_sms %}<p class="fl-panel__text">Sms går bara i väg inom tidsfönstret: {{ window_rule }} Det som inte hinner i väg fortsätter när fönstret öppnar igen.{% if uses_email %} Mejlen väntar inte på fönstret.{% endif %}</p>{% endif %}
     <p class="fl-panel__text">{{ weekly }}</p>
     <a class="fl-panel__link" href="{% url 'flamingo:app_utskick_settings' %}">Ändra under Inställningar</a>
   </section>

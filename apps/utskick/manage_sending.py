@@ -114,6 +114,14 @@ def panel_context(now):
         row.override_reason = override.get("reason", "")
         row.override_by = override.get("by", "")
         row.override_stale = bool(row.override_reason) and not checks.override_valid(row)
+        # S3 (sändnings-byggaren): mejlets text kan också ha ändrats.
+        if row.override_reason and not row.override_stale and row.has_email:
+            from .email import checks as email_checks
+
+            row.override_stale = override.get("email_fingerprint") != (
+                email_checks.email_fingerprint(row)
+            )
+        # --- slut S3
         row.can_override = row.status in (*Utskick.EDITABLE, *Utskick.PAUSED_STATES)
     return {
         "sending_breaker_until": breaker,
@@ -154,15 +162,21 @@ def info_override(request, pk):
         return back
     # Undantaget gäller texten som står nu (checks.content_fingerprint):
     # ändrar kunden texten, reservtexterna eller skälet gäller det inte längre.
-    Utskick.objects.filter(pk=utskick.pk).update(
-        content_override={
-            "by": _actor_label(request.user),
-            "user": request.user.pk,
-            "at": timezone.now().isoformat(),
-            "reason": reason,
-            "fingerprint": checks.content_fingerprint(utskick),
-        }
-    )
+    override = {
+        "by": _actor_label(request.user),
+        "user": request.user.pk,
+        "at": timezone.now().isoformat(),
+        "reason": reason,
+        "fingerprint": checks.content_fingerprint(utskick),
+    }
+    # S3 (sändnings-byggaren, renderarens begäran 1): mejlets innehåll har
+    # ett eget fingeravtryck (email.checks.email_fingerprint).
+    if utskick.has_email:
+        from .email import checks as email_checks
+
+        override["email_fingerprint"] = email_checks.email_fingerprint(utskick)
+    # --- slut S3
+    Utskick.objects.filter(pk=utskick.pk).update(content_override=override)
     logger.warning(
         "Utskick %s: byråns undantag för information av användare %s",
         utskick.pk,
@@ -184,6 +198,13 @@ def probe(request):
     Switchboard.sms_enabled men inte förbi nödbromsen."""
     from apps.flamingo.models import FlamingoAccount
 
+    # S3 (sändnings-byggaren): "Provmejl till mig" postar hit med kind=email
+    # (J S3 steg 7); resten av vyn är provsms:et.
+    if request.POST.get("kind") == "email":
+        from .manage_email import probe_email
+
+        return probe_email(request)
+    # --- slut S3
     back = _back("sandning-prov")
     try:
         number = numbers.parse(str(request.POST.get("to") or ""))

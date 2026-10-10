@@ -65,6 +65,40 @@
                    null för en adress som inte finns än
      }
 
+   Profiler (README för utskick F.6): samma redigerare monteras för
+   sidorna (profilen "page") och för mejlen i Brev (profilen "brev",
+   templates/flamingo/app/utskick/brev_editor.html). Det som skiljer står i
+   pb-config, byggt av servern (pages.editor_config och
+   app_views/brev.py i apps/utskick); saknas en nyckel gäller sidornas värde:
+
+     profile          "page" | "brev"
+     canvasRoot       elementet vars barn är blocken (sidorna: main.rn-main)
+     chromeSelectors  {namn: väljare} för delarna runt blocken som byts när
+                      de ändrats (sidorna: .rn-top och .rn-foot)
+     canvasEnd        barnet i canvasRoot som block läggs före när de står
+                      sist (mejlets sidfot); sidorna har inget
+     paletteMarker    texten som känner igen färgernas <style> (sidorna: --rn-primary)
+     devices          {desktop, phone, fit}: ramens bredd i Dator och Mobil;
+                      fit "fill" (sidan: hela duken, aldrig smalare än
+                      desktop) eller "fixed" (mejlet: alltid desktop bred)
+     placement        {pairs: [[typ, variant, nästa typ]], endGroup}: block
+                      som står ihop, och gruppen som ska stå sist
+     wireframes, addWords   variantskisserna och orden för en ny rad i en lista
+     panelKinds       fältsorter som inte skrivs direkt i ramen; ett klick
+                      ger händelsen "field" (mejlets länkar, datum, rich_basic)
+     texts            några ord som skiljer ("sidan" eller "mejlet")
+
+   Bara profilen brev använder dessutom (sidorna anropar dem aldrig):
+
+     setField(blockId, path, value)   ett fält i den inloggades version
+     touch()          något utanför blocken ändrades: spara snart
+     flush()          spara nu (Promise)
+     saveExtra(fn), renderExtra(fn)   fn() ger fler värden till spara/ och rita/
+     rerender()       rita om hela dokumentet
+     openMedia(blockId, path)         bildväljaren för ett fält (också i en lista)
+     händelsen "field" {blockId, path}   ett fält som skrivs i panelen klickades
+     händelsen "saved" får också data: serverns hela svar
+
    Inga AI-typografitecken skrivs här: tecknen byggs med fromCharCode.
    ========================================================================== */
 (function () {
@@ -87,9 +121,41 @@
   /* Mobilens läge (sidan först, verktygen i en rad längst ner) gäller upp
      till 1023 px, samma brytpunkt som i flamingo-pb.css. */
   var MOBILE = window.matchMedia("(max-width: 1023px)");
+  /* Profilen (överst i filen). Sidornas värden när en nyckel saknas. */
+  var PROFILE = config.profile || "page";
+  var CANVAS_ROOT = config.canvasRoot || "main.rn-main";
+  var CHROME = config.chromeSelectors || { top: ".rn-top", foot: ".rn-foot" };
+  /* Ett barn till canvasRoot som nya block hamnar före när de läggs sist
+     (mejlets sidfot står i samma tabell som blocken). Sidorna: inget. */
+  var CANVAS_END = config.canvasEnd || "";
+  var PALETTE_MARKER = config.paletteMarker || "--rn-primary";
+  var DEVICES = config.devices || {};
+  var PLACEMENT = config.placement || { pairs: [["hero", "form", "form"]], endGroup: "end" };
+  var PANEL_KINDS = {};
+  (config.panelKinds || []).forEach(function (kind) {
+    PANEL_KINDS[kind] = true;
+  });
+  var TEXTS = Object.assign(
+    {
+      maxBlocks: "Högst {n} block på en sida.",
+      single: "Finns redan på sidan.",
+      singleCopy: "Sidan kan bara ha ett block av sorten {name}.",
+      renderFailed: "Sidan gick inte att rita om. ",
+      first: "Lägg till block först på sidan",
+      hidden: "Syns inte för besökarna än",
+      stale: "Sidan har ändrats på ett annat ställe.",
+      versionMade: "En ny version är skapad och vald. Skriv ditt alternativ direkt på sidan.",
+      versionsNote: "En version är blockets text. Den aktiva syns på sidan.",
+      readOnlyHint: "Sidan går inte att ändra här.",
+      pickFirst: "Välj ett block först: tryck på det på sidan.",
+    },
+    config.texts || {}
+  );
   /* Rens brytpunkt för två spalter: "Dator" visas aldrig smalare än så. */
-  var DESKTOP_MIN = 1024;
-  var PHONE_WIDTH = 390;
+  var DESKTOP_MIN = DEVICES.desktop || 1024;
+  var PHONE_WIDTH = DEVICES.phone || 390;
+  /* "fill": hela duken (sidan). "fixed": alltid DESKTOP_MIN bred (mejlet). */
+  var DESKTOP_FIXED = DEVICES.fit === "fixed";
 
   var state = {
     pageId: config.pageId,
@@ -112,35 +178,13 @@
   });
   var AVAILABLE = config.available || {};
 
-  /* Ordet för en ny rad i en lista ("Lägg till fråga"). */
-  var ADD_WORDS = {
-    "hero.points": "punkt",
-    "area.places": "ort",
-    "guarantee.terms": "villkor",
-    "steps.steps": "steg",
-    "faq.items": "fråga",
-    "certificates.items": "certifikat",
-    "price.items": "prisexempel",
-    "form.questions": "fråga",
-  };
+  /* Ordet för en ny rad i en lista ("Lägg till fråga"): {"typ.fält": ord}
+     ur profilen (pages.PAGE_PROFILE). */
+  var ADD_WORDS = config.addWords || {};
 
-  /* Skisserna i variantväljaren (mockupen .wf): ett ord per rad, "row:"
-     delar i två spalter med |, "bar:" är en färgad remsa. */
-  var WIREFRAMES = {
-    hero: { call: "h l b", form: "row:h l|l l b", image: "img h b", text: "h l l" },
-    price: { from: "row:h l|big", examples: "h cards", fixed: "card" },
-    reviews_google: { cards: "h cards", quote: "quote", line: "stars" },
-    reviews_reco: { stor: "h quote", medel: "h stars", liten: "stars", staende: "h card", utvalda_kort: "h cards", utvalda_citat: "quote", utvalda_rad: "stars" },
-    certificates: { badges: "h chips", icons: "h cards" },
-    guarantee: { short: "icon h l", terms: "icon h checks" },
-    person: { image: "row:img|h l", noimage: "row:circle|h l" },
-    steps: { three: "h nums3", four: "h nums4" },
-    before_after: { slider: "h split", pair: "h pair" },
-    area: { list: "h chips", map: "row:h chips|map" },
-    faq: { three: "h rows3", six: "h rows6" },
-    form: { short: "h in in b", questions: "h in in in b", booking: "h date in b" },
-    callbar: { call: "bar:b", call_write: "bar:b b2" },
-  };
+  /* Skisserna i variantväljaren (mockupen .wf), ur profilen: ett ord per
+     rad, "row:" delar i två spalter med |, "bar:" är en färgad remsa. */
+  var WIREFRAMES = config.wireframes || {};
 
   // -------------------------------------------------------------------------
   // Små hjälpare
@@ -294,7 +338,7 @@
   // Händelser (FlamingoPB.on)
   // -------------------------------------------------------------------------
 
-  var listeners = { change: [], select: [], saved: [], panel: [] };
+  var listeners = { change: [], select: [], saved: [], panel: [], field: [] };
 
   function on(event, fn) {
     if (!listeners[event] || typeof fn !== "function") {
@@ -538,6 +582,14 @@
     return String(text || "").replace(/\s+/g, " ").trim();
   }
 
+  function say(key, values) {
+    var out = TEXTS[key] || "";
+    Object.keys(values || {}).forEach(function (name) {
+      out = out.split("{" + name + "}").join(values[name]);
+    });
+    return out;
+  }
+
   function canAdd(typeKey) {
     var type = TYPES[typeKey];
     if (!type || readOnly) {
@@ -548,40 +600,46 @@
       return base;
     }
     if (state.blocks.length >= MAX_BLOCKS) {
-      return { ok: false, reason: "Högst " + MAX_BLOCKS + " block på en sida." };
+      return { ok: false, reason: say("maxBlocks", { n: MAX_BLOCKS }) };
     }
     if (type.single && state.blocks.some(function (b) {
       return b.type === typeKey;
     })) {
-      return { ok: false, reason: "Finns redan på sidan." };
+      return { ok: false, reason: say("single") };
     }
     return { ok: true, reason: "" };
   }
 
-  /* Platsen efter blocket på index. Toppen med formulär och ett
-     formulärblock direkt efter står bredvid varandra på en bred skärm
-     (pagebuilder/__init__.py): ett nytt block hamnar efter paret, aldrig
+  /* Platsen efter blocket på index. Block som står ihop (profilens
+     placement.pairs; sidorna: Toppen med formulär och ett formulärblock
+     direkt efter står bredvid varandra på en bred skärm,
+     pagebuilder/__init__.py): ett nytt block hamnar efter paret, aldrig
      mellan dem. */
   function gapAfter(index) {
     var block = state.blocks[index];
     var next = state.blocks[index + 1];
-    if (block && block.type === "hero" && block.variant === "form" && next && next.type === "form") {
+    var paired = (PLACEMENT.pairs || []).some(function (pair) {
+      return block && block.type === pair[0] && block.variant === pair[1] && next && next.type === pair[2];
+    });
+    if (paired) {
       return index + 2;
     }
     return index + 1;
   }
 
   /* Var ett nytt block hamnar utan angiven plats: efter det valda, annars
-     före avslutet (formulär och ringremsa sist på sidan). */
+     före avslutet (profilens endGroup; sidorna: formulär och ringremsa
+     sist på sidan), annars sist. */
   function defaultGap(typeKey) {
     if (state.selectedId && indexOf(state.selectedId) >= 0) {
       return gapAfter(indexOf(state.selectedId));
     }
     var type = TYPES[typeKey];
-    if (type && type.group !== "end") {
+    var end = PLACEMENT.endGroup;
+    if (end && type && type.group !== end) {
       for (var i = 0; i < state.blocks.length; i++) {
         var t = TYPES[state.blocks[i].type];
-        if (t && t.group === "end") {
+        if (t && t.group === end) {
           return i;
         }
       }
@@ -697,6 +755,24 @@
   // Spara (hela utkastet med rev)
   // -------------------------------------------------------------------------
 
+  /* Fler värden till spara/ och rita/ (profilen brev: ämnesraden,
+     accentfärgen, loggans plats). Sidorna har inga. */
+  var saveExtras = [];
+  var renderExtras = [];
+
+  function withExtra(data, list) {
+    list.forEach(function (fn) {
+      try {
+        Object.assign(data, fn() || {});
+      } catch (error) {
+        if (window.console) {
+          window.console.error(error);
+        }
+      }
+    });
+    return data;
+  }
+
   var saveTimer = null;
   var saveInflight = null;
   var dirty = false;
@@ -740,7 +816,7 @@
   function flush() {
     window.clearTimeout(saveTimer);
     if (stale) {
-      return Promise.reject({ status: 409, data: { error: "Sidan har ändrats på ett annat ställe." } });
+      return Promise.reject({ status: 409, data: { error: say("stale") } });
     }
     if (saveInflight) {
       return saveInflight.then(
@@ -758,7 +834,7 @@
     dirty = false;
     setSaved("saving", "Sparar");
     var sent = JSON.parse(JSON.stringify(state.blocks));
-    saveInflight = post(urls.save, { rev: state.rev, blocks: sent }).then(function (res) {
+    saveInflight = post(urls.save, withExtra({ rev: state.rev, blocks: sent }, saveExtras)).then(function (res) {
       saveInflight = null;
       if (res.ok) {
         retryDelay = 4000;
@@ -769,7 +845,7 @@
         setSaved("saved", "Sparat " + (res.data.saved_text || clock(new Date())));
         setProblems(res.data.problems || []);
         updatePublish();
-        emit("saved", { rev: state.rev, savedAt: res.data.saved_at, problems: state.problems });
+        emit("saved", { rev: state.rev, savedAt: res.data.saved_at, problems: state.problems, data: res.data });
         if (dirty) {
           markDirty();
         }
@@ -842,14 +918,23 @@
     if (!fdoc) {
       return [];
     }
-    return $all("main.rn-main > [data-pb-block]", fdoc);
+    return $all(CANVAS_ROOT + " > [data-pb-block]", fdoc);
   }
 
   function blockNode(id) {
     if (!fdoc || !id) {
       return null;
     }
-    return fdoc.querySelector('main.rn-main > [data-pb-block="' + id + '"]');
+    return fdoc.querySelector(CANVAS_ROOT + ' > [data-pb-block="' + id + '"]');
+  }
+
+  /* Elementet efter det sista blocket i canvasRoot (profilens canvasEnd),
+     eller null: då läggs ett sista block allra sist. */
+  function canvasEnd(main) {
+    if (!CANVAS_END || !main) {
+      return null;
+    }
+    return main.querySelector(":scope > " + CANVAS_END);
   }
 
   function topbarHeight() {
@@ -912,6 +997,12 @@
       }
       var path = el.getAttribute("data-pb-field");
       var spec = fieldSpec(typeKey, path);
+      if (spec && PANEL_KINDS[spec.kind]) {
+        /* Profilens fält som skrivs i en panel (mejlets länkar, datum och
+           text med formatering): ett klick ger händelsen "field". */
+        el.setAttribute("data-pb-panel-field", "");
+        return;
+      }
       if (!spec || spec.kind === "choice" || spec.kind === "key" || spec.kind === "media") {
         return;
       }
@@ -962,7 +1053,7 @@
       return;
     }
     var doc = frame.contentDocument;
-    if (!doc || !doc.querySelector("main.rn-main")) {
+    if (!doc || !doc.querySelector(CANVAS_ROOT)) {
       return;
     }
     fdoc = doc;
@@ -971,8 +1062,9 @@
       rendered[node.getAttribute("data-pb-block")] = node.outerHTML;
       prepare(node);
     });
-    renderedChrome.top = chromeHtml(fdoc, ".rn-top");
-    renderedChrome.foot = chromeHtml(fdoc, ".rn-foot");
+    Object.keys(CHROME).forEach(function (key) {
+      renderedChrome[key] = chromeHtml(fdoc, CHROME[key]);
+    });
     bindFrame();
     if (window.ResizeObserver) {
       new window.ResizeObserver(function () {
@@ -1022,7 +1114,7 @@
     } else if (device === "mobile") {
       width = Math.min(PHONE_WIDTH, available);
     } else if (available >= DESKTOP_MIN) {
-      width = available;
+      width = DESKTOP_FIXED ? DESKTOP_MIN : available;
     } else {
       width = DESKTOP_MIN;
       nextScale = available / DESKTOP_MIN;
@@ -1080,13 +1172,13 @@
   function doRender() {
     var seq = ++renderSeq;
     root.classList.add("is-rendering");
-    post(urls.renderBlock, { blocks: state.blocks, palette: state.palette }).then(function (res) {
+    post(urls.renderBlock, withExtra({ blocks: state.blocks, palette: state.palette }, renderExtras)).then(function (res) {
       if (seq !== renderSeq) {
         return;
       }
       root.classList.remove("is-rendering");
       if (!res.ok) {
-        toast("Sidan gick inte att rita om. " + (res.data.error || ""));
+        toast(say("renderFailed") + (res.data.error || ""));
         renderWaiters = [];
         return;
       }
@@ -1127,7 +1219,7 @@
       return;
     }
     $all("head style", fdoc).some(function (style) {
-      if (style.textContent.indexOf("--rn-primary") >= 0) {
+      if (style.textContent.indexOf(PALETTE_MARKER) >= 0) {
         style.textContent = css;
         return true;
       }
@@ -1140,15 +1232,16 @@
       return;
     }
     var doc = new DOMParser().parseFromString(html, "text/html");
-    var nextMain = doc.querySelector("main.rn-main");
-    var main = fdoc.querySelector("main.rn-main");
+    var nextMain = doc.querySelector(CANVAS_ROOT);
+    var main = fdoc.querySelector(CANVAS_ROOT);
     if (!nextMain || !main) {
       return;
     }
-    replaceChrome(doc, ".rn-top", "top");
-    replaceChrome(doc, ".rn-foot", "foot");
+    Object.keys(CHROME).forEach(function (key) {
+      replaceChrome(doc, CHROME[key], key);
+    });
     $all("head style", doc).some(function (style) {
-      if (style.textContent.indexOf("--rn-primary") >= 0) {
+      if (style.textContent.indexOf(PALETTE_MARKER) >= 0) {
         applyPaletteStyle(style.textContent);
         return true;
       }
@@ -1191,7 +1284,7 @@
     order.forEach(function (node, i) {
       var at = $all(":scope > [data-pb-block]", main)[i];
       if (at !== node) {
-        main.insertBefore(node, at || null);
+        main.insertBefore(node, at || canvasEnd(main) || null);
       }
     });
     forced = {};
@@ -1284,7 +1377,7 @@
     if (opts.render || reason !== "text") {
       drawOverlay();
     }
-    emit("change", { reason: reason, blockId: opts.blockId || null, blocks: state.blocks });
+    emit("change", { reason: reason, blockId: opts.blockId || null, blocks: state.blocks, path: opts.path || null });
   }
 
   // -------------------------------------------------------------------------
@@ -1502,6 +1595,11 @@
         }
         if (media) {
           openMedia(id, media.getAttribute("data-pb-field"));
+          return;
+        }
+        var panelField = target.closest("[data-pb-panel-field]");
+        if (panelField) {
+          emit("field", { blockId: id, path: panelField.getAttribute("data-pb-field") });
           return;
         }
         var list = target.closest("[data-pb-list]");
@@ -1803,7 +1901,7 @@
       }
       var text = [];
       if (hidden) {
-        text.push(node.getAttribute("data-pb-type") === "before_after" ? "Syns när båda bilderna är valda" : "Syns inte för besökarna än");
+        text.push(node.getAttribute("data-pb-type") === "before_after" ? "Syns när båda bilderna är valda" : say("hidden"));
       }
       if (count) {
         text.push(count === 1 ? "1 sak att rätta" : count + " saker att rätta");
@@ -1829,7 +1927,7 @@
       return "Lägg till det första blocket";
     }
     if (gap === 0) {
-      return "Lägg till block först på sidan";
+      return say("first");
     }
     var before = state.blocks[gap - 1];
     return "Lägg till block efter " + (before ? typeOf(before).name : "blocket");
@@ -1838,7 +1936,11 @@
   function gapY(gap) {
     var order = geometry.order;
     if (!order.length) {
-      var main = fdoc && fdoc.querySelector("main.rn-main");
+      var main = fdoc && fdoc.querySelector(CANVAS_ROOT);
+      var end = canvasEnd(main);
+      if (end) {
+        return rectOf(end).top;
+      }
       return main ? rectOf(main).top + 24 : 24;
     }
     if (gap < order.length) {
@@ -2074,7 +2176,7 @@
     tb.up.disabled = index <= 0;
     tb.down.disabled = index < 0 || index >= state.blocks.length - 1;
     tb.copy.disabled = !!type.single || state.blocks.length >= MAX_BLOCKS;
-    tb.copy.title = type.single ? "Sidan kan bara ha ett block av sorten " + type.name + "." : "Kopiera blocket";
+    tb.copy.title = type.single ? say("singleCopy", { name: type.name }) : "Kopiera blocket";
     toolbar.setAttribute("aria-label", "Verktyg för " + type.name);
     if (!$all(".pb-tb__btn", toolbar).some(function (b) {
       return b.tabIndex === 0 && !b.disabled && !b.hidden;
@@ -2412,11 +2514,11 @@
     var source = findBlock(id);
     var type = typeOf(source);
     if (!source || type.single) {
-      toast("Sidan kan bara ha ett block av sorten " + (type ? type.name : "") + ".");
+      toast(say("singleCopy", { name: type ? type.name : "" }));
       return;
     }
     if (state.blocks.length >= MAX_BLOCKS) {
-      toast("Högst " + MAX_BLOCKS + " block på en sida.");
+      toast(say("maxBlocks", { n: MAX_BLOCKS }));
       return;
     }
     var copy = clone(source);
@@ -2949,13 +3051,13 @@
             });
             changed("version", { blockId: id, render: true });
             closeSurface(false);
-            toast("En ny version är skapad och vald. Skriv ditt alternativ direkt på sidan.");
+            toast(say("versionMade"));
           });
           content.appendChild(
             h(
               "div",
               { class: "pb-vers__head" },
-              h("p", { class: "pb-surface__note", text: "En version är blockets text. Den aktiva syns på sidan." }),
+              h("p", { class: "pb-surface__note", text: say("versionsNote") }),
               add
             )
           );
@@ -3028,7 +3130,11 @@
         return String(item || "").trim() !== "";
       }
       return (spec.items || []).some(function (sub) {
-        return (sub.kind === "text" || sub.kind === "textarea") && String((item || {})[sub.key] || "").trim() !== "";
+        var value = (item || {})[sub.key];
+        if (sub.kind === "media") {
+          return value !== null && value !== undefined && value !== "";
+        }
+        return (sub.kind === "text" || sub.kind === "textarea" || PANEL_KINDS[sub.kind]) && String(value || "").trim() !== "";
       });
     });
     if (kept.length === list.length) {
@@ -3105,12 +3211,23 @@
                 var fieldId = "pb-row-" + i + "-" + sub.key;
                 var value = (item || {})[sub.key];
                 var control;
+                if (sub.kind === "media") {
+                  /* En bild i en post (mejlets galleri): bildväljaren. */
+                  var has = value !== null && value !== undefined && value !== "";
+                  var pick = h("button", { type: "button", class: "pb-btn pb-btn--ghost pb-btn--sm", id: fieldId }, icon("pb-u-image"), h("span", { text: has ? "Byt bild" : "Välj bild" }));
+                  pick.addEventListener("click", function () {
+                    closeSurface(false);
+                    openMedia(id, key + "." + i + "." + sub.key, null);
+                  });
+                  inputs.appendChild(h("div", { class: "pb-row__field" }, h("label", { class: "pb-row__label", for: fieldId }, sub.label, h("span", { class: "fl-sr", text: ", " + lower(one) + " " + (i + 1) })), pick));
+                  return;
+                }
                 if (sub.kind === "choice") {
                   control = h("select", { class: "pb-input", id: fieldId });
                   (sub.choices || []).forEach(function (choice) {
                     control.appendChild(h("option", { value: choice[0], text: choice[1], selected: value === choice[0] ? true : null }));
                   });
-                } else if (sub.kind === "textarea") {
+                } else if (sub.kind === "textarea" || sub.kind === "rich_basic") {
                   control = h("textarea", { class: "pb-input", id: fieldId, rows: "3", maxlength: sub.max_length || null });
                   control.value = value || "";
                 } else {
@@ -3228,6 +3345,8 @@
     (spec.items || []).forEach(function (sub) {
       if (sub.kind === "key") {
         item[sub.key] = "fraga-" + uid("").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 6);
+      } else if (sub.kind === "media") {
+        item[sub.key] = null;
       } else {
         item[sub.key] = sub.kind === "choice" && sub.choices && sub.choices.length ? sub.choices[0][0] : "";
       }
@@ -3446,7 +3565,7 @@
     }
     var text = "";
     if (mhintNudge) {
-      text = readOnly ? "Sidan går inte att ändra här." : "Välj ett block först: tryck på det på sidan.";
+      text = readOnly ? say("readOnlyHint") : say("pickFirst");
     } else if (!mhintDone && !state.selectedId && !readOnly) {
       text = "Tryck på en text för att ändra den.";
     }
@@ -3655,7 +3774,8 @@
   function openMedia(blockId, key, opener) {
     var block = findBlock(blockId);
     var type = typeOf(block);
-    var spec = type ? findField(type, key) : null;
+    /* Ett fält i blocket, eller ett underfält i en lista ("items.1.image"). */
+    var spec = type ? findField(type, key) || fieldSpec(type.key, key) : null;
     if (!spec || spec.kind !== "media" || readOnly) {
       return;
     }
@@ -3698,7 +3818,7 @@
       return null;
     }
     var block = findBlock(media.target.blockId);
-    var value = block ? activeFields(block)[media.target.key] : null;
+    var value = block ? getPath(activeFields(block), media.target.key) : null;
     return value === undefined ? null : value;
   }
 
@@ -3709,9 +3829,9 @@
       return;
     }
     var version = ownVersion(block);
-    version.fields[target.key] = assetId;
+    setPath(version.fields, target.key, assetId);
     version.at = nowIso();
-    changed("media", { blockId: block.id, render: true });
+    changed("media", { blockId: block.id, render: true, path: target.key });
     renderMedia();
     if (assetId === null) {
       toast("Bilden är borttagen från blocket. Den finns kvar i mediaarkivet.");
@@ -4363,8 +4483,28 @@
     });
   }
 
+  /* Ett fält i den inloggades version (profilen brev: fältpanelen). */
+  function apiSetField(blockId, path, value, opts) {
+    var block = findBlock(blockId);
+    if (!block || readOnly || !path) {
+      return false;
+    }
+    var version = ownVersion(block);
+    setPath(version.fields, path, value);
+    version.at = nowIso();
+    changed("field", { blockId: blockId, render: true, delay: opts && opts.delay !== undefined ? opts.delay : 450, path: path });
+    return true;
+  }
+
+  function addHook(list, fn) {
+    if (typeof fn === "function") {
+      list.push(fn);
+    }
+  }
+
   window.FlamingoPB = {
     version: 1,
+    profile: PROFILE,
     state: function () {
       return {
         pageId: state.pageId,
@@ -4389,5 +4529,24 @@
       return clone(config.schema || []);
     },
     urls: urls,
+    setField: apiSetField,
+    touch: function () {
+      markDirty();
+    },
+    flush: flush,
+    saveExtra: function (fn) {
+      addHook(saveExtras, fn);
+    },
+    renderExtra: function (fn) {
+      addHook(renderExtras, fn);
+    },
+    rerender: function () {
+      requestRender(0);
+    },
+    openMedia: function (blockId, path, opener) {
+      openMedia(blockId, path, opener || null);
+    },
+    isMobile: isMobile,
+    toast: toast,
   };
 })();

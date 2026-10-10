@@ -14,9 +14,14 @@ och räknar rätt mellan processer.
 
 Scopen som används (Counter.scope, högst 20 tecken): link_miss, signup_ip,
 signup_account, optin_addr, optin_addr_all, optin_hour, optin_account_hour,
-link_check, export, inbound_mail, test_send, alert. Nyckeln är en ip_hash,
-ett konto-id, f"{account}:{value_hash}" eller "" för hela ADX; aldrig en
-adress i klartext.
+optin_sms_addr, optin_sms_addr_all, optin_sms_hour, optin_sms_acct_hour,
+link_check, export, inbound_sms, click, test_send, probe, alert; S3:
+adx_mail (testmejl och svar från ADX-domänen, fönstret är nästa månads
+början, sending/email.py), inbound_mail (hela ADX per timme), inbound_mail_ref
+(per svarstoken och timme, inbound/email.py), reply_confirm (den egna
+svarsadressens bekräftelselänk). Nyckeln är en ip_hash, ett konto-id,
+f"{account}:{value_hash}", en token eller "" för hela ADX; aldrig en adress
+i klartext.
 
 Låsens nycklar (pg_advisory_xact_lock), bredvid flamingo.limits._LOCK_SPACE
 (0x464C << 32) och flamingo.media._LOCK_MEDIA (0x464D << 32):
@@ -24,6 +29,8 @@ Låsens nycklar (pg_advisory_xact_lock), bredvid flamingo.limits._LOCK_SPACE
     TICK_LOCK            0x5554 << 32               utskick_tick (pg_try_advisory_lock)
     ADX_MAIL_LOCK        (0x5555 << 32) + konto     ADX-domänens tak per kund (S3)
     CONTACT_LIMIT_LOCK   (0x5556 << 32) + konto     kontaktgränsen per kund
+    INBOUND_LOCK         (0x5557 << 32) + nummer    inbound/routing.py, ett nummer i taget (S2)
+    INBOUND_MAIL_LOCK    (0x5558 << 32) + adress    inbound/email.py, en adress hos ett konto (S3)
 """
 
 from datetime import timedelta

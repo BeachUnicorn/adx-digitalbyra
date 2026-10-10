@@ -604,6 +604,12 @@ class VvsLegacyGuardTests(TestCase):
             # S2 (länk-byggaren): reco.se i links.GLOBAL_HOSTS (E.8) och dess test.
             "apps/utskick/links.py",
             "apps/utskick/test_s2_links.py",
+            # S3 (Brev-byggaren): omdömesblocket i e-posten (F.1 element 12), dess
+            # två källor i registret och renderaren, och testerna.
+            "apps/utskick/email/registry.py",
+            "apps/utskick/email/render.py",
+            "apps/utskick/test_s3_registry.py",
+            "apps/utskick/test_s3_render.py",
         }
     )
 

@@ -1,0 +1,9 @@
+{% load flamingo_pb %}{% comment %}
+Element 17, Bildgalleri: två bilder i varje rad, också på mobilen (som
+mockupen), 10 px mellan bilderna.
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+{% for row in v.rows %}<tr>{% for cell in row %}<td width="50%" valign="top" style="padding:0 {% if forloop.first %}5px{% else %}0{% endif %} {% if cell.last_row %}0{% else %}10px{% endif %} {% if forloop.first %}0{% else %}5px{% endif %};">{% if cell.image %}<img src="{{ cell.image.url }}" width="{{ cell.image.width }}" height="{{ cell.image.height }}" alt="{{ cell.image.alt }}" style="{{ S.img }}"{% pb_media cell.path %}>{% else %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="130" style="{{ S.img_ph }}height:130px;">Välj en bild</td></tr></table>{% endif %}</td>{% endfor %}{% if row|length == 1 %}<td width="50%" style="padding:0 0 0 5px;">&nbsp;</td>{% endif %}</tr>
+{% empty %}<tr><td>{% pb_empty "items" "div" %}</td></tr>
+{% endfor %}</table>
+</td></tr>

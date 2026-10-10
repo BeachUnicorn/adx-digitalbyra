@@ -12,6 +12,12 @@ skriver i elementet som data-ut-sms-count pekar på, och företagets namn
 serverns rad kvar och servern prövar längden igen. Byrån i kundvyn kryssar i
 att den svarar som ADX innan något skickas. Inga style-attribut, inga
 inbäddade skript, inga tabeller.
+
+S3 (inkorg-byggaren, svar och avregistrering): en e-posttråd (th_is_email)
+visar ämnet och bilagorna (bara namn och storlek, th_attachments_text) på
+svaren, svarsrutan för mejl (till th_email_to, ämnet th_subject, utan
+sms-räknaren) eller varför den saknas (th_email_problem), och
+"Avregistrera från e-post" i stället för sms-knappen.
 {% endcomment %}
 <section class="fl-leadcard__block fl-th" id="svar" aria-labelledby="fl-th-title">
   <div class="fl-th__head">
@@ -33,10 +39,10 @@ inbäddade skript, inga tabeller.
 
   {% if thread.looks_like_stop and th_can_unsubscribe %}
   <div class="fl-notice fl-notice--warn fl-th__flag" role="status">
-    <p><b>Ser ut som en avregistrering.</b> Svaret låter som att personen inte vill ha fler sms. Avregistrera numret, så får hen inga fler utskick med sms från dig.</p>
+    {% if th_is_email %}<p><b>Ser ut som en avregistrering.</b> Svaret låter som att personen inte vill ha fler mejl. Avregistrera adressen, så får hen inga fler utskick med e-post från dig.</p>{% else %}<p><b>Ser ut som en avregistrering.</b> Svaret låter som att personen inte vill ha fler sms. Avregistrera numret, så får hen inga fler utskick med sms från dig.</p>{% endif %}
     <form method="post" action="{% url 'flamingo:app_lead_unsubscribe' lead.pk %}">
       {% csrf_token %}
-      <button type="submit" class="fl-btn fl-btn--sm">Avregistrera från sms</button>
+      <button type="submit" class="fl-btn fl-btn--sm">{% if th_is_email %}Avregistrera från e-post{% else %}Avregistrera från sms{% endif %}</button>
     </form>
   </div>
   {% endif %}
@@ -44,7 +50,9 @@ inbäddade skript, inga tabeller.
   <ol class="fl-th__list" aria-label="Meddelanden">
     {% for row in th_rows %}
     <li class="fl-th__msg fl-th__msg--{{ row.direction }}{% if row.tone %} is-{{ row.tone }}{% endif %}">
+      {% if row.subject and row.direction == "in" %}<p class="fl-th__subject">{{ row.subject }}</p>{% endif %}
       <p class="fl-th__body">{{ row.body|linebreaksbr }}</p>
+      {% if row.attachments %}<p class="fl-th__files">Bilagor: {% for file in row.attachments %}{{ file.name }} ({{ file.size|filesizeformat }}){% if not forloop.last %}, {% endif %}{% endfor %}. {{ th_attachments_text }}</p>{% endif %}
       <p class="fl-th__meta">{{ row.label }} · {{ row.at|date:"j b H.i" }}{% if row.note %} · <span class="fl-th__note">{{ row.note }}</span>{% endif %}</p>
     </li>
     {% empty %}
@@ -54,7 +62,24 @@ inbäddade skript, inga tabeller.
 
   {% if th_error %}<p class="fl-notice fl-notice--error" role="alert" id="fl-th-error">{{ th_error }}</p>{% endif %}
 
-  {% if th_can_reply %}
+  {% if th_can_reply and th_is_email %}
+  <form class="fl-form fl-th__form" method="post" action="{% url 'flamingo:app_lead_reply' lead.pk %}">
+    {% csrf_token %}
+    <div class="fl-field{% if th_error %} is-error{% endif %}">
+      <label class="fl-field__label" for="fl-th-text">Svara med mejl</label>
+      <textarea class="fl-input fl-th__text" id="fl-th-text" name="text" rows="6" maxlength="{{ th_text_max }}" required{% if th_error %} aria-describedby="fl-th-error"{% endif %}>{{ th_text }}</textarea>
+      <p class="fl-field__help fl-th__to">Till {{ th_email_to }} · Ämne: {{ th_subject }}</p>
+      <p class="fl-field__help">Personens senaste mejl citeras under ditt svar, och nästa svar hamnar i den här tråden.</p>
+      {% if th_demo %}<p class="fl-field__help">Demokontot skickar aldrig.</p>{% endif %}
+    </div>
+    {% if th_staff %}
+    <label class="fl-check fl-th__staff"><input type="checkbox" name="staff_ok" value="1" required><span>{{ th_staff_text }}</span></label>
+    {% endif %}
+    <div class="fl-form__actions">
+      <button type="submit" class="fl-btn fl-btn--sm">{% if th_staff %}Skicka som ADX{% else %}Skicka svar{% endif %}</button>
+    </div>
+  </form>
+  {% elif th_can_reply %}
   <form class="fl-form fl-th__form" method="post" action="{% url 'flamingo:app_lead_reply' lead.pk %}">
     {% csrf_token %}
     <div class="fl-field{% if th_error %} is-error{% endif %}">
@@ -71,6 +96,8 @@ inbäddade skript, inga tabeller.
       <button type="submit" class="fl-btn fl-btn--sm">{% if th_staff %}Skicka som ADX{% else %}Skicka svar{% endif %}</button>
     </div>
   </form>
+  {% elif th_email_problem %}
+  <p class="fl-notice fl-notice--info">{{ th_email_problem }}</p>
   {% elif th_suppressed %}
   <p class="fl-notice fl-notice--info">{{ th_suppressed_note }}</p>
   {% elif not th_enabled %}
@@ -80,8 +107,13 @@ inbäddade skript, inga tabeller.
   {% if th_can_unsubscribe and not thread.looks_like_stop %}
   <form class="fl-th__unsub" method="post" action="{% url 'flamingo:app_lead_unsubscribe' lead.pk %}">
     {% csrf_token %}
+    {% if th_is_email %}
+    <p class="fl-field__help">Vill personen inte ha fler mejl från dig?</p>
+    <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Avregistrera från e-post</button>
+    {% else %}
     <p class="fl-field__help">Vill personen inte ha fler sms från dig?</p>
     <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Avregistrera från sms</button>
+    {% endif %}
   </form>
   {% endif %}
 </section>

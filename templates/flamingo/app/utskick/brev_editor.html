@@ -1,0 +1,284 @@
+{% extends "flamingo/app/base.html" %}
+{% load static %}
+{% comment %}
+E-postredigeraren (README F, I.1, I.2, I.4; app_views/brev.brev_editor). Samma
+redigerare som sidorna (static/js/flamingo-pb.js med profilen "brev",
+pb-config): mejlet ritas av email.render i läget "editor" i en ram
+(srcdoc, skript förbjudna), blocken till vänster, verktygen överst. Det som
+bara mejlet har sköts av static/js/flamingo-app-brev.js (br-config):
+avsändaren, ämnesraden och förhandstexten, loggans plats, färgen,
+reservtexterna, villkoren i erbjudandet, panelerna Fält, Kontroller,
+Testmejl och AI, och förhandsvisningen (en <dialog>).
+
+I mobilen kommer mejlet först i telefonens bredd, verktygen i en rad längst
+ner och panelerna som ark nedifrån; raden "Enklast på dator." står överst.
+
+Kontext: utskick, canvas_html, groups (biblioteket), picker (färgerna),
+sender (avsändaren och de verifierade domänerna), has_logo, logo_positions,
+terms, test (vart ett testmejl kan gå), staff_text, display_name, is_demo,
+information, read_only, config (pb-config), br_config, back_url, light_text.
+Inga style-attribut och inga inline-skript: css i flamingo-app-brev.css
+(.fl-br-) ovanpå flamingo-pb.css, js i flamingo-app-brev.js.
+{% endcomment %}
+{% block app_title %}{{ utskick.name }}: E-post{% endblock %}
+{% block app_modifier %} fl-app--single fl-app--editor{% endblock %}
+{% block app_side %}{% endblock %}
+{% block app_head %}
+<link rel="stylesheet" href="{% static 'css/flamingo-pb.css' %}?v={{ static_version }}">
+<link rel="stylesheet" href="{% static 'css/flamingo-app-brev.css' %}?v={{ static_version }}">
+{% endblock %}
+{% block app_content %}
+{% include "flamingo/app/pages/_icons.html" %}
+{% include "flamingo/app/utskick/_brev_icons.html" %}
+<div class="pb fl-br" id="pb" data-csrf="{{ csrf_token }}"{% if read_only %} data-read-only{% endif %}>
+  <header class="pb-top" aria-label="Mejlet">
+    <div class="pb-top__lead">
+      <a class="pb-back" href="{{ back_url }}" data-br-leave><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-back"></use></svg><span>Innehåll</span></a>
+      <div class="pb-top__titles">
+        <p class="fl-br-kicker">E-post</p>
+        <h1 class="fl-br-title">{{ utskick.name }}</h1>
+        <p class="pb-top__sub"><span class="fl-badge fl-badge--{% if utskick.status == 'scheduled' %}queued{% else %}draft{% endif %}" id="br-status">{{ utskick.get_status_display }}</span><span class="pb-sep" aria-hidden="true"></span><span class="pb-saved" id="pb-saved" role="status">Sparat {{ saved }}</span></p>
+      </div>
+    </div>
+    <div class="pb-top__tools">
+      <div class="pb-seg" role="group" aria-label="Visa mejlet som i">
+        <button type="button" class="pb-seg__btn" data-pb-device="mobile" aria-pressed="false"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-mobile"></use></svg><span>Mobil</span></button>
+        <button type="button" class="pb-seg__btn" data-pb-device="desktop" aria-pressed="true"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-desktop"></use></svg><span>Dator</span></button>
+      </div>
+      <button type="button" class="pb-btn pb-btn--ghost fl-br-tool" data-pb-open="falt"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-i-brev-fields"></use></svg><span class="pb-btn__label">Fält</span></button>
+      <button type="button" class="pb-btn pb-btn--ghost fl-br-tool" data-pb-open="checks" aria-describedby="pb-checks-badge"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-gauge"></use></svg><span class="pb-btn__label">Kontroller</span><span class="pb-btn__badge" id="pb-checks-badge" hidden></span></button>
+      <button type="button" class="pb-btn pb-btn--ghost fl-br-tool" data-br-preview><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-i-brev-eye"></use></svg><span class="pb-btn__label">Förhandsvisa</span></button>
+      <button type="button" class="pb-btn pb-btn--ghost fl-br-tool" data-pb-open="test"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-i-brev-mail"></use></svg><span class="pb-btn__label">Testmejl</span></button>
+      <button type="button" class="pb-btn pb-btn--ghost fl-br-tool" data-pb-open="ai"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-sparkle"></use></svg><span class="pb-btn__label">AI</span></button>
+      <a class="pb-btn pb-btn--primary" href="{{ back_url }}" data-br-leave>Klar</a>
+    </div>
+  </header>
+
+  <p class="fl-br-phonehint">Enklast på dator. Här kan du ändra texterna, byta ordning och skicka ett test.</p>
+  {% if scheduled %}<p class="pb-mnote fl-br-note">{{ unconfirm_text }}</p><p class="pb-note fl-br-note fl-br-note--wide">{{ unconfirm_text }}</p>{% endif %}
+
+  <details class="fl-br-head" id="br-head" open>
+    <summary class="fl-br-head__summary"><span class="fl-br-head__label">Avsändare, ämnesrad och utseende</span><span class="fl-br-head__subject" id="br-head-subject">{{ utskick.subject|default:"Ingen ämnesrad än" }}</span></summary>
+    <div class="fl-br-head__body">
+      <div class="fl-br-head__grid">
+        <div class="fl-field fl-br-from">
+          {% if sender.domains %}
+          <label class="fl-field__label" for="br-sender">Från</label>
+          <select class="fl-input" id="br-sender"{% if read_only %} disabled{% endif %}>
+            <option value=""{% if not sender.own %} selected{% endif %}>ADX-domänen{% if not sender.own and sender.text %}: {{ sender.text }}{% endif %}</option>
+            {% for d in sender.domains %}<option value="{{ d.id }}" data-br-from-name="{{ d.from_name }}"{% if d.id == sender.domain_id %} selected{% endif %}>{{ d.address }}</option>{% endfor %}
+          </select>
+          <div class="fl-br-fromname" id="br-fromname-row"{% if not sender.own %} hidden{% endif %}>
+            <label class="fl-field__label fl-br-sublabel" for="br-fromname">Avsändarnamn</label>
+            <input class="fl-input" id="br-fromname" type="text" maxlength="80" value="{{ sender.from_name }}" autocomplete="off"{% if read_only %} readonly{% endif %}>
+          </div>
+          {% else %}
+          <span class="fl-field__label" id="br-from-label">Från</span>
+          <p class="fl-br-from__text" aria-labelledby="br-from-label">{{ sender.text|default:display_name }}</p>
+          <p class="fl-field__help">ADX-domänen. Med din egen domän syns din adress som avsändare. <a href="{% url 'flamingo:app_utskick_domain' %}">Använd din egen domän</a></p>
+          {% endif %}
+        </div>
+        <div class="fl-field">
+          <label class="fl-field__label" for="br-subject">Ämnesrad</label>
+          <input class="fl-input" id="br-subject" type="text" maxlength="150" value="{{ utskick.subject }}" placeholder="Dags för service, {förnamn|du}" autocomplete="off" aria-describedby="br-subject-error"{% if read_only %} readonly{% endif %}>
+          <div class="fl-br-errors" id="br-subject-error" aria-live="polite"></div>
+        </div>
+        <div class="fl-field">
+          <label class="fl-field__label" for="br-preheader">Förhandstext</label>
+          <input class="fl-input" id="br-preheader" type="text" maxlength="150" value="{{ utskick.preheader }}" autocomplete="off" aria-describedby="br-preheader-help br-preheader-error"{% if read_only %} readonly{% endif %}>
+          <p class="fl-field__help" id="br-preheader-help">Syns efter ämnesraden i inkorgen.</p>
+          <div class="fl-br-errors" id="br-preheader-error" aria-live="polite"></div>
+        </div>
+      </div>
+      <div class="fl-br-insert" data-br-insert-row hidden>
+        <span class="fl-br-insert__label">Infoga i ämnesraden eller förhandstexten</span>
+      </div>
+
+      <div class="fl-br-style">
+        <fieldset class="fl-br-logo">
+          <legend class="fl-field__label">Logga</legend>
+          <div class="fl-br-seg" role="group" aria-label="Var loggan står">
+            {% for value, label in logo_positions %}<button type="button" class="pb-seg__btn" data-br-logo="{{ value }}" aria-pressed="{% if value == logo_shown %}true{% else %}false{% endif %}"{% if not has_logo and value != 'none' or read_only %} disabled{% endif %}>{{ label }}</button>{% endfor %}
+          </div>
+          {% if not has_logo %}<p class="fl-field__help">Ladda upp en logotyp under <a href="{% url 'flamingo:app_media' %}">Media</a>.</p>{% endif %}
+        </fieldset>
+        <fieldset class="fl-br-accent">
+          <legend class="fl-field__label">Färg på knappar och länkar</legend>
+          <div class="fl-br-swatches" role="group" aria-label="Färger">
+            {% for swatch in picker.swatches %}<button type="button" class="fl-br-swatch{% if swatch.logo %} is-logo{% endif %}" data-br-color="{{ swatch.value }}" aria-pressed="{% if swatch.value == picker.shown %}true{% else %}false{% endif %}" title="{{ swatch.name }}"{% if read_only %} disabled{% endif %}><span class="fl-sr">{{ swatch.name }}</span></button>{% endfor %}
+            <label class="fl-br-custom" title="Egen färg"><span class="fl-sr">Egen färg</span><input class="fl-br-custom__input" id="br-color" type="color" value="{{ picker.shown }}"{% if read_only %} disabled{% endif %}></label>
+            <label class="fl-sr" for="br-hex">Egen färg med sex tecken</label>
+            <input class="fl-input fl-br-hex" id="br-hex" type="text" maxlength="7" value="{{ picker.shown }}" autocomplete="off" spellcheck="false"{% if read_only %} readonly{% endif %}>
+          </div>
+          <p class="fl-br-warn" id="br-light"{% if not picker.light %} hidden{% endif %}>{{ picker.light_text }}</p>
+        </fieldset>
+      </div>
+
+      <section class="fl-br-merge" id="br-merge" aria-labelledby="br-merge-title" hidden>
+        <h2 class="fl-br-merge__title" id="br-merge-title">Om ett värde saknas</h2>
+        <div class="fl-br-merge__rows" id="br-merge-rows"></div>
+        <p class="fl-field__help">En reservtext i klamrarna gäller före den här: {förnamn|du}.</p>
+      </section>
+
+      <section class="fl-br-terms" id="br-terms" aria-labelledby="br-terms-title"{% if not terms.terms %} hidden{% endif %}>
+        <h2 class="fl-br-terms__title" id="br-terms-title">Villkoren i erbjudandet</h2>
+        <ul class="fl-br-terms__list" id="br-terms-list">{% for t in terms.terms %}<li>{{ t.label }} {{ t.value }}</li>{% endfor %}</ul>
+        <label class="fl-check"><input type="checkbox" id="br-terms-ok"{% if terms.terms_confirmed %} checked disabled{% endif %}{% if read_only %} disabled{% endif %}><span>Uppgifterna stämmer</span></label>
+        <p class="fl-field__help">Bocka i när villkoren stämmer. Först då får AI skriva om erbjudandet, och en ändring i villkoren tar bort bocken.</p>
+      </section>
+    </div>
+  </details>
+
+  <div class="pb-body" id="pb-body">
+    <aside class="pb-lib" id="pb-lib" aria-labelledby="pb-lib-title">
+      <h2 class="fl-sr" id="pb-lib-title">Block att lägga till</h2>
+      <div class="pb-lib__search">
+        <svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-search"></use></svg>
+        <label class="fl-sr" for="pb-lib-q">Sök block</label>
+        <input class="pb-lib__q" id="pb-lib-q" type="search" placeholder="Sök block" autocomplete="off">
+      </div>
+      <p class="pb-lib__hint">Dra ett block till mejlet, eller klicka för att lägga det efter det valda. Klicka i en text och skriv. Länkar, datum och text med fetstil ändras i panelen Fält.</p>
+      <div class="pb-lib__groups" id="pb-lib-groups">
+        {% for g in groups %}
+        <section class="pb-lib__group" data-pb-group="{{ g.key }}" aria-labelledby="pb-lib-g-{{ g.key }}">
+          <h3 class="pb-lib__title" id="pb-lib-g-{{ g.key }}">{{ g.name }}</h3>
+          <ul class="pb-lib__list">
+            {% for item in g.items %}
+            <li class="pb-lib__li"><button type="button" class="pb-lib__item" data-pb-add="{{ item.type.key }}" data-pb-search="{{ item.type.name|lower }} {{ item.type.principle|lower }}" title="{{ item.type.why }}"{% if not item.ok or read_only %} disabled{% endif %}>
+              <span class="pb-lib__icon" aria-hidden="true"><svg class="pb-ic"><use href="#pb-i-{{ item.type.icon }}"></use></svg></span>
+              <span class="pb-lib__text"><span class="pb-lib__name">{{ item.type.name }}</span><span class="pb-lib__reason" data-pb-reason>{% if not item.ok %}{{ item.reason }}{% endif %}</span></span>
+            </button></li>
+            {% endfor %}
+          </ul>
+        </section>
+        {% endfor %}
+        <p class="pb-lib__none" id="pb-lib-none" hidden>Inget block heter så.</p>
+      </div>
+    </aside>
+
+    <div class="pb-canvas" id="pb-canvas">
+      <div class="pb-stage" id="pb-stage">
+        <div class="pb-frame fl-br-frame" id="pb-frame-wrap">
+          {% if canvas_html %}
+          <iframe class="pb-frame__iframe" id="pb-frame" title="Mejlet {{ utskick.name }}. Klicka i en text och skriv." srcdoc="{{ canvas_html|force_escape }}"></iframe>
+          {% else %}
+          <p class="pb-canvas__error">Mejlet gick inte att rita. Ladda om och försök igen.</p>
+          {% endif %}
+        </div>
+        <div class="pb-overlay" id="pb-overlay"></div>
+      </div>
+    </div>
+
+    <aside class="pb-panel" id="pb-panel" aria-labelledby="pb-panel-title" hidden>
+      <div class="pb-panel__head">
+        <h2 class="pb-panel__title" id="pb-panel-title" tabindex="-1"></h2>
+        <button type="button" class="pb-iconbtn" data-pb-close-panel aria-label="Stäng panelen"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-close"></use></svg></button>
+      </div>
+      <div class="pb-panel__body">
+        <div class="pb-panel__wrap" data-pb-panel="falt" data-pb-title="Fält" hidden>
+          <div class="pb-panel__pane fl-br-fields" id="pb-panel-falt"><p class="pb-panel__text">Välj ett block i mejlet.</p></div>
+        </div>
+        <div class="pb-panel__wrap" data-pb-panel="ai" data-pb-title="AI" hidden>
+          <div class="pb-panel__pane" id="pb-panel-ai"></div>
+          <p class="pb-panel__fallback">AI går inte att använda här just nu. Ladda om sidan och försök igen.</p>
+        </div>
+        <div class="pb-panel__wrap" data-pb-panel="media" data-pb-title="Bild" hidden>
+          <div class="pb-panel__pane" id="pb-panel-media"></div>
+        </div>
+        <div class="pb-panel__wrap" data-pb-panel="checks" data-pb-title="Kontroller" hidden>
+          <div class="pb-panel__pane fl-br-checks" id="pb-panel-checks">
+            <ul class="fl-br-checklist" id="br-checklist" aria-live="polite"><li class="fl-br-check fl-br-check--info"><span class="fl-br-check__text">Kontrollerna hämtas.</span></li></ul>
+            <div class="pb-panel__actions">
+              <button type="button" class="pb-btn pb-btn--ghost pb-btn--sm" data-br-recheck>Kontrollera allt, också länkarna</button>
+              <a class="pb-link" href="{% url 'flamingo:app_utskick_step' utskick.pk 'granska' %}" data-br-leave>Granska utskicket</a>
+            </div>
+          </div>
+        </div>
+        <div class="pb-panel__wrap" data-pb-panel="test" data-pb-title="Testmejl" hidden>
+          <div class="pb-panel__pane fl-br-test" id="pb-panel-test">
+            {% if is_demo %}
+            <p class="pb-panel__text">Demokontot skickar aldrig.</p>
+            {% else %}
+            <form class="fl-form fl-br-testform" method="post" action="{% url 'flamingo:app_utskick_test' utskick.pk %}" data-br-test>
+              {% csrf_token %}
+              <input type="hidden" name="kanal" value="epost">
+              <input type="hidden" name="kontakt" value="" data-br-test-kontakt>
+              <p class="pb-panel__text">Testet skickar det sparade mejlet med "Test: " först i ämnesraden. Det räknas mot dagens tio test{% if not sender.own %} och mot mejlen från ADX-domänen{% endif %}.</p>
+              {% if test.own %}
+              <button type="submit" class="pb-btn pb-btn--sm fl-br-testbtn" name="till" value="mig">Skicka test till {{ test.own }}</button>
+              {% elif test.staff %}
+              <div class="fl-field">
+                <label class="fl-field__label" for="br-test-adress">Din e-postadress</label>
+                <input class="fl-input" id="br-test-adress" type="email" name="adress" autocomplete="email">
+              </div>
+              <button type="submit" class="pb-btn pb-btn--sm fl-br-testbtn" name="till" value="eget">Skicka test till mig</button>
+              {% else %}
+              <p class="pb-panel__text">Din inloggning saknar e-postadress, så testet har ingenstans att gå.</p>
+              {% endif %}
+              {% if test.staff and test.customers %}
+              <details class="fl-br-more">
+                <summary class="pb-btn pb-btn--ghost pb-btn--sm">Skicka test till kunden (kunden får mejlet)</summary>
+                <div class="fl-br-confirm">
+                  <label class="fl-field__label fl-br-sublabel" for="br-test-kund">Kundens adress</label>
+                  <select class="fl-input" id="br-test-kund" name="kund_adress">{% for address in test.customers %}<option value="{{ address }}">{{ address }}</option>{% endfor %}</select>
+                  <label class="fl-check"><input type="checkbox" name="som_adx" value="1"><span>{{ staff_text }}</span></label>
+                  <button type="submit" class="pb-btn pb-btn--sm" name="till" value="kunden">Skicka som ADX</button>
+                </div>
+              </details>
+              {% endif %}
+              <p class="fl-br-result" data-br-test-result role="status" aria-live="polite"></p>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <p class="pb-mhint" id="pb-mhint" role="status" hidden></p>
+  <nav class="pb-mbar fl-br-mbar" id="pb-mbar" aria-label="Verktyg för det valda blocket">
+    <button type="button" class="pb-mbar__btn" data-pb-m="falt" aria-disabled="true"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-i-brev-fields"></use></svg><span>Fält</span></button>
+    <button type="button" class="pb-mbar__btn" data-pb-m="versions" aria-disabled="true"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-history"></use></svg><span>Versioner</span></button>
+    <button type="button" class="pb-mbar__btn" data-pb-m="ai"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-sparkle"></use></svg><span>AI</span></button>
+    <button type="button" class="pb-mbar__btn" data-pb-m="move" aria-disabled="true" aria-label="Mer för det valda blocket"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-dots"></use></svg><span>Mer</span></button>
+    <button type="button" class="pb-mbar__btn" data-pb-m="add"{% if read_only %} disabled{% endif %}><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-plus"></use></svg><span>Block</span></button>
+  </nav>
+
+  <dialog class="fl-br-dialog" id="br-preview" aria-labelledby="br-preview-title">
+    <div class="fl-br-dialog__head">
+      <h2 class="fl-br-dialog__title" id="br-preview-title">Förhandsvisning</h2>
+      <div class="fl-br-seg" role="group" aria-label="Visa som">
+        <button type="button" class="pb-seg__btn" data-br-lage="dator" aria-pressed="true">Dator</button>
+        <button type="button" class="pb-seg__btn" data-br-lage="mobil" aria-pressed="false">Mobil</button>
+        <button type="button" class="pb-seg__btn" data-br-lage="morkt" aria-pressed="false">Mörkt läge</button>
+      </div>
+      <button type="button" class="pb-iconbtn" data-br-preview-close aria-label="Stäng förhandsvisningen"><svg class="pb-ic" aria-hidden="true" focusable="false"><use href="#pb-u-close"></use></svg></button>
+    </div>
+    <dl class="fl-br-inbox">
+      <div class="fl-br-inbox__row"><dt>Från</dt><dd data-br-pv="from"></dd></div>
+      <div class="fl-br-inbox__row"><dt>Ämne</dt><dd data-br-pv="subject"></dd></div>
+      <div class="fl-br-inbox__row"><dt>Förhandstext</dt><dd data-br-pv="preheader"></dd></div>
+    </dl>
+    <p class="fl-br-who"><span data-br-pv="who"></span> <button type="button" class="fl-br-linkbtn" data-br-pv-next hidden>byt kontakt</button></p>
+    <p class="fl-br-dialog__note" data-br-pv-note hidden>Mörkt läge visar ungefär hur e-postprogram som vänder färgerna själva visar mejlet.</p>
+    <div class="fl-br-dialog__stage" data-br-pv-stage>
+      <iframe class="fl-br-dialog__frame" sandbox title="Förhandsvisning av mejlet" data-br-pv-frame></iframe>
+    </div>
+    <p class="fl-br-dialog__foot"><a href="{% url 'flamingo:app_brev_preview' utskick.pk %}" target="_blank" rel="noopener">Öppna förhandsvisningen i en ny flik</a></p>
+  </dialog>
+
+  <div class="pb-stale" id="pb-stale" role="alertdialog" aria-labelledby="pb-stale-title" aria-describedby="pb-stale-text" hidden>
+    <p class="pb-stale__title" id="pb-stale-title">Mejlet har ändrats på ett annat ställe</p>
+    <p class="pb-stale__text" id="pb-stale-text">Någon sparade mejlet i en annan flik eller på en annan dator medan du skrev, eller så har utskicket börjat skickas. Inget har skrivits över, men dina senaste ändringar här är inte sparade. Ladda om sidan för att se den senaste versionen.</p>
+    <button type="button" class="pb-btn pb-btn--primary" id="pb-stale-reload">Ladda om sidan</button>
+  </div>
+  <div class="pb-toast" id="pb-toast" role="status" aria-live="polite"></div>
+  <noscript><p class="fl-notice fl-notice--warn">E-postredigeraren behöver JavaScript. Slå på det i webbläsaren och ladda om sidan.</p></noscript>
+</div>
+{{ config|json_script:"pb-config" }}
+{{ br_config|json_script:"br-config" }}
+{% endblock %}
+{% block extra_js %}
+<script src="{% static 'js/flamingo-pb.js' %}?v={{ static_version }}" defer></script>
+<script src="{% static 'js/flamingo-app-brev.js' %}?v={{ static_version }}" defer></script>
+{% endblock %}

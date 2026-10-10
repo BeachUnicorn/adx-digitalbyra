@@ -13,6 +13,10 @@ En modul per del, och en ägare per modul:
     utskick.py    Utskick (S2): listan, guiden, Granska, rapporten,
                   mottagarna, testsändningen och Inställningar för utskick
     inbox_reply.py  svaren i Inkorgen (S2): svara och avregistrera från sms
+    brev.py       e-postredigeraren (S3): sidan, spara, rita ett block, bild,
+                  kontrollerna, AI och förhandsvisningen
+    health.py     Leveranshälsa (S3)
+    domain.py     Egen domän och den egna svarsadressen (S3)
 
 Varje vy skrivs så här:
 
@@ -52,7 +56,7 @@ def render_contacts(request, template, tab, context=None, status=200):
 
 def render_utskick(request, template, tab, context=None, status=200):
     """Som render_contacts, för en sida under Utskick: sidomenyns punkt är
-    "utskick" och flikraden har tab ("utskick", "settings") markerad.
+    "utskick" och flikraden har tab ("utskick", "health", "settings") markerad.
     Mallarna utgår från flamingo/app/utskick/_layout.html."""
     merged = {
         "ut_nav": nav.utskick_tabs(tab),

@@ -405,6 +405,35 @@ UTSKICK_ELKS_INBOUND_TOKEN = env.str("UTSKICK_ELKS_INBOUND_TOKEN", default="")
 UTSKICK_SMS_ACCOUNT_PER_MINUTE = env.int("UTSKICK_SMS_ACCOUNT_PER_MINUTE", default=45)
 UTSKICK_SMS_GLOBAL_PER_MINUTE = env.int("UTSKICK_SMS_GLOBAL_PER_MINUTE", default=60)
 
+# S3: e-post i Brev (README C.4, D.6, D.7, G.3). Resurserna i AWS skapas av
+# server/aws-utskick-s3.sh; så länge de saknas (tomma rader) är händelserna
+# och den inkommande posten av, och inget e-postutskick skickas förrän
+# byrån satt email_ready_at och slagit på e-posten på /manage/utskick/nodstopp/.
+# Konfigurationssetet i SES eu-west-1 som varje utskicksmejl skickas med
+# (händelserna till SQS, och kontots spärrlista bara för studsar, D.7).
+UTSKICK_SES_CONFIGURATION_SET = (
+    env.str("UTSKICK_SES_CONFIGURATION_SET", default="") or "adx-utskick"
+)
+# Mejl från ADX-domänen (utskick.adx.se) per kund och svensk kalendermånad,
+# testmejl inräknade. Över det krävs kundens egen domän (D.6, I.5).
+UTSKICK_ADX_MONTHLY_MAIL_CAP = env.int("UTSKICK_ADX_MONTHLY_MAIL_CAP", default=2000)
+# Mejl per sekund från ticken, för hela ADX. Högst 80 % av SES MaxSendRate
+# när den är känd (Switchboard.ses_max_rate, D.6).
+UTSKICK_EMAIL_PER_SECOND = env.int("UTSKICK_EMAIL_PER_SECOND", default=10)
+# Domänen för svaren: Reply-To och avregistreringen via mejl är
+# s+<token>@<domänen> (E.2, G.3). MX pekar på SES inbound i eu-west-1.
+UTSKICK_REPLY_DOMAIN = (
+    env.str("UTSKICK_REPLY_DOMAIN", default="").strip().lower() or "svar.utskick.adx.se"
+)
+# S3-hinken där SES lägger inkommande svar (prefixet in/). Hanteraren tar
+# bara emot meddelanden från just den hinken. Tomt = inkommande mejl är av.
+UTSKICK_SES_INBOUND_BUCKET = env.str("UTSKICK_SES_INBOUND_BUCKET", default="").strip()
+# SQS-köerna i eu-west-1 som ticken läser (D.7): SES-händelserna (via
+# ämnet adx-utskick-events) och de inkommande mejlen (via
+# adx-utskick-inbound). Köernas DLQ heter som kön plus -dlq. Tomt = av.
+UTSKICK_SQS_EVENTS_URL = env.str("UTSKICK_SQS_EVENTS_URL", default="").strip()
+UTSKICK_SQS_INBOUND_URL = env.str("UTSKICK_SQS_INBOUND_URL", default="").strip()
+
 # Testerna når aldrig nätet: bara loopback och unix-socklar (Postgres), och
 # inga sms eller mejl skickas på riktigt även om .env säger det.
 TEST_RUNNER = "config.test_runner.NoNetworkRunner"

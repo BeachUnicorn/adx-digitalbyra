@@ -15,6 +15,9 @@ Värdroutern (foundation, ändras inte av andra):
     site_urls()                 reverse() mot sajtens adresser inne i en
                                 förfrågan på länkvärden (länk-byggaren)
     sms_link(code)              "k.adx.se/Ab12Cd": så står länken i sms:et
+    email_url, unsubscribe_url, email_preferences_url, web_view_url,
+    pixel_url, calendar_url, mailto_unsubscribe
+                                S3: mejlens adresser på klick.adx.se (se avsnittet nedan)
 
 På en länkvärd sätter mellanvaran request.urlconf = "config.urls_links",
 request.is_link_host = True och request.link_host ("k" eller "klick"), och
@@ -171,6 +174,81 @@ def sms_link(code, path=""):
     host = parts.netloc or parts.path
     prefix = f"{path.strip('/')}/" if path else ""
     return f"{host}/{prefix}{code}"
+
+
+# ---------------------------------------------------------------------------
+# S3 (foundation): adresserna i mejlen, på klick.adx.se (E.1, E.2, F.4)
+#
+#   email_link_base()                         UTSKICK_EMAIL_LINK_BASE utan / sist
+#   email_url(utskick, recipient, link)       /m/<token>: klicket (recipient None = testmejl)
+#   unsubscribe_url(account_id, value_hash)   /a/<token>: avregistreringen och List-Unsubscribe
+#   email_preferences_url(account_id, value_hash)   /v/<token>: Mina utskick för e-post
+#   web_view_url(utskick_id, recipient_id=None)     /w/<token>: Visa i webbläsaren
+#   pixel_url(recipient_id)                   /o/<token>.gif: öppningen (bara tracking_ok, H.5)
+#   calendar_url(utskick_id, block_id)        /c/<token>.ics: händelseblocket
+#   mailto_unsubscribe(account_id, recipient_id)
+#                                             mailto:s+u...@svar.utskick.adx.se?subject=avregistrera
+#
+# Absoluta adresser med schema (mejl har ingen bas). Inga rader i
+# databasen: allt bärs av token (tokens.py). Vyerna står i link_views.py.
+# ---------------------------------------------------------------------------
+
+
+def email_link_base():
+    """https://klick.adx.se (lokalt http://klick.localhost:8770)."""
+    base = getattr(settings, "UTSKICK_EMAIL_LINK_BASE", "") or "https://klick.adx.se"
+    return base.rstrip("/")
+
+
+def email_url(utskick, recipient, link):
+    """Klicklänken i mejlet för en mottagare och en TrackedLink (F.4).
+    recipient None: testmejlet, där klicket leder rätt men inte räknas."""
+    from . import tokens
+
+    recipient_id = getattr(recipient, "pk", None) or 0
+    link_id = getattr(link, "pk", link)
+    return f"{email_link_base()}/m/{tokens.email_click_token(recipient_id, link_id)}"
+
+
+def unsubscribe_url(account_id, value_hash):
+    from . import tokens
+
+    return f"{email_link_base()}/a/{tokens.unsubscribe_token(account_id, value_hash)}"
+
+
+def email_preferences_url(account_id, value_hash):
+    """Samma token som /utskick/val/<token>/ på adx.se (S1), här på klick."""
+    from . import tokens
+
+    token = tokens.preference_token(account_id, "email", value_hash)
+    return f"{email_link_base()}/v/{token}"
+
+
+def web_view_url(utskick_id, recipient_id=None):
+    from . import tokens
+
+    return f"{email_link_base()}/w/{tokens.web_view_token(utskick_id, recipient_id)}"
+
+
+def pixel_url(recipient_id):
+    from . import tokens
+
+    return f"{email_link_base()}/o/{tokens.pixel_token(recipient_id)}.gif"
+
+
+def calendar_url(utskick_id, block_id):
+    from . import tokens
+
+    return f"{email_link_base()}/c/{tokens.calendar_token(utskick_id, block_id)}.ics"
+
+
+def mailto_unsubscribe(account_id, recipient_id):
+    """Den andra adressen i List-Unsubscribe (D.6): ett mejl dit avregistrerar
+    (inbound/email.py, token u)."""
+    from . import tokens
+
+    address = tokens.reply_address(tokens.MAILTO, account_id, recipient_id)
+    return f"mailto:{address}?subject=avregistrera"
 
 
 # ---------------------------------------------------------------------------
@@ -774,12 +852,15 @@ def link_problems(utskick):
 
 
 def bare_destination(link):
-    """Målet utan ut och utm (HEAD, E.3)."""
+    """Målet utan ut och utm (HEAD, E.3). En Flamingo-sida behåller ankaret
+    som länken i mejlet hade (#boka, S3)."""
     if link.kind == link.Kind.LP and link.campaign_id and link.campaign is not None:
         from apps.flamingo.exports import landing_page_url
 
         with site_urls():
-            return landing_page_url(link.campaign)
+            url = landing_page_url(link.campaign)
+        fragment = urlsplit(link.destination or "").fragment
+        return f"{url}#{fragment}" if fragment else url
     return link.destination
 
 

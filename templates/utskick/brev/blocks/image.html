@@ -1,0 +1,8 @@
+{% load flamingo_pb %}{% comment %}
+Element 6, Bild med bildtext: bilden i full bredd (504 visas), en länk från
+bilden när kunden angett en, och bildtexten under.
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
+{% if v.image %}{% if v.href %}<a href="{{ v.href }}" style="text-decoration:none;">{% endif %}<img src="{{ v.image.url }}" width="{{ v.image.width }}" height="{{ v.image.height }}" alt="{{ v.image.alt }}" style="{{ S.img }}"{% pb_media "image" %}>{% if v.href %}</a>{% endif %}
+{% elif editing %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="240" style="{{ S.img_ph }}height:240px;"{% pb_media "image" %}>Välj en bild</td></tr></table>
+{% endif %}{% if v.caption %}<p style="{{ S.caption }}"{% pb "caption" %}>{{ v.caption }}</p>{% else %}{% pb_empty "caption" "p" %}{% endif %}
+</td></tr>

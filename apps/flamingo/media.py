@@ -16,7 +16,8 @@ sparade som WebP, och kunden intygar rätten till bilderna från hemsidan.
     apply_logo_palette(account, page=None, user=None)
                                    paletten "logo" på kontots sidor (eller en)
     media_usage(account)           {bildens id: [Use]}: sidorna som använder den
-    delete_asset(asset)            MediaInUse när en sida använder bilden
+    delete_asset(asset)            MediaInUse när en sida eller ett utskick som inte
+                                   är skickat använder bilden (apps/utskick, C.2)
     asset_json(asset)              bilden som JSON för redigerarens bildväljare
 
 Bilderna från hemsidan (läsningen, scan.py):
@@ -162,16 +163,27 @@ class MediaError(ValueError):
         super().__init__(self.message)
 
 
-class MediaInUse(MediaError):
-    """Bilden används av en eller flera sidor (uses: [Use])."""
+def _named(names, one, many):
+    names = list(names)
+    shown = ", ".join(names[:3])
+    more = f" och {len(names) - 3} till" if len(names) > 3 else ""
+    return f"{one if len(names) == 1 else many} {shown}{more}"
 
-    def __init__(self, uses):
+
+class MediaInUse(MediaError):
+    """Bilden används av en eller flera sidor (uses: [Use]) eller av utskick
+    som inte är skickade (utskick: utskickens namn, apps/utskick C.2)."""
+
+    def __init__(self, uses, utskick=()):
         self.uses = list(uses)
-        names = ", ".join(use.page.name for use in self.uses[:3])
-        more = f" och {len(self.uses) - 3} till" if len(self.uses) > 3 else ""
-        word = "sidan" if len(self.uses) == 1 else "sidorna"
+        self.utskick = list(utskick)
+        where = []
+        if self.uses:
+            where.append("på " + _named((use.page.name for use in self.uses), "sidan", "sidorna"))
+        if self.utskick:
+            where.append("i " + _named(self.utskick, "utskicket", "utskicken"))
         super().__init__(
-            f"Bilden används på {word} {names}{more}. Byt bilden där först, sedan går den "
+            f"Bilden används {' och '.join(where)}. Byt bilden där först, sedan går den "
             "att ta bort."
         )
 
@@ -768,14 +780,17 @@ def _is_media_id(value):
     return isinstance(value, int) and not isinstance(value, bool) and value > 0
 
 
-def media_ids_in(blocks):
+def media_ids_in(blocks, types=None):
     """Bildernas id i blocken: alla versioner, inte bara den aktiva (en
-    version kan väljas igen, och schemat nekar en bild som inte finns)."""
+    version kan väljas igen, och schemat nekar en bild som inte finns).
+    types: blocktyperna (standard sidornas TYPES; utskickens Brev skickar
+    sina, apps/utskick/email/registry.py)."""
     from .pagebuilder.registry import ITEMS, MEDIA, TYPES
 
+    types = TYPES if types is None else types
     ids = set()
     for block in blocks:
-        block_type = TYPES.get(block.get("type")) if isinstance(block, dict) else None
+        block_type = types.get(block.get("type")) if isinstance(block, dict) else None
         if block_type is None:
             continue
         for version in block.get("versions") or []:
@@ -817,12 +832,22 @@ def media_usage(account):
     return _uses(LandingPage.objects.filter(account=account).order_by("name", "pk"))
 
 
+def _utskick_uses(asset):
+    """Namnen på utskicken som inte är skickade och använder bilden
+    (utkast, schemalagda, pågående och pausade; apps/utskick C.2). Raderna
+    låses under prövningen, som sidorna. Ett skickat mejl hindrar inte:
+    dess bilder ligger kvar som EmailImage (asset blir null)."""
+    from apps.utskick.email import images
+
+    return images.used_by(asset.account_id, lock=True).get(asset.pk, [])
+
+
 def delete_asset(asset, user=None):
     """Ta bort bilden (och filerna, när borttagningen är sparad). Används
-    den på en sida, i utkastet eller det publicerade, nekas det med
-    MediaInUse som säger vilken sida. Sidorna låses under prövningen. Var
-    den logotypen gäller samma sak som unset_logo (färgerna töms, byrån
-    larmas om en kampanj är live)."""
+    den på en sida, i utkastet eller det publicerade, eller i ett utskick
+    som inte är skickat, nekas det med MediaInUse som säger var. Sidorna
+    och utskicken låses under prövningen. Var den logotypen gäller samma
+    sak som unset_logo (färgerna töms, byrån larmas om en kampanj är live)."""
     was_logo = asset.is_logo
     with transaction.atomic():
         pages = list(
@@ -831,8 +856,9 @@ def delete_asset(asset, user=None):
             .order_by("name", "pk")
         )
         uses = _uses(pages).get(asset.pk, [])
-        if uses:
-            raise MediaInUse(uses)
+        utskick = _utskick_uses(asset)
+        if uses or utskick:
+            raise MediaInUse(uses, utskick=utskick)
         asset.delete()
     if was_logo:
         _logo_removed(asset.account_id, user, "Logotypen togs bort ur mediaarkivet")

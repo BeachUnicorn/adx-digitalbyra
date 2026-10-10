@@ -1,0 +1,10 @@
+{% load flamingo_pb %}{% comment %}
+Element 14, Datum eller händelse: månaden och dagen i en ruta med kant i
+accentfärgen ("OKT" / "24"), rubriken, "Fredag 24 oktober kl. 15 till 18",
+platsen och "Lägg till i kalendern" (klick.adx.se/c/<token>.ics, aldrig spårad).
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td width="86" valign="top"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="66" align="center" style="{{ S.date }}"><p style="{{ S.date_mo }}">{{ v.month }}</p><p style="{{ S.date_dy }}">{{ v.day }}</p></td></tr></table></td>
+<td valign="top">{% if v.title %}<h3 style="{{ S.h3 }}"{% pb "title" %}>{{ v.title }}</h3>{% else %}{% pb_empty "title" "h3" %}{% endif %}{% if v.line %}<p style="{{ S.p }}margin:2px 0 6px;">{{ v.line }}</p>{% endif %}{% if v.place %}<p style="{{ S.sm }}margin-bottom:6px;"{% pb "place" %}>{{ v.place }}</p>{% else %}{% pb_empty "place" "p" %}{% endif %}{% if v.calendar_href %}<a href="{{ v.calendar_href }}" style="{{ S.link_sm }}">Lägg till i kalendern</a>{% endif %}</td>
+</tr></table>
+</td></tr>

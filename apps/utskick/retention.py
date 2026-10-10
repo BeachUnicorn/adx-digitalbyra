@@ -13,6 +13,13 @@ Hur länge utskickens data sparas (README E.7), och dygnets städning
                                     stats räknas om först för utskicken som tappar
                                     sina mottagare
     (links.rollup)                  S2: länkarnas summor, också de dygn ticken vilat
+    purge_s3(now)                   S3: kvittona för SES-händelserna efter 3 dagar och
+                                    mejlens bilder som inget längre använder
+    (S3 e-post)                     SES GetAccount och ADX hela hälsa (health.adx_wide),
+                                    domänernas DNS (domains.check_due), DLQ:erna
+                                    (queues.check_dlq), hinken för svar
+                                    (inbound.email.sweep_bucket) och oklara mejl efter
+                                    24 timmar (sending.email.stale_unknown)
     disk_check(now)                 larm till byrån under 15 % ledigt på disken
     table_sizes()                   utskickstabellernas storlek i byte (loggas)
 
@@ -237,6 +244,48 @@ def _month_end(now):
     return recover.month_end_check(now)
 
 
+# --- S3 (sändnings-byggaren) ------------------------------------------------
+
+
+def purge_s3(now=None):
+    """Kvittona för SES-händelserna och de inkommande mejlen (EventReceipt)
+    efter KEEP_DAYS dagar, och mejlens bilder som inget utkast eller ingen
+    mottagare längre använder (email.images.purge_unused, E.7)."""
+    from datetime import timedelta
+
+    from .email import images
+    from .models import EventReceipt
+
+    now = now or timezone.now()
+    cutoff = now - timedelta(days=EventReceipt.KEEP_DAYS)
+    summary = {"receipts": _delete_in_batches(EventReceipt.objects.filter(at__lt=cutoff))}
+    summary["images"] = images.purge_unused(now)
+    return summary
+
+
+def s3_email_steps(now):
+    """Dygnets e-postdelar (S3): (namn, funktion) i ordning."""
+    import time
+
+    from .email import domains
+    from .inbound import email as inbound_email
+    from .inbound import queues
+    from .sending import email as email_loop
+    from .sending import health
+
+    return (
+        ("s3", lambda: purge_s3(now)),
+        ("ses", lambda: health.adx_wide(now)),
+        ("domains", lambda: domains.check_due(now, time.monotonic() + 300)),
+        ("dlq", lambda: queues.check_dlq(now)),
+        ("inbound_sweep", lambda: inbound_email.sweep_bucket(now)),
+        ("unknown_mail", lambda: email_loop.stale_unknown(now)),
+    )
+
+
+# --- slut S3 ---------------------------------------------------------------------
+
+
 def disk_check(now=None, path=None):
     """Ledigt utrymme på disken där sajten ligger. Under 15 % larmas byrån
     högst en gång per dygn. Returnerar andelen ledigt (0 till 1)."""
@@ -289,6 +338,7 @@ def daily(now=None):
         ("s2", lambda: purge_s2(now)),
         ("links", lambda: _rollup(now)),
         ("reserved", lambda: _month_end(now)),
+        *s3_email_steps(now),
         ("disk_free", lambda: round(disk_check(now), 3)),
     )
     for name, step in steps:

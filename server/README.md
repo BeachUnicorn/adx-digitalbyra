@@ -75,7 +75,8 @@ On disk each site gets its own isolated checkout, venv, DB and service:
 | `backup.sh <slug>` | cron | `pg_dump` → S3 (+ local retention). |
 | `crontab.d/adx-utskick` | cron (adx) | Utskickens tick varje minut och dygnsstädningen 02.45 (`apps/utskick/README.md` D.1). |
 | `logrotate.d/adx-utskick` | logrotate (adx) | `backups/utskick*.log`, veckovis, åtta rotationer. |
-| `aws-utskick-role.sh` | once, workstation | Rollen `adx-utskick` för SES i eu-west-1 och instansrollens `utskick-assume` (H.8). |
+| `aws-utskick-role.sh` | workstation, per stage | Rollen `adx-utskick` med hela H.8-policyn (SES, köerna, hinken; Deny för ADX egna identiteter ur `aws-utskick-identities.txt`, som första körningen skriver, och för att skicka med en From-adress på dem utom utskick.adx.se) och instansrollens `utskick-assume`. |
+| `aws-utskick-s3.sh` | once, workstation (S3) | Konfigurationssetet, SNS och SQS med DLQ, `svar.utskick.adx.se` med MX och DKIM, hinken och mottagningsregeln i eu-west-1 (`apps/utskick/README.md` J S3 steg 2 och 3). Idempotent; skriver ut raderna till `.env`. Kör `aws-utskick-role.sh` först. |
 
 ## First-time setup of a new server
 

@@ -364,6 +364,11 @@ LAST_LABELS = {
     "start": "Svarade START",
     "click": "Klickade",
     "lp_visit": "Besökte landningssidan",
+    # S3 (integrationen): svar på ett mejl, en adress som inte finns och ett
+    # klagomål (inbound/email.py och inbound/events.py, contacts.touch).
+    "email_reply": "Svarade på mejl",
+    "bounce": "Adressen finns inte,",
+    "complaint": "Markerade som skräppost",
 }
 #: Utan aktivitet: hur kontakten kom in.
 SOURCE_LABELS = {

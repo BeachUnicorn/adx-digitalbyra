@@ -37,18 +37,22 @@ from apps.projects.auth import contact_for_email
 from apps.projects.models import Customer
 from apps.sms.models import SmsAccount, SmsMessage
 from apps.utskick import access as utskick_access
+from apps.utskick import demo as utskick_demo
 from apps.utskick import optin, reports
 from apps.utskick.models import (
+    CHANNEL_EMAIL,
     Click,
     Consent,
     ConsentLog,
     Contact,
     ContactList,
+    EmailImage,
     Event,
     FieldDef,
     InboundMessage,
     LinkCode,
     Recipient,
+    SenderDomain,
     SignupForm,
     Suppression,
     Switchboard,
@@ -141,12 +145,30 @@ def counts():
         "inkommande sms": InboundMessage.objects.filter(account=account).count(),
         "svar i inkorgen": account.leads.filter(source=Lead.SOURCE_REPLY).count(),
         "via utskick": account.leads.filter(utskick__isnull=False).count(),
+        # E-posten (S3).
+        "mejl": Recipient.objects.filter(utskick__account=account, channel=CHANNEL_EMAIL).count(),
+        "mejlbilder": EmailImage.objects.filter(account=account).count(),
+        "avsändardomäner": SenderDomain.objects.filter(account=account).count(),
     }
 
 
 def no_elks(fields):
     """Står i för apps.sms.elks._post: demot får aldrig nå 46elks."""
     raise AssertionError("Demot försökte skicka ett sms via 46elks.")
+
+
+def no_ses(*args, **kwargs):
+    """Står i för e-postens transport och AWS-klienten (S3): demot får aldrig
+    nå SES, SQS eller S3."""
+    raise AssertionError("Demot försökte nå SES eller AWS.")
+
+
+def no_mail_paths():
+    """De två vägarna till SES (transporten och aws.client), båda fäller."""
+    return (
+        mock.patch("apps.utskick.email.transport.send", side_effect=no_ses),
+        mock.patch("apps.utskick.aws.client", side_effect=no_ses),
+    )
 
 
 class _Response:
@@ -325,12 +347,16 @@ class DemoCommandTests(TestCase):
             mock.patch.object(sms, "urlopen") as elks,
             mock.patch("apps.sms.elks._post", side_effect=no_elks) as api,
             mock.patch.object(scan, "fetch") as fetch,
+            no_mail_paths()[0] as ses,
+            no_mail_paths()[1] as aws,
         ):
             run_demo("--prod")
         google.assert_not_called()
         elks.assert_not_called()
         api.assert_not_called()
         fetch.assert_not_called()
+        ses.assert_not_called()
+        aws.assert_not_called()
         self.assertEqual(mail.outbox, [])
         self.assertFalse(SmsMessage.objects.exists())
 
@@ -512,14 +538,34 @@ class DemoContentTests(DemoFixture, TestCase):
                     reverse("flamingo:app_utskick_step", args=[utskick.pk, step])
                     for step in ("mottagare", "kanal", "innehall", "tid", "granska")
                 ]
+                # S3 (redigerar-byggaren): e-postredigeraren och förhandsvisningen.
+                if utskick.has_email:
+                    urls += [
+                        reverse("flamingo:app_brev", args=[utskick.pk]),
+                        reverse("flamingo:app_brev_preview", args=[utskick.pk]),
+                        reverse("flamingo:app_brev_checks", args=[utskick.pk]),
+                    ]
         # Svarstrådarna (S2) står bland förfrågningarna ovan; trådens sidor
         # renderas med utskickets sms, svaren och STOPP-bekräftelsen.
         self.assertTrue(self.account.leads.filter(source=Lead.SOURCE_REPLY).exists())
-        # Ingen sida får nå 46elks (J S2): ett anrop fäller testet.
-        with mock.patch("apps.sms.elks._post", side_effect=no_elks) as api:
+        # S3 (integrationen): Leveranshälsa och Avsändare och svar.
+        urls += [
+            reverse("flamingo:app_utskick_health"),
+            reverse("flamingo:app_utskick_domain"),
+        ]
+        # Ingen sida får nå 46elks (J S2) eller SES och AWS (J S3): ett anrop
+        # fäller testet.
+        ses_patch, aws_patch = no_mail_paths()
+        with (
+            mock.patch("apps.sms.elks._post", side_effect=no_elks) as api,
+            ses_patch as ses,
+            aws_patch as aws,
+        ):
             for url in urls:
                 self.assertEqual(client.get(url).status_code, 200, url)
         api.assert_not_called()
+        ses.assert_not_called()
+        aws.assert_not_called()
 
     def test_staff_pages_render(self):
         client = self.staff_client()
@@ -779,11 +825,15 @@ class DemoUtskickS2Tests(DemoFixture, TestCase):
         return client
 
     def sent(self):
-        return Utskick.objects.get(account=self.account, status=Utskick.Status.SENT)
+        return Utskick.objects.get(
+            account=self.account, status=Utskick.Status.SENT, name=utskick_demo.SENT_NAME
+        )
 
     def test_one_sent_one_scheduled_and_one_draft(self):
         statuses = sorted(
-            Utskick.objects.filter(account=self.account).values_list("status", flat=True)
+            Utskick.objects.filter(account=self.account, channel_mode="sms_only").values_list(
+                "status", flat=True
+            )
         )
         self.assertEqual(statuses, ["draft", "scheduled", "sent"])
         scheduled = Utskick.objects.get(account=self.account, status=Utskick.Status.SCHEDULED)
@@ -889,6 +939,17 @@ class DemoUtskickS2Tests(DemoFixture, TestCase):
                 reverse("flamingo:app_utskick_test", args=[draft.pk]),
                 {"till": "kunden", "som_adx": "1"},
             )
+            # S3 (redigerar-byggaren): testmejlet nekas också, före transporten.
+            with mock.patch(
+                "apps.utskick.email.transport.send", side_effect=AssertionError("SES")
+            ) as ses:
+                response = client.post(
+                    reverse("flamingo:app_utskick_test", args=[draft.pk]),
+                    {"kanal": "epost", "till": "mig"},
+                    HTTP_ACCEPT="application/json",
+                )
+                self.assertEqual(response.status_code, 400)
+            ses.assert_not_called()
             response = client.post(
                 reverse("flamingo:app_lead_reply", args=[reply.lead_id]),
                 {"text": "Hej", "staff_ok": "1"},
@@ -896,6 +957,119 @@ class DemoUtskickS2Tests(DemoFixture, TestCase):
             self.assertContains(response, "Demokontot skickar aldrig.")
         api.assert_not_called()
         self.assertFalse(SmsMessage.objects.exists())
+
+
+class DemoUtskickS3Tests(DemoFixture, TestCase):
+    """E-posten i demot (S3): ett mejl i Brev genom samma kod som en riktig
+    kunds (blocken, frysningen, demots simulering), aldrig SES (D12)."""
+
+    def staff_as_customer(self):
+        client = self.staff_client()
+        session = client.session
+        session[VIEW_AS_KEY] = self.customer.pk
+        session.save()
+        return client
+
+    def email(self):
+        return Utskick.objects.get(account=self.account, name=utskick_demo.EMAIL_NAME)
+
+    def test_the_mail_was_simulated_through_the_engine(self):
+        utskick = self.email()
+        self.assertEqual(utskick.status, Utskick.Status.SENT)
+        self.assertEqual(utskick.channel_mode, Utskick.ChannelMode.EMAIL_ONLY)
+        self.assertEqual(len(utskick.email_doc["blocks"]), len(utskick_demo.EMAIL_BLOCKS))
+        self.assertTrue(
+            all(
+                version.get("sig")
+                for block in utskick.email_doc["blocks"]
+                for version in block["versions"]
+            )
+        )
+        # Frysningen: ögonblicksbilden och länken till Flamingo-sidan.
+        self.assertTrue(utskick.email_snapshot.get("blocks"))
+        link = TrackedLink.objects.get(utskick=utskick)
+        self.assertEqual(link.kind, TrackedLink.Kind.LP)
+        self.assertEqual(utskick.email_snapshot["links"], {f"{link.block_id}:0": link.pk})
+        recipients = Recipient.objects.filter(utskick=utskick)
+        delivered = recipients.exclude(status="skipped")
+        self.assertEqual(set(delivered.values_list("status", "simulated")), {("delivered", True)})
+        self.assertEqual(set(delivered.values_list("channel", flat=True)), {CHANNEL_EMAIL})
+        self.assertTrue(all(r.address.endswith(".example") for r in delivered))
+        self.assertEqual(set(delivered.values_list("ses_message_id", flat=True)), {""})
+        skipped = set(recipients.filter(status="skipped").values_list("skip_reason", flat=True))
+        self.assertEqual(skipped, {"no_address"})
+        click = Click.objects.get(utskick=utskick)
+        self.assertEqual(click.channel, Click.Channel.EMAIL)
+        self.assertEqual(click.link, link)
+
+    def test_the_report_and_the_pages_show_the_mail_without_ses(self):
+        client = self.staff_as_customer()
+        utskick = self.email()
+        ses_patch, aws_patch = no_mail_paths()
+        with ses_patch as ses, aws_patch as aws:
+            report = client.get(reverse("flamingo:app_utskick", args=[utskick.pk]))
+            self.assertContains(report, "Levererade")
+            self.assertContains(report, "Studsar")
+            listing = client.get(reverse("flamingo:app_utskick_list"))
+            self.assertContains(listing, utskick_demo.EMAIL_NAME)
+            preview = client.get(reverse("flamingo:app_brev_preview", args=[utskick.pk]))
+            self.assertEqual(preview.status_code, 200)
+            self.assertContains(preview, "Så klarar huset vintern")
+        ses.assert_not_called()
+        aws.assert_not_called()
+
+    def test_the_tick_with_email_on_never_reaches_ses(self):
+        from django.utils import timezone
+
+        from apps.utskick.sending import tick
+
+        Switchboard.objects.update_or_create(
+            pk=Switchboard.SOLO_PK,
+            defaults={"email_enabled": True, "email_ready_at": timezone.now()},
+        )
+        draft = Utskick.objects.get(account=self.account, status=Utskick.Status.DRAFT)
+        ses_patch, aws_patch = no_mail_paths()
+        with override_settings(UTSKICK_EMAIL_LIVE=True), ses_patch as ses, aws_patch as aws:
+            client = self.staff_as_customer()
+            response = client.post(
+                reverse("flamingo:app_utskick_test", args=[draft.pk]),
+                {"kanal": "epost", "till": "mig"},
+                HTTP_ACCEPT="application/json",
+            )
+            self.assertEqual(response.status_code, 400)
+            tick.run(now=timezone.now(), budget=10)
+        ses.assert_not_called()
+        aws.assert_not_called()
+
+    def test_the_domain_page_never_reaches_ses_dns_or_the_agency(self):
+        from django.core import mail as outbox
+
+        from apps.utskick.models import SenderDomain
+
+        client = self.staff_as_customer()
+        url = reverse("flamingo:app_utskick_domain")
+        ses_patch, aws_patch = no_mail_paths()
+        dns_patch = mock.patch("dns.resolver.resolve", side_effect=no_ses)
+        with ses_patch as ses, aws_patch as aws, dns_patch as dns:
+            for data in (
+                {"action": "claim", "domain": "exempelror-demo.se", "from_local": "hej"},
+                {"action": "check"},
+                {"action": "help"},
+            ):
+                response = client.post(url, data)
+                self.assertEqual(response.status_code, 302, data)
+            self.assertEqual(client.get(url).status_code, 200)
+        ses.assert_not_called()
+        aws.assert_not_called()
+        dns.assert_not_called()
+        self.assertFalse(SenderDomain.objects.filter(account=self.account).exists())
+        self.assertEqual(outbox.outbox, [])
+
+    def test_a_rerun_rebuilds_the_mail(self):
+        first = self.email().pk
+        run_demo("--prod")
+        self.assertEqual(Utskick.objects.filter(name=utskick_demo.EMAIL_NAME).count(), 1)
+        self.assertNotEqual(self.email().pk, first)
 
 
 class DemoConversionTests(DemoFixture, TestCase):

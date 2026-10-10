@@ -547,10 +547,67 @@ def page_delete(request, account, pk):
 # ---------------------------------------------------------------------------
 
 
+#: Redigerarens profil för sidorna (static/js/flamingo-pb.js, README för
+#: utskick F.6): det som skiljer sidbyggaren från e-postredigeraren i Brev,
+#: som monterar samma skript med profilen "brev" (apps/utskick/app_views/
+#: brev.py). Värdena är de som stod fast i skriptet innan profilerna fanns;
+#: test_pagebuilder_editor prövar att sidornas profil inte ändras.
+PAGE_PROFILE = {
+    "profile": "page",
+    # Blocken är barn till sidans <main>; sidhuvudet och sidfoten byts när de ändrats.
+    "canvasRoot": "main.rn-main",
+    "chromeSelectors": {"top": ".rn-top", "foot": ".rn-foot"},
+    # Färgernas <style> i ramen känns igen på Rens variabel.
+    "paletteMarker": "--rn-primary",
+    # Dator: hela duken, aldrig smalare än Rens brytpunkt för två spalter.
+    "devices": {"desktop": 1024, "phone": 390, "fit": "fill"},
+    # Toppen med formulär och formulärblocket står ihop; avslutet sist.
+    "placement": {"pairs": [["hero", "form", "form"]], "endGroup": "end"},
+    "panelKinds": [],
+    # Ordet för en ny rad i en lista ("Lägg till fråga").
+    "addWords": {
+        "hero.points": "punkt",
+        "area.places": "ort",
+        "guarantee.terms": "villkor",
+        "steps.steps": "steg",
+        "faq.items": "fråga",
+        "certificates.items": "certifikat",
+        "price.items": "prisexempel",
+        "form.questions": "fråga",
+    },
+    # Skisserna i variantväljaren (mockupen .wf): ett ord per rad, "row:"
+    # delar i två spalter med |, "bar:" är en färgad remsa.
+    "wireframes": {
+        "hero": {"call": "h l b", "form": "row:h l|l l b", "image": "img h b", "text": "h l l"},
+        "price": {"from": "row:h l|big", "examples": "h cards", "fixed": "card"},
+        "reviews_google": {"cards": "h cards", "quote": "quote", "line": "stars"},
+        "reviews_reco": {
+            "stor": "h quote",
+            "medel": "h stars",
+            "liten": "stars",
+            "staende": "h card",
+            "utvalda_kort": "h cards",
+            "utvalda_citat": "quote",
+            "utvalda_rad": "stars",
+        },
+        "certificates": {"badges": "h chips", "icons": "h cards"},
+        "guarantee": {"short": "icon h l", "terms": "icon h checks"},
+        "person": {"image": "row:img|h l", "noimage": "row:circle|h l"},
+        "steps": {"three": "h nums3", "four": "h nums4"},
+        "before_after": {"slider": "h split", "pair": "h pair"},
+        "area": {"list": "h chips", "map": "row:h chips|map"},
+        "faq": {"three": "h rows3", "six": "h rows6"},
+        "form": {"short": "h in in b", "questions": "h in in in b", "booking": "h date in b"},
+        "callbar": {"call": "bar:b", "call_write": "bar:b b2"},
+    },
+}
+
+
 def editor_config(request, account, page, campaigns, problems):
     available = registry.available(account, ctx=_build_ctx(page, account))
     access = request.flamingo
     return {
+        **copy.deepcopy(PAGE_PROFILE),
         "pageId": page.pk,
         "name": page.name,
         "rev": page.rev,

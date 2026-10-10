@@ -1,0 +1,95 @@
+{% load flamingo_app %}{% comment %}
+E-posten på /manage/utskick/ (S3, README D.6 till D.9, J S3; kontexten från
+manage_email.panel_context(now) via manage_views.overview): email_switch_on,
+email_live_setting, email_ses (Switchboard.ses_account), email_ses_checked_at,
+email_ses_rate_text, email_rate, email_config_set, email_events_on,
+email_inbound_on, email_last_poll, email_blocked (kontona med hälsospärr och
+verdict), email_domains (väntande, verifierade och misslyckade domäner),
+email_own (ADX egna 30-dagarstal), email_own_bounce, email_own_complaint,
+email_adx_cap, email_probe_payers och email_warnings (DLQ, SES, ADX egna
+tal och händelsekön, överst). "Provmejl till mig" postar till
+manage:utskick_probe med kind=email (J S3 steg 7). Panelens klasser,
+<thead> i varje tabell, inga style-attribut. Inget här mejlar en kund.
+{% endcomment %}
+<p class="m-section-title" id="epost">E-posten</p>
+<div class="m-panel tv-panel tv-panel--read">
+  {% for text in email_warnings %}<p class="tv-prop__note"><span class="m-badge m-badge--alert">Se upp</span> {{ text }}</p>{% endfor %}
+  <p class="tv-prop__note">E-postutskick är {% if email_switch_on %}påslagna{% else %}avstängda: inget utskick skickas, provmejlet går ändå{% endif %}{% if not email_live_setting %} (UTSKICK_EMAIL_LIVE är av här){% endif %}. Takten är {{ email_rate|floatformat:"-1" }} mejl i sekunden. ADX-domänen har taket {{ email_adx_cap|tal }} mejl per kund och månad.</p>
+  <p class="tv-prop__note">SES i eu-west-1: {% if email_ses %}{% if email_ses.error %}gick inte att läsa ({{ email_ses.error }}){% else %}{{ email_ses.EnforcementStatus|default:"okänt läge" }}{% if email_ses.ProductionAccessEnabled %}, produktionsåtkomst{% endif %}{% if email_ses.SendingEnabled is False %}, sändningen är avstängd hos SES{% endif %}{% if email_ses_rate_text %}, {{ email_ses_rate_text }}{% endif %}{% endif %}{% if email_ses_checked_at %} (läst {{ email_ses_checked_at|date:"j b H:i" }}){% endif %}{% else %}inte läst än. Kör utskick_daily --only ses på servern (J S3 steg 6).{% endif %}</p>
+  <p class="tv-prop__note">Händelsekön är {% if email_events_on %}inkopplad{% if email_config_set %} och mejlen går med konfigurationssetet {{ email_config_set }}{% endif %}{% else %}inte inkopplad: e-postutskicken väntar tills UTSKICK_SQS_EVENTS_URL är satt{% endif %}. Svar på mejl är {% if email_inbound_on %}inkopplade{% else %}inte inkopplade{% endif %}.{% if email_last_poll %} Köerna lästes senast {{ email_last_poll|date:"j b H:i" }}.{% endif %} <a class="tv-link" href="{% url 'manage:utskick_dlq' %}">Köerna och DLQ:erna</a></p>
+  <p class="tv-prop__note">Alla kunder de senaste 30 dagarna: {{ email_own.sent|tal }} mejl, {{ email_own_bounce }} % studsar och {{ email_own_complaint }} % klagomål. Larm till byrån vid 2,5 % studsar eller 0,05 % klagomål; utskick pausas vid 4 % och 0,08 %.</p>
+</div>
+
+<p class="m-section-title" id="epost-halsa">Kunder med e-postspärr</p>
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">När en kunds senaste 30 dagar passerar 4 % studsar eller 0,08 % klagomål (minst 500 mejl) spärras kundens e-postutskick. Gå igenom listan med kunden innan du släpper spärren. Kunden ser spärren under Leveranshälsa och mejlas inte.</p>
+  {% if email_blocked %}
+  <div class="m-table-wrap">
+    <table class="m-table mu-table">
+      <thead><tr><th>Kund</th><th>Spärrad</th><th>Orsak</th><th class="m-num">Mejl 30 d</th><th>Släpp</th></tr></thead>
+      <tbody>
+      {% for row in email_blocked %}
+      <tr>
+        <td><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}#utskick"><b>{{ row.account.customer.name }}</b></a></td>
+        <td>{{ row.email_blocked_at|date:"j b H:i" }}</td>
+        <td>{% if row.email_blocked_reason == "complaints" %}Klagomål{% else %}Studsar{% endif %}: {{ row.verdict.bounced|tal }} studsar, {{ row.verdict.complained|tal }} klagomål</td>
+        <td class="m-num">{{ row.verdict.sent|tal }}</td>
+        <td><form method="post" action="{% url 'manage:utskick_health_release' row.account.pk %}" class="mu-form">{% csrf_token %}
+          <label class="m-sr-only" for="mu-em-note-{{ row.pk }}">Anteckning</label>
+          <input id="mu-em-note-{{ row.pk }}" name="note" maxlength="200" class="tv-input" placeholder="Vad som gjordes" autocomplete="off">
+          <button type="submit" class="m-btn m-btn--small m-btn--ghost">Släpp spärren</button>
+        </form></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="tv-muted">Ingen kund har en e-postspärr.</p>
+  {% endif %}
+</div>
+
+<p class="m-section-title" id="epost-domaner">Kundernas domäner</p>
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Domäner som kunderna lagt till under Avsändare och svar. En väntande domän går ut efter 14 dagar; dygnskörningen kontrollerar DNS och SES varje natt.</p>
+  {% if email_domains %}
+  <div class="m-table-wrap">
+    <table class="m-table mu-table">
+      <thead><tr><th>Domän</th><th>Kund</th><th>Läge</th><th>Poster</th><th>Kontrollerad</th></tr></thead>
+      <tbody>
+      {% for row in email_domains %}
+      <tr>
+        <td><a class="tv-link" href="{% url 'manage:utskick_domain_admin' row.pk %}"><b>{{ row.domain }}</b></a></td>
+        <td>{{ row.account.customer.name }}</td>
+        <td><span>{% if row.status == "verified" %}<span class="m-badge m-badge--published">{{ row.get_status_display }}</span>{% elif row.status == "failed" %}<span class="m-badge m-badge--alert">{{ row.get_status_display }}</span>{% else %}<span class="m-badge">{{ row.get_status_display }}</span> går ut {{ row.expires_at|date:"j b" }}{% endif %}</span></td>
+        <td>{% if row.dns_ok %}Stämmer{% elif row.checked_at %}Saknas eller fel{% else %}<span class="tv-muted">inte kontrollerade</span>{% endif %}</td>
+        <td>{% if row.checked_at %}{{ row.checked_at|date:"j b H:i" }}{% else %}<span class="tv-muted">aldrig</span>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="tv-muted">Ingen kund har lagt till en egen domän.</p>
+  {% endif %}
+</div>
+
+<p class="m-section-title" id="epost-prov">Provmejl till mig</p>
+<div class="m-panel tv-panel tv-panel--read">
+  <p class="tv-prop__note">Ett mejl från kundens avsändare på ADX-domänen till adressen du skriver, också innan e-postutskick är påslagna (J S3 steg 7): kontrollera att Gmail visar Avsluta prenumerationen och att den fungerar, att DKIM gäller för utskick.adx.se och att ett svar hamnar i kundens Inkorg. Välj ADX interna testkund. Högst tio i timmen.</p>
+  {% if email_probe_payers %}
+  <form method="post" action="{% url 'manage:utskick_probe' %}" class="mu-form">{% csrf_token %}
+    <input type="hidden" name="kind" value="email">
+    <label class="m-sr-only" for="mu-em-probe-to">E-postadress</label>
+    <input id="mu-em-probe-to" name="to" type="email" class="tv-input" placeholder="Din e-postadress" required autocomplete="off">
+    <label class="m-sr-only" for="mu-em-probe-payer">Från kunden</label>
+    <select id="mu-em-probe-payer" name="customer" class="tv-input" required>
+      <option value="">Från kunden</option>
+      {% for pk, name in email_probe_payers %}<option value="{{ pk }}">{{ name }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="m-btn m-btn--small">Skicka provmejl</button>
+  </form>
+  {% else %}
+  <p class="tv-muted">Ingen kund att skicka från. Aktivera utskick för ADX interna testkund på kundkortet först.</p>
+  {% endif %}
+</div>

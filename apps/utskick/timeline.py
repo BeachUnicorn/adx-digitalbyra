@@ -9,8 +9,10 @@ utan egen rad) och förfrågningarna i Inkorgen (med "Öppna i Inkorgen").
 S2: sms ur Recipient (skickat, levererat, gick inte fram, med länk till
 rapporten), mänskliga klick ur Click (med tiden på sidan), svar och STOPP
 ur ThreadMessage (med "Öppna i Inkorgen") och besöken på landningssidan
-(Event lp_visit). Senare steg lägger till sina källor i SOURCES (mejl,
-flöden): en funktion (contact, limit) -> lista med Item, nyast först.
+(Event lp_visit). S3: mejlen ur Recipient (levererat, studsat, klagomål)
+och öppningarna (Event opened, "Öppnade (indikation)"). Senare steg lägger
+till sina källor i SOURCES (flöden): en funktion (contact, limit) -> lista
+med Item, nyast först.
 
 Varje källa filtrerar på kontaktens konto, också förfrågningarna (H.1).
 """
@@ -104,6 +106,7 @@ def _event_items(contact, limit):
     rows = (
         Event.objects.filter(account_id=contact.account_id, contact=contact)
         .exclude(kind=Event.LEAD, lead__isnull=False)
+        .select_related("utskick")
         .order_by("-at", "-pk")[:limit]
     )
     items = []
@@ -112,6 +115,9 @@ def _event_items(contact, limit):
         if row.kind == Event.IMPORTED:
             # Filens namn (äldre rader har bara importens nummer).
             detail = str(row.data.get("fil") or "")
+        elif row.kind == Event.OPENED and row.utskick_id:
+            # S3: vilket mejl som öppnades.
+            detail = row.utskick.name
         items.append(
             Item(
                 at=row.at,
@@ -185,6 +191,10 @@ def _recipient_items(contact, limit):
             detail = "Gick inte fram"
         else:
             detail = "Skickat"
+        # --- S3 (integrationen): mejlets studs och klagomål i ord (I.7).
+        if row.channel != CHANNEL_SMS:
+            detail = EMAIL_DETAILS.get(row.status, detail)
+        # --- slut S3
         at = row.delivered_at or row.sent_at or row.created_at
         channel = "Sms" if row.channel == CHANNEL_SMS else "E-post"
         items.append(
@@ -266,6 +276,21 @@ def _reply_items(contact, limit):
             )
         )
     return items
+
+
+# --- S3 (integrationen): mejlen (README I.7) -------------------------------
+# Levererat, studsat och klagomål läses ur Recipient (_recipient_items ovan),
+# öppnat ur händelsen opened som pixeln skriver en gång per mottagare
+# (link_views.open_pixel). Öppningar är en indikation (K.1.7).
+
+EVENT_TITLES[Event.OPENED] = "Öppnade (indikation)"
+#: Mejlets läge i tidslinjen, när det skiljer sig från sms:ets.
+EMAIL_DETAILS = {
+    "bounced": "Studsade: adressen finns inte",
+    "complained": "Markerade mejlet som skräppost",
+}
+
+# --- slut S3 --------------------------------------------------------------------
 
 
 #: Tidslinjens källor. Varje steg lägger till sina (README I.7).

@@ -10,7 +10,10 @@ AWS och Google. NoNetworkRunner gör därför tre saker för hela körningen:
   så att inte ens en DNS-fråga lämnar datorn;
 - ADX_AWS_PROFILE="__test__", SMS_SEND_LIVE=False och UTSKICK_EMAIL_LIVE=False
   gäller oavsett .env, och UTSKICK_TICK_MAX_MB=0 (ticken sätter inget
-  minnestak på testprocessen).
+  minnestak på testprocessen). Från S3 är också rollen för utskick, köerna
+  och hinken för inkommande post tomma (UTSKICK_AWS_ROLE_ARN,
+  UTSKICK_SQS_*, UTSKICK_SES_INBOUND_BUCKET): ett test som vill pröva dem
+  sätter egna värden med override_settings och en attrapp för boto3.
 
 Ett test som vill pröva en integration lägger sin egen attrapp ovanpå
 (FakeElks, FakeSes, mock av urlopen). Ett försök att nå nätet blir
@@ -113,6 +116,11 @@ SAFE_SETTINGS = {
     # Ett test som kör utskick_tick får aldrig sätta minnestaket på hela
     # testkörningen (RLIMIT_AS gäller processen).
     "UTSKICK_TICK_MAX_MB": 0,
+    # S3: ingen roll, inga köer och ingen hink ur utvecklarens .env.
+    "UTSKICK_AWS_ROLE_ARN": "",
+    "UTSKICK_SQS_EVENTS_URL": "",
+    "UTSKICK_SQS_INBOUND_URL": "",
+    "UTSKICK_SES_INBOUND_BUCKET": "",
 }
 
 

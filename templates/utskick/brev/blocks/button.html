@@ -1,0 +1,12 @@
+{% load flamingo_pb %}{% comment %}
+Element 5, Knapp (fylld och kantad): två knappar som inline-block bredvid
+varandra, under varandra när de inte ryms; i Outlook en tabell med två celler.
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" align="{{ v.align }}" style="{{ S.blk }}text-align:{{ v.align }};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td align="{{ v.align }}" style="font-size:0;line-height:0;text-align:{{ v.align }};">
+<!--[if mso]><table role="presentation" align="{{ v.align }}" cellpadding="0" cellspacing="0" border="0"><tr><td valign="top"><![endif]-->
+{% if v.primary %}<div style="{{ S.btn_wrap }}">{% include "utskick/brev/_button.html" with text=v.primary.text href=v.primary.href field="primary_text" outline=False %}</div>{% elif editing %}<div style="{{ S.btn_wrap }}"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td bgcolor="{{ S.btn_bg }}" style="{{ S.btn_td }}"><span style="{{ S.btn_a }}"{% pb "primary_text" %}>{{ f.primary_text }}</span></td></tr></table></div>{% endif %}
+<!--[if mso]></td><td valign="top" style="padding-left:8px;"><![endif]-->
+{% if v.secondary %}<div style="{{ S.btn_wrap }}">{% include "utskick/brev/_button.html" with text=v.secondary.text href=v.secondary.href field="secondary_text" outline=True %}</div>{% endif %}
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table>
+</td></tr>

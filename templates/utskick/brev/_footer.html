@@ -1,0 +1,11 @@
+{% comment %}
+Element 24, sidfoten (F.1, låst): företagets namn, adress och telefon,
+skälet till mejlet (Recipient.basis, eller information), och länkarna
+Ändra vad du får, Avregistrera dig, Visa i webbläsaren och Så hanterar
+företaget dina uppgifter. Pixeln (H.5) står sist och bara när den får.
+{% endcomment %}<tr{% if editing %} data-brev-element="footer"{% endif %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.ftr }}">
+<p style="{{ S.ftr_p }}"><b style="{{ S.ftr_b }}">{{ name }}</b>{% if rest %} · {{ rest }}{% endif %}</p>
+<p style="{{ S.ftr_p }}margin-top:4px;">{{ reason }}</p>
+<p style="{{ S.ftr_p }}margin-top:6px;">{% for text, url in links %}<a href="{{ url }}" style="{{ S.ftr_a }}">{{ text }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+{% if pixel %}<img src="{{ pixel }}" width="1" height="1" alt="" style="display:block;width:1px;height:1px;border:0;outline:none;">{% endif %}
+</td></tr>

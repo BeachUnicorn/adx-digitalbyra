@@ -1,0 +1,31 @@
+{% extends "utskick/links/_base.html" %}
+{% comment %}
+klick.adx.se/a/<token> (link_views.email_unsubscribe, README E.5, H.6). Ett
+GET ändrar ingenting: knappen "Avregistrera mig" postar (med fn,
+tokens.form_nonce). Mejlprogrammens ettklick (List-Unsubscribe-Post) kommer
+aldrig hit: det får 200 med tom kropp. Bara den maskerade adressen, aldrig
+ett namn, och aldrig Djangos CSRF-tagg här (länkvärdarna sätter inga kakor).
+
+Kontext: tillstand (fraga, klar), maskerat (tomt när ingen kontakt har
+adressen längre), fn, fel, extra_text (kundens text på
+avregistreringssidan), val_url (Mina utskick för adressen), foretag,
+integritet_url.
+{% endcomment %}
+{% block title %}Avregistrering{% endblock %}
+{% block content %}
+{% if fel %}<div class="up-alert" role="alert"><p>{{ fel }}</p></div>{% endif %}
+{% if tillstand == "fraga" %}
+<h1 class="up-h1">Vill du sluta få e-post från {{ foretag }}?</h1>
+{% if maskerat %}<p class="up-masked">{{ maskerat }}</p>{% endif %}
+<p class="up-lead">Du får inga fler mejl från {{ foretag }} till adressen. Du kan anmäla dig igen senare.</p>
+<form class="up-form" method="post" action="{{ request.path }}">
+  <input type="hidden" name="fn" value="{{ fn }}">
+  <button class="up-btn up-btn--primary up-btn--block" type="submit" name="action" value="avregistrera">Avregistrera mig</button>
+</form>
+{% if val_url %}<p class="up-help">Vill du hellre välja vad du får? <a class="up-link" href="{{ val_url }}">Ändra vad du får</a></p>{% endif %}
+{% else %}
+<h1 class="up-h1">Du får ingen mer e-post från {{ foretag }}.</h1>
+{% if maskerat %}<p class="up-masked">{{ maskerat }}</p>{% endif %}
+{% if extra_text %}<p class="up-lead">{{ extra_text }}</p>{% endif %}
+{% endif %}
+{% endblock %}

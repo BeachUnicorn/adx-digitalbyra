@@ -50,6 +50,11 @@ NO_INLINE_FOLDERS = (
     TEMPLATES / "manage" / "utskick",
 )
 MANAGE_FOLDER = TEMPLATES / "manage" / "utskick"
+#: Mejlens mallar (S3): bekräftelsemejlet och Brev. Stilarna står inbäddade
+#: som mejl måste (inga style=-vakter här), men inga skript, inga relativa
+#: adresser och samma copy-regler som sidorna. Brevs egen vakt (tabeller,
+#: tokens ur mockupen) står i test_s3_render.
+MAIL_FOLDERS = (TEMPLATES / "utskick" / "mail", TEMPLATES / "utskick" / "brev")
 
 
 def _templates(*folders):
@@ -125,6 +130,33 @@ class TemplateGuardTests(SimpleTestCase):
                 with self.subTest(path=path.name, file=name):
                     self.assertIn(f'"{name}"', listed)
                     self.assertTrue((BASE / "static" / name).is_file(), name)
+
+
+class MailTemplateGuardTests(SimpleTestCase):
+    """S3 (integrationen): mejlens mallar."""
+
+    def test_the_mail_folders_exist(self):
+        names = {p.relative_to(TEMPLATES).as_posix() for p in _templates(*MAIL_FOLDERS)}
+        self.assertIn("utskick/mail/doi.html", names)
+        self.assertIn("utskick/brev/layout.html", names)
+        self.assertIn("utskick/brev/blocks/hero.html", names)
+
+    def test_no_scripts_and_no_relative_addresses_in_mail(self):
+        for path in _templates(*MAIL_FOLDERS):
+            text = path.read_text(encoding="utf-8")
+            with self.subTest(path=path.relative_to(TEMPLATES).as_posix()):
+                self.assertNotIn("<script", text.lower())
+                self.assertNotIn("{% static", text)
+                self.assertNotIn("{% csrf_token", text)
+                self.assertNotRegex(text, r"""(?:src|href)=["']/(?!/)""")
+
+    def test_no_exclamation_marks_or_brackets_in_the_mail_copy(self):
+        for path in _templates(*MAIL_FOLDERS):
+            text = re.sub(r"<style\b.*?</style>", "", path.read_text("utf-8"), flags=re.S)
+            text = _copy(text)
+            with self.subTest(path=path.relative_to(TEMPLATES).as_posix()):
+                self.assertNotIn("!", text)
+                self.assertNotRegex(text, r"\[\s*\]")
 
 
 class SiteGuardTests(TestCase):

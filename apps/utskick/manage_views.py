@@ -403,6 +403,31 @@ def _end_utskick(account):
     Utskick.objects.filter(account=account).delete()
 
 
+# --- S3 (sändnings-byggaren) ------------------------------------------------
+
+
+def _end_email(account):
+    """S3-delen av "Avsluta utskick och radera allt": mejlens bilder (filerna
+    går med raderna efter commit) och avsändardomänerna. Identiteten hos SES
+    tas bort efter commit och bara när appen skapade den (B.3); en domän som
+    redan gått ut eller tagits bort har ingen identitet kvar."""
+    from .email import domains
+    from .models import EmailImage, SenderDomain
+
+    EmailImage.objects.filter(account=account).delete()
+    rows = list(SenderDomain.objects.filter(account=account))
+    for row in rows:
+        if row.ses_created and row.status not in (
+            SenderDomain.Status.REMOVED,
+            SenderDomain.Status.EXPIRED,
+        ):
+            transaction.on_commit(lambda row=row: domains.delete_identity(row))
+    SenderDomain.objects.filter(account=account).delete()
+
+
+# --- slut S3 ---------------------------------------------------------------------
+
+
 def end_account(account, user=None):
     """Ta bort kontots kontakter, listor, taggar, fält, importer (med filer)
     och anmälningssidan, och stäng av utskick. Spärrlistan och
@@ -415,6 +440,10 @@ def end_account(account, user=None):
         # och svarstrådar. Spärrlistan och samtyckesloggen finns kvar.
         _end_utskick(account)
         # --- slut S2
+        # --- S3 (sändnings-byggaren): mejlens bilder och avsändardomänerna,
+        # efter utskicken (sender_domain är RESTRICT).
+        _end_email(account)
+        # --- slut S3
         importer.delete_account_jobs(account)
         SignupForm.objects.filter(account=account).delete()
         # Kundens anteckningar på beviset töms, som vid en GDPR-borttagning (H.4).
@@ -565,10 +594,11 @@ def overview(request):
         "next_version": timezone.localtime(now).strftime("%Y-%m"),
     }
     # S2: varje byggares del av översikten har sin egen modul och mall
-    # (manage_sending, manage_inbound, manage_links; S2-HANDOFF.md).
-    from . import manage_inbound, manage_links, manage_sending
+    # (manage_sending, manage_inbound, manage_links; S2-HANDOFF.md). S3:
+    # manage_email (S3-HANDOFF.md).
+    from . import manage_email, manage_inbound, manage_links, manage_sending
 
-    for part in (manage_sending, manage_inbound, manage_links):
+    for part in (manage_sending, manage_inbound, manage_links, manage_email):
         context.update(part.panel_context(now))
     return render(request, "manage/utskick/overview.html", context)
 

@@ -1,0 +1,46 @@
+{% comment %}
+Mejlet i guidens steg Innehåll (S3, README I.8; app_views/brev.card_context
+som brev): avsändaren, ämnesraden, förhandstexten, blocken och vägen till
+e-postredigeraren, och testmejlet till den inloggades egen adress (F.8).
+Står inne i stegets formulär: knapparna för testet sparar steget först
+(name="till", kanal epost). Byrån i kundvyn når kunden bara bakom egen
+knapp med kryssrutan (I.4).
+{% endcomment %}<section class="fl-panel fl-br-card" aria-labelledby="ut-brev-title">
+  <h2 class="fl-panel__title" id="ut-brev-title">E-post</h2>
+  <dl class="fl-kv">
+    <div><dt>Från</dt><dd>{{ brev.sender|default:"ADX-domänen" }}</dd></div>
+    <div><dt>Ämnesrad</dt><dd>{{ brev.subject|default:"Ingen ämnesrad än" }}</dd></div>
+    <div><dt>Förhandstext</dt><dd>{{ brev.preheader|default:"Ingen" }}</dd></div>
+    <div><dt>Innehåll</dt><dd>{% if brev.count %}{{ brev.count }} block: {{ brev.blocks|join:", " }}{% else %}Mejlet är tomt än.{% endif %}</dd></div>
+  </dl>
+  <div class="fl-br-card__actions">
+    {% if brev.editable %}<a class="fl-btn" href="{{ brev.url }}">{% if brev.count %}Öppna e-postredigeraren{% else %}Skriv mejlet{% endif %}</a>{% endif %}
+    <a class="fl-btn fl-btn--ghost" href="{{ brev.preview_url }}" target="_blank" rel="noopener">Förhandsvisa mejlet</a>
+  </div>
+</section>
+
+<section class="fl-panel fl-panel--soft" id="ut-test" aria-labelledby="ut-testmejl-title">
+  <h2 class="fl-panel__title" id="ut-testmejl-title">Skicka testmejl</h2>
+  {% if brev.test.demo %}
+  <p class="fl-panel__text">Demokontot skickar aldrig.</p>
+  {% else %}
+  <input type="hidden" name="kanal" value="epost">
+  <p class="fl-panel__text">Testet skickar det sparade mejlet med "Test: " först i ämnesraden. Det räknas mot dagens tio test{% if not brev.own_domain %} och mot mejlen från ADX-domänen{% endif %}.</p>
+  {% if brev.test.own %}
+  <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm fl-br-card__test" name="till" value="mig">Skicka test till {{ brev.test.own }}</button>
+  {% else %}
+  <p class="fl-panel__note">Din inloggning saknar e-postadress, så testet har ingenstans att gå.</p>
+  {% endif %}
+  {% if brev.test.staff and brev.test.customers %}
+  <details class="fl-ut-more">
+    <summary class="fl-btn fl-btn--ghost fl-btn--sm">Skicka test till kunden (kunden får mejlet)</summary>
+    <div class="fl-ut-confirm">
+      <label class="fl-field__label" for="ut-test-kund">Kundens adress</label>
+      <select class="fl-input" id="ut-test-kund" name="kund_adress">{% for address in brev.test.customers %}<option value="{{ address }}">{{ address }}</option>{% endfor %}</select>
+      <label class="fl-check"><input type="checkbox" name="som_adx" value="1"><span>{{ brev.staff_text }}</span></label>
+      <button type="submit" class="fl-btn fl-btn--sm" name="till" value="kunden">Skicka som ADX</button>
+    </div>
+  </details>
+  {% endif %}
+  {% endif %}
+</section>

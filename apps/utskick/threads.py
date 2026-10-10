@@ -863,13 +863,19 @@ def _single_reply_text(message, url):
     from apps.flamingo import sms as flamingo_sms
 
     lead = message.thread.lead
+    # S3 (inkorg-byggaren): ett mejlsvar har ingen telefon att visa.
+    phone = (
+        normalize.display_phone(message.thread.address)
+        if message.thread.channel == CHANNEL_SMS
+        else ""
+    )
     return flamingo_sms.owner_reply_text(
         message.thread.account,
         1,
         0,
         url,
         name=lead.name if lead else "",
-        phone=normalize.display_phone(message.thread.address),
+        phone=phone,
         text=message.body,
     )
 
@@ -955,3 +961,342 @@ def send_due(now=None, deadline=None):
     if time.monotonic() < deadline:
         _send_notices(now, deadline, counts)
     return counts
+
+
+# ---------------------------------------------------------------------------
+# S3 (inkorg-byggaren, svar och avregistrering): svar på mejl i Inkorgen
+# (README G.2, G.3, H.6). En e-posttråd har kanalen email och personens
+# e-post som adress. inbound/email.py routar svaren hit; inbox_reply.py
+# svarar och avregistrerar. Svaret går genom sending.email.deliver (aldrig
+# transporten direkt) med kundens avsändare, Reply-To med trådens token och
+# In-Reply-To när svarets Message-ID är känt. Demokontot skickar aldrig.
+#
+#   email_thread_for(account, address, contact=, utskick=, now=)
+#   email_reply_problem(thread, now=) -> "" eller texten för vyn
+#   send_email_reply(thread, text, actor=, now=) -> Sent
+#   reply_subject(thread) -> "Sv: ..."      last_message_id(thread) -> "<...>" | ""
+#   is_email_suppressed(thread)             unsubscribe_email(thread, actor=, now=)
+#   email_rows(thread) -> list[EmailRow]    rows plus ämne, bilagor och avsändaren
+# ---------------------------------------------------------------------------
+
+#: Ett svar med mejl är högst så här långt.
+EMAIL_REPLY_MAX = 10_000
+#: Svarets citat av personens senaste mejl: högst så här många rader.
+EMAIL_QUOTE_LINES = 40
+NOT_EMAIL_TEXT = "Den här tråden kan inte besvaras med mejl."
+EMAIL_TOO_LONG_TEXT = "Svaret blir för långt: högst 10 000 tecken."
+EMAIL_SUPPRESSED_TEXT = "Personen har avregistrerat sig från e-post."
+EMAIL_BOUNCED_TEXT = "Adressen studsar, så mejlet kan inte skickas."
+EMAIL_BUSY_TEXT = "E-posten kan inte skickas just nu. Försök igen om en stund."
+EMAIL_FAILED_TEXT = "Mejlet kunde inte skickas."
+EMAIL_UNKNOWN_TEXT = "Det är oklart om mejlet kom i väg. Titta i tråden innan du skickar igen."
+EMAIL_UNKNOWN_NOTE = "Oklart om mejlet kom i väg"
+OTHER_ADDRESS_NOTE = "Från en annan adress"
+#: Svaret kom på en token vars mottagare eller tråd är borta, och From gick
+#: inte att bekräfta (SPF, DKIM, DMARC): adressen kan vara påhittad.
+UNVERIFIED_FROM_NOTE = "Avsändaren går inte att bekräfta"
+EMAIL_UNSUBSCRIBE_DETAIL = "Avregistrerad från Inkorgen"
+_SWEDISH_MONTHS = (
+    "januari",
+    "februari",
+    "mars",
+    "april",
+    "maj",
+    "juni",
+    "juli",
+    "augusti",
+    "september",
+    "oktober",
+    "november",
+    "december",
+)
+
+
+def email_thread_for(account, address, *, contact=None, utskick=None, now=None, contactless=False):
+    """Tråden ett mejlsvar hör till: adressens öppna e-posttråd hos kontot (30
+    dagar), annars en ny med en förfrågan. Kontakten och utskicket läggs på
+    en befintlig tråd som saknar dem. contactless (en avsändare som inte gick
+    att bekräfta): bara en öppen tråd utan kontakt tas, så att svaret aldrig
+    hamnar i en kontakts tråd."""
+    now = now or timezone.now()
+    thread = open_thread(account, address, channel=CHANNEL_EMAIL, now=now)
+    if thread is not None and contactless and thread.contact_id is not None:
+        thread = None
+    if thread is None:
+        return _new_thread(
+            account,
+            address,
+            contact=contact,
+            utskick=utskick,
+            kind=Thread.Kind.REPLY,
+            channel=CHANNEL_EMAIL,
+            now=now,
+        )
+    return _adopt(thread, contact=contact, utskick=utskick)
+
+
+def is_email_suppressed(thread):
+    if thread.channel != CHANNEL_EMAIL or not thread.address:
+        return False
+    return suppressions.is_suppressed(thread.account, CHANNEL_EMAIL, value=thread.address)
+
+
+def _email_bounced(thread):
+    from .models import Contact
+
+    return Contact.objects.filter(
+        account_id=thread.account_id,
+        email=keys.clean_value(CHANNEL_EMAIL, thread.address),
+        email_state=Contact.EmailState.BOUNCED,
+    ).exists()
+
+
+def email_reply_problem(thread, now=None):
+    """Varför ett svar med mejl inte kan skickas, eller "" (G.2, D.8, H.6):
+    e-posten påslagen (state.email_live), kontot får skicka, adressen inte
+    spärrad och inte studsad."""
+    from .models import Utskick
+    from .sending import checks, state
+
+    if thread.channel != CHANNEL_EMAIL or not thread.address:
+        return NOT_EMAIL_TEXT
+    if not state.email_live():
+        return state.EMAIL_OFF_TEXT
+    why = checks.sendable(thread.account)
+    if why == Utskick.PauseReason.BLOCKED:
+        return checks.BLOCKED_TEXT
+    if why:
+        return checks.DISABLED_TEXT
+    if is_email_suppressed(thread):
+        return EMAIL_SUPPRESSED_TEXT
+    if _email_bounced(thread):
+        return EMAIL_BOUNCED_TEXT
+    return ""
+
+
+def _last_inbound(thread):
+    return (
+        ThreadMessage.objects.filter(thread=thread, direction=ThreadMessage.Direction.IN)
+        .select_related("inbound")
+        .order_by("-at", "-pk")
+        .first()
+    )
+
+
+def last_message_id(thread):
+    """Message-ID i personens senaste mejl (In-Reply-To), eller ""."""
+    for message in (
+        ThreadMessage.objects.filter(
+            thread=thread, direction=ThreadMessage.Direction.IN, inbound__isnull=False
+        )
+        .select_related("inbound")
+        .order_by("-at", "-pk")[:5]
+    ):
+        value = str((message.inbound.meta or {}).get("message_id") or "")
+        if value:
+            return value
+    return ""
+
+
+def reply_subject(thread):
+    """ "Sv: <ämnet i personens senaste mejl>", eller "Svar från <företaget>"."""
+    import re
+
+    last = (
+        ThreadMessage.objects.filter(thread=thread, direction=ThreadMessage.Direction.IN)
+        .exclude(subject="")
+        .order_by("-at", "-pk")
+        .first()
+    )
+    subject = " ".join((last.subject if last is not None else "").split())
+    if not subject:
+        name = display_name(thread.account) or thread.account.customer.name
+        return f"Svar från {name}"[:150]
+    if re.match(r"(?i)^(?:sv|re|aw|vs)\s*:", subject):
+        return subject[:150]
+    return f"Sv: {subject}"[:150]
+
+
+def _quote(thread):
+    """Personens senaste mejl citerat under svaret, som i ett vanligt mejl."""
+    from apps.sms.pricing import STOCKHOLM
+
+    last = _last_inbound(thread)
+    if last is None or not (last.body or "").strip():
+        return ""
+    at = timezone.localtime(last.at, STOCKHOLM)
+    when = f"{at.day} {_SWEDISH_MONTHS[at.month - 1]} {at.year} kl. {at:%H.%M}"
+    lines = (last.body or "").splitlines()[:EMAIL_QUOTE_LINES]
+    quoted = "\n".join(f"> {line}" if line.strip() else ">" for line in lines)
+    return f"\n\nDen {when} skrev du:\n{quoted}"
+
+
+def send_email_reply(thread, text, *, actor, now=None):
+    """Svara i en e-posttråd med ett mejl (G.2): från kundens avsändare
+    (sending.email.from_for, utskickets domän när den är verifierad),
+    Reply-To med trådens token (tokens.THREAD, så att nästa svar hamnar i
+    samma tråd), In-Reply-To och References när personens Message-ID är
+    känt, och personens senaste mejl citerat. Genom sending.email.deliver
+    (slaget transport.REPLY: ADX-taket, konfigurationssetet och taggarna).
+    Demokontot skickar aldrig."""
+    from . import tokens
+    from .email import transport
+    from .sending import email as email_sending
+    from .sending import sms_wrapper
+
+    now = now or timezone.now()
+    account = thread.account
+    if account.is_demo:
+        return Sent(False, sms_wrapper.DEMO_TEXT)
+    if thread.channel != CHANNEL_EMAIL or not thread.address:
+        return Sent(False, NOT_EMAIL_TEXT)
+    text = clean_text(text)
+    if not text:
+        return Sent(False, EMPTY_TEXT)
+    if len(text) > EMAIL_REPLY_MAX:
+        return Sent(False, EMAIL_TOO_LONG_TEXT)
+    recent = (
+        ThreadMessage.objects.filter(
+            thread=thread,
+            direction=ThreadMessage.Direction.OUT,
+            body=text,
+            inbound__isnull=True,
+            at__gte=now - DOUBLE_SUBMIT,
+        )
+        .exclude(status=ThreadMessage.Status.FAILED)
+        .first()
+    )
+    if recent is not None:
+        return Sent(True, DUPLICATE_TEXT, recent)
+    problem = email_reply_problem(thread, now)
+    if problem:
+        return Sent(False, problem)
+
+    subject = reply_subject(thread)
+    message = ThreadMessage.objects.create(
+        thread=thread,
+        direction=ThreadMessage.Direction.OUT,
+        body=text,
+        subject=subject[:200],
+        at=now,
+        sent_by=actor.user,
+        sent_as_staff=bool(actor.staff),
+        status=ThreadMessage.Status.SENDING,
+    )
+    from_name, from_addr = email_sending.from_for(account, utskick=thread.utskick)
+    headers = {"Reply-To": tokens.reply_address(tokens.THREAD, account.pk, thread.pk)}
+    in_reply_to = last_message_id(thread)
+    if in_reply_to:
+        headers["In-Reply-To"] = in_reply_to
+        headers["References"] = in_reply_to
+    mail = transport.OutgoingMail(
+        to=thread.address,
+        from_name=from_name,
+        from_addr=from_addr,
+        subject=subject,
+        text=text + _quote(thread),
+        headers=headers,
+    )
+    out = email_sending.deliver(
+        account, mail, kind=transport.REPLY, utskick=thread.utskick, now=now
+    )
+    if out.ok or out.unknown:
+        if out.ok:
+            message.email_message_id = (out.message_id or "")[:200]
+            message.status = ThreadMessage.Status.SENT
+            message.save(update_fields=["email_message_id", "status"])
+        Thread.objects.filter(pk=thread.pk).update(last_out_at=now)
+        if thread.lead_id:
+            Lead.objects.filter(pk=thread.lead_id, status=Lead.STATUS_NEW).update(
+                status=Lead.STATUS_CONTACTED
+            )
+        logger.info(
+            "Utskick: mejlsvar %s i tråd %s skickat av användare %s%s",
+            message.pk,
+            thread.pk,
+            getattr(actor.user, "pk", None),
+            " (ADX åt kunden)" if actor.staff else "",
+        )
+        return Sent(True, "" if out.ok else EMAIL_UNKNOWN_TEXT, message)
+    message.delete()
+    if out.error == "demo":
+        return Sent(False, sms_wrapper.DEMO_TEXT)
+    # Sändnings-byggarens texter (ADX-taket, e-posten av, spärren); annars våra.
+    text = email_sending.error_text(out)
+    if text and text != email_sending.DEFAULT_ERROR_TEXT:
+        return Sent(False, text)
+    return Sent(False, EMAIL_BUSY_TEXT if out.retry or out.stop else EMAIL_FAILED_TEXT)
+
+
+def unsubscribe_email(thread, *, actor, now=None):
+    """Knappen "Avregistrera från e-post" i en e-posttråd (H.6): spärr med
+    orsak reply och en rad i samtyckesloggen med den som tryckte. Returnerar
+    kontakten eller None."""
+    from . import link_actions
+    from .models import Suppression
+
+    now = now or timezone.now()
+    value_hash = keys.value_hash(CHANNEL_EMAIL, thread.address)
+    if not value_hash:
+        return None
+    _row, _created, contact = link_actions.unsubscribe_email_hash(
+        thread.account,
+        value_hash,
+        reason=Suppression.Reason.REPLY,
+        source=Consent.Source.REPLY,
+        detail=EMAIL_UNSUBSCRIBE_DETAIL,
+        actor=actor,
+        address=thread.address,
+        now=now,
+    )
+    logger.info(
+        "Utskick: tråd %s avregistrerad från e-post av användare %s",
+        thread.pk,
+        getattr(actor.user, "pk", None),
+    )
+    return contact
+
+
+@dataclass
+class EmailRow(Row):
+    subject: str = ""
+    attachments: list | None = None
+
+
+def email_rows(thread):
+    """rows(thread) för en e-posttråd, med ämnet och bilagorna (bara namn och
+    storlek), "Från en annan adress: <adressen>" på ett svar som inte kom
+    från adressen utskicket gick till, och ett svar vars utfall är oklart."""
+    out = []
+    for row in rows(thread):
+        message = row.message
+        note, tone = row.note, row.tone
+        if row.direction == "in" and message.inbound_id:
+            meta = message.inbound.meta or {}
+            sender = message.inbound.from_address
+            if meta.get("unverified_from"):
+                note = f"{UNVERIFIED_FROM_NOTE}: {sender}" if sender else UNVERIFIED_FROM_NOTE
+                tone = "warn"
+            elif meta.get("other_address"):
+                note = f"{OTHER_ADDRESS_NOTE}: {sender}" if sender else OTHER_ADDRESS_NOTE
+        elif (
+            row.direction == "out"
+            and message.status == ThreadMessage.Status.SENDING
+            and message.sent_by_id
+            and not message.email_message_id
+        ):
+            note, tone = EMAIL_UNKNOWN_NOTE, "warn"
+        out.append(
+            EmailRow(
+                message=message,
+                direction=row.direction,
+                body=row.body,
+                at=row.at,
+                label=row.label,
+                note=note,
+                tone=tone,
+                subject=message.subject,
+                attachments=list(message.attachments or []),
+            )
+        )
+    return out

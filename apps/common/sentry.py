@@ -126,6 +126,11 @@ _PATTERNS = [
         re.compile(r"((?:https?://)?\b(?:k|klick)\.adx\.se/)[^\s\"'<>]+"),
         r"\1" + FILTERED,
     ),
+    # S3: mejlens adresser på klick.adx.se när bara sökvägen står (en logg,
+    # request.path): /m/, /a/, /v/, /w/, /o/ och /c/ följt av en token med
+    # punkt. Och den egna svarsadressens bekräftelselänk i verktyget.
+    (re.compile(r"(/[mavwoc]/)[A-Za-z0-9_-]+\.[A-Za-z0-9._-]{6,}"), r"\1" + FILTERED),
+    (re.compile(r"(/svarsadress/)[A-Za-z0-9._-]{16,}"), r"\1" + FILTERED),
     # Svarsadressen per mottagare (Reply-To) och utskickens API-nycklar.
     (re.compile(r"\bs\+[a-z0-9.]+@svar\.utskick\.adx\.se\b"), FILTERED),
     (re.compile(r"adxut_[A-Za-z0-9_\-]{8,}"), FILTERED),

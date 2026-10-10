@@ -12,7 +12,9 @@ host, status, token}]), campaigns, templates ([{key, label, text,
 information}]), sender_identified, too_long, max_parts, planned (antal sms),
 total_text, test (owner, owner_text, staff, demo), opt_out, reply_sender,
 sender_text, sample_link (k.adx.se/a8Kf2X, lika lång som en riktig länk),
-is_staff_actor, staff_text, display_name, is_demo.
+is_staff_actor, staff_text, display_name, is_demo. S3: content_tabs (både
+sms och e-post: flikarna), content_tab ("sms" eller "epost") och brev
+(app_views/brev.card_context, mejlet som ett kort med testmejlet).
 
 Hela sidan är ett formulär, så att inget skrivet försvinner när kunden
 lägger till en länk, väljer en mall, byter tecken, byter kontakt, väljer
@@ -25,9 +27,25 @@ hämtar den exakta förhandsvisningen (app_utskick_sms_preview) och infogar
 platshållare där markören står.
 {% endcomment %}
 {% block app_title %}{{ utskick.name }}: Innehåll{% endblock %}
-{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% if brev %}<link rel="stylesheet" href="{% static 'css/flamingo-app-brev.css' %}?v={{ static_version }}">{% endif %}{% endblock %}
 {% block ut_header %}{% include "flamingo/app/utskick/_step_header.html" %}{% endblock %}
 {% block ut_content %}
+{% comment %}S3 (redigerar-byggaren): flikarna Sms och E-post när utskicket går med båda, och mejlet som ett kort (_brev_card.html). Flikarna är knappar som sparar steget först.{% endcomment %}
+{% if content_tabs %}
+<div class="fl-tabs fl-br-tabs" role="group" aria-label="Innehåll per kanal">
+  <button type="submit" form="ut-innehall" class="fl-tabs__tab fl-br-tabbtn" name="flik" value="sms"{% if content_tab == "sms" %} aria-current="page"{% endif %}>Sms</button>
+  <button type="submit" form="ut-innehall" class="fl-tabs__tab fl-br-tabbtn" name="flik" value="epost"{% if content_tab == "epost" %} aria-current="page"{% endif %}>E-post</button>
+</div>
+{% endif %}
+{% if content_tab == "epost" %}
+<form id="ut-innehall" class="fl-form fl-ut-form" method="post" action="{% url 'flamingo:app_utskick_step' utskick.pk 'innehall' %}">
+  {% csrf_token %}
+  <button type="submit" class="fl-sr" tabindex="-1" name="nasta" value="innehall">Spara</button>
+  {% include "flamingo/app/utskick/_brev_card.html" %}
+  {% include "flamingo/app/utskick/_step_actions.html" %}
+</form>
+{% else %}
+{% comment %}slut S3{% endcomment %}
 <form id="ut-innehall" class="fl-form fl-ut-form" data-ut-guard method="post" action="{% url 'flamingo:app_utskick_step' utskick.pk 'innehall' %}">
   {% csrf_token %}
   <button type="submit" class="fl-sr" tabindex="-1" name="nasta" value="innehall">Spara</button>
@@ -152,6 +170,30 @@ platshållare där markören står.
     <p class="fl-field__help">Mallen ersätter texten du har skrivit. Ändra den sedan så att den låter som du.</p>
   </details>
 
+  {% comment %}S3 (redigerar-byggaren): Skriv med AI (F.7, I.8). Förslaget visas här och blir texten först när du väljer det.{% endcomment %}
+  <details class="fl-panel fl-ut-templates" id="ut-ai"{% if ai_suggestion %} open{% endif %}>
+    <summary class="fl-ut-templates__summary">Skriv med AI</summary>
+    <p class="fl-panel__note">{{ ai_guard_line }}</p>
+    <div class="fl-field">
+      <label class="fl-field__label" for="ut-ai-brief">Vad ska sms:et säga? (valfritt)</label>
+      <textarea class="fl-input" id="ut-ai-brief" name="ai_brief" rows="2" maxlength="300" placeholder="Till exempel: påminn om höstservicen och att det går att boka med länken."></textarea>
+    </div>
+    <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="ai_skriv" value="1">Skriv ett förslag</button>
+    {% if ai_suggestion %}
+    <div class="fl-ut-ai" aria-live="polite">
+      {% if ai_suggestion.note %}<p class="fl-panel__note">{{ ai_suggestion.note }}</p>{% endif %}
+      {% if ai_suggestion.text %}
+      <p class="fl-panel__text fl-ut-ai__text">{{ ai_suggestion.text|linebreaksbr }}</p>
+      <input type="hidden" name="ai_text" value="{{ ai_suggestion.text }}">
+      {% for warning in ai_suggestion.warnings %}<p class="fl-ut-warn">{{ warning }}</p>{% endfor %}
+      <button type="submit" class="fl-btn fl-btn--sm" name="ai_anvand" value="1">Använd förslaget</button>
+      <p class="fl-field__help">Förslaget ersätter texten du har skrivit.</p>
+      {% elif ai_suggestion.error %}<p class="fl-field__error">{{ ai_suggestion.error }}</p>{% endif %}
+    </div>
+    {% endif %}
+  </details>
+  {% comment %}slut S3{% endcomment %}
+
   <section class="fl-panel fl-panel--soft" id="ut-test" aria-labelledby="ut-test-title">
     <h2 class="fl-panel__title" id="ut-test-title">Skicka test</h2>
     {% if test.demo %}
@@ -185,5 +227,6 @@ platshållare där markören står.
   </section>
   {% include "flamingo/app/utskick/_step_actions.html" %}
 </form>
+{% comment %}S3{% endcomment %}{% endif %}{% comment %}slut S3{% endcomment %}
 {% endblock %}
 {% block extra_js %}<script src="{% static 'js/flamingo-app-utskick.js' %}?v={{ static_version }}" defer></script>{% endblock %}

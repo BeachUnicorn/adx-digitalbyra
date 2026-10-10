@@ -1,0 +1,53 @@
+/* ==========================================================================
+   ADX Flamingo - Utskick, e-postens sidor (flamingo-app-utskick-email.css)
+
+   Leveranshälsa (utskick/health.html), Avsändare och svar (utskick/domain.html)
+   och bekräftelsen av en egen svarsadress (utskick/reply_confirm.html), README
+   I.9, I.11 och J S3. Bygger på flamingo-app.css (.fl-panel, .fl-kpi, .fl-kv,
+   .fl-table, .fl-form, .fl-notice) och flamingo-app-utskick-views.css
+   (.fl-ut-status, .fl-ut-banner, .fl-ut-more, .fl-ut-usage). Allt här har
+   prefixet .fl-ut-em-.
+
+   Komponenterna:
+     .fl-ut-em-kpis                hälsans fyra rutor: fyra i bredd, två under
+                                   980 px, en under 340 px
+     .fl-ut-em-sub                 utskicket och dagen under adressen i tabellen
+     .fl-ut-em-card                avsändaren: egen domän och ADX-domänen
+     .fl-ut-em-records/-record     DNS-posterna som .fl-kv-block (ingen tabell),
+                                   värdet i monospace som bryts var som helst
+     .fl-ut-em-confirm             knappen som skickar eller bekräftar svarsadressen
+
+   Regler som i resten av verktyget: brödtext minst 16 px, inga
+   style-attribut, inget bredare än skärmen i 375 px.
+   ========================================================================== */
+
+.fl-ut-em-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.fl-ut-em-kpi-domain{font-size:20px;letter-spacing:-.01em}
+
+.fl-ut-em-sub{display:block;margin-top:2px;font-size:16px;font-weight:400;line-height:1.4;color:var(--fl-muted)}
+
+.fl-ut-em-card{display:flex;flex-direction:column;gap:6px;min-width:0;margin-top:12px;padding:16px 18px;border:1px solid var(--fl-line);border-radius:var(--fl-r-md);background:var(--fl-white)}
+.fl-ut-em-card.is-ok{border-color:#CDEBD9;background:#F1FAF4}
+.fl-ut-em-card__title{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:16px;line-height:1.4;color:var(--fl-ink);overflow-wrap:anywhere}
+.fl-ut-em-card__text{font-size:16px;line-height:1.5;color:var(--fl-body);overflow-wrap:anywhere}
+.fl-ut-em-card__warn{font-size:16px;line-height:1.5;color:#7A430D}
+
+.fl-ut-em-records{display:grid;gap:12px;margin:12px 0}
+.fl-ut-em-record{min-width:0;padding:14px 16px;border:1px solid var(--fl-line);border-radius:var(--fl-r-md);background:var(--fl-white)}
+.fl-ut-em-record dd{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0}
+.fl-ut-em-value{min-width:0;max-width:100%;font-family:var(--fl-mono);font-size:15px;line-height:1.45;color:var(--fl-ink);word-break:break-all;overflow-wrap:anywhere;user-select:all}
+.fl-ut-em-full{flex-basis:100%;min-width:0;font-size:16px;line-height:1.4;color:var(--fl-muted);word-break:break-all;overflow-wrap:anywhere}
+
+.fl-ut-em-confirm{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:14px}
+.fl-ut-em-confirm .fl-btn{max-width:100%;white-space:normal;text-align:left;overflow-wrap:anywhere}
+
+@media (max-width:980px){
+  .fl-ut-em-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:560px){
+  .fl-ut-em-record > div{grid-template-columns:minmax(0,1fr)}
+  .fl-ut-em-confirm .fl-btn{width:100%;text-align:center}
+}
+@media (max-width:340px){
+  .fl-ut-em-kpis{grid-template-columns:minmax(0,1fr)}
+}

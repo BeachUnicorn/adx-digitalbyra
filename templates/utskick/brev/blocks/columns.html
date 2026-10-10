@@ -1,0 +1,11 @@
+{% load flamingo_pb %}{% comment %}
+Element 8, Kolumner: två eller tre kolumner som inline-block med max-width,
+16 px luft emellan. De staplas på en smal skärm utan mediefrågor. Varje
+kolumn har en linje överst, numret i accentfärgen, rubriken och texten.
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="font-size:0;line-height:0;">
+<!--[if mso]><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><![endif]-->
+{% for c in v.columns %}<!--[if mso]><td width="{{ c.width }}" valign="top"><![endif]--><div class="br-col" style="{{ S.col }}max-width:{{ c.width }}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="br-colpad" style="padding:0 {{ c.pad }}px 0 0;vertical-align:top;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="{{ S.tile }}">{% if c.number %}<p style="{{ S.tile_n }}"{% pb "items" c.index "number" %}>{{ c.number }}</p>{% endif %}{% if c.title %}<h3 style="{{ S.h3 }}"{% pb "items" c.index "title" %}>{{ c.title }}</h3>{% endif %}{% if c.text %}<p style="{{ S.sm }}margin-top:4px;"{% pb "items" c.index "text" %}>{{ c.text }}</p>{% endif %}</td></tr></table></td></tr></table></div><!--[if mso]></td><![endif]-->{% empty %}{% pb_empty "items" "div" %}{% endfor %}
+<!--[if mso]></tr></table><![endif]-->
+</td></tr></table>
+</td></tr>

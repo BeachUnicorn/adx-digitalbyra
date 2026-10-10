@@ -19,6 +19,26 @@ S2 (länk-byggaren):
     undo_nonce(suppression_id, now) -> str              Ångra på k.adx.se/s/ (E.5), 30 min
     read_undo(suppression_id, nonce, now) -> bool
 
+S3 (foundation; adresserna på klick.adx.se bygger links.email_url och
+grannarna, svarsadresserna reply_address):
+
+    email_click_token(recipient_id, link_id)            klick.adx.se/m/<t> (E.2), 0 = testmejl
+    read_email_click(token) -> EmailClickRef | None
+    unsubscribe_token(account_id, value_hash)           klick.adx.se/a/<t> (E.5), går aldrig ut
+    read_unsubscribe(token) -> PreferenceRef | None
+    web_view_token(utskick_id, recipient_id)            klick.adx.se/w/<t> (F.4), 0 = utan mottagare
+    read_web_view(token) -> WebViewRef | None
+    pixel_token(recipient_id)                           klick.adx.se/o/<t>.gif (H.5)
+    read_pixel(token) -> recipient_id | None
+    calendar_token(utskick_id, block_id)                klick.adx.se/c/<t>.ics (F.1 element 14)
+    read_calendar(token) -> CalendarRef | None
+    reply_token(kind, account_id, object_id)            lokaldelen i Reply-To och mailto (E.2)
+    read_reply_token(token) -> ReplyRef | None
+    reply_address(kind, account_id, object_id)          s+<t>@svar.utskick.adx.se
+    read_reply_address(address) -> ReplyRef | None
+    reply_confirm_token(account_id, address, now)       egen svarsadress (I.9), 7 dagar
+    read_reply_confirm(token, address, now) -> account_id | None
+
 Alla signaturer görs med UTSKICK_LINK_KEY (keys.link_digest), aldrig med
 SECRET_KEY, så att länkar i redan skickade mejl håller när SECRET_KEY byts.
 Varje slag har ett eget prefix i det som signeras ("pref:", "doi:",
@@ -50,6 +70,27 @@ attribution.resolve mot klickets rad (samma konto som sidan, annars
 ingenting). Formulärets nonce ersätter CSRF-kakan på länkvärdarna: den
 binds till koden i adressen och gäller FORM_NONCE_SECONDS. Ångra binds till
 spärrens id: när spärren är borttagen gäller värdet inte längre (en gång).
+
+S3-formerna (inga rader i databasen, E.2):
+
+    klick i mejl   <mottagare62>.<länk62>.<sig8>        (0 = testmejl utan mottagare)
+    avregistrera   <konto36>.email.<hash43>.<sig16>     som Mina utskick, eget prefix
+    webbversion    <utskick62>.<mottagare62>.<sig12>
+    pixel          <mottagare62>.<sig8>
+    kalender       <utskick62>.<block-id>.<sig10>       (block-id b_ + 12 tecken)
+    svar           <slag><konto36>.<id36>x<sig10>       bara gemener och siffror
+    svarsadress    <konto36>.<hash43>.<dag36>.<sig16>   egen svarsadress, 7 dagar
+
+Avregistreringen bär konto och adressens hash precis som Mina utskick, så
+att List-Unsubscribe i ett gammalt mejl fungerar efter retentionen och
+efter en GDPR-borttagning; den går aldrig ut. Svarens token är lokaldelen i
+s+<token>@<UTSKICK_REPLY_DOMAIN> och ryms i 64 tecken: slaget r (svar på
+ett utskick, id = mottagaren), t (svar i en tråd, id = tråden) eller u
+(avregistrering via mejl, id = mottagaren). Signaturen är base36 i gemener,
+eftersom e-postsystem inte alltid behåller versaler i lokaldelen; x före
+signaturen skiljer, och signaturens längd är fast. När mottagarraden är
+borta faller hanteraren tillbaka på kontot i token och avsändarens adress
+(G.3).
 """
 
 import base64
@@ -57,6 +98,7 @@ import binascii
 import hmac
 from dataclasses import dataclass
 
+from django.conf import settings
 from django.utils import timezone
 
 from . import keys
@@ -338,3 +380,278 @@ def undo_nonce(suppression_id, now=None):
 
 def read_undo(suppression_id, nonce, now=None):
     return _read_timed("undo", int(suppression_id), nonce, UNDO_SECONDS, now)
+
+
+# ---------------------------------------------------------------------------
+# S3 (foundation): e-postens länkar på klick.adx.se och svarsadresserna
+# ---------------------------------------------------------------------------
+
+#: Signaturernas längd i S3-formerna.
+_CLICK_SIG_LEN = 8
+_VIEW_SIG_LEN = 12
+_CALENDAR_SIG_LEN = 10
+_REPLY_SIG_LEN = 10
+#: Svarens slag (lokaldelens första tecken, E.2 och G.3).
+REPLY = "r"
+THREAD = "t"
+MAILTO = "u"
+REPLY_KINDS = (REPLY, THREAD, MAILTO)
+#: Länken som bekräftar en egen svarsadress gäller så här många dagar (I.9).
+REPLY_CONFIRM_DAYS = 7
+#: Formen på ett block-id i email_doc (pagebuilder.blocks.BLOCK_ID).
+_BLOCK_ID_CHARS = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+_B36 = "0123456789abcdefghijklmnopqrstuvwxyz"
+
+
+@dataclass(frozen=True)
+class EmailClickRef:
+    #: None för ett testmejl (ingen mottagare): klicket räknas inte.
+    recipient_id: int | None
+    link_id: int
+
+
+@dataclass(frozen=True)
+class WebViewRef:
+    utskick_id: int
+    #: None när länken inte hör till en mottagare (testmejl).
+    recipient_id: int | None
+
+
+@dataclass(frozen=True)
+class CalendarRef:
+    utskick_id: int
+    block_id: str
+
+
+@dataclass(frozen=True)
+class ReplyRef:
+    #: REPLY, THREAD eller MAILTO.
+    kind: str
+    account_id: int
+    #: Mottagarens id (REPLY, MAILTO) eller trådens (THREAD).
+    object_id: int
+
+
+def _sig36(purpose, body, length):
+    """Signaturen som bara gemener och siffror (svarsadresserna)."""
+    value = int.from_bytes(keys.link_digest(f"{purpose}:{body}"), "big")
+    out = ""
+    for _ in range(length):
+        value, rest = divmod(value, 36)
+        out += _B36[rest]
+    return out
+
+
+def _split62(token, count):
+    """count tal i base62 och en signatur, åtskilda med punkt: (tal, sig)
+    eller None."""
+    parts = str(token or "").split(".")
+    if len(parts) != count + 1:
+        return None
+    try:
+        numbers = [_from_b62(part) for part in parts[:count]]
+    except ValueError:
+        return None
+    return numbers, parts[-1], ".".join(parts[:count])
+
+
+def email_click_token(recipient_id, link_id):
+    """Klicklänken i ett mejl (klick.adx.se/m/<token>): mottagaren och
+    länken. recipient_id 0 eller None för ett testmejl."""
+    body = f"{_b62(recipient_id or 0)}.{_b62(link_id)}"
+    return f"{body}.{_sig62('m', body, _CLICK_SIG_LEN)}"
+
+
+def read_email_click(token):
+    """EmailClickRef för en äkta token, annars None."""
+    split = _split62(token, 2)
+    if split is None:
+        return None
+    (recipient_id, link_id), sig, body = split
+    if len(sig) != _CLICK_SIG_LEN or not _same(sig, _sig62("m", body, _CLICK_SIG_LEN)):
+        return None
+    if not link_id:
+        return None
+    return EmailClickRef(recipient_id or None, link_id)
+
+
+def unsubscribe_token(account_id, value_hash):
+    """Avregistreringen i mejlet (klick.adx.se/a/<token> och List-Unsubscribe).
+    Som Mina utskick men med eget prefix: en avregistreringstoken duger
+    aldrig som en annan sorts länk och tvärtom."""
+    if not value_hash:
+        raise ValueError("Avregistreringen behöver en adress.")
+    body = f"{_b36(account_id)}.email.{_hash43(value_hash)}"
+    return f"{body}.{_sig('unsub', body)}"
+
+
+def read_unsubscribe(token):
+    """PreferenceRef (kanal email) för en äkta token, annars None."""
+    parts = str(token or "").split(".")
+    if len(parts) != 4 or parts[1] != "email":
+        return None
+    account36, channel, hash43, sig = parts
+    body = f"{account36}.{channel}.{hash43}"
+    try:
+        if not _same(sig, _sig("unsub", body)):
+            return None
+        return PreferenceRef(_from_b36(account36), channel, _hash64(hash43))
+    except (ValueError, binascii.Error):
+        return None
+
+
+def web_view_token(utskick_id, recipient_id=None):
+    """ "Visa i webbläsaren" (klick.adx.se/w/<token>)."""
+    body = f"{_b62(utskick_id)}.{_b62(recipient_id or 0)}"
+    return f"{body}.{_sig62('w', body, _VIEW_SIG_LEN)}"
+
+
+def read_web_view(token):
+    split = _split62(token, 2)
+    if split is None:
+        return None
+    (utskick_id, recipient_id), sig, body = split
+    if len(sig) != _VIEW_SIG_LEN or not _same(sig, _sig62("w", body, _VIEW_SIG_LEN)):
+        return None
+    if not utskick_id:
+        return None
+    return WebViewRef(utskick_id, recipient_id or None)
+
+
+def pixel_token(recipient_id):
+    """Öppningspixeln (klick.adx.se/o/<token>.gif), bara för mottagare med
+    tracking_ok (H.5)."""
+    body = _b62(recipient_id)
+    return f"{body}.{_sig62('o', body, _CLICK_SIG_LEN)}"
+
+
+def read_pixel(token):
+    """Mottagarens id för en äkta token, annars None."""
+    split = _split62(token, 1)
+    if split is None:
+        return None
+    (recipient_id,), sig, body = split
+    if len(sig) != _CLICK_SIG_LEN or not _same(sig, _sig62("o", body, _CLICK_SIG_LEN)):
+        return None
+    return recipient_id or None
+
+
+def calendar_token(utskick_id, block_id):
+    """ "Lägg till i kalendern" (klick.adx.se/c/<token>.ics) för ett
+    händelseblock i utskicket."""
+    block_id = str(block_id or "")
+    if not _valid_block_id(block_id):
+        raise ValueError("Kalendern behöver ett block-id.")
+    body = f"{_b62(utskick_id)}.{block_id}"
+    return f"{body}.{_sig62('c', body, _CALENDAR_SIG_LEN)}"
+
+
+def _valid_block_id(block_id):
+    return (
+        len(block_id) == 14
+        and block_id.startswith("b_")
+        and all(ch in _BLOCK_ID_CHARS for ch in block_id[2:])
+    )
+
+
+def read_calendar(token):
+    parts = str(token or "").split(".")
+    if len(parts) != 3:
+        return None
+    utskick62, block_id, sig = parts
+    try:
+        utskick_id = _from_b62(utskick62)
+    except ValueError:
+        return None
+    if not utskick_id or not _valid_block_id(block_id):
+        return None
+    body = f"{utskick62}.{block_id}"
+    if len(sig) != _CALENDAR_SIG_LEN or not _same(sig, _sig62("c", body, _CALENDAR_SIG_LEN)):
+        return None
+    return CalendarRef(utskick_id, block_id)
+
+
+def reply_token(kind, account_id, object_id):
+    """Lokaldelen efter s+ i Reply-To (REPLY, THREAD) och i mailto-länken
+    för avregistrering (MAILTO): "r1a.f4x" + tio tecken signatur."""
+    if kind not in REPLY_KINDS:
+        raise ValueError(f"Okänt slag av svar: {kind!r}")
+    body = f"{kind}{_b36(account_id)}.{_b36(object_id)}"
+    return f"{body}x{_sig36('mail', body, _REPLY_SIG_LEN)}"
+
+
+def read_reply_token(token):
+    """ReplyRef för en äkta token (skiftläget spelar ingen roll), annars None."""
+    token = str(token or "").strip().lower()
+    if len(token) < _REPLY_SIG_LEN + 5 or token[-(_REPLY_SIG_LEN + 1)] != "x":
+        return None
+    body, sig = token[: -(_REPLY_SIG_LEN + 1)], token[-_REPLY_SIG_LEN:]
+    kind = body[:1]
+    if kind not in REPLY_KINDS:
+        return None
+    parts = body[1:].split(".")
+    if len(parts) != 2:
+        return None
+    try:
+        account_id, object_id = _from_b36(parts[0]), _from_b36(parts[1])
+    except ValueError:
+        return None
+    if not account_id or not object_id:
+        return None
+    if not _same(sig, _sig36("mail", body, _REPLY_SIG_LEN)):
+        return None
+    return ReplyRef(kind, account_id, object_id)
+
+
+def reply_domain():
+    """UTSKICK_REPLY_DOMAIN i gemener (svar.utskick.adx.se)."""
+    return (getattr(settings, "UTSKICK_REPLY_DOMAIN", "") or "svar.utskick.adx.se").lower()
+
+
+def reply_address(kind, account_id, object_id):
+    """s+<token>@svar.utskick.adx.se: Reply-To för ett utskick (REPLY) eller
+    ett svar från Inkorgen (THREAD), och mailto-avregistreringen (MAILTO)."""
+    return f"s+{reply_token(kind, account_id, object_id)}@{reply_domain()}"
+
+
+def read_reply_address(address):
+    """ReplyRef för en adress på svarsdomänen med en äkta token, annars
+    None. Läses ur SES receipt.recipients, aldrig ur To-huvudet (G.3)."""
+    address = str(address or "").strip().lower()
+    local, at, domain = address.rpartition("@")
+    if not at or domain != reply_domain() or not local.startswith("s+"):
+        return None
+    return read_reply_token(local[2:])
+
+
+def reply_confirm_token(account_id, address, now=None):
+    """Länken som bekräftar en egen svarsadress (UtskickSettings.own_reply_to,
+    I.9). Bunden till adressen: byts den gäller länken inte längre."""
+    value_hash = keys.value_hash("email", str(address or "").strip().lower())
+    if not value_hash:
+        raise ValueError("Bekräftelsen behöver en adress.")
+    body = f"{_b36(account_id)}.{_hash43(value_hash)}.{_b36(_day(now))}"
+    return f"{body}.{_sig('replyto', body)}"
+
+
+def read_reply_confirm(token, address, now=None):
+    """Kontots id när token är äkta, gäller address och är högst
+    REPLY_CONFIRM_DAYS dagar gammal, annars None."""
+    parts = str(token or "").split(".")
+    if len(parts) != 4:
+        return None
+    account36, hash43, day36, sig = parts
+    body = f"{account36}.{hash43}.{day36}"
+    try:
+        if not _same(sig, _sig("replyto", body)):
+            return None
+        account_id, value_hash, issued = _from_b36(account36), _hash64(hash43), _from_b36(day36)
+    except (ValueError, binascii.Error):
+        return None
+    expected = keys.value_hash("email", str(address or "").strip().lower())
+    if not _same(value_hash, expected):
+        return None
+    today = _day(now)
+    if issued > today + 1 or today - issued > REPLY_CONFIRM_DAYS:
+        return None
+    return account_id

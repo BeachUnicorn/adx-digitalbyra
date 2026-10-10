@@ -9,8 +9,9 @@ Vyerna (link_views.py) sköter HTTP, nonce och mallar; här är reglerna.
     unsubscribe_email(code, contact, *, ip_hash, now) -> bool
     undo(code, suppression_id, nonce, *, ip_hash, now) -> bool
     preference_rows(account, row, contact) -> (rader, spärrade)
-    save_preferences(account, row, contact, rows, data, *, botcheck_ok, ip_hash) -> str
-    unsubscribe_all(account, contact, value_hash, *, ip_hash)
+    save_preferences(account, row, contact, rows, data, *, botcheck_ok, ip_hash, detail) -> str
+    unsubscribe_all(account, contact, value_hash, *, ip_hash, channel, detail)
+                                               S3: channel och detail för klick.adx.se/v/
     confirm(code, *, ip_hash, now) -> str
 
 Semantik (H.6): "Avregistrera mig" på /s/, och "Avregistrera mig från
@@ -353,7 +354,7 @@ def preference_rows(account, row, contact):
     return rows, blocked
 
 
-def _turn_on(contact, channel, row, ip_hash):
+def _turn_on(contact, channel, row, ip_hash, detail=PREFERENCES_DETAIL):
     """Slå på en kanal: pending och en bekräftelse i kön. True när en
     bekräftelse väntar."""
     text = row.consent_text(channel)
@@ -363,7 +364,7 @@ def _turn_on(contact, channel, row, ip_hash):
         consents.PENDING,
         source=Consent.Source.PREFERENCE,
         actor=PERSON,
-        source_detail=PREFERENCES_DETAIL,
+        source_detail=detail,
         text_shown=text,
         tracking_ok=capture.tracking_ok(text),
         ip_hash=ip_hash,
@@ -379,7 +380,7 @@ def _turn_on(contact, channel, row, ip_hash):
     return True
 
 
-def _sign_up_email(account, row, contact, raw, ip_hash):
+def _sign_up_email(account, row, contact, raw, ip_hash, detail=PREFERENCES_DETAIL):
     """ "Anmäl dig" för e-post på /p/: som anmälningssidan. Adressen blir
     kontaktens om kontakten saknar e-post och ingen annan kontakt har den;
     har en annan kontakt adressen väntar dess e-post på bekräftelsen
@@ -399,7 +400,7 @@ def _sign_up_email(account, row, contact, raw, ip_hash):
             return False
         try:
             changed = contacts.change_address(
-                contact, CHANNEL_EMAIL, email, actor=PERSON, source_detail=PREFERENCES_DETAIL
+                contact, CHANNEL_EMAIL, email, actor=PERSON, source_detail=detail
             )
         except contacts.ContactError:
             return False
@@ -407,13 +408,16 @@ def _sign_up_email(account, row, contact, raw, ip_hash):
             return False
         contact.refresh_from_db()
         target = contact
-    return _turn_on(target, CHANNEL_EMAIL, row, ip_hash)
+    return _turn_on(target, CHANNEL_EMAIL, row, ip_hash, detail)
 
 
-def save_preferences(account, row, contact, rows, data, *, botcheck_ok, ip_hash=""):
-    """Spara reglagen på /p/. Att stänga av går alltid (declined); att slå
-    på kräver botskyddet och sätter pending med en bekräftelse i kön.
-    Returnerar "sparat", "sms" (ett bekräftelse-sms väntar), "mejl" (ett
+def save_preferences(
+    account, row, contact, rows, data, *, botcheck_ok, ip_hash="", detail=PREFERENCES_DETAIL
+):
+    """Spara reglagen på /p/ (och klick.adx.se/v/ i S3, med en egen detail
+    i loggen). Att stänga av går alltid (declined); att slå på kräver
+    botskyddet och sätter pending med en bekräftelse i kön. Returnerar
+    "sparat", "sms" (ett bekräftelse-sms väntar), "mejl" (ett
     bekräftelsemejl väntar), "sms-mejl" (båda) eller "fel-epost" (en
     adress som inte gick att läsa)."""
     waiting = set()
@@ -427,7 +431,7 @@ def save_preferences(account, row, contact, rows, data, *, botcheck_ok, ip_hash=
                 if wants or raw:
                     if not botcheck_ok:
                         continue
-                    result = _sign_up_email(account, row, contact, raw, ip_hash)
+                    result = _sign_up_email(account, row, contact, raw, ip_hash, detail)
                     if result is None:
                         bad_email = True
                     elif result:
@@ -440,11 +444,11 @@ def save_preferences(account, row, contact, rows, data, *, botcheck_ok, ip_hash=
                     consents.DECLINED,
                     source=Consent.Source.PREFERENCE,
                     actor=PERSON,
-                    source_detail=PREFERENCES_DETAIL,
+                    source_detail=detail,
                     ip_hash=ip_hash,
                 )
             elif item["tillstand"] == "off" and wants and item["kan_andras"] and botcheck_ok:
-                if _turn_on(contact, channel, row, ip_hash):
+                if _turn_on(contact, channel, row, ip_hash, detail):
                     waiting.add(channel)
     if bad_email:
         return "fel-epost"
@@ -457,24 +461,27 @@ def save_preferences(account, row, contact, rows, data, *, botcheck_ok, ip_hash=
     return "sparat"
 
 
-def unsubscribe_all(account, contact, value_hash, *, ip_hash=""):
+def unsubscribe_all(
+    account, contact, value_hash, *, ip_hash="", channel=CHANNEL_SMS, detail=PREFERENCES_DETAIL
+):
     """ "Avregistrera mig från allt": en spärr per kanal med adress (H.6),
-    eller bara numrets hash när ingen kontakt har det längre."""
+    eller bara adressens hash (kanalen channel: numret på /p/, e-posten på
+    klick.adx.se/v/ i S3) när ingen kontakt har den längre."""
     with transaction.atomic():
         if contact is None:
             existed = Suppression.objects.filter(
-                account=account, channel=CHANNEL_SMS, value_hash=value_hash
+                account=account, channel=channel, value_hash=value_hash
             ).exists()
-            suppressions.add(account, CHANNEL_SMS, value_hash, Suppression.Reason.PREFERENCE)
+            suppressions.add(account, channel, value_hash, Suppression.Reason.PREFERENCE)
             if not existed:
                 _log_without_contact(
                     account,
-                    CHANNEL_SMS,
+                    channel,
                     value_hash,
                     "",
                     consents.UNSUBSCRIBED,
                     Consent.Source.PREFERENCE,
-                    PREFERENCES_DETAIL,
+                    detail,
                     ip_hash,
                     timezone.now(),
                 )
@@ -489,7 +496,7 @@ def unsubscribe_all(account, contact, value_hash, *, ip_hash=""):
                 address,
                 Suppression.Reason.PREFERENCE,
                 Consent.Source.PREFERENCE,
-                source_detail=PREFERENCES_DETAIL,
+                source_detail=detail,
                 actor=PERSON,
                 ip_hash=ip_hash,
             )
@@ -607,3 +614,148 @@ def confirm(code, *, text_shown, ip_hash="", now=None):
         _signup_lists(account, contact)
     logger.info("Utskick: sms bekräftat (konto %s, kod %s)", account.pk, code.pk)
     return CONFIRM_DONE
+
+
+# ---------------------------------------------------------------------------
+# S3 (inkorg-byggaren, svar och avregistrering): e-postens avregistrering
+# på klick.adx.se/a/, med ett klick i mejlprogrammet (List-Unsubscribe-Post)
+# och med ett mejl till mailto-adressen (inbound/email.py), och knappen
+# "Avregistrera från e-post" i Inkorgen (threads.unsubscribe_email). Allt
+# går på (konto, adressens hash), så att länken i ett gammalt mejl håller
+# när mottagarraden är borta (retention, GDPR) (E.2, E.5, G.3, H.6).
+#
+#   email_contact(account, value_hash, address="")   kontakten med adressen, eller None
+#   unsubscribe_email_hash(account, value_hash, *, reason, source, detail, ...)
+#                                   -> (Suppression, ny?, kontakt eller None)
+#   masked_email(account, value_hash) -> "a***@e***.example" eller ""
+# ---------------------------------------------------------------------------
+
+#: source_detail i samtyckesloggen för e-postens avregistreringar.
+EMAIL_LINK_DETAIL = "Avregistreringslänk i mejl"
+EMAIL_ONE_CLICK_DETAIL = "Avregistrering i e-postprogrammet"
+EMAIL_MAILTO_DETAIL = "Avregistrering med mejl"
+#: Utskicket en avregistrering kommer efter: kontaktens senaste mejl så här långt bakåt.
+EMAIL_UTSKICK_LOOKBACK_DAYS = 30
+
+
+def email_contact(account, value_hash, address=""):
+    """Kontakten vars e-post har hashen (som contact_for), annars kontakten
+    med just adressen när den är känd (en kontakt utan samtyckesrad)."""
+    contact = contact_for(account, CHANNEL_EMAIL, value_hash)
+    if contact is not None or not address:
+        return contact
+    clean = keys.clean_value(CHANNEL_EMAIL, address)
+    contact = Contact.objects.filter(account=account, email=clean).first()
+    if contact is not None and keys.value_hash(CHANNEL_EMAIL, contact.email) == value_hash:
+        return contact
+    return None
+
+
+def _latest_email_recipient(account, contact, now):
+    """Kontaktens senaste mejl från kontot (mottagaren), för att knyta
+    avregistreringen till utskicket (rapportens Avregistreringar)."""
+    from datetime import timedelta
+
+    if contact is None:
+        return None
+    return (
+        Recipient.objects.filter(
+            contact=contact,
+            channel=CHANNEL_EMAIL,
+            utskick__account=account,
+            sent_at__gte=now - timedelta(days=EMAIL_UTSKICK_LOOKBACK_DAYS),
+        )
+        .order_by("-sent_at", "-pk")
+        .first()
+    )
+
+
+def unsubscribe_email_hash(
+    account,
+    value_hash,
+    *,
+    reason,
+    source,
+    detail,
+    actor=None,
+    recipient=None,
+    address="",
+    ip_hash="",
+    now=None,
+):
+    """Spärr på e-postadressens hash hos kontot (H.6): kontakten med
+    adressen (om någon) blir unsubscribed med en rad i loggen, annars en
+    rad i loggen utan kontakt. Köade mejl till kontakten hoppas över, och
+    spärren och mottagaren (stopped_at) knyts till utskicket mejlet kom från
+    (recipient, annars kontaktens senaste mejl). Fungerar också när utskick
+    är avstängt för kontot (D.8). Returnerar (spärren, ny, kontakten)."""
+    now = now or timezone.now()
+    actor = actor or PERSON
+    if not value_hash:
+        raise ValueError("Avregistreringen behöver en adress.")
+    with transaction.atomic():
+        contact = email_contact(account, value_hash, address)
+        existed = Suppression.objects.filter(
+            account=account, channel=CHANNEL_EMAIL, value_hash=value_hash
+        ).exists()
+        if contact is not None:
+            consents.set_status(
+                contact,
+                CHANNEL_EMAIL,
+                consents.UNSUBSCRIBED,
+                source=source,
+                actor=actor,
+                source_detail=detail,
+                suppression_reason=reason,
+                ip_hash=ip_hash,
+                now=now,
+            )
+        row, _ = suppressions.add(account, CHANNEL_EMAIL, value_hash, reason, now=now)
+        if contact is None and not existed:
+            ConsentLog.objects.create(
+                account=account,
+                contact=None,
+                channel=CHANNEL_EMAIL,
+                value_hash=value_hash,
+                old_status="",
+                new_status=consents.UNSUBSCRIBED,
+                basis=Consent.Basis.NONE,
+                source=source,
+                source_detail=(detail or "")[:200],
+                by_user=actor.user,
+                by_label=(actor.label or "")[:120],
+                by_staff=bool(actor.staff),
+                ip_hash=ip_hash or "",
+                at=now,
+            )
+        if recipient is None:
+            recipient = _latest_email_recipient(account, contact, now)
+        if recipient is not None and recipient.utskick.account_id != account.pk:
+            recipient = None
+        if not existed and recipient is not None and row.utskick_id is None:
+            Suppression.objects.filter(pk=row.pk, utskick__isnull=True).update(
+                utskick_id=recipient.utskick_id
+            )
+        if recipient is not None:
+            Recipient.objects.filter(pk=recipient.pk, stopped_at__isnull=True).update(
+                stopped_at=now
+            )
+        if contact is not None:
+            Recipient.objects.filter(
+                utskick__account=account,
+                channel=CHANNEL_EMAIL,
+                status=Recipient.Status.QUEUED,
+                contact=contact,
+            ).update(status=Recipient.Status.SKIPPED, skip_reason=Recipient.SkipReason.SUPPRESSED)
+    logger.info(
+        "Utskick: e-post avregistrerad (konto %s, spärr %s, källa %s)", account.pk, row.pk, source
+    )
+    return row, not existed, contact
+
+
+def masked_email(account, value_hash):
+    """Den maskerade adressen för /a/ när en kontakt har den, annars ""."""
+    contact = contact_for(account, CHANNEL_EMAIL, value_hash)
+    if contact is None or not contact.email:
+        return ""
+    return normalize.mask_email(contact.email)

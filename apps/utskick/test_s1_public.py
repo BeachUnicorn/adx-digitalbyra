@@ -689,7 +689,8 @@ class DoiMailTests(PublicFixture, TestCase):
             to=EMAIL, from_name="", from_addr="a@b.example", subject="", text=""
         )
         with self.assertRaises(ValueError):
-            transport.send(mail, kind="utskick")
+            # "utskick" är ett slag från S3; ett påhittat slag nekas fortfarande.
+            transport.send(mail, kind="nyhetsbrev")
 
     def test_header_injection_is_flattened(self):
         mail = transport.OutgoingMail(

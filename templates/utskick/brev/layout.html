@@ -1,0 +1,44 @@
+<!doctype html>
+{% comment %}
+Brev, hela mejlet (apps/utskick/email/render.py, README F.4). Den enda
+stilen (D9, mockups/flamingo-epost-brev.html): vitt, 560 px, systemets
+typsnitt, inline-stilar ur style.brev_styles (S). Ytterbordet är 100 % brett,
+mejlets bord 560 brett med max-width, och Outlook får en fast ram i
+mso-kommentarer. <style> innehåller bara förfiningen för smala skärmar
+(Gmail-appen läser den inte; layouten håller ändå) och att mejlet bara har
+ett ljust läge. Inga skript, inga externa typsnitt, inga relativa adresser.
+
+Kontext: S, css, title, preheader, preheader_pad, header_html, blocks_html,
+footer_html, editing, width. Blocken är rader (<tr>) direkt under tbody; i
+redigeraren har tbody data-brev-canvas och varje block data-pb-block.
+{% endcomment %}
+<html lang="sv" xmlns="http://www.w3.org/1999/xhtml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no, url=no">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>{{ title }}</title>
+<!--[if mso]><noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript><![endif]-->
+<style>{{ css }}</style>
+</head>
+<body style="{{ S.body }}"{% if editing %} data-brev-editing{% endif %}>
+{% if preheader %}<div style="{{ S.preheader }}">{{ preheader }}{{ preheader_pad }}</div>
+{% endif %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="{{ S.outer }}">
+<tr>
+<td align="center" bgcolor="#FFFFFF" style="{{ S.outer_td }}">
+<!--[if mso]><table role="presentation" width="{{ width }}" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
+<table role="presentation" class="br-main" width="{{ width }}" align="center" cellpadding="0" cellspacing="0" border="0" bgcolor="#FFFFFF" style="{{ S.main }}">
+<tbody{% if editing %} data-brev-canvas{% endif %}>
+{{ header_html }}{{ blocks_html }}{{ footer_html }}
+</tbody>
+</table>
+<!--[if mso]></td></tr></table><![endif]-->
+</td>
+</tr>
+</table>
+</body>
+</html>

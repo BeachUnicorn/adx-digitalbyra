@@ -286,3 +286,44 @@ def view_label(view):
         except ValueError:
             return ""
     return VIEWS.get(view, "")
+
+
+# ---------------------------------------------------------------------------
+# S3 (redigerar-byggaren): e-postens siffror i rapporten (README I.8)
+# ---------------------------------------------------------------------------
+
+
+def email_numbers(utskick):
+    """Mejlens siffror: mottagare, levererade, öppnade (en indikation, bara
+    mottagare med pixeln), klick, studsar, klagomål och avregistreringar
+    (spärrar med utskicket på e-post, utom studsarnas: en adress som inte
+    finns har inte avregistrerat sig, den står under Studsar), med
+    andelarna. Tom dict när utskicket inte har några e-postmottagare."""
+    from .models import CHANNEL_EMAIL, Suppression
+
+    rows = Recipient.objects.filter(utskick=utskick, channel=CHANNEL_EMAIL)
+    agg = rows.aggregate(
+        total=Count("pk", filter=~Q(status=R.SKIPPED)),
+        skipped=Count("pk", filter=Q(status=R.SKIPPED)),
+        sent=Count("pk", filter=Q(status__in=Recipient.SENT_LIKE)),
+        attempted=Count("pk", filter=Q(status__in=(*Recipient.SENT_LIKE, R.FAILED, R.BOUNCED))),
+        delivered=Count("pk", filter=Q(status__in=(R.DELIVERED, R.COMPLAINED))),
+        bounced=Count("pk", filter=Q(status=R.BOUNCED)),
+        complained=Count("pk", filter=Q(status=R.COMPLAINED)),
+        opened=Count("pk", filter=Q(opened_at__isnull=False)),
+        clicked=Count("pk", filter=Q(first_clicked_at__isnull=False)),
+    )
+    out = {key: int(value or 0) for key, value in agg.items()}
+    if not out["total"] and not out["skipped"]:
+        return {}
+    out["unsubscribed"] = (
+        Suppression.objects.filter(utskick=utskick, channel=CHANNEL_EMAIL)
+        .exclude(reason=Suppression.Reason.BOUNCE)
+        .count()
+    )
+    base = out["delivered"] or out["sent"]
+    out["delivered_pct"] = _pct(out["delivered"], out["attempted"] or out["sent"])
+    out["opened_pct"] = _pct(out["opened"], base)
+    out["click_pct"] = _pct(out["clicked"], base)
+    out["bounced_pct"] = _pct(out["bounced"], out["attempted"] or out["sent"])
+    return out

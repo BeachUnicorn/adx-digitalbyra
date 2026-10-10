@@ -111,6 +111,10 @@ def _css_mtime():
         # S2 (apps/utskick/S2-HANDOFF.md): utskicksvyerna och svarstråden.
         "css/flamingo-app-utskick-views.css",
         "css/flamingo-app-utskick-thread.css",
+        # S3 (apps/utskick/S3-HANDOFF.md): e-postredigeraren, och
+        # Leveranshälsa med Egen domän. Saknade filer hoppas över.
+        "css/flamingo-app-brev.css",
+        "css/flamingo-app-utskick-email.css",
         "js/dist/tiptap-editor.js",
         "js/manage-tables.js",
         "js/menu.js",
@@ -126,6 +130,7 @@ def _css_mtime():
         "js/flamingo-app-import.js",
         "js/utskick-public.js",
         "js/flamingo-app-utskick.js",
+        "js/flamingo-app-brev.js",
     ):
         try:
             stamps.append(int((static / name).stat().st_mtime))

@@ -1,0 +1,32 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static %}
+{% comment %}
+Bekräfta den egna svarsadressen (README I.9, S3-avvikelse 7). Kontext från
+app_views/domain.reply_confirm: valid, address, token, bad_text. GET
+bekräftar aldrig (förhandsvisningar i mejlprogram öppnar länkar); knappen
+skickar en POST med Djangos CSRF.
+{% endcomment %}
+{% block app_title %}Bekräfta svarsadressen{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick-email.css' %}?v={{ static_version }}">{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-ut-crumb" href="{% url 'flamingo:app_utskick_domain' %}">Avsändare och svar</a></p>
+    <h1 class="fl-app-title">Bekräfta svarsadressen</h1>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+<section class="fl-panel">
+  {% if valid %}
+  <p class="fl-panel__text">Svar på dina mejl går till {{ address }} när du har bekräftat.</p>
+  <form class="fl-ut-em-confirm" method="post" action="{% url 'flamingo:app_utskick_reply_confirm' token %}">
+    {% csrf_token %}
+    <button type="submit" class="fl-btn">Bekräfta {{ address }}</button>
+  </form>
+  {% else %}
+  <p class="fl-panel__text">{{ bad_text }}</p>
+  <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_utskick_domain' %}">Till Avsändare och svar</a>
+  {% endif %}
+</section>
+{% endblock %}

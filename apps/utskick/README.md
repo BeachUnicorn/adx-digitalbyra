@@ -1,11 +1,11 @@
 # apps/utskick: Flamingo 2.0 (Kontakter och Utskick)
 
-Architecture and build plan. Status 2026-10-10: **S1 is built, committed and deployed** (see "S1
-as built"). **S2 is built and tested locally, not committed or deployed** (none of the J S2
-checklist steps has run; see "S2 as built" below). S3 to S6 are not built. This file is the
-contract for the build; update it when a stage ships or a decision changes. Revision 2
-(2026-10-09) folds in the security, ops and product reviews; what was not taken over is listed in
-section L.
+Architecture and build plan. Status 2026-10-10: **S1 and S2 are built, committed and deployed**
+(see "S1 as built" and "S2 as built"). **S3 is built and tested locally, not committed or
+deployed** (none of the J S3 checklist steps has run, and the S3 AWS resources do not exist yet;
+see "S3 as built"). S4 to S6 are not built. This file is the contract for the build; update it
+when a stage ships or a decision changes. Revision 2 (2026-10-09) folds in the security, ops and
+product reviews; what was not taken over is listed in section L.
 
 Inputs: `mockups/flamingo-utskick.html` (all views, flowcharts, data model, "Senare", "Medvetet
 bortvalt"), `mockups/flamingo-epost-brev.html` (the chosen email style Brev, 24 elements), memory
@@ -200,7 +200,7 @@ Deviations from this contract, decided while building S1:
   missing file in `apps.cloud`'s invoice test), and without `tblib` one failure stops the whole
   parallel run. The full run therefore uses `--parallel 1`.
 
-## S2 as built (2026-10-10, not committed, not deployed)
+## S2 as built (2026-10-10, committed and deployed)
 
 Everything in J S2 exists. Decisions Giovanni confirmed after revision 2: the reply number may be
 pointed at the inbound webhook after S2 is deployed (K.2.1, a manual step); the yearly 999 kr sms
@@ -413,6 +413,233 @@ Checklist notes for the lead (in addition to J S2):
 - Step 6: verify the 46elks history paging parameter (`start` vs `end`) with a message older than
   the first page, and the 46elks part price against the 5 200 fallback.
 - Before a real customer: the ADX privacy page slug the link-host home page links to.
+
+## S3 as built (2026-10-10, not committed, not deployed)
+
+Everything in J S3 exists in code; the AWS side (checklist steps 1 to 3) does not, and every S3
+path works without it: empty `UTSKICK_SQS_*` and `UTSKICK_SES_INBOUND_BUCKET` mean off, and no
+email utskick goes out before `Switchboard.email_enabled` (D.8). Built by a foundation agent,
+four builders (A Brev and the renderer, B the editor and the email parts of the utskick UI, C
+sending, events, health and domains, D inbound mail, Inkorg and the link-host email pages) and
+an integration pass. `S3-HANDOFF.md` has the file ownership, the helper APIs and the per-builder
+notes; delete it when S3 ships.
+
+What exists, by layer:
+
+- **Data**: `utskick.0003_brev_och_epost` (the B.2 email columns on `Utskick` plus
+  `email_snapshot`, `SenderDomain`, `EmailImage`, `EventReceipt`, the account email block on
+  `UtskickSettings`, `Switchboard.ses_account` and `ses_checked_at`), every column with
+  `db_default`, every new FK with its `ON DELETE` in Postgres (`dbfk.apply`). Settings of C.4
+  in `base.py` and `.env.example`; the test runner blanks the role, the queues and the bucket.
+- **Brev** (F.1 to F.5): `email/registry.py` (22 blocks plus header and footer, the new field
+  kinds), `email/blocks.py` (validation, `rich_basic` as an AST, `save` with `email_rev`, terms,
+  signatures with the email salt), `email/style.py` (one accent, the light-colour rule),
+  `email/render.py` (tables, inline styles, 560 px, the mso wrapper, editor, preview and send
+  modes, the frozen snapshot, per-recipient `klick.adx.se` links, the pixel only for
+  `open_tracking` and `tracking_ok`, web view, `.ics`), `email/text.py`, `email/images.py`
+  (email renditions, absolute URLs, retention), `email/checks.py` (F.5), templates
+  `templates/utskick/brev/`.
+- **Editor** (F.6 to F.8): `app_views/brev.py` (the seven `app_brev*` views), `ai.py`,
+  `brev_editor.html` and partials, `flamingo-app-brev.css` and `.js`, `flamingo-pb.js` with a
+  profile per editor (`pages.PAGE_PROFILE` unchanged, asserted in `test_pagebuilder_editor.py`);
+  the email parts of the guide (Kanal with the four modes, Innehåll with the E-post tab, Granska
+  with the email checks and the ADX cap, the test mail), the report's email tiles, the settings
+  rows of I.9 and the list's channel label.
+- **Sending** (D.5 to D.9): `sending/email.py` (tick phase 6, the caps, the probe, throttling,
+  unknown and never resent, `deliver` and `send_test` for every single mail), `email/transport.py`
+  and `email/mime.py` (configuration set, tags, one-click headers never RFC 2047 encoded),
+  `sending/health.py` (per utskick, per account with "Släpp spärren", ADX-wide), `email/domains.py`
+  (claim rules, Easy DKIM, MAIL FROM, dnspython checks, expiry, `ses_created` delete rule),
+  `inbound/queues.py` and `inbound/events.py` (SQS, receipts, DLQ), the S3 parts of `tick`,
+  `freeze`, `state`, `recover`, `retention` and `utskick_daily` (`--only ses|domains|dlq`).
+- **Inbound and link pages** (E.5, G.2, G.3): `inbound/email.py` (bucket pin, token from the
+  receipt, verdicts, hourly caps, autoreplies, quote stripping, attachments listed, mailto
+  unsubscribe, the bucket sweep), the email threads in `threads.py`, `_thread.html` and the
+  inbox reply by email; all six `klick.adx.se` views in `link_views.py` (`/m/`, `/a/` with the
+  one-click POST, `/v/`, `/w/` with the F.4 CSP, `/o/`, `/c/`).
+- **UI pages**: Leveranshälsa (`app_views/health.py`), Avsändare och svar (`app_views/domain.py`:
+  Egen domän and the own reply address with its confirmation link).
+- **Agency**: `manage_email.py` (the e-post panel on `/manage/utskick/` with warnings, accounts
+  with an email block and "Släpp spärren", customer domains and `/manage/utskick/doman/<pk>/`,
+  queues and DLQs with "Skicka tillbaka" on `/manage/utskick/koer/`, "Provmejl till mig"), the
+  information override fingerprint for email (`manage_sending.info_override`), "Avsluta utskick
+  och radera allt" removes the S3 rows.
+- **Server**: `server/aws-utskick-role.sh` writes the whole H.8 policy; `server/aws-utskick-s3.sh`
+  creates the configuration set, SNS, SQS with DLQs, receiving (identity, MX, bucket, rule set)
+  idempotently and prints the `.env` lines. Neither has run.
+- **Demo**: `demo.seed` adds "Höstbrevet", an email-only utskick in Brev to the list Kunder,
+  built through `email.blocks`, confirmed, frozen (snapshot and an lp TrackedLink) and simulated
+  by `sending.email.simulate`, with one click to the Flamingo page; `demo.reset` also removes the
+  account's `EmailImage` and `SenderDomain` rows.
+- **Tests**: `test_s3_{foundation,registry,render,media,link_check,editor,transport,caps,events,
+  queues,domains,inbound_email,one_click,link_pages,flow,review}.py`, plus the S3 extensions in
+  `test_s1_guards.py` (mail templates), `test_s2_ui.py`, `test_s1_views.py`, `test_s1_public.py`,
+  `apps/flamingo/test_demo.py` (the email utskick, `email.transport.send` and `aws.client`
+  patched to fail in the command, the page walk, the report and the tick),
+  `test_pagebuilder_editor.py` and `apps/common/test_sentry.py`. `test_s3_flow.py` walks the
+  whole path with the real views, renderer, tick and transport: editor (`rita/`, `spara/`),
+  Innehåll, Tid, Granska, confirm, freeze, the email loop into `FakeSes`, SES events through the
+  queue (delivery, bounce, duplicate receipt), health and the report; the click on `klick.adx.se`
+  to the landing page with `ut` and a lead with the trail; the pixel; the web view; the `.ics`;
+  `/v/`; one-click and mailto unsubscribe; a reply through the inbound queue and bucket into the
+  Inkorg and the answer by email with `In-Reply-To`; a reply to the test mail; the timeline.
+
+Deviations from this contract, decided while building S3 (the builders' notes in `S3-HANDOFF.md`
+have the detail):
+
+- **Data.** `Utskick.sender_domain` is `RESTRICT`, not `PROTECT` (PROTECT blocks the cascade of
+  an account delete). `EmailImage.purpose` is 7 characters. Added columns not in B:
+  `Utskick.email_snapshot`, the `UtskickSettings.email_blocked_*` and `email_released_*` fields
+  (the D.9 account block, separate from `sending_blocked`), `Switchboard.ses_account` and
+  `ses_checked_at`. DLQ URLs are the queue URL plus `-dlq`.
+- **Opens.** The configuration set publishes no OPEN (and no CLICK): with OPEN, SES inserts its
+  own pixel into every mail, also for recipients without `tracking_ok` (H.5, LEK 9 kap. 28 §).
+  Opens come only from our pixel `klick.adx.se/o/<token>.gif`, which counts only a recipient
+  that carried it (`open_tracking` on the utskick, `tracking_ok`, a sent-like status), sets
+  `opened_at` once and writes `Event(kind="opened")` once; HEAD records nothing, a forged token
+  is 404 and pixel misses are not counted (image proxies share addresses). An open is not
+  contact activity ("Senast").
+- **Tokens.** Formats the contract left open: `/w/` `<utskick62>.<recipient62>.<sig12>`, `/o/`
+  `<recipient62>.<sig8>`, `/c/` `<utskick62>.<block_id>.<sig10>`; reply local parts with a
+  lower-case base36 signature and the kind `t` (an Inkorg thread) next to `r` and `u`; `/v/`
+  reuses the S1 preference token. The own reply address is confirmed through a login-required
+  app route (`app_utskick_reply_confirm`), not a public page.
+- **Sending.** The daily cap is a wait, not a pause (D.9, I.5). `ConfigurationSetName` is sent
+  only once `UTSKICK_SQS_EVENTS_URL` is set (before checklist step 4 mail goes as in S1; the DOI
+  mail gets the set and the tags k and a through the transport). In production the email loop
+  waits with an agency alert while the events queue is missing. Test mails and inbox replies on
+  the ADX domain are counted in `Counter("adx_mail")` with a window at the start of the next
+  Stockholm month. Health runs on bounce and complaint events and every 50 sends; a resumed
+  utskick is judged on what was sent after the resume; a staff resume after a failed probe
+  passes the probe (only a staff resume does); the customer may "Ta bort studsade och fortsätt"
+  after `bounces` outside the probe. A
+  transient bounce makes the recipient `failed` ("Tillfällig studs"), the fifth in a row is a
+  hard bounce. Test mails have no `List-Unsubscribe` and inert footer links; test and probe
+  mails carry the recipient id `NO_RECIPIENT`, so replies route by account and sender.
+- **Domains.** One domain per account at a time; an expired domain also has its SES identity
+  deleted (when `ses_created`); removing a domain moves drafts to the ADX domain and is refused
+  while a scheduled, sending or paused utskick uses it.
+- **Brev.** Email validation lives in `email/blocks.py` (it reuses the page builder's id
+  patterns, structure rules, sanitizers and signing) instead of `types=` on `validate_blocks` and
+  `clean_fields`; `types=` and `salt=` exist where the contract asked. Required fields and
+  `min_items` never stop a draft save (the checks block them). One variant per block (`brev`).
+  Every transparent image is flattened onto white. The footer name is the legal customer name.
+  Unconfirmed offer terms warn, they do not block. An information utskick may keep the
+  "Hitta hit" map link of the hours block. The link checker runs only on request (the hourly
+  quota). **A link to one of the account's own Flamingo pages** (`exports.landing_page_url`) is
+  never requested from ADX and never blocks Granska (`email.blocks.own_page`); the freeze makes
+  it an lp TrackedLink, so the click carries `ut` like an sms link.
+- **Editor.** The desktop canvas is 680 px (at 560 the mail's own phone layout would show). A new
+  block is fetched from `rita/` with `{"type"}` (no extra route). Subject, preheader, accent,
+  logo, sender, fallbacks and "Uppgifterna stämmer" save with the blocks in one `spara/` call; a
+  save without changes keeps the rev; `blocks.save` runs outside the row lock (it may alert the
+  agency), so a scheduled utskick that became a draft stays a draft if the block save fails.
+  "Förhandsvisa" is a `<dialog>`; "Mörkt läge" approximates inverting clients. The report's
+  email tiles are not links (`reports.recipients_for` lists sms recipients only). The tile
+  Avregistreringar counts the utskick's email suppressions except the hard bounces' (those are
+  under Studsar; found in the final verification).
+- **Inbound.** A mailto unsubscribe applies as soon as the notification arrives (no fetch, no
+  spam or hourly checks). A per-token limit (`inbound_mail_ref`, 20 per hour) sits under the
+  ADX-wide 500. An email reply never creates a contact; a reply from another address joins the
+  recipient's thread with a note. `/a/` redirects to its done page after the button and has no
+  Ångra (only `/s/` has one). The web view allows `http:` images only with `DEBUG`.
+- **Link pages (integration).** `/m/` with a recipient row that retention removed, and a test
+  mail's link, redirect without counting (`utm_medium=email`); a recipient of another utskick
+  gets the "Länken har gått ut" page. `/v/` is "Dina val" for the token's address with the `/p/`
+  rows and rules (`link_actions` takes the channel and the log detail "Dina val (länk i mejl)");
+  without a contact, "Avregistrera mig från allt" suppresses the token's hash.
+- **Contact card and GDPR (integration).** The timeline shows email bounces ("Studsade: adressen
+  finns inte"), complaints and "Öppnade (indikation)"; "Senast" gets "Svarade på mejl", "Adressen
+  finns inte, 12 sep" and "Markerade som skräppost". The export adds the open indication per
+  recipient, the bounce time and the reply subjects; the delete also blanks
+  `InboundMessage.subject`.
+- **Agency (integration).** The e-post panel starts with warnings: a DLQ alert today, SES not
+  healthy, ADX's 30-day rates over the alert levels, and email switched on without the events
+  queue. "Provmejl till mig" is on `/manage/utskick/#epost-prov` (not `/nodstopp/`), as the S2
+  probe sms. "Be ADX om hjälp" alerts with the account and domain pks and the link to
+  `/manage/utskick/doman/<pk>/`, never a person's name. The settings page also lists a scheduled
+  utskick from the ADX domain that does not fit the month cap.
+- **Guards (integration).** The foundation stubs (`_stub.html`, `render_stub`, `not_built`) are
+  gone and `test_s2_ui` asserts it again. Mail templates (`utskick/mail`, `utskick/brev`) have
+  their own guard in `test_s1_guards` (no script, no relative address, the copy rules). Sentry
+  also masks the `klick.adx.se` token paths when only the path is logged and the own reply
+  address's confirmation path.
+
+Review fixes (security, correctness and UX reviews of S3, 2026-10-10; `test_s3_review.py` has
+one test per fix):
+
+- **Inbound mail never stalls the tick.** Text and HTML are cut to 200 000 characters before
+  they are read (`inbound/email.py` `TEXT_CHARS`), header values to 998 (`HEADER_CHARS`), lines
+  are matched on their first 400 characters, and no pattern backtracks: `<head>` and the quote
+  markers are found with plain searches, the break pattern has bounded repeats. 1 MB crafted
+  bodies, HTML and headers are read in well under a second.
+- **From is trusted only when authenticated.** When the token's recipient row (or thread) is
+  gone, blanked, or the `NO_RECIPIENT` of a test or probe mail, the `From` address is used only
+  when SPF or DKIM passed and DMARC did not fail (`inbound.email.from_verified`). Otherwise a
+  mailto unsubscribe is `ignored` with reason `unverified_from`, and a reply is routed without a
+  contact, never into a contact's open thread, and marked "Avsändaren går inte att bekräfta".
+- **klick.adx.se counts no misses.** The email tokens carry HMAC signatures, so `/m/`, `/a/`,
+  `/v/`, `/w/` and `/c/` answer an unknown token with the plain 404 and never check or count the
+  per-visitor miss limit; a shared address (Gmail's one-click POSTs, a company NAT) can never be
+  blocked from unsubscribing. `k.adx.se` (short codes) keeps the limit.
+- **The demo never reaches SES, DNS or the agency from the domain page.** Every POST on Avsändare
+  och svar is refused for the demo; `domains.claim`, `check` and `delete_identity` refuse it too,
+  and `check_due` skips demo rows.
+- **Staff test mails** go to the staff user's own login address; only a staff login without an
+  address may type one, never a customer login's or a contact's, and the test then renders with
+  the fallbacks (no contact). A typed sms test number also renders without a contact.
+- **IAM**: the role also has a Deny on `ses:SendEmail`/`ses:SendRawEmail` with `ses:FromAddress`
+  on every protected identity except `utskick.adx.se` (`NoSendFromProtected`). The
+  `sqs:SendMessage` grant for "Skicka tillbaka" is kept (see the review notes in the stage report).
+- **No mail without its frozen snapshot.** `sending.email.compose` raises `NotFrozen` without
+  `email_snapshot["links"]`; the loop pauses the utskick with `content`. A frozen utskick whose
+  mail freeze failed is frozen again in `state.prechecks` (confirm or resume), so a reconfirm
+  never sends the live draft.
+- **One normalisation for own pages.** The freeze and Granska use `email.blocks.own_page` (also
+  with `#anchor`, `?query` and no trailing slash); an lp link keeps its anchor through the click
+  (`links.bare_destination`).
+- **An unclear SES answer stops the email loop** for the tick (timeouts and 5xx rarely come
+  alone) with one agency alert per hour (`ses_unknown`); `SSLError` and proxy errors are unclear
+  too, only `EndpointConnectionError` and `ConnectTimeoutError` count as never sent.
+- **The caps count failed mails that SES accepted** (`health.counted_q`: failed with `sent_at`).
+- **A failed probe is released only by staff.** The customer gets no "Ta bort studsade och
+  fortsätt" during the probe (`health.probe_failed`), `state.resume` refuses them, and
+  `probe_state` passes only on a staff resume.
+- **Domains**: `NotFoundException` from `GetEmailIdentity` fails a verified domain with an alert;
+  a verified domain stays verified while SES sends from it (DKIM `TEMPORARY_FAILURE` pauses
+  nothing); a new domain still needs DKIM `SUCCESS`. The MX record's priority is its own field
+  (`Record.priority`, its own row and Kopiera). On its first verification the account's drafts
+  without a sender move to the domain (`domains.adopt_drafts`), and new utskick start with it
+  (`domains.verified_for`); the customer may still pick the ADX domain under Från.
+- **The tick shares time**: when real mail waits while email is live, the sms loop gets at most
+  half of what is left (`tick._email_competes`).
+- **Guide and copy**: a new utskick starts as Bara e-post when sms is off and email is live;
+  Kanal preselects the first unlocked mode and refuses a locked mode also when it was kept; the
+  sms sender is hidden for Bara e-post (`data-ut-show-when="kanal!=email_only"`); Tid speaks of
+  the utskick, shows the sms window only when sms is used and the weekly caps per channel;
+  Granska links each email row to the page that fixes it (Företaget, Avsändare och svar, Media,
+  none for hosts) and checks the mail's links too; the logo buttons show "Ingen logga" without a
+  logo; mail wording for the page builder's remaining page texts (`texts` in the profiles); the
+  page is "Avsändare och svar" everywhere; "Väntar på DNS" keeps its capitals; a near-white
+  accent (contrast under 1.25 against white) gets a bordered button; the missing-value check
+  points at "Om ett värde saknas" instead of an example with dots; Leveranshälsa says what a soft
+  bounce does; test-mail copy mentions the ADX cap only for the ADX domain; Fält marks required
+  fields "(krävs)" and asks for a field first.
+
+Checklist notes for the lead (in addition to J S3):
+
+- Steps 1 to 3 need Giovanni's SSO login: ask first. After the first `aws-utskick-role.sh` run,
+  commit `server/aws-utskick-identities.txt` (the identities that existed before S3, kept out of
+  every later Deny).
+- Step 4: the scripts print the `.env` lines; `systemctl restart adx` (reload does not reread
+  `.env`). From then on mail carries the configuration set.
+- Step 6: `utskick_daily --only ses` fills `ses_max_rate` and the panel's SES line.
+- Step 7: "Provmejl till mig" is on `/manage/utskick/#epost-prov`; pick ADX's internal test
+  customer. The panel's warnings and `/manage/utskick/koer/` show the queues.
+- Acceptance before a real customer: the real-inbox checks of J S3 (Gmail web and app, Apple
+  Mail light and dark, Outlook 365 web, classic Outlook) with screenshots in the stage notes,
+  and the 375 px pass over the editor, Leveranshälsa, Avsändare och svar, the settings rows and
+  the `klick.adx.se` pages in the real browser.
 
 ---
 
@@ -2489,6 +2716,8 @@ Django's CSRF.
   - an explicit **Deny** on `ses:DeleteEmailIdentity` and `ses:PutEmailIdentity*` for `adx.se`,
     `utskick.adx.se`, `svar.utskick.adx.se` and every identity that existed before S3 (listed from
     `aws sesv2 list-email-identities` in both regions);
+  - an explicit **Deny** on `ses:SendEmail` and `ses:SendRawEmail` when `ses:FromAddress` is on any
+    of those identities except `utskick.adx.se` (S3 review);
   - `ses:GetAccount`;
   - `sqs:ReceiveMessage`, `sqs:DeleteMessage`, `sqs:GetQueueAttributes`, `sqs:StartMessageMoveTask`
     on the two queues and DLQs;

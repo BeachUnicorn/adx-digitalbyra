@@ -423,10 +423,38 @@ def finish_freeze(utskick, now=None):
     utskick.frozen_at = now
     if not utskick.account.is_demo:
         _alerts(utskick, counts, now)
+    # S3 (sändnings-byggaren): mejlet fryses före förkontrollerna (D.3, F.4):
+    # länkarna blir TrackedLink och ögonblicksbilden hamnar i email_snapshot.
+    problem = _freeze_email(utskick, now)
+    if problem:
+        state.pause(utskick, Utskick.PauseReason.CONTENT, note=problem, now=now)
+        return state.Verdict(S.PAUSED, Utskick.PauseReason.CONTENT, problem)
+    # --- slut S3
     verdict, _moved = state.apply_prechecks(utskick, now, expected=(S.FREEZING,))
     if verdict.reason == Utskick.PauseReason.SMS_COST_CAP:
         logger.info("Utskick %s pausades vid taket före första sms:et", utskick.pk)
     return verdict
+
+
+# --- S3 (sändnings-byggaren) ------------------------------------------------
+
+
+def _freeze_email(utskick, now):
+    """sending.email.freeze_email i en egen savepoint: ett fel pausar
+    utskicket (content) i stället för att fälla biten tick efter tick."""
+    if not utskick.has_email:
+        return ""
+    from . import email as email_loop
+
+    try:
+        with transaction.atomic():
+            return email_loop.freeze_email(utskick, now)
+    except Exception:
+        logger.exception("Utskick %s: mejlet kunde inte frysas", utskick.pk)
+        return email_loop.NOT_BUILT_TEXT
+
+
+# --- slut S3 ---------------------------------------------------------------------
 
 
 def freeze_due(now=None, deadline=None, only=None):

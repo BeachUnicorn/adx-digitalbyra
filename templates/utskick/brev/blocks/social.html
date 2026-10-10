@@ -1,0 +1,4 @@
+{% load flamingo_pb %}{% comment %}
+Element 23, Sociala medier: textlänkar i accentfärgen, till vänster (Brev
+har inga ikoner).
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" align="left" style="{{ S.blk }}text-align:left;"><p style="{{ S.p }}">{% for link in v.links %}<a href="{{ link.href }}" style="{{ S.soc }}">{{ link.label }}</a>{% if not link.last %}<span style="{{ S.soc_gap }}">&nbsp;</span>{% endif %}{% empty %}{% pb_empty "items" "span" %}{% endfor %}</p></td></tr>

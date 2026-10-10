@@ -296,7 +296,17 @@ def content_problems(utskick):
     texten det gavs för. Samma texter som i Granska."""
     from .. import links
 
-    return [*links.link_problems(utskick), *checks.information_problems(utskick)]
+    problems = [*links.link_problems(utskick), *checks.information_problems(utskick)]
+    # S3 (sändnings-byggaren): mejlets länkar före frysningen (E.8); efter
+    # frysningen är de TrackedLink och finns i link_problems.
+    if utskick.has_email and not utskick.frozen_at:
+        from . import email as email_loop
+
+        for text in email_loop.email_link_problems(utskick):
+            if text not in problems:
+                problems.append(text)
+    # --- slut S3
+    return problems
 
 
 def prechecks(utskick, now=None, *, reconfirmed=False):
@@ -313,6 +323,13 @@ def prechecks(utskick, now=None, *, reconfirmed=False):
         return Verdict(S.PAUSED, R.BLOCKED, checks.BLOCKED_TEXT)
     if why:
         return Verdict(S.PAUSED, R.ACCOUNT_DISABLED, ACCOUNT_DISABLED_TEXT)
+    # S3 (sändnings-byggaren): ett mejl som inte hann frysas fryses om här,
+    # före länkarnas kontroll (de blir TrackedLink nu), så att inget mejl
+    # skickas utan sina spårade länkar.
+    problem = refreeze_email(utskick, now)
+    if problem:
+        return Verdict(S.PAUSED, R.CONTENT, problem)
+    # --- slut S3
     problems = content_problems(utskick)
     if problems:
         logger.warning("Utskick %s: innehållet stoppar sändningen (content)", utskick.pk)
@@ -322,6 +339,12 @@ def prechecks(utskick, now=None, *, reconfirmed=False):
         return Verdict(S.SENDING)
     if counts[CHANNEL_EMAIL] and not email_live():
         return Verdict(S.PAUSED, R.EMAIL_DISABLED, EMAIL_OFF_TEXT)
+    # S3 (sändnings-byggaren): e-postens förkontroller (D.3, D.6, D.9).
+    if counts[CHANNEL_EMAIL]:
+        verdict = email_prechecks(utskick, counts[CHANNEL_EMAIL], now)
+        if verdict is not None:
+            return verdict
+    # --- slut S3
     if not reconfirmed:
         confirmed = audience.confirmed_total(utskick.confirm_summary, utskick.channel_mode)
         frozen = counts[CHANNEL_SMS] + counts[CHANNEL_EMAIL]
@@ -343,6 +366,65 @@ def prechecks(utskick, now=None, *, reconfirmed=False):
             return Verdict(S.PAUSED_CAP, R.SMS_COST_CAP, cap_text(estimate), estimate)
         return Verdict(S.SENDING, estimate=estimate)
     return Verdict(S.SENDING)
+
+
+# --- S3 (sändnings-byggaren) ------------------------------------------------
+
+
+def _probe_failed(utskick):
+    if utskick.pause_reason not in (R.BOUNCES, R.COMPLAINTS):
+        return False
+    from . import health
+
+    return health.probe_failed(utskick)
+
+
+def refreeze_email(utskick, now=None):
+    """Ett fryst utskick vars mejl saknar ögonblicksbilden (freeze_email föll
+    vid frysningen) fryses om före förkontrollerna, i en savepoint. "" när
+    mejlet är fryst, annars texten som pausar med content."""
+    from . import email as email_loop
+
+    if not utskick.has_email or utskick.frozen_at is None or email_loop.is_frozen(utskick):
+        return ""
+    try:
+        with transaction.atomic():
+            problem = email_loop.freeze_email(utskick, _now(now))
+    except Exception:
+        logger.exception("Utskick %s: mejlet kunde inte frysas om", utskick.pk)
+        return email_loop.NOT_FROZEN_TEXT
+    if problem:
+        return problem
+    if not email_loop.is_frozen(utskick) and queued_counts(utskick)[CHANNEL_EMAIL]:
+        return email_loop.NOT_FROZEN_TEXT
+    return ""
+
+
+def email_prechecks(utskick, queued_email, now=None):
+    """E-postens förkontroller (D.3): kontots hälsospärr (paused_health
+    account_health), avsändardomänen som inte längre är kontots verifierade
+    (paused provider) och ADX-domänens månadstak för hela utskicket
+    (paused_cap adx_mail_cap, före första mejlet). None när inget stoppar.
+    Dygnstaket är en väntan, ingen paus (S3-avvikelse 9)."""
+    from ..email import domains
+    from . import email as email_loop
+    from . import health
+
+    now = _now(now)
+    account = utskick.account
+    if health.is_blocked(account):
+        return Verdict(S.PAUSED_HEALTH, R.ACCOUNT_HEALTH, health.BLOCKED_TEXT)
+    if utskick.sender_domain_id:
+        if domains.sendable(account, utskick.sender_domain_id) is None:
+            return Verdict(S.PAUSED, R.PROVIDER, email_loop.DOMAIN_TEXT)
+        return None
+    if queued_email > email_loop.adx_cap_left(account, now):
+        text = email_loop.adx_cap_text(account, utskick, queued_email, now)
+        return Verdict(S.PAUSED_CAP, R.ADX_MAIL_CAP, text)
+    return None
+
+
+# --- slut S3 ---------------------------------------------------------------------
 
 
 def email_live():
@@ -578,6 +660,11 @@ def resume(utskick, *, actor, now=None):
             return Result(False, RECONFIRM_TEXT, row)
         if row.pause_reason in STAFF_ONLY and not getattr(actor, "staff", False):
             return Result(False, STAFF_RESUMES_TEXT, row)
+        # S3 (sändnings-byggaren): ett prov som inte gick släpper bara byrån
+        # (D.9); kunden får "Ta bort studsade och fortsätt" bara utanför provet.
+        if not getattr(actor, "staff", False) and _probe_failed(row):
+            return Result(False, STAFF_RESUMES_TEXT, row)
+        # --- slut S3
         if row.frozen_at is not None:
             verdict, moved = apply_prechecks(row, now, expected=(row.status,))
             error = "" if verdict.state == S.SENDING else verdict.text

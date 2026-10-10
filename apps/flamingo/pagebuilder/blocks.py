@@ -11,6 +11,12 @@ Blocken som data: skapa, versioner, schemat och formuläret.
     sign_version(version), is_signed(version)
                                      serverns signatur på en version
 
+types= (active_fields, visible_items) och salt= (sign_version, is_signed,
+sign_blocks) är för utskickens Brev (apps/utskick/email, README F.1):
+e-posten har egna blocktyper och ett eget salt, så att en version som
+kopierats från en sida aldrig behåller en giltig signatur. Utan dem gäller
+sidornas TYPES och salt, som förut.
+
 Formen på ett block står i pagebuilder/__init__.py.
 
 Varje version som servern skapar eller sparar får en signatur ("sig"): en
@@ -136,7 +142,7 @@ def _version(fields, source, user, now=None):
 # ---------------------------------------------------------------------------
 
 
-def _signature(version):
+def _signature(version, salt=None):
     fields = version.get("fields")
     digest = hashlib.sha256(
         json.dumps(fields, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
@@ -151,33 +157,35 @@ def _signature(version):
             digest,
         ]
     )
-    return salted_hmac(_SIGN_SALT, message, algorithm="sha256").hexdigest()[:32]
+    return salted_hmac(salt or _SIGN_SALT, message, algorithm="sha256").hexdigest()[:32]
 
 
-def sign_version(version):
+def sign_version(version, *, salt=None):
     """Serverns signatur på versionen (version["sig"]), över id, källa, by,
-    at och fälten. Versionen ändras på plats och returneras."""
-    version["sig"] = _signature(version)
+    at och fälten. Versionen ändras på plats och returneras. salt: ett eget
+    salt (utskickens Brev); utan det sidornas."""
+    version["sig"] = _signature(version, salt)
     return version
 
 
-def is_signed(version):
-    """Har versionen serverns signatur, och är den oförändrad sedan dess?"""
+def is_signed(version, *, salt=None):
+    """Har versionen serverns signatur, och är den oförändrad sedan dess?
+    En version som signerats med ett annat salt räknas inte."""
     sig = version.get("sig") if isinstance(version, dict) else None
     if not isinstance(sig, str) or not SIGNATURE.fullmatch(sig):
         return False
     try:
-        return constant_time_compare(sig, _signature(version))
+        return constant_time_compare(sig, _signature(version, salt))
     except (TypeError, ValueError):
         return False
 
 
-def sign_blocks(blocks):
+def sign_blocks(blocks, *, salt=None):
     """Signera varje version i blocken (blocken ändras på plats)."""
     for block in blocks:
         for version in block.get("versions") or []:
             if isinstance(version, dict):
-                sign_version(version)
+                sign_version(version, salt=salt)
     return blocks
 
 
@@ -251,9 +259,10 @@ def active_version(block):
     return versions[-1] if versions else None
 
 
-def active_fields(block):
-    """Den aktiva versionens fält, med tomma värden för det som saknas."""
-    block_type = TYPES.get(block.get("type"))
+def active_fields(block, types=None):
+    """Den aktiva versionens fält, med tomma värden för det som saknas.
+    types: blocktyperna (standard sidornas TYPES)."""
+    block_type = (TYPES if types is None else types).get(block.get("type"))
     version = active_version(block)
     fields = (version or {}).get("fields") or {}
     if block_type is None:
@@ -261,9 +270,9 @@ def active_fields(block):
     return {f.key: fields.get(f.key, f.empty()) for f in block_type.fields}
 
 
-def visible_items(block, field_key, items):
+def visible_items(block, field_key, items, types=None):
     """Posterna varianten visar (Variant.limits), annars alla."""
-    block_type = TYPES.get(block.get("type"))
+    block_type = (TYPES if types is None else types).get(block.get("type"))
     variant = block_type.variant(block.get("variant")) if block_type else None
     limit = (variant.limits or {}).get(field_key) if variant else None
     return list(items)[:limit] if limit is not None else list(items)

@@ -229,6 +229,17 @@ class ScrubTextTests(TestCase):
             "Avregistrera: k.adx.se/s/Ab12Cd": "Avregistrera: k.adx.se/[Filtered]",
             "https://adx.se/lp/rorjour/": "https://adx.se/lp/rorjour/",
             "svar till s+ab12.cd34@svar.utskick.adx.se": "svar till [Filtered]",
+            # S3: mejlens token när bara sökvägen står, och svarsadressens länk.
+            "GET /m/3d.Fh.a1b2c3d4 302": "GET /m/[Filtered] 302",
+            "POST /a/1x.email.AbCdEf.0123456789abcdef": "POST /a/[Filtered]",
+            "GET /o/3d.a1b2c3d4.gif": "GET /o/[Filtered]",
+            "GET /c/7.b_abcdefghijkl.0123456789.ics": "GET /c/[Filtered]",
+            "s+r1a.f4xabcdefghij@svar.utskick.adx.se": "[Filtered]",
+            "/installningar/svarsadress/1x.AbCdEfGhIjKl.k2.0123456789abcdef/": (
+                "/installningar/svarsadress/[Filtered]/"
+            ),
+            "GET /flamingo/app/utskick/12/brev/spara/": "GET /flamingo/app/utskick/12/brev/spara/",
+            "/static/css/flamingo-app-brev.css": "/static/css/flamingo-app-brev.css",
             "nyckel adxut_abcdefgh12345": "nyckel [Filtered]",
             "ut=AbC123.def4567890&x=1": "ut=[Filtered]&x=1",
             "/lp/rorjour/?adx=abc123": "/lp/rorjour/?adx=[Filtered]",

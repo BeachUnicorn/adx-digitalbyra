@@ -1,0 +1,6 @@
+{% comment %}
+Element 1, sidhuvudet (F.1): "Visa i webbläsaren" ovanför loggan, till
+höger när loggan står till vänster, i mitten när den står i mitten och till
+vänster utan logga. Loggan är en PNG på vitt, 40 px hög, högst 220 bred.
+Webbversionen har ingen länk till sig själv (show_pre).
+{% endcomment %}<tr{% if editing %} data-brev-element="header"{% endif %}><td class="br-pad" bgcolor="#FFFFFF" align="{% if center %}center{% else %}left{% endif %}" style="{{ S.hdr }}">{% if show_pre %}<p style="{{ S.pre }}text-align:{{ pre_align }};"><a href="{{ web_url }}" style="{{ S.pre_link }}">{{ web_text }}</a></p>{% endif %}{% if logo %}<img src="{{ logo.url }}" width="{{ logo.width }}" height="{{ logo.height }}" alt="{{ logo.alt }}" style="{% if center %}{{ S.logo_center }}{% else %}{{ S.logo }}{% endif %}">{% endif %}</td></tr>

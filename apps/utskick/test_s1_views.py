@@ -67,7 +67,8 @@ def _routes():
 
 def _model_for(name):
     # S2: utskicken och svaren i Inkorgen (app_views/utskick.py, inbox_reply.py).
-    if name.startswith("app_utskick"):
+    # S3: e-postredigeraren (app_views/brev.py) tar utskickets pk.
+    if name.startswith(("app_utskick", "app_brev")):
         return Utskick
     if name.startswith("app_lead"):
         return Lead
@@ -137,6 +138,9 @@ class ViewsFixture(UtskickFixture):
     def url(self, name, pk=None):
         if name == "app_utskick_step":
             return reverse(f"flamingo:{name}", kwargs={"pk": pk, "step": "granska"})
+        if name == "app_utskick_reply_confirm":
+            # S3: länken för den egna svarsadressen bär en token, inget pk.
+            return reverse(f"flamingo:{name}", args=["abc.def"])
         return reverse(f"flamingo:{name}", args=[pk] if pk is not None else [])
 
 

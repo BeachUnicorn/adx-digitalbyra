@@ -405,7 +405,9 @@ class GuideTests(UiFixture, TestCase):
         self.assertContains(response, "Sms är inte aktiverat för dig. Be ADX slå på det.")
         self.assertContains(response, "ADX godkänner avsändarnamn. Be ADX lägga till ett.")
         self.assertContains(response, "0766 86 00 46")
-        self.assertNotContains(response, "Bara e-post")
+        # S3: e-postens lägen syns, låsta tills e-posten är påslagen (I.8, D.8).
+        self.assertContains(response, "Bara e-post")
+        self.assertContains(response, "E-post är inte påslaget än.")
 
     def test_content_saves_text_fallbacks_and_shows_the_counter(self):
         self.person(first_name="Anna")
@@ -992,6 +994,17 @@ class TestSendTests(UiFixture, TestCase):
         self.assertEqual(len(self.fake.sends), 1)
         staff.post(self.test_url, {"till": "eget", "nummer": "070-174 09 98"})
         self.assertEqual(self.fake.sends[-1]["to"], "+46701740998")
+
+    def test_a_typed_number_never_gets_a_contacts_details(self):
+        # Säkerhetsgranskningen: numret byrån skriver har ingen bekräftat, så
+        # testet visas med reservtexterna, inte med kontaktens uppgifter.
+        staff = self.client_for(self.staff)
+        staff.post(
+            self.test_url, {"till": "eget", "nummer": "070-174 09 98", "kontakt": self.kontakt.pk}
+        )
+        sent = self.fake.sends[-1]
+        self.assertEqual(sent["to"], "+46701740998")
+        self.assertNotIn("Greta", sent["message"])
 
     def test_a_suppressed_contact_gets_no_test_and_a_contact_gets_an_event(self):
         kontakt = self.person(phone="+46701740999")

@@ -52,7 +52,7 @@ ett POST-formulär: utkastet skapas och guiden öppnas på Mottagare.
       {% for utskick in rows %}
       <tr>
         <td class="is-primary" data-label="Utskick"><a class="fl-ut-name" href="{% if utskick.status == 'draft' %}{% url 'flamingo:app_utskick_step' utskick.pk 'mottagare' %}{% else %}{% url 'flamingo:app_utskick' utskick.pk %}{% endif %}">{{ utskick.name }}</a><span class="fl-ut-sub">{{ utskick.ut_audience }}</span></td>
-        <td data-label="Kanal">Sms</td>
+        <td data-label="Kanal">{{ utskick.ut_channel|default:"Sms" }}</td>
         <td data-label="Status"><span class="fl-ut-status fl-ut-status--{{ utskick.ut_tone }}">{{ utskick.ut_status }}</span></td>
         <td class="is-num" data-label="Mottagare">{% if utskick.ut_numbers %}{{ utskick.ut_numbers.recipients|tal }}{% elif utskick.ut_planned is not None %}{{ utskick.ut_planned|tal }}{% endif %}</td>
         <td class="is-num" data-label="Klick">{% if utskick.ut_numbers %}{{ utskick.ut_numbers.clicked|tal }}{% if utskick.ut_numbers.click_pct is not None %} ({{ utskick.ut_numbers.click_pct|procent }}){% endif %}{% endif %}</td>

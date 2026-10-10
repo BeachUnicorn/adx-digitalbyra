@@ -1,0 +1,172 @@
+{% extends "flamingo/app/utskick/_layout.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Egen domän och svar på mejl (README J S3 "Domain flow", I.9). Kontext från
+app_views/domain.utskick_domain: summary (email.domains.summary), row (kontots
+domän eller None), records ([{record, label, tone}]: DNS-posterna med läget),
+can_check, adx_paused (utskick pausade vid ADX-taket), form och errors,
+display_name, reply_mode, own_reply_to, own_ok, own_confirmed, email_live,
+blocked, is_staff_actor, staff_text, pending_days.
+
+DNS-posterna är .fl-kv-block med en Kopiera per värde (data-kt-copy i
+flamingo-app-kontakter.js), inte en tabell. Knappen som skickar
+bekräftelselänken säger att kunden mejlas (inga automatiska mejl). Inga
+style-attribut, inga inline-skript; .fl-ut-em- i
+flamingo-app-utskick-email.css.
+{% endcomment %}
+{% block app_title %}Avsändare och svar{% endblock %}
+{% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}<link rel="stylesheet" href="{% static 'css/flamingo-app-utskick-email.css' %}?v={{ static_version }}"><script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>{% endblock %}
+{% block ut_header %}
+<header class="fl-app-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-ut-crumb" href="{% url 'flamingo:app_utskick_settings' %}">Inställningar för utskick</a></p>
+    <h1 class="fl-app-title">Avsändare och svar</h1>
+    <p class="fl-app-lead">Med en egen domän kommer mejlen från ditt företags adress, utan tak per månad. Utan egen domän skickar vi från ADX-domänen.</p>
+  </div>
+</header>
+{% endblock %}
+{% block ut_content %}
+{% if not email_live %}
+<p class="fl-notice"><span>E-post är inte påslaget än. Du kan lägga in domänen redan nu.</span></p>
+{% endif %}
+
+<section class="fl-panel" aria-labelledby="ut-em-sender">
+  <h2 class="fl-panel__title" id="ut-em-sender">E-postavsändare</h2>
+  {% if row %}
+  <div class="fl-ut-em-card{% if row.status == 'verified' %} is-ok{% endif %}">
+    <p class="fl-ut-em-card__title"><strong>Egen domän: {{ row.domain }}</strong> <span class="fl-ut-status fl-ut-status--{% if row.status == 'verified' %}ok{% elif row.status == 'pending' %}warn{% else %}stop{% endif %}">{{ summary.status_label }}</span></p>
+    <p class="fl-ut-em-card__text">{% if row.status == 'verified' %}Mejlen kommer från {{ row.from_name }} &lt;{{ row.from_address }}&gt;.{% elif row.status == 'pending' %}Mejlen kommer från {{ row.from_address }} när posterna nedan stämmer. Tills dess skickar vi från ADX-domänen. Domänen går ut om den inte är verifierad inom {{ pending_days }} dagar.{% else %}Domänen fungerar inte just nu. Kontrollera posterna nedan; tills dess pausas utskick från den.{% endif %}</p>
+  </div>
+  {% endif %}
+  <div class="fl-ut-em-card">
+    <p class="fl-ut-em-card__title"><strong>ADX-domänen</strong> <span class="fl-ut-status fl-ut-status--muted">Högst {{ summary.adx_cap|tal }} mejl per månad</span></p>
+    <p class="fl-ut-em-card__text">{% if row and row.status == 'verified' %}Nya utskick kommer från din egen domän. Vill du skicka ett utskick från ADX-domänen väljer du det under Från när du skriver mejlet.{% else %}Mejlen kommer från {{ summary.from_address }} med namnet {{ display_name }} och {{ summary.reply_text }}. Till för att komma igång: alla kunder delar ADX-domänens rykte, så över taket krävs en egen domän.{% endif %}</p>
+    <span class="fl-ut-usage"><span class="fl-ut-usage__text">{{ summary.month|capfirst }} {{ summary.adx_used|tal }} av {{ summary.adx_cap|tal }}</span><meter class="fl-ut-usage__bar" min="0" max="100" value="{{ summary.adx_pct }}" high="80" optimum="0">{{ summary.adx_pct }} procent</meter></span>
+    {% for utskick in adx_paused %}<p class="fl-ut-em-card__warn">{{ utskick.name }} ryms inte i taket. Verifiera din domän för att skicka det, eller skicka till färre mottagare.</p>{% endfor %}
+  </div>
+</section>
+
+{% if not row %}
+<section class="fl-panel" aria-labelledby="ut-em-claim">
+  <h2 class="fl-panel__title" id="ut-em-claim">Använd din egen domän</h2>
+  <p class="fl-panel__text">Skriv domänen för din webbplats. Du får sedan sex poster att lägga in hos den som sköter din DNS, eller be ADX om hjälp.</p>
+  <form class="fl-form" method="post" action="{% url 'flamingo:app_utskick_domain' %}" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="claim">
+    <div class="fl-form__row">
+      <div class="fl-field{% if errors.domain %} is-error{% endif %}">
+        <label class="fl-field__label" for="ut-em-domain">Domän</label>
+        <input id="ut-em-domain" name="domain" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" value="{{ form.domain|default:'' }}" placeholder="exempelror.se"{% if errors.domain %} aria-describedby="ut-em-domain-error" aria-invalid="true"{% endif %}>
+        {% if errors.domain %}<p class="fl-field__error" id="ut-em-domain-error">{{ errors.domain }}</p>{% endif %}
+      </div>
+      <div class="fl-field">
+        <label class="fl-field__label" for="ut-em-local">Adressen före @</label>
+        <input id="ut-em-local" name="from_local" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="{{ form.from_local|default:'hej' }}">
+        <p class="fl-field__help">Mejlen kommer från till exempel hej@exempelror.se.</p>
+      </div>
+      <div class="fl-field">
+        <label class="fl-field__label" for="ut-em-name">Avsändarnamn</label>
+        <input id="ut-em-name" name="from_name" type="text" maxlength="80" value="{{ form.from_name|default:display_name }}">
+      </div>
+    </div>
+    <div class="fl-form__actions">
+      <p class="fl-form__note">Gratis e-post som Gmail eller Outlook går inte, bara en domän du äger.</p>
+      <button type="submit" class="fl-btn">Lägg till domänen</button>
+    </div>
+  </form>
+</section>
+{% else %}
+<section class="fl-panel" aria-labelledby="ut-em-dns">
+  <div class="fl-panel__head">
+    <h2 class="fl-panel__title" id="ut-em-dns">Lägg in hos din DNS-leverantör</h2>
+    {% if row.checked_at %}<span class="fl-panel__note">Kontrollerat {{ row.checked_at|date:"j b H.i" }}</span>{% endif %}
+  </div>
+  <p class="fl-panel__text">Lägg in posterna exakt som de står. Namnet står både kort (som de flesta DNS-tjänster vill ha det) och i sin helhet.</p>
+  <div class="fl-ut-em-records">
+    {% for item in records %}
+    <dl class="fl-kv fl-ut-em-record">
+      <div><dt>Typ</dt><dd>{{ item.record.kind }} <span class="fl-ut-status fl-ut-status--{{ item.tone }}">{{ item.label }}</span></dd></div>
+      <div><dt>Namn</dt><dd><code class="fl-ut-em-value">{{ item.record.short }}</code><span class="fl-ut-em-full">{{ item.record.name }}</span><button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-kt-copy="{{ item.record.short }}" hidden>Kopiera</button></dd></div>
+      {% if item.record.priority %}<div><dt>Prioritet</dt><dd><code class="fl-ut-em-value">{{ item.record.priority }}</code><button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-kt-copy="{{ item.record.priority }}" hidden>Kopiera</button></dd></div>{% endif %}
+      <div><dt>Värde</dt><dd><code class="fl-ut-em-value">{{ item.record.value }}</code><button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-kt-copy="{{ item.record.value }}" hidden>Kopiera</button></dd></div>
+    </dl>
+    {% endfor %}
+  </div>
+  <p class="fl-panel__note">DMARC rekommenderas om domänen inte redan har en. Har den det behåller du den du har.</p>
+  <div class="fl-panel__actions">
+    {% if can_check %}
+    <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_domain' %}">
+      {% csrf_token %}<button type="submit" class="fl-btn fl-btn--sm" name="action" value="check">Kontrollera igen</button>
+    </form>
+    {% else %}
+    <span class="fl-panel__note">Du kan kontrollera igen om en minut.</span>
+    {% endif %}
+    <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_domain' %}">
+      {% csrf_token %}<button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="help">Be ADX om hjälp</button>
+    </form>
+    <details class="fl-ut-more">
+      <summary class="fl-btn fl-btn--ghost fl-btn--sm">Ta bort domänen</summary>
+      <form class="fl-ut-confirm" method="post" action="{% url 'flamingo:app_utskick_domain' %}">
+        {% csrf_token %}
+        <p>Mejlen kommer från ADX-domänen igen, med taket per månad.</p>
+        <button type="submit" class="fl-btn fl-btn--sm" name="action" value="remove">Ta bort {{ row.domain }}</button>
+      </form>
+    </details>
+  </div>
+</section>
+
+<section class="fl-panel" aria-labelledby="ut-em-from">
+  <h2 class="fl-panel__title" id="ut-em-from">Avsändaren på domänen</h2>
+  <form class="fl-form" method="post" action="{% url 'flamingo:app_utskick_domain' %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="sender">
+    <div class="fl-form__row">
+      <div class="fl-field{% if errors.sender %} is-error{% endif %}">
+        <label class="fl-field__label" for="ut-em-local2">Adressen före @{{ row.domain }}</label>
+        <input id="ut-em-local2" name="from_local" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" value="{{ form.from_local|default:row.from_local }}"{% if errors.sender %} aria-describedby="ut-em-sender-error" aria-invalid="true"{% endif %}>
+        {% if errors.sender %}<p class="fl-field__error" id="ut-em-sender-error">{{ errors.sender }}</p>{% endif %}
+      </div>
+      <div class="fl-field">
+        <label class="fl-field__label" for="ut-em-name2">Avsändarnamn</label>
+        <input id="ut-em-name2" name="from_name" type="text" maxlength="80" value="{{ form.from_name|default:row.from_name }}">
+      </div>
+    </div>
+    <div class="fl-form__actions">
+      <p class="fl-form__note">Gäller mejl som skickas från och med nu.</p>
+      <button type="submit" class="fl-btn fl-btn--ghost">Spara avsändaren</button>
+    </div>
+  </form>
+</section>
+{% endif %}
+
+<section class="fl-panel" aria-labelledby="ut-em-reply">
+  <h2 class="fl-panel__title" id="ut-em-reply">Svar på mejl</h2>
+  <p class="fl-panel__text">När någon svarar på ett mejl hamnar svaret i Inkorgen, som svaren på sms. Du kan i stället låta svaren gå till en egen adress.</p>
+  <form class="fl-form" method="post" action="{% url 'flamingo:app_utskick_domain' %}" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="action" value="reply_mode">
+    <fieldset class="fl-field">
+      <legend class="fl-field__label">Svaren går till</legend>
+      <label class="fl-check"><input type="radio" name="reply_mode" value="inbox"{% if reply_mode != 'own' %} checked{% endif %}><span>Inkorgen i Flamingo</span></label>
+      <label class="fl-check"><input type="radio" name="reply_mode" value="own"{% if reply_mode == 'own' %} checked{% endif %}><span>En egen adress</span></label>
+    </fieldset>
+    <div class="fl-field{% if errors.own_reply_to %} is-error{% endif %}">
+      <label class="fl-field__label" for="ut-em-own">Egen adress för svar</label>
+      <input id="ut-em-own" name="own_reply_to" type="email" autocomplete="email" value="{{ form.own_reply_to|default:own_reply_to }}"{% if errors.own_reply_to %} aria-describedby="ut-em-own-error" aria-invalid="true"{% endif %}>
+      {% if errors.own_reply_to %}<p class="fl-field__error" id="ut-em-own-error">{{ errors.own_reply_to }}</p>{% else %}<p class="fl-field__help">En adress på din verifierade domän gäller direkt. Andra adresser bekräftar du med en länk som vi mejlar dit.</p>{% endif %}
+    </div>
+    <div class="fl-form__actions">
+      <p class="fl-form__note">{% if reply_mode == 'own' and own_ok %}Svaren går till {{ own_reply_to }}.{% elif reply_mode == 'own' %}Svaren går till Inkorgen tills adressen är bekräftad.{% else %}Svaren går till Inkorgen.{% endif %}</p>
+      <button type="submit" class="fl-btn fl-btn--ghost">Spara</button>
+    </div>
+  </form>
+  {% if reply_mode == 'own' and own_reply_to and not own_ok %}
+  <form class="fl-ut-em-confirm" method="post" action="{% url 'flamingo:app_utskick_domain' %}">
+    {% csrf_token %}
+    <input type="hidden" name="action" value="reply_send">
+    {% if is_staff_actor %}<label class="fl-check"><input type="checkbox" name="som_adx" value="1" required><span>{{ staff_text }}</span></label>{% endif %}
+    <button type="submit" class="fl-btn fl-btn--sm">Skicka bekräftelselänken till {{ own_reply_to }}</button>
+  </form>
+  {% endif %}
+</section>
+{% endblock %}

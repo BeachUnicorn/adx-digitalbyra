@@ -17,8 +17,11 @@ testsändningen och Inställningar för utskick.
     utskick_save_list    utskick/<pk>/mottagare/lista/  app_utskick_save_list
     utskick_settings     utskick/installningar/         app_utskick_settings
 
-Steg: mottagare, kanal, innehall, tid, granska (STEPS, i ordning). I S2 är
-bara kanalen "Bara sms" byggd; e-postens lägen visas inte förrän S3.
+Steg: mottagare, kanal, innehall, tid, granska (STEPS, i ordning). S3
+(redigerar-byggaren, märkta block): e-postens kanaler på Kanal (låsta tills
+e-posten är påslagen), fliken E-post och Skriv med AI på Innehåll, mejlets
+rader i Granska, testmejlet, e-postens rutor och pauser i rapporten och
+e-postens rader i Inställningar. Mejlet skrivs i app_views/brev.py.
 
 Regler som gäller varje vy här:
 
@@ -67,6 +70,7 @@ from .. import alerts, audience, composer, keys, limits, links, reports, timing
 from .. import contacts as register
 from .. import suppression as suppressions
 from ..access import actor_for, owned, owned_ids, utskick_view
+from ..email import domains as email_domains
 from ..models import (
     CHANNEL_SMS,
     INFORMATION,
@@ -131,6 +135,15 @@ LIST_FILTERS = {
     ),
 }
 
+# --- S3 (redigerar-byggaren): listans kolumn Kanal (I.8) ---
+CHANNEL_LABELS = {
+    Utskick.ChannelMode.SMS_ONLY: "Sms",
+    Utskick.ChannelMode.EMAIL_ONLY: "E-post",
+    Utskick.ChannelMode.SMS_THEN_EMAIL: "Sms, annars e-post",
+    Utskick.ChannelMode.BOTH: "Sms och e-post",
+}
+# --- slut S3 ---
+
 #: Pauser som bara byrån släpper (README I.5: "staff resumes").
 STAFF_RESUMES = (
     Utskick.PauseReason.COMPLAINTS,
@@ -153,6 +166,9 @@ CUSTOMER_RESUMES = (
     Utskick.PauseReason.SMS_DISABLED,
     Utskick.PauseReason.PROVIDER,
     Utskick.PauseReason.CUSTOMER,
+    # S3 (redigerar-byggaren): "Ta bort studsade och fortsätt" (I.5). De
+    # studsade adresserna är redan markerade och får inget mer.
+    Utskick.PauseReason.BOUNCES,
 )
 
 #: Hoppades över, kort i Granskas mening ("12 utan samtycke, 3 veckotaket").
@@ -515,14 +531,35 @@ def status_info(utskick, row=None, now=None):
 def _usage_line(account, sms, now):
     """ "Oktober: 2 640 sms-delar · kostnad hittills 1 186 kr av taket 3 000 kr
     (gemensamt med sms-API:t)" (I.8)."""
+    # --- S3 (redigerar-byggaren): månadens mejl ("4 120 mejl", I.8) ---
+    mails = _month_mails(account, now)
     if sms["account"] is None:
+        if mails:
+            return f"{month_name(now).capitalize()}: {_group(mails)} mejl"
         return ""
+    # --- slut S3 ---
     used = pricing.usage(sms["account"], now)
     month = month_name(now).capitalize()
+    mail_part = f"{_group(mails)} mejl · " if mails else ""
     return (
-        f"{month}: {_group(used['parts'])} sms-delar · kostnad hittills {_kr(used['cost'])} "
-        f"av taket {_kr(used['cap'])} (gemensamt med sms-API:t)"
+        f"{month}: {_group(used['parts'])} sms-delar · {mail_part}kostnad hittills "
+        f"{_kr(used['cost'])} av taket {_kr(used['cap'])} (gemensamt med sms-API:t)"
     )
+
+
+def _month_mails(account, now):
+    """S3 (redigerar-byggaren): kontots skickade mejl den här svenska månaden."""
+    from ..models import CHANNEL_EMAIL
+    from ..sending import email as sending_email
+
+    start, end = sending_email.month_bounds(now)
+    return Recipient.objects.filter(
+        utskick__account=account,
+        channel=CHANNEL_EMAIL,
+        status__in=Recipient.SENT_LIKE,
+        sent_at__gte=start,
+        sent_at__lt=end,
+    ).count()
 
 
 @utskick_view
@@ -545,6 +582,9 @@ def utskick_list(request, account):
             recipient_row = _sending_numbers(utskick)
         utskick.ut_status, utskick.ut_tone = status_info(utskick, recipient_row, now)
         utskick.ut_audience = audience.describe(utskick)
+        # --- S3 (redigerar-byggaren): kanalen i listan ---
+        utskick.ut_channel = CHANNEL_LABELS.get(utskick.channel_mode, "Sms")
+        # --- slut S3 ---
         utskick.ut_numbers = row
         if row is None and utskick.confirm_summary:
             utskick.ut_planned = audience.confirmed_total(
@@ -594,10 +634,15 @@ def utskick_new(request, account):
         account=account,
         name=name,
         purpose=REKLAM,
-        channel_mode=Utskick.ChannelMode.SMS_ONLY,
+        channel_mode=initial_mode(account),
         sms_sender_kind=Utskick.SenderKind.REPLY,
         send_mode=Utskick.SendMode.NOW,
         created_by=user,
+        # S3 (redigerar-byggaren): Spåra öppningar följer inställningen (B.2).
+        open_tracking=bool(getattr(request.utskick_settings, "open_tracking", False)),
+        # S3: en verifierad egen domän är avsändaren från början (kunden kan
+        # välja ADX-domänen under Från i mejlet).
+        sender_domain=email_domains.verified_for(account),
     )
     return redirect(_step_url(utskick, "mottagare"))
 
@@ -703,14 +748,145 @@ def _sender_choice(raw, senders):
     return None
 
 
+# --- S3 (redigerar-byggaren): Skriv med AI i sms:et (F.7, I.8) ---
+
+#: AI:s senaste förslag i sessionen, tills steget visat det.
+AI_SESSION_KEY = "ut_ai_sms"
+AI_GUARD_LINE = (
+    "AI använder bara dina bekräftade uppgifter. Inga påhittade omdömen, siffror eller "
+    "falsk brådska, och inga löften om tider."
+)
+
+# --- slut S3 ---
+
+# --- S3 (redigerar-byggaren): e-postens kanaler på steget Kanal (I.8, D.8) ---
+
+#: Kanalerna i den ordning steget visar dem (mockupen): (läge, rubrik).
+CHANNEL_CHOICES = (
+    (Utskick.ChannelMode.SMS_THEN_EMAIL, "Sms först, e-post till resten"),
+    (Utskick.ChannelMode.SMS_ONLY, "Bara sms"),
+    (Utskick.ChannelMode.EMAIL_ONLY, "Bara e-post"),
+    (Utskick.ChannelMode.BOTH, "Båda kanalerna"),
+)
+ADX_CAP_LOCK = (
+    "Bara e-post: över {cap} mejl i månaden kräver egen domän. "
+    "Verifiera din domän under Inställningar."
+)
+ADX_CAP_LOCK_MIXED = (
+    "Över {cap} mejl i månaden kräver egen domän. Verifiera din domän under Inställningar."
+)
+
+
+def _mode_text(mode, row):
+    """Kortets rad med siffrorna: "Sms till 388 · e-post till 24 som bara har e-post"."""
+    sms, email, skipped = (int(row.get(k) or 0) for k in ("sms", "email", "skipped"))
+    tail = f" · {_group(skipped)} hoppas över" if skipped else ""
+    if mode == Utskick.ChannelMode.SMS_THEN_EMAIL:
+        return f"Sms till {_group(sms)} · e-post till {_group(email)} som bara har e-post{tail}"
+    if mode == Utskick.ChannelMode.BOTH:
+        return f"Alla som kan få dem, i båda: {_group(sms)} sms och {_group(email)} mejl{tail}"
+    n = email if mode == Utskick.ChannelMode.EMAIL_ONLY else sms
+    return f"{_group(n)} mottagare{tail}"
+
+
+def _own_domain(account):
+    from ..models import SenderDomain
+
+    return SenderDomain.objects.filter(
+        account=account, status=SenderDomain.Status.VERIFIED
+    ).exists()
+
+
+def channel_modes(account, utskick, sms, counted):
+    """Kanalerna med siffror och låsning (I.8, I.3): sms kräver att sms är
+    aktiverat, e-post att e-posten är påslagen (state.email_live, D.8; demot
+    får allt). Utan egen domän låses e-postens lägen när mejlen inte ryms i
+    ADX-domänens tak för månaden (sending.email.adx_cap_left)."""
+    demo = account.is_demo
+    sms_ok = demo or sms["enabled"]
+    email_ok = demo or state.email_live()
+    by_mode = counted.get("modes") or {}
+    cap_left = cap = None
+    if email_ok and not demo and not _own_domain(account):
+        from ..sending import email as sending_email
+
+        cap = sending_email.adx_cap()
+        cap_left = sending_email.adx_cap_left(account)
+    out = []
+    for mode, title in CHANNEL_CHOICES:
+        row = by_mode.get(mode) or {}
+        lock = ""
+        if mode != Utskick.ChannelMode.EMAIL_ONLY and not sms_ok:
+            lock = SMS_DISABLED_TEXT
+        elif mode != Utskick.ChannelMode.SMS_ONLY and not email_ok:
+            lock = state.EMAIL_OFF_TEXT
+        elif (
+            mode != Utskick.ChannelMode.SMS_ONLY
+            and cap_left is not None
+            and int(row.get("email") or 0) > cap_left
+        ):
+            text = ADX_CAP_LOCK if mode == Utskick.ChannelMode.EMAIL_ONLY else ADX_CAP_LOCK_MIXED
+            lock = text.format(cap=_group(cap))
+        out.append(
+            {
+                "value": mode,
+                "title": title,
+                "text": _mode_text(mode, row),
+                "locked": bool(lock),
+                "lock_text": lock,
+                "checked": utskick.channel_mode == mode,
+            }
+        )
+    return out
+
+
+def shown_mode(modes, utskick):
+    """Läget som är förvalt på Kanal: utskickets, eller det första som inte
+    är låst när utskickets är låst (sms av: Bara e-post i stället för ett
+    låst Bara sms)."""
+    current = next((m for m in modes if m["value"] == utskick.channel_mode), None)
+    if current is not None and not current["locked"]:
+        return current["value"]
+    first = next((m for m in modes if not m["locked"]), None)
+    return first["value"] if first is not None else utskick.channel_mode
+
+
+def initial_mode(account, sms=None):
+    """Kanalen ett nytt utskick börjar med: Bara sms, eller Bara e-post när
+    sms inte är aktiverat men e-posten är påslagen."""
+    sms = sms or _sms_state(account)
+    if not account.is_demo and not sms["enabled"] and state.email_live():
+        return Utskick.ChannelMode.EMAIL_ONLY
+    return Utskick.ChannelMode.SMS_ONLY
+
+
+# --- slut S3 ---
+
+
 def _step_kanal(request, account, utskick):
     sms = _sms_state(account)
     errors = {}
+    # --- S3 (redigerar-byggaren): kanalerna med e-post ---
+    modes = channel_modes(account, utskick, sms, _counted(utskick))
+    # --- slut S3 ---
     if request.method == "POST":
         purpose = request.POST.get("syfte") or ""
         reason = request.POST.get("info_reason") or ""
         reason_text = clean_name(request.POST.get("info_reason_text"), 200)
         sender = _sender_choice(request.POST.get("avsandare"), sms["senders"])
+        # --- S3 (redigerar-byggaren): kanalen. Ett låst läge går inte att
+        # välja; ett som redan är valt står kvar (en avstängd radioknapp
+        # skickas inte, så kanalen saknas då i formuläret).
+        channel = request.POST.get("kanal") or utskick.channel_mode
+        chosen = next((m for m in modes if m["value"] == channel), None)
+        if chosen is None:
+            errors["kanal"] = "Välj en kanal."
+        elif chosen["locked"]:
+            # Också ett läge som redan var valt: annars går guiden vidare
+            # och kunden får veta det först i Granska.
+            errors["kanal"] = chosen["lock_text"]
+        uses_sms = channel != Utskick.ChannelMode.EMAIL_ONLY
+        # --- slut S3 ---
         if purpose not in (REKLAM, INFORMATION):
             errors["syfte"] = "Välj om utskicket är reklam eller information."
         if purpose == INFORMATION:
@@ -720,17 +896,17 @@ def _step_kanal(request, account, utskick):
                 errors["info_reason_text"] = checks.INFO_OTHER_TEXT
         else:
             reason, reason_text = "", ""
-        if sender is None:
+        if sender is None and uses_sms:
             errors["avsandare"] = "Välj en avsändare."
         if not errors:
             fields = {
                 "purpose": purpose,
                 "info_reason": reason,
                 "info_reason_text": reason_text if reason == Utskick.InfoReason.ANNAT else "",
-                "channel_mode": Utskick.ChannelMode.SMS_ONLY,
-                "sms_sender_kind": sender[0],
-                "sms_sender_name": sender[1],
+                "channel_mode": channel,
             }
+            if sender is not None:
+                fields.update(sms_sender_kind=sender[0], sms_sender_name=sender[1])
             with _editing(utskick) as row:
                 if any(getattr(row, k) != v for k, v in fields.items()):
                     _change(request, row, **fields)
@@ -748,6 +924,10 @@ def _step_kanal(request, account, utskick):
             "names_locked_text": NAMES_LOCKED_TEXT,
             "sms_disabled_text": SMS_DISABLED_TEXT,
             "sms_off_text": checks.SMS_OFF_TEXT,
+            # --- S3 (redigerar-byggaren) ---
+            "channel_modes": modes,
+            "kanal": (request.POST.get("kanal") if errors else "") or shown_mode(modes, utskick),
+            # --- slut S3 ---
             "form": {
                 "syfte": request.POST.get("syfte") if errors else utskick.purpose,
                 "info_reason": request.POST.get("info_reason") if errors else utskick.info_reason,
@@ -813,6 +993,30 @@ def _link_rows(account, utskick):
         token = "{" + composer.LINK_PREFIX + link.key + "}"
         rows.append({"link": link, "host": host, "status": status, "token": token})
     return rows
+
+
+def _email_link_urls(utskick):
+    """Mejlets webbadresser (http och https, en gång var) som inte redan är
+    TrackedLink, för länkkontrollen i Granska (F.5, I.6). Efter frysningen
+    är mejlets länkar TrackedLink och finns i _link_rows."""
+    if not (utskick.has_email and state.uses_email(utskick)):
+        return []
+    from ..email import blocks as email_blocks
+    from ..sending import email as sending_email
+
+    if sending_email.is_frozen(utskick):
+        return []
+    urls = []
+    try:
+        found = email_blocks.urls(email_blocks.active_blocks(utskick))
+    except Exception:  # noqa: BLE001 - ett trasigt block ger bara färre länkar att kontrollera
+        logger.exception("Utskick %s: mejlets länkar gick inte att läsa", utskick.pk)
+        found = []
+    for url in found:
+        text = str(url or "").strip()
+        if urlsplit(text).scheme.lower() in ("http", "https") and text not in urls:
+            urls.append(text)
+    return urls
 
 
 def _host_of(url):
@@ -919,6 +1123,12 @@ def _content_action(post):
     ta_bort_lank=, byt_kontakt=)."""
     if "ta_bort_lank" in post:
         return "ta_bort_lank"
+    # --- S3 (redigerar-byggaren): Skriv med AI (F.7, I.8) ---
+    if "ai_skriv" in post:
+        return "ai"
+    if "ai_anvand" in post:
+        return "ai_use"
+    # --- slut S3 ---
     if "mall" in post:
         return "mall"
     if "byt_kontakt" in post:
@@ -946,7 +1156,24 @@ def _step_innehall(request, account, utskick):
             fields = {"sms_body": body[: composer.MAX_BODY * 2]}
             if "sms_body" in post:
                 fields["merge_fallbacks"] = _fallbacks_from(request, body)
+                # --- S3 (redigerar-byggaren): mejlet delar reservtexterna;
+                # de som bara mejlet använder står kvar när sms:et sparas.
+                if row.has_email:
+                    shown = composer.placeholders(body).tags
+                    kept = {k: v for k, v in (row.merge_fallbacks or {}).items() if k not in shown}
+                    fields["merge_fallbacks"] = {**kept, **fields["merge_fallbacks"]}
+                # --- slut S3 ---
             links_changed = False
+            # --- S3 (redigerar-byggaren): AI:s förslag blir texten när kunden
+            # väljer det (det står i formuläret och prövas som skriven text).
+            if action == "ai_use":
+                suggestion = str(post.get("ai_text") or "").replace("\r\n", "\n")
+                fields["sms_body"] = suggestion[: composer.MAX_BODY * 2]
+                messages.success(
+                    request,
+                    "Förslaget står i texten. Läs igenom det och ändra så att det låter som du.",
+                )
+            # --- slut S3 ---
             if action == "fix":
                 fields["sms_body"] = composer.gsm_fix(fields["sms_body"])
                 messages.success(request, "Tecknen är utbytta.")
@@ -975,10 +1202,33 @@ def _step_innehall(request, account, utskick):
         if new_link is not None and new_link.kind == TrackedLink.Kind.EXTERNAL:
             user = request.user if request.user.is_authenticated else None
             links.request_if_new(account, new_link.destination, user or utskick.created_by)
+        # --- S3 (redigerar-byggaren): Skriv med AI, efter låset (F.7). Förslaget
+        # visas i steget och används först när kunden väljer det.
+        if action == "ai":
+            from .. import ai
+
+            utskick.refresh_from_db()
+            user = request.user if request.user.is_authenticated else None
+            result = ai.write_sms(utskick, user=user, brief=str(post.get("ai_brief") or ""))
+            request.session[AI_SESSION_KEY] = {"utskick": utskick.pk, **result.as_json()}
+            return redirect(_step_url(utskick, "innehall") + "#ut-ai")
+        # --- slut S3 ---
         if action == "test":
+            # --- S3 (redigerar-byggaren): testmejlet från fliken E-post (F.8) ---
+            if post.get("kanal") == "epost":
+                from . import brev
+
+                ok, text = brev.send_test_email(request, account, utskick)
+                (messages.success if ok else messages.error)(request, text)
+                return redirect(_step_url(utskick, "innehall") + "?flik=epost#ut-test")
+            # --- slut S3 ---
             # Texten sparas först: testet skickar det kunden ser.
             _send_test(request, account, utskick)
             return redirect(_step_url(utskick, "innehall") + "#ut-test")
+        # --- S3 (redigerar-byggaren): flikarna Sms och E-post sparar först ---
+        if post.get("flik") in ("sms", "epost"):
+            return redirect(_step_url(utskick, "innehall") + "?flik=" + post["flik"])
+        # --- slut S3 ---
         if action == "byt":
             return redirect(
                 _step_url(utskick, "innehall") + "?" + urlencode({"kontakt": kontakt_pk})
@@ -995,6 +1245,30 @@ def _step_innehall(request, account, utskick):
     shown = composer.preview(utskick, contact=kontakt, sms_account=sms["account"])
     found = composer.placeholders(utskick.sms_body)
     context = _base_context(request, account, utskick, "innehall")
+    # --- S3 (redigerar-byggaren): AI:s förslag till sms:et, en gång (F.7) ---
+    suggestion = request.session.pop(AI_SESSION_KEY, None)
+    if not isinstance(suggestion, dict) or suggestion.get("utskick") != utskick.pk:
+        suggestion = None
+    context["ai_suggestion"] = suggestion
+    context["ai_guard_line"] = AI_GUARD_LINE
+    # --- slut S3 ---
+    # --- S3 (redigerar-byggaren): mejlet i steget (I.8). Fliken E-post när
+    # utskicket går med båda kanalerna, bara mejlet för Bara e-post.
+    if utskick.has_email:
+        from . import brev
+
+        both = utskick.has_sms
+        tab = "epost" if not both or request.GET.get("flik") == "epost" else "sms"
+        context.update(
+            {
+                "content_tabs": both,
+                "content_tab": tab,
+                "brev": brev.card_context(request, account, utskick),
+            }
+        )
+    else:
+        context.update({"content_tabs": False, "content_tab": "sms", "brev": None})
+    # --- slut S3 ---
     context.update(
         {
             "sms": sms,
@@ -1103,6 +1377,10 @@ def _step_tid(request, account, utskick):
             "window": _window_info(row, when or now, now),
             "window_rule": window_rule_text(row),
             "weekly": _weekly_info(request, utskick, now),
+            # S3: tidsfönstret gäller bara sms; ett utskick med bara e-post
+            # visar varken fönstret eller sms:ens veckotak.
+            "uses_sms": state.uses_sms(utskick),
+            "uses_email": state.uses_email(utskick),
         }
     )
     return render_utskick(request, "flamingo/app/utskick/step_tid.html", "utskick", context)
@@ -1135,11 +1413,16 @@ def window_rule_text(row):
 
 
 def _weekly_info(request, utskick, now):
+    """Veckotaken för kanalerna utskicket använder (sms, e-post eller båda)."""
     row = request.utskick_settings
     if utskick.purpose == INFORMATION:
         return "Information räknas inte mot veckotaket."
-    cap = int(row.weekly_cap_sms or 0)
-    text = f"Högst {cap} reklam-sms per kontakt och vecka."
+    caps = []
+    if state.uses_sms(utskick):
+        caps.append(f"{int(row.weekly_cap_sms or 0)} reklam-sms")
+    if state.uses_email(utskick):
+        caps.append(f"{int(row.weekly_cap_email or 0)} reklammejl")
+    text = f"Högst {' och '.join(caps)} per kontakt och vecka."
     extra = weekly_cap_text(_counted(utskick, now))
     return f"{text} {extra}" if extra else text
 
@@ -1177,16 +1460,30 @@ def review(request, account, utskick, now=None):
     items = []
     n_sms = int(counted.get("sms") or 0)
     skipped = int(counted.get("skipped") or 0)
+    # --- S3 (redigerar-byggaren): kanalerna med e-post (I.6). Sms-raderna
+    # gäller bara när utskicket går med sms; mejlet har egna rader.
+    uses_sms = state.uses_sms(utskick)
+    uses_email = state.uses_email(utskick)
+    n_email = int(counted.get("email") or 0) if uses_email else 0
+    if not uses_sms:
+        n_sms = 0
+    # --- slut S3 ---
 
     # Mottagarna
     if audience.is_empty(utskick):
         items.append(
             _item("block", "Välj vem som ska få utskicket under Mottagare.", step="mottagare")
         )
-    elif not n_sms:
-        items.append(_item("block", "Ingen av kontakterna kan få sms:et.", step="mottagare"))
+    elif not n_sms and not n_email:
+        # --- S3: texten efter kanalen ---
+        nobody = {
+            Utskick.ChannelMode.SMS_ONLY: "Ingen av kontakterna kan få sms:et.",
+            Utskick.ChannelMode.EMAIL_ONLY: "Ingen av kontakterna kan få mejlet.",
+        }.get(utskick.channel_mode, "Ingen av kontakterna kan få utskicket.")
+        # --- slut S3 ---
+        items.append(_item("block", nobody, step="mottagare"))
     else:
-        items.append(_item("info", count_text(counted), link="mottagare"))
+        items.append(_item("info", channels_count_text(counted, utskick), link="mottagare"))
     if utskick.purpose == REKLAM:
         items.append(_item("ok", "Alla mottagare har samtycke eller är befintliga kunder."))
     else:
@@ -1197,63 +1494,72 @@ def review(request, account, utskick, now=None):
         items.append(_item("ok", lead + "Skickas utan samtycke, men aldrig till avregistrerade."))
 
     # Texten
-    reply = composer.is_reply_sender(shown["sender"])
-    body_errors = composer.validate(account, utskick.sms_body, utskick)
-    for error in body_errors:
-        items.append(_item("block", error, step="innehall"))
-    if reply:
-        if composer.STOP_RE.search(utskick.sms_body or "") or "{avregistrering}" in (
-            utskick.sms_body or ""
-        ):
-            items.append(_item("ok", "Sms:et säger hur mottagaren svarar STOPP."))
+    reply = composer.is_reply_sender(shown["sender"]) and uses_sms
+    if uses_sms:
+        body_errors = composer.validate(account, utskick.sms_body, utskick)
+        for error in body_errors:
+            items.append(_item("block", error, step="innehall"))
+        if reply:
+            if composer.STOP_RE.search(utskick.sms_body or "") or "{avregistrering}" in (
+                utskick.sms_body or ""
+            ):
+                items.append(_item("ok", "Sms:et säger hur mottagaren svarar STOPP."))
+            else:
+                items.append(_item("ok", "Svara STOPP läggs till sist i sms:et."))
         else:
-            items.append(_item("ok", "Svara STOPP läggs till sist i sms:et."))
-    else:
-        items.append(_item("ok", "Avregistreringslänk läggs till."))
-    if not checks.sender_identified(utskick):
-        items.append(
-            _item("block", checks.SENDER_TEXT.format(name=_display_name(request)), step="innehall")
-        )
-    if shown["longest_parts"] > composer.MAX_PARTS:
-        items.append(
-            _item(
-                "block",
-                f"Texten blir längre än {composer.MAX_PARTS} sms-delar för några mottagare. "
-                "Korta texten.",
-                step="innehall",
+            items.append(_item("ok", "Avregistreringslänk läggs till."))
+        if not checks.sender_identified(utskick):
+            items.append(
+                _item(
+                    "block", checks.SENDER_TEXT.format(name=_display_name(request)), step="innehall"
+                )
             )
-        )
-    if shown["non_gsm"]:
-        items.append(
-            _item(
-                "warn",
-                "Texten innehåller tecken som gör sms:et dyrare: "
-                + composer.non_gsm_text(shown["non_gsm"])
-                + ".",
-                fix=True,
+        if shown["longest_parts"] > composer.MAX_PARTS:
+            items.append(
+                _item(
+                    "block",
+                    f"Texten blir längre än {composer.MAX_PARTS} sms-delar för några mottagare. "
+                    "Korta texten.",
+                    step="innehall",
+                )
             )
-        )
-    if shown["parts"] > 1:
-        items.append(_item("info", f"Sms:et blir {shown['parts']} delar per mottagare."))
-    if shown["longest_count"] and shown["longest_parts"] <= composer.MAX_PARTS:
-        items.append(
-            _item(
-                "warn",
-                f"{_group(shown['longest_count'])} mottagare får {shown['longest_parts']} "
-                "sms-delar (långa namn).",
+        if shown["non_gsm"]:
+            items.append(
+                _item(
+                    "warn",
+                    "Texten innehåller tecken som gör sms:et dyrare: "
+                    + composer.non_gsm_text(shown["non_gsm"])
+                    + ".",
+                    fix=True,
+                )
             )
-        )
+        if shown["parts"] > 1:
+            items.append(_item("info", f"Sms:et blir {shown['parts']} delar per mottagare."))
+        if shown["longest_count"] and shown["longest_parts"] <= composer.MAX_PARTS:
+            items.append(
+                _item(
+                    "warn",
+                    f"{_group(shown['longest_count'])} mottagare får {shown['longest_parts']} "
+                    "sms-delar (långa namn).",
+                )
+            )
 
-    # Länkarna
+    # --- S3 (redigerar-byggaren): mejlets kontroller (F.5, email.checks) ---
+    if uses_email:
+        items += _email_review_items(account, utskick, n_email, now)
+    # --- slut S3 ---
+
+    # Länkarna (S3: också mejlets, som annars bara kontrolleras i redigeraren)
     link_rows = _link_rows(account, utskick)
-    if link_rows:
+    n_links = len(link_rows) + len(_email_link_urls(utskick))
+    if n_links:
         items.append(
             _item(
                 "warn",
-                f"{_group(len(link_rows))} "
+                f"{_group(n_links)} "
                 + (
                     "länk. Kontrollera att den svarar."
-                    if len(link_rows) == 1
+                    if n_links == 1
                     else "länkar. Kontrollera att de svarar."
                 ),
                 linkcheck=True,
@@ -1269,17 +1575,17 @@ def review(request, account, utskick, now=None):
         items.append(_item("block", "Välj när utskicket ska gå i väg under Tid.", step="tid"))
     elif not send_now and utskick.scheduled_at < now:
         items.append(_item("block", "Tiden har passerat. Välj en ny tid under Tid.", step="tid"))
-    else:
+    elif uses_sms:
         window = _window_info(row, when, now)
         items.append(_item("ok" if window["open"] else "warn", window["text"]))
 
     # Kostnaden och taket
-    total_parts = n_sms * max(shown["parts"], 1) + shown["longest_count"] * max(
-        shown["longest_parts"] - shown["parts"], 0
+    total_parts = n_sms * max(shown["parts"], 1) + (
+        shown["longest_count"] * max(shown["longest_parts"] - shown["parts"], 0) if uses_sms else 0
     )
     cost_units = total_parts * composer.part_units(sms["account"])
     remaining = None
-    if sms["account"] is not None and not account.is_demo:
+    if uses_sms and sms["account"] is not None and not account.is_demo:
         used = pricing.usage(sms["account"], now)
         remaining = used["remaining"]
         if n_sms and cost_units > remaining:
@@ -1310,10 +1616,14 @@ def review(request, account, utskick, now=None):
 
     # Kanalen och kontot
     if not account.is_demo:
-        if not sms["enabled"]:
+        if uses_sms and not sms["enabled"]:
             items.append(_item("block", SMS_DISABLED_TEXT))
-        elif not sms["ready"]:
+        elif uses_sms and not sms["ready"]:
             items.append(_item("block", checks.SMS_OFF_TEXT))
+        # --- S3 (redigerar-byggaren): e-posten påslagen och ADX-domänens tak (D.8, D.6) ---
+        if uses_email and not state.email_live():
+            items.append(_item("block", state.EMAIL_OFF_TEXT))
+        # --- slut S3 ---
         if row.sending_blocked:
             items.append(_item("block", checks.BLOCKED_TEXT))
     else:
@@ -1321,7 +1631,7 @@ def review(request, account, utskick, now=None):
 
     summary = {
         "sms": n_sms,
-        "email": 0,
+        "email": n_email,
         "skipped": skipped,
         "skipped_by_reason": dict(counted.get("skipped_by_reason") or {}),
         "total": int(counted.get("total") or 0),
@@ -1344,8 +1654,78 @@ def review(request, account, utskick, now=None):
         "send_now": send_now,
         "when_text": day_clock(utskick.scheduled_at, now) if utskick.scheduled_at else "",
         "n_sms": n_sms,
-        "n_links": len(link_rows),
+        "n_links": n_links,
+        # --- S3 (redigerar-byggaren) ---
+        "n_email": n_email,
+        "uses_sms": uses_sms,
+        "uses_email": uses_email,
+        # --- slut S3 ---
     }
+
+
+# --- S3 (redigerar-byggaren): mejlets rader i Granska (I.6) ---
+
+#: email.checks nivåer som Granskas.
+EMAIL_LEVELS = {"blocks": "block", "warns": "warn", "tick": "ok"}
+
+
+def channels_count_text(counted, utskick):
+    """ "388 får sms och 24 får mejlet. 12 hoppas över: 12 utan samtycke." """
+    if utskick.channel_mode == Utskick.ChannelMode.SMS_ONLY:
+        return count_text(counted)
+    sms = int(counted.get("sms") or 0)
+    email = int(counted.get("email") or 0)
+    skipped = int(counted.get("skipped") or 0)
+    if utskick.channel_mode == Utskick.ChannelMode.EMAIL_ONLY:
+        text = f"{_group(email)} får mejlet."
+    else:
+        text = f"{_group(sms)} får sms och {_group(email)} får mejlet."
+    if skipped:
+        missing = (
+            "saknar e-post"
+            if utskick.channel_mode == Utskick.ChannelMode.EMAIL_ONLY
+            else "saknar nummer och e-post"
+        )
+        why = skip_text(counted.get("skipped_by_reason")).replace("saknar nummer", missing)
+        text += f" {_group(skipped)} hoppas över" + (f": {why}." if why else ".")
+    return text
+
+
+def _email_review_items(account, utskick, n_email, now):
+    """email.checks som Granskas rader (F.5): blockerar, varnar eller en
+    bock, med ADX-domänens tak prövat mot antalet mejl (I.6). Länkarna
+    kontrolleras inte här (kvoten per timme, F.5): det görs i redigeraren.
+    Ett fel i mejlet rättas i e-postredigeraren (brev=True)."""
+    from ..email import checks as email_checks
+
+    out = []
+    for item in email_checks.email_checks(utskick, now=now, email_count=n_email, check_links=False):
+        level = EMAIL_LEVELS.get(item.level, "info")
+        extra = {}
+        if level in ("block", "warn"):
+            fix = EMAIL_FIX_PAGES.get(str(item.key or "").split(":", 1)[0], "brev")
+            if fix == "brev":
+                extra["brev"] = True
+            elif fix:
+                url_name, label = fix
+                extra.update(fix_url=reverse(url_name), fix_label=label)
+        out.append(_item(level, item.text, **extra))
+    return out
+
+
+#: Var en rad i Granska rättas när det inte är i mejlet (email.checks-nyckeln):
+#: (adressens namn, länkens text), eller None när kunden inte kan rätta den
+#: (värdar som väntar på ADX). Andra nycklar rättas i e-postredigeraren.
+EMAIL_FIX_PAGES = {
+    "address": ("flamingo:app_business", "Till Företaget"),
+    "reviews": ("flamingo:app_business", "Till Företaget"),
+    "sender": ("flamingo:app_utskick_domain", "Till Avsändare och svar"),
+    "alt": ("flamingo:app_media", "Till Media"),
+    "hosts": None,
+}
+
+
+# --- slut S3 ---
 
 
 def _step_granska(request, account, utskick):
@@ -1366,6 +1746,12 @@ def _step_granska(request, account, utskick):
             "report_url": _report_url(utskick),
         }
     )
+    # --- S3 (redigerar-byggaren): mejlet som ett kort bredvid kontrollerna ---
+    if checked["uses_email"]:
+        from . import brev
+
+        context["brev"] = brev.card_context(request, account, utskick)
+    # --- slut S3 ---
     return render_utskick(request, "flamingo/app/utskick/step_review.html", "utskick", context)
 
 
@@ -1378,6 +1764,19 @@ def _dialog_text(checked, demo=False):
     """ "388 sms skickas nu. Kostnad cirka 151 kr." (I.4). Demokontot
     skickar aldrig, så dialogen säger det i stället för en kostnad."""
     n = checked["n_sms"]
+    # --- S3 (redigerar-byggaren): "388 sms och 24 mejl skickas nu." ---
+    if checked.get("uses_email"):
+        parts = []
+        if checked.get("uses_sms"):
+            parts.append(f"{_group(n)} sms")
+        parts.append(f"{_group(checked.get('n_email') or 0)} mejl")
+        what = " och ".join(parts)
+        if demo:
+            return f"Demokontot skickar aldrig. {what} visas som skickade."
+        if checked.get("uses_sms"):
+            return f"{what} skickas nu. Kostnad cirka {checked['cost_text']}. E-post ingår."
+        return f"{what} skickas nu. E-post ingår."
+    # --- slut S3 ---
     if demo:
         return f"Demokontot skickar aldrig. {_group(n)} sms visas som skickade."
     return f"{_group(n)} sms skickas nu. Kostnad cirka {checked['cost_text']}."
@@ -1500,6 +1899,11 @@ def utskick_link_check(request, account, pk):
     for link in rows:
         if link.destination and link.destination not in destinations:
             destinations.append(link.destination)
+    # S3: mejlets länkar före frysningen (inga TrackedLink än).
+    email_urls = _email_link_urls(utskick)
+    for url in email_urls:
+        if url not in destinations:
+            destinations.append(url)
     results = links.check_destinations(account, destinations) if destinations else {}
     # None: inte kontrollerad (gränsen per timme eller tidsbudgeten, links.py).
     answers = [
@@ -1510,6 +1914,7 @@ def utskick_link_check(request, account, pk):
         }
         for link in rows
     ]
+    answers += [{"key": "", "label": _host_of(url), "ok": results.get(url)} for url in email_urls]
     ok = sum(1 for a in answers if a["ok"] is True)
     unchecked = sum(1 for a in answers if a["ok"] is None)
     if not answers:
@@ -1631,6 +2036,10 @@ def _send_test(request, account, utskick):
         return False
     candidates = _preview_contacts(utskick) if _editable(utskick) else []
     kontakt = _preview_contact(request, account, utskick, candidates)
+    if request.POST.get("till") == "eget":
+        # Ett nummer som byrån skrev: ingen har bekräftat det, så testet får
+        # aldrig en kontakts uppgifter (reservtexterna i stället, F.8).
+        kontakt = None
     sender = composer.sender_for_kind(utskick)
     values = composer.merge_values(kontakt, composer.field_defs(account)) if kontakt else {}
     try:
@@ -1677,8 +2086,23 @@ def _send_test(request, account, utskick):
 @require_POST
 def utskick_test(request, account, pk):
     """Testsms från en sida utan redigeraren (rapporten, Granska). Från
-    Innehåll går testet via steget, så att osparad text sparas först."""
+    Innehåll går testet via steget, så att osparad text sparas först. S3:
+    med kanal=epost ett testmejl (brev.send_test_email); e-postredigeraren
+    frågar med JSON och får {"ok", "text"}."""
     utskick = owned(Utskick, account, pk)
+    # --- S3 (redigerar-byggaren): testmejlet (F.8), från e-postredigeraren
+    # (JSON) eller ett formulär med kanal=epost.
+    if request.POST.get("kanal") == "epost":
+        from . import brev
+
+        ok, text = brev.send_test_email(request, account, utskick)
+        if _wants_json(request):
+            return JsonResponse({"ok": ok, "text": text}, status=200 if ok else 400)
+        (messages.success if ok else messages.error)(request, text)
+        if _editable(utskick) and utskick.has_email:
+            return redirect(reverse("flamingo:app_brev", args=[utskick.pk]))
+        return redirect(_report_url(utskick))
+    # --- slut S3 ---
     _send_test(request, account, utskick)
     if _editable(utskick):
         return redirect(_step_url(utskick, "innehall") + "#ut-test")
@@ -1774,7 +2198,9 @@ def utskick_state(request, account, pk):
             return report
         if utskick.pause_reason in Utskick.RECONFIRM_REASONS:
             return redirect(_step_url(utskick, "granska"))
-        if utskick.pause_reason not in CUSTOMER_RESUMES and not actor.staff:
+        if not actor.staff and (
+            utskick.pause_reason not in CUSTOMER_RESUMES or _probe_failed(utskick)
+        ):
             messages.error(request, "ADX går igenom utskicket innan det kan fortsätta.")
             return report
         if not _staff_ok(request, actor):
@@ -1893,6 +2319,13 @@ def _pause_banner(request, account, utskick, numbers, now):
     elif reason == P.CUSTOMER:
         text = "Du har pausat utskicket."
         buttons += [_resume_button(), _cancel_button()]
+    # --- S3 (redigerar-byggaren): e-postens pauser (I.5) ---
+    elif reason in EMAIL_BANNERS:
+        text, buttons = EMAIL_BANNERS[reason](account, utskick, now)
+        if actor.staff and reason in STAFF_RESUMES:
+            # Byrån får sin Fortsätt nedan; ingen knapp två gånger.
+            buttons = [b for b in buttons if b.get("action") != "fortsatt"]
+    # --- slut S3 ---
     elif reason == P.STOPS:
         stopped = int(numbers.get("stopped") or 0)
         delivered = int(numbers.get("delivered") or 0)
@@ -1916,6 +2349,71 @@ def _pause_banner(request, account, utskick, numbers, now):
 
 def _resume_button():
     return {"kind": "post", "action": "fortsatt", "label": "Fortsätt", "sends": True}
+
+
+# --- S3 (redigerar-byggaren): bannerns text och knappar för e-postens pauser (I.5) ---
+
+
+def _banner_adx_cap(account, utskick, now):
+    from ..sending import email as sending_email
+
+    return sending_email.adx_cap_text(account, utskick, now=now), [
+        {"kind": "link", "label": "Verifiera domän", "url": reverse("flamingo:app_utskick_domain")},
+        _cancel_button(),
+    ]
+
+
+def _probe_failed(utskick):
+    """Pausat för att provet inte gick (D.9): bara byrån fortsätter."""
+    from ..sending import health
+
+    return health.probe_failed(utskick)
+
+
+def _banner_bounces(account, utskick, now):
+    numbers = reports.email_numbers(utskick)
+    outcomes = int(numbers.get("delivered") or 0) + int(numbers.get("bounced") or 0)
+    pct = procent(numbers.get("bounced", 0) * 100 / outcomes) if outcomes else ""
+    lead = f"{pct} av de första {_group(outcomes)} mejlen studsade. " if outcomes else ""
+    text = (
+        f"{lead}Vi pausar vid 4 %, före AWS gräns på 5 %. ADX har fått ett larm. "
+        "De studsade adresserna är redan markerade."
+    )
+    if _probe_failed(utskick):
+        # Provet (de första mejlen från ett nytt konto eller en ny domän) gick
+        # inte: byrån går igenom listan innan något mer skickas.
+        return f"{text} ADX går igenom utskicket innan det kan fortsätta.", [_cancel_button()]
+    resume = {**_resume_button(), "label": "Ta bort studsade och fortsätt"}
+    return text, [resume, _cancel_button()]
+
+
+def _banner_complaints(account, utskick, now):
+    numbers = reports.email_numbers(utskick)
+    n = int(numbers.get("complained") or 0)
+    text = (
+        f"{_group(n)} mottagare har markerat mejlet som skräppost. "
+        "ADX går igenom det innan utskicket kan fortsätta."
+    )
+    return text, [_cancel_button()]
+
+
+def _banner_account_health(account, utskick, now):
+    return "E-postutskick är spärrade tills ADX har gått igenom studsarna.", [_cancel_button()]
+
+
+def _banner_email_disabled(account, utskick, now):
+    return state.EMAIL_OFF_TEXT, [_cancel_button()]
+
+
+EMAIL_BANNERS = {
+    Utskick.PauseReason.ADX_MAIL_CAP: _banner_adx_cap,
+    Utskick.PauseReason.BOUNCES: _banner_bounces,
+    Utskick.PauseReason.COMPLAINTS: _banner_complaints,
+    Utskick.PauseReason.ACCOUNT_HEALTH: _banner_account_health,
+    Utskick.PauseReason.EMAIL_DISABLED: _banner_email_disabled,
+}
+
+# --- slut S3 ---
 
 
 def _reopen_button():
@@ -1955,7 +2453,8 @@ def _progress(request, account, utskick, numbers, now):
 
 def _header_line(utskick, numbers, now):
     """ "Sms · skickat tisdag 8 okt 09.00 · 388 mottagare · kostnad 153 kr"."""
-    parts = ["Sms"]
+    # S3 (redigerar-byggaren): kanalen som listan skriver den ("E-post").
+    parts = [CHANNEL_LABELS.get(utskick.channel_mode, "Sms")]
     if utskick.status == Utskick.Status.SCHEDULED and utskick.scheduled_at:
         parts.append(f"schemalagt {day_clock(utskick.scheduled_at, now)}")
     elif utskick.started_at:
@@ -2053,6 +2552,64 @@ def _pct_text(value):
     return procent(value)
 
 
+# --- S3 (redigerar-byggaren): rapporten för e-post (I.8) ---
+
+
+def _email_tiles(utskick):
+    """Mejlens rutor: Levererade, Klick, Öppnat (indikation) bara när
+    öppningar spårades, Studsar och Avregistreringar. Tom lista utan
+    e-postmottagare."""
+    numbers = reports.email_numbers(utskick) if utskick.has_email else {}
+    if not numbers:
+        return []
+    tiles = [
+        {
+            "label": "Levererade",
+            "value": numbers["delivered"],
+            "note": _pct_text(numbers["delivered_pct"]),
+        },
+        {
+            "label": "Klick",
+            "value": numbers["clicked"],
+            "note": f"{_pct_text(numbers['click_pct'])} av levererade"
+            if numbers["click_pct"] is not None
+            else "",
+        },
+    ]
+    if utskick.open_tracking:
+        tiles.append(
+            {
+                "label": "Öppnat (indikation)",
+                "value": numbers["opened"],
+                "note": "Bara hos dem som sagt ja till spårningen",
+            }
+        )
+    tiles += [
+        {
+            "label": "Studsar",
+            "value": numbers["bounced"],
+            "note": _pct_text(numbers["bounced_pct"]),
+        },
+        {
+            "label": "Avregistreringar",
+            "value": numbers["unsubscribed"],
+            "note": f"{_group(numbers['complained'])} klagomål" if numbers["complained"] else "",
+        },
+    ]
+    return tiles
+
+
+def _email_only_tiles(numbers):
+    """Bara e-post: förfrågningarna utan kr per förfrågan (I.8); mejlens
+    egna rutor står i email_tiles."""
+    leads = int(numbers.get("leads") or 0)
+    note = f"+{_group(numbers['leads_late'])} senare" if numbers.get("leads_late") else ""
+    return [{"label": "Förfrågningar", "value": leads, "note": note, "visa": "forfragan"}]
+
+
+# --- slut S3 ---
+
+
 def _staff_line(utskick):
     if not utskick.confirmed_as_staff:
         return ""
@@ -2105,7 +2662,12 @@ def utskick_report(request, account, pk):
             "banner": _pause_banner(request, account, utskick, numbers, now)
             if utskick.is_paused
             else None,
-            "tiles": _report_tiles(numbers),
+            "tiles": _report_tiles(numbers)
+            if utskick.channel_mode != Utskick.ChannelMode.EMAIL_ONLY
+            else _email_only_tiles(numbers),
+            # --- S3 (redigerar-byggaren): mejlens rutor (I.8) ---
+            "email_tiles": _email_tiles(utskick),
+            # --- slut S3 ---
             "skipped_rows": skipped,
             "rows": rows,
             "more_rows": int(numbers.get("total") or 0) > len(rows),
@@ -2280,11 +2842,22 @@ def utskick_settings(request, account):
             _ask_adx(request, account, None, "tak")
             return redirect("flamingo:app_utskick_settings")
         errors, window, caps = _settings_errors(request.POST)
+        # --- S3 (redigerar-byggaren): Spåra öppningar (I.9, H.5) ---
+        tracking = request.POST.get("open_tracking") == "1"
+        consent_email = row.consent_text_email
+        if tracking != row.open_tracking:
+            consent_email, why = tracking_consent_text(row.consent_text_email, tracking)
+            if why:
+                errors["open_tracking"] = why
+        # --- slut S3 ---
         if not errors:
             UtskickSettings.objects.filter(pk=row.pk).update(
                 sms_window=window,
                 notify_on_reply=request.POST.get("notify_on_reply") == "1",
                 updated_at=now,
+                # S3 (redigerar-byggaren): Spåra öppningar och samtyckestexten.
+                open_tracking=tracking,
+                consent_text_email=consent_email,
                 **caps,
             )
             messages.success(request, "Inställningarna är sparade.")
@@ -2313,6 +2886,27 @@ def utskick_settings(request, account):
             cost = int((utskick.confirm_summary or {}).get("cost_units") or 0)
             if cost and cost > usage["remaining"]:
                 tight.append(utskick)
+    # --- S3 (integrationen): ADX-domänens månadstak för mejlen (I.9, I.5).
+    # Ett schemalagt utskick från ADX-domänen vars mejl inte ryms i det som
+    # är kvar av månadens tak syns här också.
+    left = None
+    for utskick in (
+        Utskick.objects.listed()
+        .filter(account=account, status=Utskick.Status.SCHEDULED)
+        .exclude(channel_mode=Utskick.ChannelMode.SMS_ONLY)
+        .select_related("sender_domain")
+    ):
+        need = int((utskick.confirm_summary or {}).get("email") or 0)
+        own = utskick.sender_domain is not None and utskick.sender_domain.is_verified
+        if not need or own or utskick in tight:
+            continue
+        if left is None:
+            from ..sending import email as email_loop
+
+            left = email_loop.adx_cap_left(account, now)
+        if need > left:
+            tight.append(utskick)
+    # --- slut S3
     context = {
         "errors": errors,
         "sms": sms,
@@ -2344,5 +2938,56 @@ def utskick_settings(request, account):
         else row.notify_on_reply,
         "names_locked_text": NAMES_LOCKED_TEXT,
         "window_rule": window_rule_text(row),
+        # --- S3 (redigerar-byggaren): e-postens rader (I.9) ---
+        "email_card": _email_card(account),
+        "open_tracking": (request.POST.get("open_tracking") == "1")
+        if errors
+        else row.open_tracking,
+        "tracking_help": TRACKING_HELP,
+        # --- slut S3 ---
     }
     return render_utskick(request, "flamingo/app/utskick/settings.html", "settings", context)
+
+
+# --- S3 (redigerar-byggaren): e-postens rader i Inställningar (I.9) ---
+
+TRACKING_HELP = (
+    "Av som standard. Öppningar mäts bara hos dem som sagt ja till det när de anmälde sig."
+)
+TRACKING_TOO_LONG = (
+    "Samtyckestexten för e-post blir för lång med meningen om öppningar. Korta den under "
+    "Kontakter, Inställningar, och försök igen."
+)
+
+
+def tracking_consent_text(text, tracking):
+    """Samtyckestexten för e-post med eller utan meningen om öppningar
+    (H.5: tracking_ok kräver att personen sa ja till en text som nämner
+    den). (text, fel)."""
+    from ..capture import TRACKING_SENTENCE
+
+    text = " ".join(str(text or "").split())
+    if tracking:
+        if TRACKING_SENTENCE in text:
+            return text, ""
+        joined = f"{text} {TRACKING_SENTENCE}".strip()
+        limit = UtskickSettings._meta.get_field("consent_text_email").max_length
+        if len(joined) > limit:
+            return text, TRACKING_TOO_LONG
+        return joined, ""
+    return " ".join(text.replace(TRACKING_SENTENCE, "").split()), ""
+
+
+def _email_card(account):
+    """Avsändardomänen och svaren (email.domains.summary): kortet på
+    Inställningar för utskick."""
+    from ..email import domains
+
+    try:
+        return domains.summary(account)
+    except Exception:  # noqa: BLE001 - raden visas, men stoppar aldrig inställningarna
+        logger.exception("Utskick: e-postens kort för konto %s gick inte att visa", account.pk)
+        return None
+
+
+# --- slut S3 ---

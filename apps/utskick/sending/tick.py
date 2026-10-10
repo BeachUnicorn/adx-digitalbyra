@@ -31,7 +31,9 @@ Gången (D.2):
                                          och avregistreringarnas spärr (D.9)
     hjärtslaget                          Switchboard.last_tick_at och sammanfattningen
 
-Faserna 6 och 7 (e-post, flöden) hör till S3 och S5. Varje fas slutar när
+S3 (sändnings-byggaren, markerade block): fas 2 läser SQS-köerna
+(inbound.queues.poll när queues.poll_due) och fas 6 är e-postslingan
+(sending.email.send_due, D.6). Fas 7 (flöden) hör till S5. Varje fas slutar när
 budgeten är slut; budgetarna är tak, inga reservationer. En fas körs bara
 när dess kö har något (en EXISTS), så en tick utan utskick gör som i S1.
 boto3 läses in först när ett mejl faktiskt ska skickas (email/transport.py).
@@ -159,11 +161,41 @@ def _replies_due(now):
     return optin.sms_work_exists(now) or threads.work_exists(now)
 
 
+# --- S3 (sändnings-byggaren): e-postslingan och SQS-köerna -----------------
+
+
+def _email_due(now):
+    """Köade mejl i pågående utskick (fas 6, D.6)."""
+    from . import email as email_loop
+
+    return email_loop.work_exists(now)
+
+
+def _email_competes(now):
+    """Väntar riktiga mejl (inte demot) medan e-posten är påslagen? Då får
+    sms-slingan högst halva tiden, så att ett stort sms-utskick inte håller
+    e-posten stilla (S3)."""
+    from . import email as email_loop
+    from . import state
+
+    return state.email_live() and email_loop.email_due(now).exists()
+
+
+def _queues_due(now):
+    """Ska köerna läsas nu (fas 2, D.7)? Utan köer i inställningarna aldrig."""
+    from ..inbound import queues
+
+    return queues.poll_due(now)
+
+
+# --- slut S3 -------------------------------------------------------------------
+
+
 def work_exists(now=None):
     """Finns något för ticken? Bekräftelsemejl i kön (hos konton som får
     skicka, och bara när transporten kan leverera), importer i bakgrunden,
-    utskickens köer, bekräftelse-sms och svar, och avstämningen mot 46elks.
-    En EXISTS per kö."""
+    utskickens köer, bekräftelse-sms och svar, och avstämningen mot 46elks;
+    från S3 köade mejl och SQS-köerna. En EXISTS per kö."""
     now = now or timezone.now()
     return (
         optin.work_exists(now)
@@ -171,6 +203,8 @@ def work_exists(now=None):
         or utskick_work_exists(now)
         or _replies_due(now)
         or _inbound_due(now)
+        or _email_due(now)
+        or _queues_due(now)
     )
 
 
@@ -332,6 +366,15 @@ def run(now=None, budget=None, only=None):
                 _phase(summary, "inbound", lambda: elks.reconcile(now, phase_end)),
             )
 
+        # S3 (sändnings-byggaren): fas 2 läser SES-händelserna och de
+        # inkommande mejlen ur SQS (D.7, G.3), inom samma budget.
+        if not only and _queues_due(now):
+            from ..inbound import queues
+
+            phase_end = min(deadline, time.monotonic() + INBOUND_SECONDS)
+            _keep(summary, "queues", _phase(summary, "queues", lambda: queues.poll(now, phase_end)))
+        # --- slut S3
+
         # Fas 3: bekräftelser och svar.
         if not only and time.monotonic() < deadline:
             phase_end = min(deadline, time.monotonic() + DOI_SECONDS)
@@ -374,11 +417,28 @@ def run(now=None, budget=None, only=None):
         # Fas 5: sms-slingan (D.4).
         if sms_due(now).exists():
             phase_end = deadline - SMS_RESERVE_SECONDS
+            # S3 (sändnings-byggaren): väntar mejl också delas tiden lika.
+            if _email_competes(now):
+                start = time.monotonic()
+                phase_end = start + max(0.0, (phase_end - start) / 2)
+            # --- slut S3
             _keep(
                 summary,
                 "sms",
                 _phase(summary, "sms", lambda: sms_loop.send_due(now, phase_end, only)),
             )
+
+        # S3 (sändnings-byggaren): fas 6, e-postslingan (D.6).
+        if _email_due(now):
+            from . import email as email_loop
+
+            phase_end = deadline - SMS_RESERVE_SECONDS
+            _keep(
+                summary,
+                "email",
+                _phase(summary, "email", lambda: email_loop.send_due(now, phase_end, only)),
+            )
+        # --- slut S3
 
         # Fas 8: importer.
         if not only:
@@ -418,6 +478,8 @@ SUMMARY_KEYS = (
     "start",
     "freeze",
     "sms",
+    "queues",
+    "email",
     "import",
     "stops",
     "finish",

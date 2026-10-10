@@ -4,7 +4,7 @@ flikraden under rubriken i varje del (README C.2 och I.1a).
 
     nav_for(account)            APP_NAV med Kontakter och Utskick efter Kampanjer när utskick är på
     contacts_tabs(active)       flikarna i Kontakter, med den aktiva markerad
-    utskick_tabs(active)        flikarna i Utskick (S2: Utskick och Inställningar)
+    utskick_tabs(active)        flikarna i Utskick (S3: Utskick, Leveranshälsa, Inställningar)
 
 APP_NAV i apps/flamingo/app_views/__init__.py är standarden och ändras
 inte. Ett konto utan utskick ser exakt den menyn; ett med utskick får
@@ -25,10 +25,11 @@ from django.urls import reverse
 CONTACTS_ITEM = ("contacts", "flamingo:app_contacts", "Kontakter")
 UTSKICK_ITEM = ("utskick", "flamingo:app_utskick_list", "Utskick")
 
-#: Flikarna i Utskick (I.1a). Flöden (S5), Länkar (S4) och Leveranshälsa
-#: (S3) läggs till i steget som bygger dem, före Inställningar.
+#: Flikarna i Utskick (I.1a). Flöden (S5) och Länkar (S4) läggs till i
+#: steget som bygger dem, före Leveranshälsa (S3) och Inställningar.
 UTSKICK_TABS = (
     ("utskick", "flamingo:app_utskick_list", "Utskick"),
+    ("health", "flamingo:app_utskick_health", "Leveranshälsa"),
     ("settings", "flamingo:app_utskick_settings", "Inställningar"),
 )
 
@@ -83,5 +84,5 @@ def contacts_tabs(active):
 
 
 def utskick_tabs(active):
-    """Som contacts_tabs, för Utskick ("utskick" eller "settings" i S2)."""
+    """Som contacts_tabs, för Utskick ("utskick", "health" eller "settings")."""
     return _tabs(UTSKICK_TABS, active, "Utskick")

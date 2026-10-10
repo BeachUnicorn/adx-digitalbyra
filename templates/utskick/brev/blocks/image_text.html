@@ -1,0 +1,16 @@
+{% load flamingo_pb %}{% comment %}
+Element 7, Bild och text: två kolumner som inline-block med max-width
+(bilden 204 px och 18 px luft, texten 282 px). De staplas på en smal skärm
+utan mediefrågor, bilden först. Bilden till höger: dir="rtl" på raden och
+dir="ltr" i kolumnerna, så att bilden ändå står först när de staplas. Utan
+bild står texten ensam i full bredd.
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
+{% if v.image or editing %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td dir="{% if v.right %}rtl{% else %}ltr{% endif %}" style="font-size:0;line-height:0;">
+<!--[if mso]><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" dir="{% if v.right %}rtl{% else %}ltr{% endif %}"><tr><td width="{{ v.image_width }}" valign="top"><![endif]-->
+<div class="br-col" dir="ltr" style="{{ S.col }}max-width:{{ v.image_width }}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="br-colpad" style="padding:{% if v.right %}0 0 0 18px{% else %}0 18px 0 0{% endif %};vertical-align:top;">{% if v.image %}<img src="{{ v.image.url }}" width="{{ v.image.width }}" height="{{ v.image.height }}" alt="{{ v.image.alt }}" style="{{ S.img }}"{% pb_media "image" %}>{% else %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="160" style="{{ S.img_ph }}height:160px;"{% pb_media "image" %}>Välj en bild</td></tr></table>{% endif %}</td></tr></table></div>
+<!--[if mso]></td><td width="{{ v.text_width }}" valign="top"><![endif]-->
+<div class="br-col" dir="ltr" style="{{ S.col }}max-width:{{ v.text_width }}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="vertical-align:top;text-align:left;">{% include "utskick/brev/blocks/_image_text_body.html" %}</td></tr></table></div>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table>
+{% else %}{% include "utskick/brev/blocks/_image_text_body.html" %}
+{% endif %}</td></tr>

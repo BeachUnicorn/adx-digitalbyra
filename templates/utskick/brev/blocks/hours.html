@@ -1,0 +1,15 @@
+{% load flamingo_pb %}{% comment %}
+Element 19, Öppettider, adress och karta: öppettiderna och adressen ur
+Företaget (frysta vid frysningen), "Hitta hit" till en sökning på Google
+Maps efter adressen, och kundens egen kartbild bredvid när den finns (två
+kolumner som staplas på mobilen). Ingen kart-API.
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">
+{% if v.map %}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="font-size:0;line-height:0;">
+<!--[if mso]><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td width="{{ v.half_pad }}" valign="top"><![endif]-->
+<div class="br-col" style="{{ S.col }}max-width:{{ v.half_pad }}px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td class="br-colpad" style="padding:0 14px 0 0;vertical-align:top;">{% include "utskick/brev/blocks/_hours_body.html" %}</td></tr></table></div>
+<!--[if mso]></td><td width="{{ v.half }}" valign="top"><![endif]-->
+<div class="br-col" style="{{ S.col }}max-width:{{ v.half }}px;">{% if v.map_image_href %}<a href="{{ v.map_image_href }}" style="text-decoration:none;">{% endif %}<img src="{{ v.map.url }}" width="{{ v.map.width }}" height="{{ v.map.height }}" alt="{{ v.map.alt|default:v.address }}" style="{{ S.img }}"{% pb_media "map_image" %}>{% if v.map_image_href %}</a>{% endif %}</div>
+<!--[if mso]></td></tr></table><![endif]-->
+</td></tr></table>
+{% else %}{% include "utskick/brev/blocks/_hours_body.html" %}
+{% endif %}</td></tr>

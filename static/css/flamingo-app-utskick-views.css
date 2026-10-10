@@ -122,6 +122,7 @@ button.fl-ut-steps__link{font-family:inherit;cursor:pointer}
 .fl-ut-option.is-locked{cursor:default}
 .fl-ut-option.is-locked .fl-ut-option__body{border-style:dashed;background:var(--fl-panel)}
 .fl-ut-info[hidden]{display:none}
+.fl-ut-smssender[hidden]{display:none}
 
 /* ---------- Mottagare ---------- */
 .fl-ut-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,320px);gap:24px;align-items:start}

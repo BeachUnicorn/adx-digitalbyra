@@ -1,0 +1,4 @@
+{% load flamingo_pb %}{% comment %}
+Element 4, Text: rich_basic ritad av render.rich_html (stycken, fetstil,
+kursiv, länkar i accentfärgen och punktlistor). Varje textbit är escapad.
+{% endcomment %}<tr{% pb_block %}><td class="br-pad" bgcolor="#FFFFFF" style="{{ S.blk }}">{% if v.html %}<div{% pb "body" %}>{{ v.html }}</div>{% else %}{% pb_empty "body" "div" %}{% endif %}</td></tr>

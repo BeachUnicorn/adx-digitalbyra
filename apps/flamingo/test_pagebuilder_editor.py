@@ -10,6 +10,7 @@ import shutil
 import tempfile
 from unittest import mock
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
@@ -208,6 +209,79 @@ class EditorPageTests(EditorFixture, TestCase):
         self.assertFalse(config["available"]["price"]["ok"])
         self.assertIn("pris", config["available"]["price"]["reason"])
         self.assertNotIn("[ ", html)
+
+    def test_the_page_profile_is_unchanged(self):
+        """flamingo-pb.js monteras också för mejlen i Brev (profilen brev,
+        README för utskick F.6). Sidornas profil är exakt de värden som
+        stod fast i skriptet innan profilerna fanns."""
+        config = self.client_for(self.anna).get(self.url("app_page")).context["config"]
+        self.assertEqual(config["profile"], "page")
+        self.assertEqual(config["canvasRoot"], "main.rn-main")
+        self.assertEqual(config["chromeSelectors"], {"top": ".rn-top", "foot": ".rn-foot"})
+        self.assertEqual(config["paletteMarker"], "--rn-primary")
+        self.assertEqual(config["devices"], {"desktop": 1024, "phone": 390, "fit": "fill"})
+        self.assertEqual(
+            config["placement"], {"pairs": [["hero", "form", "form"]], "endGroup": "end"}
+        )
+        self.assertEqual(config["panelKinds"], [])
+        self.assertNotIn("texts", config)
+        self.assertEqual(
+            config["addWords"],
+            {
+                "hero.points": "punkt",
+                "area.places": "ort",
+                "guarantee.terms": "villkor",
+                "steps.steps": "steg",
+                "faq.items": "fråga",
+                "certificates.items": "certifikat",
+                "price.items": "prisexempel",
+                "form.questions": "fråga",
+            },
+        )
+        self.assertEqual(
+            config["wireframes"]["hero"],
+            {"call": "h l b", "form": "row:h l|l l b", "image": "img h b", "text": "h l l"},
+        )
+        self.assertEqual(
+            config["wireframes"]["callbar"], {"call": "bar:b", "call_write": "bar:b b2"}
+        )
+        self.assertEqual(
+            sorted(config["wireframes"]),
+            sorted(
+                [
+                    "hero",
+                    "price",
+                    "reviews_google",
+                    "reviews_reco",
+                    "certificates",
+                    "guarantee",
+                    "person",
+                    "steps",
+                    "before_after",
+                    "area",
+                    "faq",
+                    "form",
+                    "callbar",
+                ]
+            ),
+        )
+        # Varje variant i sidornas register har sin skiss.
+        for block_type in pagebuilder.registry.TYPES_LIST:
+            for variant in block_type.variants:
+                if block_type.key in config["wireframes"]:
+                    with self.subTest(type=block_type.key, variant=variant.key):
+                        self.assertIn(variant.key, config["wireframes"][block_type.key])
+        # Skriptets egna standardvärden är sidornas, och inget är kvar fast i koden.
+        script = (settings.BASE_DIR / "static/js/flamingo-pb.js").read_text(encoding="utf-8")
+        self.assertIn('config.canvasRoot || "main.rn-main"', script)
+        self.assertIn('config.paletteMarker || "--rn-primary"', script)
+        self.assertNotIn('("main.rn-main', script)
+        self.assertNotIn('"main.rn-main >', script)
+        self.assertNotIn('indexOf("--rn-primary")', script)
+        self.assertIn('{ top: ".rn-top", foot: ".rn-foot" }', script)
+        self.assertIn('{ pairs: [["hero", "form", "form"]], endGroup: "end" }', script)
+        self.assertIn("var DESKTOP_MIN = DEVICES.desktop || 1024;", script)
+        self.assertIn("var PHONE_WIDTH = DEVICES.phone || 390;", script)
 
     def test_a_page_that_was_never_published_says_publicera(self):
         html = self.client_for(self.anna).get(self.url("app_page")).content.decode()
