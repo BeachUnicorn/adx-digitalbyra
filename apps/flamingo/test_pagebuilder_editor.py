@@ -15,7 +15,7 @@ from django.contrib.auth import get_user_model
 from django.core import mail
 from django.core.cache import cache
 from django.core.files.base import ContentFile
-from django.test import Client, TestCase, override_settings
+from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from PIL import Image
@@ -866,3 +866,72 @@ class CampaignPageChoiceTests(EditorFixture, TestCase):
             reverse("flamingo:app_campaign", args=[self.second.pk]) + "?flik=sidan"
         )
         self.assertContains(response, "Kampanjens egen sida")
+
+
+class ToolbarPlacementTests(SimpleTestCase):
+    """Blockets verktygsrad (beställningen 2026-10-10): raden täcker aldrig
+    blockets början. I mejlet (profilen brev) står den lodrätt till vänster
+    om mejlet när duken har plats; annars, och alltid på sidorna, helt
+    ovanför blocket. Vakterna fångar en återgång till den gamla raden som
+    låg mitt på blockets överkant och täckte rubriken."""
+
+    def read(self, path):
+        return (settings.BASE_DIR / path).read_text(encoding="utf-8")
+
+    def test_the_bar_never_straddles_the_top_edge(self):
+        script = self.read("static/js/flamingo-pb.js")
+        self.assertNotIn("rect.top - height / 2", script)
+        self.assertIn("var above = rect.top - TB_GAP - height;", script)
+        # Ryms den inte ovanför: under blocket när nederkanten syns och raden
+        # ryms där. Annars överst i det synliga bara när blockets början är
+        # utrullad; syns början står raden tätt under toppraden om den ryms
+        # där, annars nederst i det synliga.
+        self.assertIn("} else if (rect.bottom >= seenTop && rect.bottom <= lowest) {", script)
+        self.assertIn("} else if (rect.top < seenTop) {\n        top = band.top;", script)
+        self.assertIn("} else if (rect.top - height >= seenTop) {", script)
+        self.assertIn("top = seenTop;", script)
+        self.assertIn("top = Math.max(band.top, lowest);", script)
+        # Ett block helt utrullat uppåt tar raden med sig ut.
+        self.assertIn("top = rect.bottom - height;", script)
+        # Följ-med-rullningen lämnar plats för raden ovanför blocket.
+        self.assertIn("visibleTop += (toolbar.offsetHeight || 42) + 2 * TB_GAP;", script)
+
+    def test_the_side_bar_is_only_for_the_email(self):
+        script = self.read("static/js/flamingo-pb.js")
+        self.assertIn('var SIDE_TOOLBAR = PROFILE === "brev";', script)
+        self.assertIn("if (!SIDE_TOOLBAR || !frameWrap) {", script)
+        # Platsen: radens bredd och 8 px luft på var sida, prövad vid varje
+        # placering (fönstret ändras, en panel öppnas eller stängs).
+        self.assertIn("room >= tbSideWidth + 2 * TB_GAP", script)
+        self.assertIn("tbMode = toolbarMode();", script)
+        # I höjd med blockets överkant; följer med inom blocket när det rullas.
+        self.assertIn("top = Math.max(rect.top, Math.min(band.top, rect.bottom - height));", script)
+        # Ett block lägre än raden: raden står kvar i det synliga så länge
+        # något av blocket syns.
+        self.assertIn("} else if (rect.bottom > seenTop) {", script)
+        self.assertIn("top = Math.max(rect.top, band.top);", script)
+        # Texterna blir title när bara ikonerna syns.
+        self.assertIn('tb[name].setAttribute("title"', script)
+        # Menyerna öppnas bredvid raden.
+        self.assertIn("bar.right + 8", script)
+        # Pil upp och ner går mellan raderna; i handtaget flyttar de blocket,
+        # så handtaget nås inte med pil upp (det skulle flytta blocket).
+        self.assertIn('tbMode === "side" && index >= 0', script)
+        self.assertIn("if (b === current || b === tb.handle || dy < 4) {", script)
+        self.assertIn('toolbar.setAttribute("aria-orientation", "vertical");', script)
+        self.assertIn(
+            'moveBlock(state.selectedId, event.key === "ArrowUp" ? -1 : 1, tb.handle);', script
+        )
+
+    def test_the_side_bar_styles(self):
+        css = self.read("static/css/flamingo-pb.css")
+        self.assertIn(".pb-tb--side{display:grid;grid-template-columns:repeat(2,36px)", css)
+        # Texterna döljs bara för ögat: skärmläsare och title har dem kvar.
+        self.assertIn(".pb-tb--side .pb-tb__label{position:absolute;width:1px;height:1px", css)
+        self.assertNotIn(".pb-tb--side .pb-tb__label{display:none", css)
+        # Antalen syns som bricka bara i den lodräta raden.
+        self.assertIn(".pb-tb__badge{display:none}", css)
+        self.assertIn(".pb-tb--side .pb-tb__badge{", css)
+        # Mobilen är oförändrad: ingen verktygsrad, arket nedifrån.
+        mobile = css.split("@media (max-width:1023px){", 1)[1]
+        self.assertIn(".pb-tb{display:none !important}", mobile)

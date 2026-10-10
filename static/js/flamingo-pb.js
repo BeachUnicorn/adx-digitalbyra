@@ -156,6 +156,9 @@
   var PHONE_WIDTH = DEVICES.phone || 390;
   /* "fill": hela duken (sidan). "fixed": alltid DESKTOP_MIN bred (mejlet). */
   var DESKTOP_FIXED = DEVICES.fit === "fixed";
+  /* Blockets verktygsrad får stå lodrätt till vänster om mejlet när duken
+     har plats (placeToolbar). Sidorna har alltid raden ovanför blocket. */
+  var SIDE_TOOLBAR = PROFILE === "brev";
 
   var state = {
     pageId: config.pageId,
@@ -1875,6 +1878,11 @@
     drawInserts();
     placeToolbar();
     drawTools();
+    /* En meny från verktygsraden följer med när raden flyttats (fönstret
+       ändrat, en panel öppnad eller stängd, raden bytt läge). */
+    if (surface && surface.anchor && toolbar.contains(surface.anchor)) {
+      positionSurface();
+    }
   }
 
   function drawHover() {
@@ -2032,7 +2040,10 @@
       },
       icon(iconId),
       opts.iconOnly ? null : h("span", { class: "pb-tb__label", text: label }),
-      opts.chev ? icon("pb-u-chev", "pb-tb__chev") : null
+      opts.chev ? icon("pb-u-chev", "pb-tb__chev") : null,
+      /* Antalet som liten bricka på ikonen när raden står lodrätt (bara
+         ikoner); den vågräta raden har antalet i texten. */
+      opts.badge ? h("span", { class: "pb-tb__badge", "aria-hidden": "true" }) : null
     );
     tb[name] = button;
     return button;
@@ -2042,8 +2053,8 @@
     toolbar.appendChild(tbButton("handle", "pb-u-drag", "Block", { cls: "pb-tb__handle" }));
     toolbar.appendChild(h("span", { class: "pb-tb__sep", "aria-hidden": "true" }));
     toolbar.appendChild(tbButton("variant", "pb-u-variant", "Variant", { popup: true, chev: true, cls: "is-hl" }));
-    toolbar.appendChild(tbButton("versions", "pb-u-history", "Versioner", { popup: true }));
-    toolbar.appendChild(tbButton("list", "pb-u-list", "Lista", { popup: true }));
+    toolbar.appendChild(tbButton("versions", "pb-u-history", "Versioner", { popup: true, badge: true }));
+    toolbar.appendChild(tbButton("list", "pb-u-list", "Lista", { popup: true, badge: true }));
     toolbar.appendChild(tbButton("ai", "pb-u-sparkle", "Skriv om"));
     toolbar.appendChild(h("span", { class: "pb-tb__sep", "aria-hidden": "true" }));
     toolbar.appendChild(tbButton("up", "pb-u-up", "Flytta upp", { iconOnly: true }));
@@ -2100,6 +2111,10 @@
       } else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && document.activeElement === tb.handle) {
         event.preventDefault();
         moveBlock(state.selectedId, event.key === "ArrowUp" ? -1 : 1, tb.handle);
+      } else if ((event.key === "ArrowUp" || event.key === "ArrowDown") && tbMode === "side" && index >= 0) {
+        /* Den lodräta raden: pil upp och ner går mellan raderna. */
+        event.preventDefault();
+        rove(rowNeighbour(buttons, buttons[index], event.key === "ArrowUp" ? -1 : 1));
       } else if (event.key === "Escape") {
         event.preventDefault();
         if (!closeSurface(true)) {
@@ -2124,6 +2139,32 @@
       b.tabIndex = b === button ? 0 : -1;
     });
     button.focus();
+  }
+
+  /* Knappen i raden ovanför (dir -1) eller under (1): den närmaste raden,
+     och i den knappen rakt ovanför eller under. Ingen sådan: null.
+     Handtaget hoppas över: i det flyttar pil upp och ner blocket, så en pil
+     för mycket skulle flytta det. Det nås med vänster, höger och Home. */
+  function rowNeighbour(buttons, current, dir) {
+    var from = current.getBoundingClientRect();
+    var x = from.left + from.width / 2;
+    var best = null;
+    var bestDy = Infinity;
+    var bestDx = Infinity;
+    buttons.forEach(function (b) {
+      var r = b.getBoundingClientRect();
+      var dy = (r.top - from.top) * dir;
+      if (b === current || b === tb.handle || dy < 4) {
+        return;
+      }
+      var dx = Math.abs(r.left + r.width / 2 - x);
+      if (dy < bestDy - 4 || (Math.abs(dy - bestDy) <= 4 && dx < bestDx)) {
+        best = b;
+        bestDy = dy;
+        bestDx = dx;
+      }
+    });
+    return best;
   }
 
   function focusToolbar() {
@@ -2163,6 +2204,7 @@
     tb.variant.setAttribute("aria-label", "Variant av " + type.name + ": " + (variant ? variant.name : ""));
     tb.variant.disabled = !type.variants || type.variants.length < 2;
     tb.versions.querySelector(".pb-tb__label").textContent = "Versioner " + block.versions.length;
+    tb.versions.querySelector(".pb-tb__badge").textContent = String(block.versions.length);
     tb.versions.setAttribute("aria-label", "Versioner av " + type.name + ", " + block.versions.length + " st");
     var listKey = listFieldOf(block);
     tb.list.hidden = !listKey;
@@ -2170,9 +2212,20 @@
       var spec = findField(type, listKey);
       var items = activeFields(block)[listKey] || [];
       tb.list.querySelector(".pb-tb__label").textContent = spec.label + " " + items.length;
-      tb.list.setAttribute("aria-label", "Ändra " + lower(spec.label) + " i " + type.name);
+      tb.list.querySelector(".pb-tb__badge").textContent = String(items.length);
+      tb.list.setAttribute("aria-label", "Ändra " + lower(spec.label) + " i " + type.name + ", " + items.length + " st");
     }
     tb.ai.setAttribute("aria-label", "Skriv om " + type.name + " med AI");
+    /* Den lodräta raden visar bara ikoner: texterna blir title (aria-label
+       finns redan). Den vågräta har texterna synliga och ingen title. */
+    ["handle", "variant", "versions", "list", "ai"].forEach(function (name) {
+      var text = tb[name].querySelector(".pb-tb__label").textContent;
+      if (tbMode === "side") {
+        tb[name].setAttribute("title", name === "variant" ? "Variant: " + text : text);
+      } else {
+        tb[name].removeAttribute("title");
+      }
+    });
     tb.up.disabled = index <= 0;
     tb.down.disabled = index < 0 || index >= state.blocks.length - 1;
     tb.copy.disabled = !!type.single || state.blocks.length >= MAX_BLOCKS;
@@ -2187,6 +2240,54 @@
     }
   }
 
+  /* Var raden står. Den ska inte täcka blockets början (rubriken):
+       "side"   bara mejlet (SIDE_TOOLBAR), när duken har plats till vänster
+                om mejlet: lodrät, två spalter ikoner i marginalen, i höjd
+                med blockets överkant. Är blocket rullat följer raden med i
+                det synliga så länge något av blocket syns, och ett block
+                högre än raden lämnar den aldrig nedåt.
+       "above"  annars, och alltid på sidorna: den vågräta raden helt
+                ovanför blocket. Ryms den inte där i det synliga står den
+                under blocket när blockets nederkant syns och raden ryms
+                där. Annars överst i det synliga om blockets början är
+                utrullad. Syns början står raden tätt under toppraden om
+                den ryms där, och annars nederst i det synliga (då ligger
+                den över blockets nedre del, aldrig över början).
+     Läget prövas om vid varje placering: när fönstret ändras och när en
+     panel öppnas eller stängs (layout ritar om lagret). */
+  var TB_GAP = 8;
+  var tbMode = "above";
+  var tbSideWidth = 0;
+
+  function toolbarMode() {
+    if (!SIDE_TOOLBAR || !frameWrap) {
+      return "above";
+    }
+    if (!tbSideWidth) {
+      var was = toolbar.classList.contains("pb-tb--side");
+      toolbar.classList.add("pb-tb--side");
+      tbSideWidth = toolbar.offsetWidth;
+      toolbar.classList.toggle("pb-tb--side", was);
+    }
+    /* Platsen mellan dukens vänsterkant (eller bibliotekets högerkant) och
+       mejlet: radens bredd och 8 px luft på var sida. */
+    var edge = canvas.getBoundingClientRect().left;
+    if (library && library.offsetParent !== null) {
+      edge = Math.max(edge, library.getBoundingClientRect().right);
+    }
+    var room = frameWrap.getBoundingClientRect().left - edge;
+    return tbSideWidth && room >= tbSideWidth + 2 * TB_GAP ? "side" : "above";
+  }
+
+  /* Det synliga av duken i lagrets koordinater: under toppraden (som står
+     kvar överst när sidan rullat) och inom fönstret, med luft. */
+  function visibleBand(sr) {
+    var cr = canvas.getBoundingClientRect();
+    var top = Math.max(0, cr.top, topbar ? topbar.getBoundingClientRect().bottom : 0);
+    var bottom = Math.min(window.innerHeight, cr.bottom);
+    return { top: top - sr.top + TB_GAP, bottom: bottom - sr.top - TB_GAP };
+  }
+
   function placeToolbar() {
     var block = findBlock(state.selectedId);
     var rect = block ? geometry.rects[block.id] : null;
@@ -2196,22 +2297,62 @@
     }
     var hadFocus = toolbar.contains(document.activeElement);
     toolbar.hidden = false;
+    tbMode = toolbarMode();
+    toolbar.classList.toggle("pb-tb--side", tbMode === "side");
+    if (tbMode === "side") {
+      toolbar.setAttribute("aria-orientation", "vertical");
+    } else {
+      toolbar.removeAttribute("aria-orientation");
+    }
     updateToolbar(block);
     var height = toolbar.offsetHeight || 42;
     var width = toolbar.offsetWidth || 400;
-    var top = rect.top - height / 2;
-    if (top < 4) {
-      top = rect.top + 8;
-    }
     var sr = stage.getBoundingClientRect();
-    var limit = topbarHeight() + 8 - sr.top;
-    if (top < limit && rect.bottom - height - 16 > limit) {
-      top = limit;
+    var band = visibleBand(sr);
+    /* Det synligas kanter utan luften. */
+    var seenTop = band.top - TB_GAP;
+    var seenBottom = band.bottom + TB_GAP;
+    var top;
+    var left;
+    if (tbMode === "side") {
+      left = frameWrap.getBoundingClientRect().left - sr.left - TB_GAP - width;
+      if (rect.height >= height) {
+        top = Math.max(rect.top, Math.min(band.top, rect.bottom - height));
+      } else if (rect.bottom > seenTop) {
+        /* Ett block lägre än raden: raden står kvar överst i det synliga
+           så länge något av blocket syns (den ligger i marginalen). */
+        top = Math.max(rect.top, band.top);
+      } else {
+        top = rect.bottom - height;
+      }
+    } else {
+      var above = rect.top - TB_GAP - height;
+      /* Under blocket: helst fri från "Lägg till block", som står mitt på
+         blockets nederkant, annars så långt ner som raden ryms (minst
+         kant i kant med blocket). */
+      var insert = ov.inserts[indexOf(block.id) + 1];
+      var clear = insert && insert.firstChild ? insert.firstChild.offsetHeight / 2 : 0;
+      var lowest = seenBottom - height;
+      if (above >= seenTop) {
+        top = above;
+      } else if (rect.bottom >= seenTop && rect.bottom <= lowest) {
+        top = Math.min(rect.bottom + clear + TB_GAP, lowest);
+      } else if (rect.bottom < seenTop) {
+        /* Blocket är helt utrullat uppåt: raden följer med ut. */
+        top = rect.bottom - height;
+      } else if (rect.top < seenTop) {
+        top = band.top;
+      } else if (rect.top - height >= seenTop) {
+        /* Tätt under toppraden, med mindre luft till blocket. */
+        top = seenTop;
+      } else {
+        top = Math.max(band.top, lowest);
+      }
+      var cr = canvas.getBoundingClientRect();
+      var minLeft = cr.left - sr.left + 8;
+      var maxLeft = cr.right - sr.left - width - 8;
+      left = Math.max(minLeft, Math.min(rect.left + 12, maxLeft));
     }
-    var cr = canvas.getBoundingClientRect();
-    var minLeft = cr.left - sr.left + 8;
-    var maxLeft = cr.right - sr.left - width - 8;
-    var left = Math.max(minLeft, Math.min(rect.left + 12, maxLeft));
     toolbar.style.top = Math.round(top) + "px";
     toolbar.style.left = Math.round(left) + "px";
     if (hadFocus && !toolbar.contains(document.activeElement)) {
@@ -2378,6 +2519,12 @@
     var sr = stage.getBoundingClientRect();
     var top = window.scrollY + sr.top + rect.top - topbarHeight() - 24;
     var visibleTop = window.scrollY + topbarHeight();
+    /* Plats för verktygsraden ovanför blocket (placeToolbar), även när
+       blocket redan syns: annars hamnar raden under eller nederst. */
+    if (!toolbar.hidden && tbMode === "above") {
+      top -= (toolbar.offsetHeight || 42) + TB_GAP;
+      visibleTop += (toolbar.offsetHeight || 42) + 2 * TB_GAP;
+    }
     var visibleBottom = window.scrollY + window.innerHeight - (isMobile() ? 90 : 0);
     var blockTop = window.scrollY + sr.top + rect.top;
     if (opts && opts.ifNeeded && blockTop > visibleTop && blockTop + Math.min(rect.height, 200) < visibleBottom) {
@@ -2416,9 +2563,10 @@
       }
       var top = stage.getBoundingClientRect().top + rect.top;
       /* Toppraden står kvar överst när sidan rullat (sticky), och i datorn
-         blockets verktygsrad under den. */
+         blockets verktygsrad under den när raden står ovanför blocket (den
+         lodräta raden bredvid mejlet tar ingen plats ovanför). */
       var visibleTop = topbarHeight() + 8;
-      if (path && !isMobile() && !toolbar.hidden) {
+      if (!isMobile() && !toolbar.hidden && tbMode === "above") {
         visibleTop += (toolbar.offsetHeight || 42) + 8;
       }
       var visibleBottom = window.innerHeight;
@@ -2819,8 +2967,26 @@
         ? { left: sr.left + sel.left + 12, right: sr.left + sel.left + 12, top: sr.top + sel.top, bottom: sr.top + sel.top + 40, width: 1, height: 40 }
         : { left: window.innerWidth / 2 - 170, right: window.innerWidth / 2, top: 120, bottom: 160, width: 1, height: 40 };
     }
+    /* Från den lodräta raden: bredvid raden, i höjd med knappen, och hela
+       popovern i fönstret. Högsta höjden skrivs bara när den ändras, och
+       tas bort när raden blivit vågrät. */
+    var fromSide = tbMode === "side" && !toolbar.hidden && anchor && toolbar.contains(anchor);
+    var minTop = Math.max(topbarHeight(), topbar ? topbar.getBoundingClientRect().bottom : 0) + 8;
+    var maxHeight = fromSide ? "min(72vh, 620px, " + Math.max(160, window.innerHeight - minTop - 12) + "px)" : "";
+    if (surface.maxHeight !== maxHeight) {
+      surface.maxHeight = maxHeight;
+      el.style.maxHeight = maxHeight;
+    }
     var width = el.offsetWidth;
     var height = el.offsetHeight;
+    if (fromSide) {
+      var bar = toolbar.getBoundingClientRect();
+      var sideLeft = Math.max(16, Math.min(bar.right + 8, window.innerWidth - width - 16));
+      var sideTop = Math.max(minTop, Math.min(rect.top, window.innerHeight - height - 12));
+      el.style.left = Math.round(sideLeft) + "px";
+      el.style.top = Math.round(sideTop) + "px";
+      return;
+    }
     var left = Math.max(16, Math.min(rect.left, window.innerWidth - width - 16));
     var top = rect.bottom + 8;
     if (top + height > window.innerHeight - 12 && rect.top - height - 8 > topbarHeight()) {

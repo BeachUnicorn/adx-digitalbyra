@@ -228,6 +228,22 @@ body.fl{
 .pb-tb__handle:active{cursor:grabbing}
 .pb-tb__chev{width:14px !important;height:14px !important;opacity:.8}
 .pb-tb__sep{width:1px;height:20px;margin:0 2px;background:rgba(255,255,255,.22)}
+.pb-tb__badge{display:none}
+
+/* Den lodräta raden (flamingo-pb.js placeToolbar, läget "side"): bara i
+   mejlet, till vänster om mejlet när duken har plats. Två spalter med
+   ikoner; texterna finns kvar för skärmläsare (aria-label) och som title,
+   antalen som en liten bricka på ikonen. Handtaget tar hela bredden. */
+.pb-tb--side{display:grid;grid-template-columns:repeat(2,36px);gap:2px;max-width:none}
+.pb-tb--side .pb-tb__btn{position:relative;width:36px;padding:0;justify-content:center}
+.pb-tb--side .pb-tb__handle{grid-column:1 / -1;width:auto}
+.pb-tb--side .pb-tb__sep{grid-column:1 / -1;width:auto;height:1px;margin:2px 4px}
+.pb-tb--side .pb-tb__label{position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.pb-tb--side .pb-tb__chev{display:none}
+.pb-tb--side .pb-tb__badge{
+  position:absolute;top:1px;right:1px;display:block;min-width:16px;height:16px;padding:0 4px;border-radius:8px;
+  background:#B9A5F7;color:var(--fl-ink);font-size:11px;font-weight:700;line-height:16px;text-align:center;pointer-events:none;
+}
 
 /* "Lägg till block" (mockupen .insert) och linjen vid dragning (.dropline). */
 .pb-ins{position:absolute;left:0;right:0;height:0;display:flex;justify-content:center;pointer-events:none}
