@@ -1029,8 +1029,8 @@ class PrivacyPageTests(PublicFixture, TestCase):
             "13 månader",
             "25 månader",
             "36 månader",
-            "Amazon Web Services",
-            "46elks",
+            "En leverantör av molndrift",
+            "En sms-leverantör i Sverige",
             "Integritetsskyddsmyndigheten",
         ):
             self.assertContains(response, text)

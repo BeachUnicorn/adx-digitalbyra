@@ -152,6 +152,7 @@ build_link_block() {
 server {
     listen 80;
     server_name ${names};
+    server_tokens off;
     access_log off;
     return 301 https://\$host\$request_uri;
 }
@@ -164,6 +165,7 @@ NGINX
 server {
     listen 443 ssl;
     server_name ${names};
+    server_tokens off;
 
     ssl_certificate /etc/letsencrypt/live/${cert}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${cert}/privkey.pem;
@@ -225,6 +227,7 @@ install_nginx() {
 server {
     listen 443 ssl;
     server_name ${SECONDARY_DOMAINS};
+    server_tokens off;
 
     ssl_certificate /etc/letsencrypt/live/${CERT_NAME}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${CERT_NAME}/privkey.pem;

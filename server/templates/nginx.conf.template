@@ -6,9 +6,12 @@
 # changing.
 
 # HTTP -> HTTPS, and redirect every domain to the primary one.
+# server_tokens off i varje block: Server-huvudet visar inte nginx-versionen
+# (ADX röjer inte sin infrastruktur, 2026-10-11).
 server {
     listen 80;
     server_name ${ALL_DOMAINS};
+    server_tokens off;
     return 301 https://${PRIMARY_DOMAIN}$request_uri;
 }
 ${SECONDARY_REDIRECT_BLOCK}
@@ -16,6 +19,7 @@ ${SECONDARY_REDIRECT_BLOCK}
 server {
     listen 443 ssl;
     server_name ${PRIMARY_DOMAIN};
+    server_tokens off;
 
     ssl_certificate /etc/letsencrypt/live/${CERT_NAME}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/${CERT_NAME}/privkey.pem;

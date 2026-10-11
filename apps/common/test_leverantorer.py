@@ -72,15 +72,10 @@ ALLOWED_TEMPLATES = {
         "amazon": "kundens egna AWS-fakturor",
         "aws": "kundens egna AWS-fakturor",
     },
-    # 3. Juridiskt: integritetssidan för mottagare (/utskick/<slug>/integritet/)
-    # listar personuppgiftsbiträdena (GDPR art. 13-14). Art. 13.1 e tillåter
-    # "kategorier av mottagare", så namnen är troligen inte tvingande, men
-    # texten är Giovannis att ändra, inte kodens. test_s1_public läser den.
-    "utskick/public/privacy.html": {
-        "amazon": "biträdeslistan (juridisk text, Giovanni beslutar)",
-        "46elks": "biträdeslistan (juridisk text, Giovanni beslutar)",
-        "sentry": "biträdeslistan (juridisk text, Giovanni beslutar)",
-    },
+    # Mottagarnas integritetssida (/utskick/<slug>/integritet/) har inget
+    # undantag: art. 13.1 e tillåter kategorier av mottagare, och Giovanni
+    # vill inte att leverantörerna röjs när det inte är nödvändigt
+    # (2026-10-11). Bara biträdesavtalet (databasen) namnger underbiträdena.
 }
 
 #: Python: sökväg (glob, från apps/) -> {räckvidd: skäl}. Räckvidden är
