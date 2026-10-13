@@ -233,7 +233,7 @@ class PublicPageTests(TestCase):
         self.assertIn("50 000 kr", html)
         self.assertIn("1 495 kr/mån", html)
         self.assertIn("500 kr/år", html)
-        self.assertIn("Att betala vid leverans", html)
+        self.assertIn("Att betala</span>", html)
 
     def test_robots_txt_blocks_the_offer_area(self):
         self.assertIn("Disallow: /offert/", Client().get("/robots.txt").content.decode())

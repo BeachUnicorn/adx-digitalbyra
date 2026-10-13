@@ -557,7 +557,9 @@ class CheckTests(EngineFixture, TestCase):
         closed = checks.send_time_checks(r, at(2026, 10, 13, 21))
         self.assertEqual((closed.defer, closed.reason), (True, "window"))
         self.assertEqual(closed.not_before, at(2026, 10, 14, 9))
-        Switchboard.objects.update(sms_paused_until=NOW + timedelta(minutes=5))
+        # Nödbromsen prövas mot klockans tid (checks.breaker_active), inte mot
+        # NOW: en broms satt efter NOW gick ut när dagen kom (2026-10-13).
+        Switchboard.objects.update(sms_paused_until=timezone.now() + timedelta(minutes=5))
         self.assertEqual(checks.send_time_checks(r, NOW).reason, "breaker")
         Switchboard.objects.update(sms_paused_until=None, sms_enabled=False)
         self.assertEqual(checks.send_time_checks(r, NOW).reason, "sms_off")
@@ -628,7 +630,8 @@ class CheckTests(EngineFixture, TestCase):
         consents.set_status(kontakt, CHANNEL_SMS, consents.UNSUBSCRIBED, source=Consent.Source.STOP)
         check = checks.reply_checks(self.account, None, kontakt.phone, NOW)
         self.assertEqual((check.skip, check.text), (True, checks.SUPPRESSED_TEXT))
-        Switchboard.objects.update(sms_paused_until=NOW + timedelta(minutes=5))
+        # Klockans tid, som i test_deferring_checks.
+        Switchboard.objects.update(sms_paused_until=timezone.now() + timedelta(minutes=5))
         self.assertEqual(
             checks.reply_checks(self.account, kontakt, kontakt.phone, NOW).text, checks.BREAKER_TEXT
         )
@@ -876,7 +879,10 @@ class SmsLoopTests(EngineFixture, TestCase):
         self.assertGreater(r.not_before, timezone.now() + timedelta(seconds=50))
         self.assertEqual(r.attempts, 0)
         self.assertEqual(mail.outbox, [])
-        # Nästa tick (NOW ligger efter not_before): samma reference, nu till 46elks.
+        # Nästa tick efter not_before: samma reference, nu till 46elks.
+        # not_before sätts av klockans tid; den flyttas till före NOW, så att
+        # testet inte beror på vilken dag det körs (det föll 2026-10-13).
+        Recipient.objects.filter(pk=r.pk).update(not_before=NOW - timedelta(minutes=1))
         self.run_sms()
         r.refresh_from_db()
         self.assertEqual(r.status, Recipient.Status.SENT)
