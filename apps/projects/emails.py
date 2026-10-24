@@ -15,6 +15,8 @@ from django.template.loader import render_to_string
 
 from apps.inquiries.emails import _as_list, _email_configured
 
+from .card_tabs import LOG, card_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -272,7 +274,7 @@ def send_log_reminder(rows):
     lines = ["Om en vecka är månaden slut. Osända loggposter:", ""]
     for customer, count in rows:
         lines.append(f"- {customer.name}: {count} post{'' if count == 1 else 'er'}")
-        lines.append(f"  {_base_url()}/manage/kunder/{customer.pk}/#logg")
+        lines.append(f"  {_base_url()}{card_url(customer.pk, LOG)}")
     lines += ["", "Sammanställningen skickas bara när du trycker på knappen på kundens sida."]
     return _send(
         f"Påminnelse: skicka loggen till {len(rows)} kund{'' if len(rows) == 1 else 'er'}",

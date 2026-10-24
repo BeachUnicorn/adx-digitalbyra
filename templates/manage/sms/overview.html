@@ -34,7 +34,7 @@ Kunderna mejlas aldrig härifrån.
     <tbody>
     {% for a in accounts %}
     <tr{% if not a.is_enabled %} class="is-off"{% endif %}>
-      <td><a class="tv-link" href="{% url 'manage:customer_detail' a.customer.pk %}#sms"><b>{{ a.customer.name }}</b></a></td>
+      <td><a class="tv-link" href="{% url 'manage:customer_detail' a.customer.pk %}?flik=sms"><b>{{ a.customer.name }}</b></a></td>
       <td><span class="sms-mono">{{ a.sender_name|default:"-" }}</span></td>
       <td>{% if a.is_enabled %}<span class="sms-status sms-status--delivered">Aktiverat</span>{% else %}<span class="sms-status sms-status--rejected">Avstängt</span>{% endif %}</td>
       <td class="m-num">{{ a.month_sms }}</td>
@@ -59,7 +59,7 @@ Kunderna mejlas aldrig härifrån.
     <tbody>
     {% for m in to_check %}
     <tr>
-      <td><a class="tv-link" href="{% url 'manage:customer_detail' m.account.customer.pk %}#sms"><b>{{ m.account.customer.name }}</b></a></td>
+      <td><a class="tv-link" href="{% url 'manage:customer_detail' m.account.customer.pk %}?flik=sms"><b>{{ m.account.customer.name }}</b></a></td>
       <td><div>Sms {{ m.pk }} till <span class="sms-mono">{{ m.to }}</span><div class="tv-muted tv-cell-sub">{{ m.created_at|date:"j b Y H:i" }}, {{ m.customer_price|sms_kr }} kr{% if m.reference %}, reference {{ m.reference }}{% endif %}</div></div></td>
       <td><div>{% if m.is_unknown %}<span class="sms-status sms-status--reserved">Okänt läge</span><div class="tv-muted tv-cell-sub">{{ m.error }}</div>{% elif m.status == 'reserved' %}<span class="sms-status sms-status--reserved">Reserverat</span><div class="tv-muted tv-cell-sub">Svaret från 46elks kom aldrig.</div>{% else %}<span class="sms-status sms-status--{{ m.status }}">{{ m.get_status_display }}</span><div class="tv-muted tv-cell-sub">46elks id <span class="sms-mono sms-break">{{ m.provider_id }}</span> kom med leveransrapporten; priset är uppskattat.</div>{% endif %}</div></td>
       <td class="m-num"><div class="sms-actions">{% if m.status == 'reserved' %}<form method="post" action="{% url 'manage:sms_resolve_check' m.pk %}" data-sms-confirm="Markera sms {{ m.pk }} som skickat? Det debiteras med det uppskattade priset.">{% csrf_token %}<input type="hidden" name="sent" value="1"><button type="submit" class="m-btn m-btn--small">Skickades</button></form><form method="post" action="{% url 'manage:sms_resolve_check' m.pk %}" data-sms-confirm="Markera sms {{ m.pk }} som inte skickat? Det kostar då inget, och kundens reference blir fri.">{% csrf_token %}<input type="hidden" name="sent" value="0"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Skickades inte</button></form>{% else %}<form method="post" action="{% url 'manage:sms_resolve_check' m.pk %}">{% csrf_token %}<input type="hidden" name="sent" value="1"><button type="submit" class="m-btn m-btn--small m-btn--ghost">Avstämt</button></form>{% endif %}</div></td>

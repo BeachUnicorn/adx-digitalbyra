@@ -65,6 +65,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
+from apps.projects.card_tabs import FLAMINGO, card_url
 from apps.projects.models import Customer
 
 from ... import pagebuilder, sms
@@ -1625,7 +1626,7 @@ class Command(BaseCommand):
         w(self.style.SUCCESS(f"Demodata klar: {customer.name} (kund {customer.pk}, demokonto)."))
         w("")
         w("Som kunden: logga in som byrån, sedan Visa Flamingo som kunden på kundkortet:")
-        w(f"  /manage/kunder/{customer.pk}/#flamingo")
+        w(f"  {card_url(customer.pk, FLAMINGO)}")
         w("Verktyget:")
         w("  /flamingo/app/")
         w("  /flamingo/app/inkorg/")

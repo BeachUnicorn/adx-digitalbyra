@@ -1019,7 +1019,7 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
             f"/manage/kunder/{self.acme.pk}/logg/",
             {"date": "2026-09-19", "text": "Åtgärdade ett fel i Sentry."},
         )
-        self.assertEqual(r["Location"], f"/manage/kunder/{self.acme.pk}/#logg")
+        self.assertEqual(r["Location"], f"/manage/kunder/{self.acme.pk}/?flik=logg")
         client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "Uppdaterade SSL-certet."})
         self.assertEqual(self.acme.log_entries.count(), 2)
         self.assertEqual(len(mail.outbox), 0, "ingen rad mejlas")
@@ -1030,7 +1030,7 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
         stranger = Client()
         stranger.force_login(self.stranger)
         self.assertNotIn("Sentry", stranger.get("/kund/logg/").content.decode())
-        panel = client.get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        panel = client.get(f"/manage/kunder/{self.acme.pk}/?flik=logg").content.decode()
         self.assertIn("2 osända", panel)
 
     def test_the_digest_goes_only_when_the_button_is_pressed(self):
@@ -1105,7 +1105,7 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
     def test_the_card_offers_preview_not_a_direct_send(self):
         client = self.as_staff()
         client.post(f"/manage/kunder/{self.acme.pk}/logg/", {"text": "A"})
-        panel = client.get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        panel = client.get(f"/manage/kunder/{self.acme.pk}/?flik=logg").content.decode()
         self.assertIn("/logg/forhandsgranska/", panel)
         self.assertNotIn("/logg/skicka/", panel)
 
@@ -1147,7 +1147,7 @@ class CustomerLogTests(PortalFixtureMixin, TestCase):
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["staff@example.com"])
         self.assertIn("Acme AB: 1 post", mail.outbox[0].body)
-        self.assertIn(f"/manage/kunder/{self.acme.pk}/#logg", mail.outbox[0].body)
+        self.assertIn(f"/manage/kunder/{self.acme.pk}/?flik=logg", mail.outbox[0].body)
 
     def test_mcp_can_read_and_write_the_log_but_never_mails(self):
         import json
@@ -1232,6 +1232,6 @@ class CustomerRegisterTests(PortalFixtureMixin, TestCase):
 
         Quote.objects.create(customer_name="acme ab", project_title="Ny hemsida")
         Quote.objects.create(customer_name="Någon annan", project_title="Inte deras")
-        html = self.as_staff().get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        html = self.as_staff().get(f"/manage/kunder/{self.acme.pk}/?flik=arenden").content.decode()
         self.assertIn("Ny hemsida", html)
         self.assertNotIn("Inte deras", html)

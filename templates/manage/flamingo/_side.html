@@ -5,7 +5,7 @@ checklistan, de bekräftade uppgifterna och rundorna.
 {% endcomment %}
 <section class="m-panel mf-side" aria-labelledby="mf-side-customer">
     <h2 class="mf-side__title" id="mf-side-customer">Kunden</h2>
-    <p class="mf-side__lead"><a href="{% url 'manage:customer_detail' customer.pk %}#flamingo">{{ customer.name }}</a></p>
+    <p class="mf-side__lead"><a href="{% url 'manage:customer_detail' customer.pk %}?flik=flamingo">{{ customer.name }}</a></p>
     {% if account.website_url %}
     <p><a class="mf-ext" href="{{ account.website_url }}" target="_blank" rel="noopener noreferrer">Kundens hemsida ↗</a> <span class="mf-side__url">{{ account.website_url }}</span></p>
     {% else %}

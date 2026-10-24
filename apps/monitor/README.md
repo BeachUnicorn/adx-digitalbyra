@@ -8,7 +8,7 @@ Inget installeras hos kunden. Allt mäts från adx.se: online-status, svarstid,
 certifikat, registrar (RDAP, WHOIS för .se/.nu), e-postens DNS, PageSpeed,
 säkerhetsheaders.
 
-1. /manage/kunder/<id>/ -> Övervakning: skriv domänen, "vår plattform" tom, Lägg till.
+1. /manage/kunder/<id>/?flik=drift -> Övervakning: skriv domänen, "vår plattform" tom, Lägg till.
 2. Kryssa i det kunden ska se, Spara övervakning.
 3. Kör dygnskontroll en gång så sidan får data direkt. Cron sköter resten
    (snabbkontroll var 5:e minut, dygnskontroll 06:30, som också hämtar

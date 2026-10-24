@@ -15,6 +15,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from apps.projects.access import VIEW_AS_KEY, staff_required
+from apps.projects.card_tabs import FLAMINGO, card_redirect
 from apps.projects.models import Customer
 from apps.website.models import BlockPage
 
@@ -24,7 +25,7 @@ from .models import FlamingoAccount, FlamingoSettings, account_for
 
 
 def _back(customer_id):
-    return redirect(reverse("manage:customer_detail", args=[customer_id]) + "#flamingo")
+    return card_redirect(customer_id, FLAMINGO)
 
 
 def flamingo_card_context(customer):

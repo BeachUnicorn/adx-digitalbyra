@@ -130,7 +130,9 @@ class Base(TestCase):
 
     def card(self, customer=None):
         customer = customer or self.acme
-        return self.staff_client().get(reverse("manage:customer_detail", args=[customer.pk]))
+        return self.staff_client().get(
+            reverse("manage:customer_detail", args=[customer.pk]) + "?flik=flamingo"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -588,7 +590,8 @@ class RequestLinkTests(Base):
             )
         self.assertRedirects(
             response,
-            reverse("manage:customer_detail", args=[self.acme.pk]) + "#flamingo-google",
+            reverse("manage:customer_detail", args=[self.acme.pk])
+            + "?flik=flamingo#flamingo-google",
             fetch_redirect_response=False,
         )
         self.assertIn("Kopplingsförfrågan är skickad", " ".join(texts(response)))

@@ -1,6 +1,12 @@
 {% extends "projects/base_board.html" %}
 {% load board_tags %}
 {% block board %}
+{% comment %}
+Kundkortet, en flik i taget (apps/projects/card_tabs.py, ?flik=). Huvudet och
+menyn står på alla flikar; vyn hämtar bara det fliken visar. Allt som leder
+hit bygger adressen med card_tabs.card_url eller skriver ?flik= i mallen, så
+att en panels formulär landar på panelens flik.
+{% endcomment %}
 <div class="tv-head">
   <div>
     <div class="tv-kicker">Kund</div>
@@ -17,8 +23,34 @@
     {% endif %}
   </div>
 </div>
+<nav class="m-subnav tv-cardtabs" aria-label="Kundkortet">
+  {% for t in tabs %}<a href="{{ t.url }}" class="m-subnav__item{% if t.key == tab %} is-active{% endif %}"{% if t.key == tab %} aria-current="page"{% endif %}>{{ t.label }}{% if t.count %} <span class="m-badge" aria-hidden="true">{{ t.count }}</span><span class="m-sr-only">, {{ t.count_label }}</span>{% endif %}</a>
+  {% endfor %}
+</nav>
+{% if tab == "" %}
 <div class="tv-grid">
   <div class="tv-stack">
+    <div class="m-panel tv-panel">
+      <div class="tv-sec-title">Läget</div>
+      <p class="tv-line"><a href="{% url 'manage:customer_detail' customer.pk %}?flik=arenden" class="tv-link"><b>{{ open_count }}</b> öppn{{ open_count|pluralize:"et,a" }} ärende{{ open_count|pluralize:"n" }}</a></p>
+      <p class="tv-line"><a href="{% url 'manage:customer_detail' customer.pk %}?flik=kontakter" class="tv-link"><b>{{ contact_count }}</b> portalkontakt{{ contact_count|pluralize:"er" }}</a></p>
+      <p class="tv-line"><a href="{% url 'manage:customer_detail' customer.pk %}?flik=logg" class="tv-link"><b>{{ unsent_count }}</b> osänd{{ unsent_count|pluralize:"a" }} loggrad{{ unsent_count|pluralize:"er" }}</a></p>
+      <p class="tv-line"><b>{{ time }}</b> loggad tid</p>
+    </div>
+
+    <div class="m-panel tv-panel">
+      <div class="tv-sec-title">Projekt</div>
+      {% for p in projects %}<p class="tv-line"><a href="{% url 'manage:project_detail' p.key %}" class="tv-link"><b>{{ p.key }}</b> {{ p.name }}</a> <span class="m-badge m-badge--{{ p.status }}">{{ p.get_status_display }}</span></p>{% empty %}<p class="tv-muted">Inga projekt. Kundens portalärenden får ett "Support"-projekt automatiskt.</p>{% endfor %}
+    </div>
+  </div>
+  <form method="post" class="m-panel tv-form">{% csrf_token %}
+    <div class="tv-sec-title">Uppgifter</div>
+    {% m_field form.name %}{% m_field form.org_number %}{% m_field form.email %}{% m_field form.phone %}{% m_field form.website %}{% m_field form.notes %}{% m_field form.is_active %}
+    <div class="tv-form__actions"><button type="submit" class="m-btn">Spara</button></div>
+  </form>
+</div>
+{% elif tab == "logg" %}
+<div class="tv-stack">
     <div class="m-panel tv-panel" id="logg">
       <div class="tv-sec-title">Logg{% if unsent_count %} <span>{{ unsent_count }} osänd{{ unsent_count|pluralize:"a" }}</span>{% endif %}</div>
       <p class="tv-prop__note">Datum och två-tre meningar om vad du gjorde. Syns i kundens portal direkt. Sammanställningen mejlas bara när du trycker på knappen.</p>
@@ -46,7 +78,56 @@
         {% if last_digest %}<span class="tv-muted">Senast skickad {{ last_digest.sent_at|date:"j M Y" }} till {{ last_digest.sent_to }}</span>{% endif %}
       </div>
     </div>
+</div>
+{% elif tab == "arenden" %}
+<div class="tv-stack">
+    <div class="m-panel m-table-wrap">
+      <div class="tv-panel-head"><div class="tv-sec-title">Ärenden</div></div>
+      <table class="m-table">
+        <thead><tr><th>Nyckel</th><th>Rubrik</th><th>Status</th><th>Kund ser</th><th class="m-num">Tid</th></tr></thead>
+        <tbody>
+        {% for i in issues %}<tr><td><a href="{% url 'manage:issue_detail' i.pk %}" class="tv-link"><b>{{ i.key }}</b></a></td><td>{{ i.title }}</td><td class="tv-muted">{{ i.get_status_display }}</td><td>{% if i.visible_to_customer %}<span class="m-badge m-badge--published">ja</span>{% else %}<span class="tv-muted">nej</span>{% endif %}</td><td class="m-num">{{ i.seconds|hours }}</td></tr>
+        {% empty %}<tr><td colspan="5" class="m-empty">Inga ärenden.</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    </div>
 
+    {% if quotes %}
+    <div class="m-panel m-table-wrap">
+      <div class="tv-panel-head"><div class="tv-sec-title">Offerter</div></div>
+      <table class="m-table">
+        <thead><tr><th>Offert</th><th>Status</th><th class="m-num">Vid leverans</th><th>Uppdaterad</th></tr></thead>
+        <tbody>{% for q in quotes %}<tr>
+          <td><a href="{% url 'manage:offer_edit' q.pk %}" class="tv-link"><b>{{ q.project_title|default:q.customer_name }}</b></a></td>
+          <td><span class="o-status o-status--{{ q.status }}">{{ q.get_status_display }}</span></td>
+          <td class="m-num">{{ q.totals_display.one_time }} kr</td>
+          <td class="tv-muted">{{ q.updated_at|date:"j M" }}</td>
+        </tr>{% endfor %}</tbody>
+      </table>
+    </div>
+    {% endif %}
+</div>
+{% elif tab == "kontakter" %}
+<div class="tv-stack">
+    <div class="m-panel tv-panel">
+      <div class="tv-sec-title">Portalkontakter</div>
+      <p class="tv-prop__note">Kontakterna får ett välkomstmejl när de bjuds in och loggar in med sin e-postadress och en engångskod som mejlas till dem. De ser bara den här kundens ärenden som är markerade "Synlig för kund". "Aktiv senast" är när kontakten senast öppnade en sida i kundportalen eller i Flamingo, räknat på fem minuter när. Gällde sidan en annan kund står den kundens namn efter. "Inloggad" är när kontakten senast loggade in med kod.</p>
+      {% for u in contacts %}
+      <form method="post" action="{% url 'manage:customer_remove_contact' customer.pk u.pk %}" class="tv-row">{% csrf_token %}
+        <span class="tv-row__grow">{{ u.get_full_name|default:u.email }} <small class="tv-muted">{{ u.email }}{% for part in u.status_parts %} &middot; {{ part.text }}{% if part.when %} <span class="tv-nowrap">{{ part.when }}</span>{% endif %}{% if part.after %} {{ part.after }}{% endif %}{% endfor %}</small></span>
+        <button type="submit" class="m-btn m-btn--small m-btn--danger" data-confirm="Ta bort kontakten från kunden?">Ta bort</button>
+      </form>
+      {% empty %}<p class="tv-muted">Inga kontakter än.</p>{% endfor %}
+      <form method="post" action="{% url 'manage:customer_invite' customer.pk %}" class="tv-row">{% csrf_token %}
+        <input type="email" name="email" placeholder="e-post" required aria-label="E-post" class="tv-input">
+        <input type="text" name="first_name" placeholder="Förnamn" aria-label="Förnamn" class="tv-input tv-input--name">
+        <input type="text" name="last_name" placeholder="Efternamn" aria-label="Efternamn" class="tv-input tv-input--name">
+        <button type="submit" class="m-btn m-btn--small">Bjud in</button>
+      </form>
+    </div>
+</div>
+{% elif tab == "drift" %}
+<div class="tv-stack">
     <div class="m-panel tv-panel" id="overvakning">
       <div class="tv-sec-title">Övervakning</div>
       <p class="tv-prop__note">Det kunden ser på /kund/status/. Avstängt = varken insamlat eller visat. Larm går bara till dig.</p>
@@ -93,63 +174,14 @@
     </div>
 
     {% include "cloud/_customer_panel.html" %}
-
-    {% include "flamingo/_customer_panel.html" %}
-
-    {% include "manage/sms/_customer_panel.html" %}
-
-    <div class="m-panel tv-panel">
-      <div class="tv-sec-title">Portalkontakter</div>
-      <p class="tv-prop__note">Kontakterna får ett välkomstmejl när de bjuds in och loggar in med sin e-postadress och en engångskod som mejlas till dem. De ser bara den här kundens ärenden som är markerade "Synlig för kund". "Aktiv senast" är när kontakten senast öppnade en sida i kundportalen eller i Flamingo, räknat på fem minuter när. Gällde sidan en annan kund står den kundens namn efter. "Inloggad" är när kontakten senast loggade in med kod.</p>
-      {% for u in contacts %}
-      <form method="post" action="{% url 'manage:customer_remove_contact' customer.pk u.pk %}" class="tv-row">{% csrf_token %}
-        <span class="tv-row__grow">{{ u.get_full_name|default:u.email }} <small class="tv-muted">{{ u.email }}{% for part in u.status_parts %} &middot; {{ part.text }}{% if part.when %} <span class="tv-nowrap">{{ part.when }}</span>{% endif %}{% if part.after %} {{ part.after }}{% endif %}{% endfor %}</small></span>
-        <button type="submit" class="m-btn m-btn--small m-btn--danger" data-confirm="Ta bort kontakten från kunden?">Ta bort</button>
-      </form>
-      {% empty %}<p class="tv-muted">Inga kontakter än.</p>{% endfor %}
-      <form method="post" action="{% url 'manage:customer_invite' customer.pk %}" class="tv-row">{% csrf_token %}
-        <input type="email" name="email" placeholder="e-post" required aria-label="E-post" class="tv-input">
-        <input type="text" name="first_name" placeholder="Förnamn" aria-label="Förnamn" class="tv-input tv-input--name">
-        <input type="text" name="last_name" placeholder="Efternamn" aria-label="Efternamn" class="tv-input tv-input--name">
-        <button type="submit" class="m-btn m-btn--small">Bjud in</button>
-      </form>
-    </div>
-
-    <div class="m-panel tv-panel">
-      <div class="tv-sec-title">Projekt</div>
-      {% for p in projects %}<p class="tv-line"><a href="{% url 'manage:project_detail' p.key %}" class="tv-link"><b>{{ p.key }}</b> {{ p.name }}</a> <span class="m-badge m-badge--{{ p.status }}">{{ p.get_status_display }}</span></p>{% empty %}<p class="tv-muted">Inga projekt. Kundens portalärenden får ett "Support"-projekt automatiskt.</p>{% endfor %}
-    </div>
-
-    {% if quotes %}
-    <div class="m-panel m-table-wrap">
-      <div class="tv-panel-head"><div class="tv-sec-title">Offerter</div></div>
-      <table class="m-table">
-        <thead><tr><th>Offert</th><th>Status</th><th class="m-num">Vid leverans</th><th>Uppdaterad</th></tr></thead>
-        <tbody>{% for q in quotes %}<tr>
-          <td><a href="{% url 'manage:offer_edit' q.pk %}" class="tv-link"><b>{{ q.project_title|default:q.customer_name }}</b></a></td>
-          <td><span class="o-status o-status--{{ q.status }}">{{ q.get_status_display }}</span></td>
-          <td class="m-num">{{ q.totals_display.one_time }} kr</td>
-          <td class="tv-muted">{{ q.updated_at|date:"j M" }}</td>
-        </tr>{% endfor %}</tbody>
-      </table>
-    </div>
-    {% endif %}
-
-    <div class="m-panel m-table-wrap">
-      <div class="tv-panel-head"><div class="tv-sec-title">Ärenden</div></div>
-      <table class="m-table">
-        <thead><tr><th>Nyckel</th><th>Rubrik</th><th>Status</th><th>Kund ser</th><th class="m-num">Tid</th></tr></thead>
-        <tbody>
-        {% for i in issues %}<tr><td><a href="{% url 'manage:issue_detail' i.pk %}" class="tv-link"><b>{{ i.key }}</b></a></td><td>{{ i.title }}</td><td class="tv-muted">{{ i.get_status_display }}</td><td>{% if i.visible_to_customer %}<span class="m-badge m-badge--published">ja</span>{% else %}<span class="tv-muted">nej</span>{% endif %}</td><td class="m-num">{{ i.seconds|hours }}</td></tr>
-        {% empty %}<tr><td colspan="5" class="m-empty">Inga ärenden.</td></tr>{% endfor %}
-        </tbody>
-      </table>
-    </div>
-  </div>
-  <form method="post" class="m-panel tv-form">{% csrf_token %}
-    <div class="tv-sec-title">Uppgifter</div>
-    {% m_field form.name %}{% m_field form.org_number %}{% m_field form.email %}{% m_field form.phone %}{% m_field form.website %}{% m_field form.notes %}{% m_field form.is_active %}
-    <div class="tv-form__actions"><button type="submit" class="m-btn">Spara</button></div>
-  </form>
 </div>
+{% elif tab == "flamingo" %}
+<div class="tv-stack">
+    {% include "flamingo/_customer_panel.html" %}
+</div>
+{% elif tab == "sms" %}
+<div class="tv-stack">
+    {% include "manage/sms/_customer_panel.html" %}
+</div>
+{% endif %}
 {% endblock %}

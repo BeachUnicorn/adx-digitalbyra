@@ -30,7 +30,7 @@ manage:utskick_probe med kind=email (J S3 steg 7). Panelens klasser,
       <tbody>
       {% for row in email_blocked %}
       <tr>
-        <td><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}#utskick"><b>{{ row.account.customer.name }}</b></a></td>
+        <td><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}?flik=flamingo#utskick"><b>{{ row.account.customer.name }}</b></a></td>
         <td>{{ row.email_blocked_at|date:"j b H:i" }}</td>
         <td>{% if row.email_blocked_reason == "complaints" %}Klagomål{% else %}Studsar{% endif %}: {{ row.verdict.bounced|tal }} studsar, {{ row.verdict.complained|tal }} klagomål</td>
         <td class="m-num">{{ row.verdict.sent|tal }}</td>

@@ -23,6 +23,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from apps.inquiries.emails import _as_list
+from apps.projects.card_tabs import SMS, card_url
 
 from .models import SmsAccount
 
@@ -42,7 +43,7 @@ def _recipients():
 
 
 def _card_link(account):
-    path = reverse("manage:customer_detail", args=[account.customer_id]) + "#sms"
+    path = card_url(account.customer_id, SMS)
     base = (getattr(settings, "SITE_BASE_URL", "") or "").rstrip("/")
     return f"{base}{path}"
 

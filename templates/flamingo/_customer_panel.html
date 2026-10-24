@@ -22,7 +22,7 @@ Kontakter och utskick (manage/utskick/_customer_card.html, apps/utskick).
   <p class="tv-muted">Aktiverat {{ flamingo_account.enabled_at|date:"j b Y" }}{% if flamingo_account.enabled_by %} av {{ flamingo_account.enabled_by.first_name|default:flamingo_account.enabled_by.get_username }}{% endif %}.</p>
   {% endif %}
   {% if flamingo_enabled and not flamingo_contact_count %}
-  <p class="tv-prop__note">Kunden har inga portalkontakter än. Bjud in en kontakt nedan så att någon kan logga in.</p>
+  <p class="tv-prop__note">Kunden har inga portalkontakter än. Bjud in en kontakt under <a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}?flik=kontakter">Kontakter</a> så att någon kan logga in.</p>
   {% endif %}
   {% if customer.is_active %}
   <form method="post" action="{% url 'manage:flamingo_view_as' customer.pk %}">{% csrf_token %}

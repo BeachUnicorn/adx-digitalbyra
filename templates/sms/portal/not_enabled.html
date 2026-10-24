@@ -13,7 +13,7 @@ kunden själv får en vanlig 404 på samma adress.
   </div>
   <div class="m-panel tv-panel">
     <p class="tv-prop__note">SMS är inte aktiverat för {{ customer.name }}. Kunden ser ingen SMS-länk, och adressen ger kunden en 404. Aktivera på kundkortet.</p>
-    <p><a class="m-btn m-btn--small" href="{% url 'manage:customer_detail' customer.pk %}#sms">Till kundkortet</a></p>
+    <p><a class="m-btn m-btn--small" href="{% url 'manage:customer_detail' customer.pk %}?flik=sms">Till kundkortet</a></p>
   </div>
 </div>
 {% endblock %}

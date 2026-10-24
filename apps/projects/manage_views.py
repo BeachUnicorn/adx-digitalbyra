@@ -30,7 +30,7 @@ from django.views.decorators.http import require_GET, require_POST
 
 from apps.common import providers
 
-from . import activity
+from . import activity, card_tabs
 from .access import VIEW_AS_KEY, staff_required
 from .board import (
     STAGES,
@@ -905,59 +905,106 @@ def customer_list(request):
 
 @staff_required
 def customer_detail(request, pk):
-    from apps.cloud.card import aws_card_context
-    from apps.flamingo.manage_views import flamingo_card_context
-
+    """
+    Kundkortet, en flik i taget (card_tabs: ?flik=). Huvudet och menyn står
+    på alla flikar; varje flik hämtar bara det dess paneler visar, så att
+    AWS, Flamingo, SMS och övervakningen inte frågas på de andra flikarna.
+    Uppgifterna sparas från översikten, och ett formulär med fel visas där.
+    """
     customer = get_object_or_404(Customer, pk=pk)
+    tab = card_tabs.OVERVIEW if request.method == "POST" else card_tabs.tab_from(request)
     form = CustomerForm(request.POST or None, instance=customer)
     if request.method == "POST" and form.is_valid():
         form.save()
         messages.success(request, "Kunden är sparad.")
-        return redirect("manage:customer_detail", pk=pk)
-    issues = with_time(
-        Issue.objects.for_customer(customer).select_related("project").with_logged_seconds()
-    )
-    from apps.monitor.models import settings_for as monitor_settings_for
+        return card_tabs.card_redirect(pk)
 
-    monitor = monitor_settings_for(customer)
-    # Kundens offerter: kopplade via projekt, eller skrivna på kundens namn
-    # innan kopplingen fanns.
-    from apps.offers.models import Quote
+    unsent_count = customer.log_entries.filter(digest__isnull=True).count()
+    open_count = Issue.objects.for_customer(customer).open().count()
+    # Siffran i menyn, och vad den betyder för skärmläsaren.
+    counts = {
+        card_tabs.LOG: (
+            unsent_count,
+            f"{unsent_count} osänd{'' if unsent_count == 1 else 'a'} "
+            f"loggrad{'' if unsent_count == 1 else 'er'}",
+        ),
+        card_tabs.ISSUES: (
+            open_count,
+            f"{open_count} {'öppet ärende' if open_count == 1 else 'öppna ärenden'}",
+        ),
+    }
+    context = {
+        "active": "customers",
+        "customer": customer,
+        "tab": tab,
+        "tabs": [
+            {
+                "key": key,
+                "label": label,
+                "url": card_tabs.card_url(customer.pk, key),
+                "count": counts.get(key, (0, ""))[0],
+                "count_label": counts.get(key, (0, ""))[1],
+            }
+            for key, label in card_tabs.TABS
+        ],
+        "time": fmt_hours(customer.total_seconds()),
+        "title": customer.name,
+        "unsent_count": unsent_count,
+        "open_count": open_count,
+    }
 
-    quotes = Quote.objects.filter(
-        Q(project__customer=customer) | Q(customer_name__iexact=customer.name)
-    ).distinct()[:20]
-    log_entries = list(customer.log_entries.select_related("digest", "author")[:100])
-    return render(
-        request,
-        "projects/customer_detail.html",
-        {
-            "active": "customers",
-            "customer": customer,
-            "form": form,
-            "invite_form": InviteForm(),
-            "projects": customer.projects.all(),
-            "issues": issues,
-            "contacts": activity.contacts_for_card(customer),
-            "time": fmt_hours(customer.total_seconds()),
-            "title": customer.name,
-            "log_entries": log_entries,
-            "monitor": monitor,
-            "quotes": quotes,
-            "monitor_domains": customer.domains.all(),
-            **aws_card_context(customer),
-            **flamingo_card_context(customer),
-            "monitor_fields": [
+    if tab == card_tabs.OVERVIEW:
+        context.update(
+            form=form,
+            projects=customer.projects.all(),
+            contact_count=customer.users.count(),
+        )
+    elif tab == card_tabs.LOG:
+        context.update(
+            log_entries=list(customer.log_entries.select_related("digest", "author")[:100]),
+            # Tomt sent_to = poster inlagda i efterhand och avbockade utan mejl.
+            last_digest=customer.log_digests.exclude(sent_to="").first(),
+            today=timezone.localdate().isoformat(),
+        )
+    elif tab == card_tabs.ISSUES:
+        # Kundens offerter: kopplade via projekt, eller skrivna på kundens namn
+        # innan kopplingen fanns.
+        from apps.offers.models import Quote
+
+        context.update(
+            issues=with_time(
+                Issue.objects.for_customer(customer).select_related("project").with_logged_seconds()
+            ),
+            quotes=Quote.objects.filter(
+                Q(project__customer=customer) | Q(customer_name__iexact=customer.name)
+            ).distinct()[:20],
+        )
+    elif tab == card_tabs.CONTACTS:
+        context.update(
+            contacts=activity.contacts_for_card(customer),
+            invite_form=InviteForm(),
+        )
+    elif tab == card_tabs.OPERATIONS:
+        from apps.cloud.card import aws_card_context
+        from apps.monitor.models import settings_for as monitor_settings_for
+
+        monitor = monitor_settings_for(customer)
+        context.update(
+            monitor=monitor,
+            monitor_domains=customer.domains.all(),
+            monitor_fields=[
                 {"name": f.name, "label": f.verbose_name, "value": getattr(monitor, f.name)}
                 for f in monitor._meta.fields
                 if f.name.startswith("show_")
             ],
-            "unsent_count": customer.log_entries.filter(digest__isnull=True).count(),
-            # Tomt sent_to = poster inlagda i efterhand och avbockade utan mejl.
-            "last_digest": customer.log_digests.exclude(sent_to="").first(),
-            "today": timezone.localdate().isoformat(),
-        },
-    )
+            **aws_card_context(customer),
+        )
+    elif tab == card_tabs.FLAMINGO:
+        from apps.flamingo.manage_views import flamingo_card_context
+
+        context.update(flamingo_card_context(customer))
+    # SMS: panelen hämtar sitt eget ur sms_tags.sms_card.
+    return render(request, "projects/customer_detail.html", context)
 
 
 @staff_required
@@ -981,7 +1028,7 @@ def customer_log_add(request, pk):
         warning = providers.warning(text)
         if warning:
             messages.warning(request, f"{warning} Ta bort raden och skriv om den.")
-    return redirect(reverse("manage:customer_detail", args=[pk]) + "#logg")
+    return card_tabs.card_redirect(pk, card_tabs.LOG)
 
 
 @staff_required
@@ -993,7 +1040,7 @@ def customer_log_delete(request, pk):
     else:
         entry.delete()
         messages.success(request, "Loggraden är borttagen.")
-    return redirect(reverse("manage:customer_detail", args=[entry.customer_id]) + "#logg")
+    return card_tabs.card_redirect(entry.customer_id, card_tabs.LOG)
 
 
 @staff_required
@@ -1005,7 +1052,7 @@ def customer_log_send(request, pk):
     lagts till efter förhandsgranskningen följer inte med. Inget skickas annars.
     """
     customer = get_object_or_404(Customer, pk=pk)
-    back = reverse("manage:customer_detail", args=[pk]) + "#logg"
+    back = card_tabs.card_url(pk, card_tabs.LOG)
     ids = [int(x) for x in request.POST.get("entries", "").split(",") if x.strip().isdigit()]
     entries = list(customer.log_entries.filter(digest__isnull=True, pk__in=ids))
     if not entries:
@@ -1076,7 +1123,7 @@ def customer_invite(request, pk):
     form = InviteForm(request.POST)
     if not form.is_valid():
         messages.error(request, "Ange en giltig e-postadress.")
-        return redirect("manage:customer_detail", pk=pk)
+        return card_tabs.card_redirect(pk, card_tabs.CONTACTS)
     email = form.cleaned_data["email"].lower()
     User = get_user_model()
     user, created = User.objects.get_or_create(
@@ -1090,7 +1137,7 @@ def customer_invite(request, pk):
     )
     if user.is_staff:
         messages.error(request, "Den adressen tillhör en byråanvändare.")
-        return redirect("manage:customer_detail", pk=pk)
+        return card_tabs.card_redirect(pk, card_tabs.CONTACTS)
     if created:
         user.set_unusable_password()
         user.save()
@@ -1103,7 +1150,7 @@ def customer_invite(request, pk):
             f"{email} är kopplad, men mejlet gick inte iväg. Be kontakten logga in på "
             f"{portal_login_url()} med sin e-postadress.",
         )
-    return redirect("manage:customer_detail", pk=pk)
+    return card_tabs.card_redirect(pk, card_tabs.CONTACTS)
 
 
 @staff_required
@@ -1124,7 +1171,7 @@ def customer_remove_contact(request, pk, user_id):
     customer = get_object_or_404(Customer, pk=pk)
     customer.users.remove(user_id)
     messages.success(request, "Kontakten är borttagen från kunden.")
-    return redirect("manage:customer_detail", pk=pk)
+    return card_tabs.card_redirect(pk, card_tabs.CONTACTS)
 
 
 # ------------------------------------------------------------------ tid

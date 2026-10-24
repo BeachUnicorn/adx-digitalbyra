@@ -578,7 +578,9 @@ class CustomerCardTests(S4FlowFixture, TestCase):
         )
         client = Client()
         client.force_login(self.staff)
-        card = client.get(reverse("manage:customer_detail", args=[self.customer.pk]))
+        card = client.get(
+            reverse("manage:customer_detail", args=[self.customer.pk]) + "?flik=flamingo"
+        )
         self.assertContains(card, "Kunden har en namngiven länk på klick.adx.se/exempelror/.")
         self.assertContains(card, 'name="slug_confirm"')
         response = self.post(public_slug="exempelror-ab")
@@ -637,7 +639,9 @@ class CustomerCardTests(S4FlowFixture, TestCase):
         )
         client = Client()
         client.force_login(self.staff)
-        card = client.get(reverse("manage:customer_detail", args=[self.other_customer.pk]))
+        card = client.get(
+            reverse("manage:customer_detail", args=[self.other_customer.pk]) + "?flik=flamingo"
+        )
         self.assertEqual(card.status_code, 200)
         client.post(
             reverse("manage:utskick_customer_update", args=[self.other_customer.pk]),

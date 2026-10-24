@@ -12,7 +12,7 @@ tiden skickas ingenting.
 {% block board %}
 <div class="tv-head">
   <div>
-    <div class="tv-kicker"><a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}#logg">{{ customer.name }}</a></div>
+    <div class="tv-kicker"><a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}?flik=logg">{{ customer.name }}</a></div>
     <h1 class="tv-h1">Förhandsgranska loggmejl</h1>
     <div class="tv-sub">Så här ser mejlet ut för kunden. Inget har skickats än.</div>
   </div>
@@ -20,7 +20,7 @@ tiden skickas ingenting.
 
 {% if not entries %}
 <div class="m-panel tv-panel"><p class="tv-empty tv-empty--inline">Inga osända loggrader. Det finns inget att skicka.</p>
-  <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:customer_detail' customer.pk %}#logg">Tillbaka till kunden</a></div>
+  <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:customer_detail' customer.pk %}?flik=logg">Tillbaka till kunden</a></div>
 {% else %}
 <div class="lp">
   <div class="lp-mail">
@@ -52,7 +52,7 @@ tiden skickas ingenting.
         <input type="hidden" name="entries" value="{{ entry_ids }}">
         <button type="submit" class="m-btn"{% if not to or not email_ready %} disabled{% endif %}>Skicka till kunden</button>
       </form>
-      <a class="m-btn m-btn--ghost lp-back" href="{% url 'manage:customer_detail' customer.pk %}#logg">Tillbaka och ändra</a>
+      <a class="m-btn m-btn--ghost lp-back" href="{% url 'manage:customer_detail' customer.pk %}?flik=logg">Tillbaka och ändra</a>
       <p class="tv-prop__note">Ändrar du eller lägger till en rad, öppna förhandsgranskningen igen innan du skickar.</p>
     </div>
   </aside>

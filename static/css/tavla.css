@@ -340,6 +340,12 @@ body.is-dragging-any{cursor:grabbing}
 .pt-banner form{margin:0}
 .pt-banner .m-btn{width:auto}
 
+/* Kundkortets flikar (projects/customer_detail.html, ?flik=) är panelens
+   m-subnav. Radbryts på smal skärm; varje flik är minst 44 punkter hög så
+   att den går att träffa med tummen. */
+.tv-cardtabs .m-subnav__item{min-height:44px}
+.tv-cardtabs .m-subnav__item .m-badge{margin-left:2px}
+
 @media (max-width:980px){.tv-grid,.tv-grid--report{grid-template-columns:1fr}}
 @media (max-width:760px){
   .tv-board{margin:0 -16px;padding-left:16px;padding-right:16px}

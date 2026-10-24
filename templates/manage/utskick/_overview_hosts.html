@@ -15,7 +15,7 @@ Tabeller här har <thead> (vakten i test_s1_guards); inga style-attribut.
       <tbody>
       {% for r in hosts_pending %}
       <tr>
-        <td>{% if r.customer %}<a class="tv-link" href="{% url 'manage:customer_detail' r.customer.pk %}#utskick"><b>{{ r.customer.name }}</b></a>{% else %}Konto {{ r.host.account_id }}{% endif %}</td>
+        <td>{% if r.customer %}<a class="tv-link" href="{% url 'manage:customer_detail' r.customer.pk %}?flik=flamingo#utskick"><b>{{ r.customer.name }}</b></a>{% else %}Konto {{ r.host.account_id }}{% endif %}</td>
         <td><b>{{ r.host.host }}</b></td>
         <td>{{ r.host.requested_at|date:"j b Y H:i" }}{% if r.requested_by %} av {{ r.requested_by }}{% endif %}</td>
         <td>

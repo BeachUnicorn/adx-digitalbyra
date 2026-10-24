@@ -57,6 +57,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 from apps.projects.access import staff_required
+from apps.projects.card_tabs import FLAMINGO, card_redirect
 from apps.projects.models import Customer
 
 from . import checks, exports, google_ads, google_publish, pagebuilder
@@ -124,7 +125,7 @@ CHECKLIST = (
 
 
 def _back_to_card(customer_pk):
-    return redirect(reverse("manage:customer_detail", args=[customer_pk]) + "#flamingo")
+    return card_redirect(customer_pk, FLAMINGO)
 
 
 def _back_to_review(campaign_pk, anchor=""):

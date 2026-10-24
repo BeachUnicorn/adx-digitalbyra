@@ -45,6 +45,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from apps.projects.access import staff_required
+from apps.projects.card_tabs import FLAMINGO, card_redirect
 from apps.projects.models import Customer
 
 from . import importer, keys, optin
@@ -121,7 +122,7 @@ STOP_ALL_TEXT = (
 
 
 def _back(customer_pk):
-    return redirect(reverse("manage:customer_detail", args=[customer_pk]) + "#utskick")
+    return card_redirect(customer_pk, FLAMINGO, "utskick")
 
 
 def _who(user):

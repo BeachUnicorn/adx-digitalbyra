@@ -269,7 +269,7 @@ class ManageTests(FlamingoFixture, TestCase):
         client = self.client_for(self.staff)
         response = client.post(f"/manage/kunder/{self.other.pk}/flamingo/", {"is_enabled": "on"})
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(response["Location"].endswith("#flamingo"))
+        self.assertTrue(response["Location"].endswith("?flik=flamingo"))
         account = FlamingoAccount.objects.get(customer=self.other)
         self.assertTrue(account.is_enabled)
         self.assertEqual(account.enabled_by, self.staff)
@@ -287,7 +287,9 @@ class ManageTests(FlamingoFixture, TestCase):
 
     def test_card_list_and_overview_show_flamingo(self):
         client = self.client_for(self.staff)
-        self.assertContains(client.get(f"/manage/kunder/{self.acme.pk}/"), 'id="flamingo"')
+        self.assertContains(
+            client.get(f"/manage/kunder/{self.acme.pk}/?flik=flamingo"), 'id="flamingo"'
+        )
         self.assertContains(client.get("/manage/kunder/"), "m-badge--flamingo")
         overview = client.get("/manage/flamingo/")
         self.assertContains(overview, "Acme AB")

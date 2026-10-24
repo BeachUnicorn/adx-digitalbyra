@@ -200,7 +200,9 @@ class ManageTests(Fixture):
             snapshot={"warnings": ["Root-kontot saknar MFA."]}
         )
         self.client.force_login(self.staff)
-        card = self.client.get(reverse("manage:customer_detail", args=[self.acme.pk]))
+        card = self.client.get(
+            reverse("manage:customer_detail", args=[self.acme.pk]) + "?flik=drift"
+        )
         self.assertContains(card, "9999-9999-9901")
         self.assertContains(card, "Root-kontot saknar MFA.")
         self.assertContains(card, self.account.external_id)  # i CLI-kommandot

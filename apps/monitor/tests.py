@@ -480,7 +480,7 @@ class ManageTests(Fixture):
         self.assertEqual(
             Check.objects.filter(domain__customer=self.acme, kind=Kind.UPTIME).count(), 2
         )
-        html = client.get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        html = client.get(f"/manage/kunder/{self.acme.pk}/?flik=drift").content.decode()
         self.assertIn("acme.se", html)
         self.assertIn("Kör snabbkontroll nu", html)
 

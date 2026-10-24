@@ -51,7 +51,7 @@ biträdesavtalet. Ingenting här mejlar någon kund.
     <tbody>
     {% for row in accounts %}
     <tr{% if not row.is_enabled %} class="is-off"{% endif %}>
-      <td><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}#utskick"><b>{{ row.account.customer.name }}</b></a>{% if row.account.is_demo %} <span class="m-badge">Demo</span>{% endif %}</td>
+      <td><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}?flik=flamingo#utskick"><b>{{ row.account.customer.name }}</b></a>{% if row.account.is_demo %} <span class="m-badge">Demo</span>{% endif %}</td>
       <td><span>{% if row.sending_blocked %}<span class="m-badge m-badge--alert">Stoppad</span>{% elif row.is_enabled %}<span class="m-badge m-badge--published">Aktiverat</span>{% else %}<span class="m-badge">Avstängt</span>{% endif %}</span></td>
       <td class="m-num">{{ row.kontakter|tal }} av {{ row.contact_limit|tal }}</td>
       <td>{{ row.dpa_text }}</td>

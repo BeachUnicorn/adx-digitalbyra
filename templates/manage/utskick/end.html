@@ -12,7 +12,7 @@ error, typed. Spärrlistan och samtyckesloggen finns kvar. Kunden mejlas inte.
 {% block content %}
 <div class="m-page-head">
   <h1 class="m-page-head__title">Avsluta utskick för {{ customer.name }}</h1>
-  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}#utskick">Tillbaka till kundkortet</a></p>
+  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}?flik=flamingo#utskick">Tillbaka till kundkortet</a></p>
 </div>
 
 <div class="m-panel tv-panel tv-panel--read">
@@ -31,7 +31,7 @@ error, typed. Spärrlistan och samtyckesloggen finns kvar. Kunden mejlas inte.
     </div>
     <div class="tv-logfoot">
       <button type="submit" class="m-btn m-btn--small mu-stop__btn">Avsluta utskick och radera allt</button>
-      <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:customer_detail' customer.pk %}#utskick">Avbryt</a>
+      <a class="m-btn m-btn--small m-btn--ghost" href="{% url 'manage:customer_detail' customer.pk %}?flik=flamingo#utskick">Avbryt</a>
     </div>
   </form>
 </div>

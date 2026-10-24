@@ -3,11 +3,12 @@
 from django.conf import settings
 
 from apps.inquiries.emails import _as_list
+from apps.projects.card_tabs import OPERATIONS, card_url
 from apps.projects.emails import _base_url, _send
 
 
 def _manage_url(domain):
-    return f"{_base_url()}/manage/kunder/{domain.customer_id}/#overvakning"
+    return f"{_base_url()}{card_url(domain.customer_id, OPERATIONS)}"
 
 
 def alert_down(domain, error):

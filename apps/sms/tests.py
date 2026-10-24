@@ -1127,7 +1127,7 @@ class ManageTests(SmsTestCase):
             self.assertEqual(response.status_code, 302)
         self.client.force_login(self.staff)
         self.assertEqual(self.client.get(reverse("manage:sms_overview")).status_code, 200)
-        card = self.client.get(reverse("manage:customer_detail", args=[self.acme.pk]))
+        card = self.client.get(reverse("manage:customer_detail", args=[self.acme.pk]) + "?flik=sms")
         self.assertContains(card, 'id="sms"')
         self.assertContains(card, "AcmeBygg")
 
@@ -1135,7 +1135,7 @@ class ManageTests(SmsTestCase):
         customer = Customer.objects.create(name="Ny Kund Åkeri AB", email="ny@kund.example")
         customer.users.add(User.objects.create_user("kalle", email="kalle@kund.example"))
         self.client.force_login(self.staff)
-        card = self.client.get(reverse("manage:customer_detail", args=[customer.pk]))
+        card = self.client.get(reverse("manage:customer_detail", args=[customer.pk]) + "?flik=sms")
         self.assertContains(card, 'value="NyKundAkeri"')  # förslaget
         url = reverse("manage:sms_customer_update", args=[customer.pk])
         fields = {
@@ -1502,7 +1502,7 @@ class AmbiguousSendTests(SmsTestCase):
         overview = self.client.get(reverse("manage:sms_overview"))
         self.assertContains(overview, "Kontrollera mot 46elks")
         self.assertEqual({m.pk for m in overview.context["to_check"]}, {a, b})
-        card = self.client.get(reverse("manage:customer_detail", args=[self.acme.pk]))
+        card = self.client.get(reverse("manage:customer_detail", args=[self.acme.pk]) + "?flik=sms")
         self.assertContains(card, "Kontrollera mot 46elks")
         self.client.post(reverse("manage:sms_resolve_check", args=[a]), {"sent": "1"})
         self.client.post(reverse("manage:sms_resolve_check", args=[b]), {"sent": "0"})
@@ -1888,7 +1888,7 @@ class CapChangeTests(SmsTestCase):
         self.client.post(reverse("sms:cap_update"), {"monthly_cap_kr": "900"})
         self.account.refresh_from_db()
         self.assertEqual(self.account.monthly_cap_changed_by, self.staff)
-        card = self.client.get(reverse("manage:customer_detail", args=[self.acme.pk]))
+        card = self.client.get(reverse("manage:customer_detail", args=[self.acme.pk]) + "?flik=sms")
         self.assertContains(card, "av Gio Byrå.")
 
     def test_the_card_records_only_a_real_change(self):

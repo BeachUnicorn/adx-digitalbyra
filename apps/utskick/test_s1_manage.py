@@ -79,7 +79,7 @@ class AccessTests(ManageFixture, TestCase):
 class CustomerCardTests(ManageFixture, TestCase):
     def test_the_card_shows_the_utskick_part(self):
         response = self.staff_client().get(
-            reverse("manage:customer_detail", args=[self.customer.pk])
+            reverse("manage:customer_detail", args=[self.customer.pk]) + "?flik=flamingo"
         )
         self.assertContains(response, 'id="utskick"')
         self.assertContains(response, "Kontakter och utskick")
@@ -105,7 +105,7 @@ class CustomerCardTests(ManageFixture, TestCase):
         response = self.staff_client().post(url, {"is_enabled": "on", "display_name": ""})
         self.assertRedirects(
             response,
-            reverse("manage:customer_detail", args=[customer.pk]) + "#utskick",
+            reverse("manage:customer_detail", args=[customer.pk]) + "?flik=flamingo#utskick",
             fetch_redirect_response=False,
         )
         row = UtskickSettings.objects.get(account=account)

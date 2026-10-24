@@ -345,7 +345,7 @@ class CustomerCardTests(ActivityFixture, TestCase):
 
     def card(self, customer=None):
         customer = customer or self.acme
-        return self.as_staff().get(f"/manage/kunder/{customer.pk}/").content.decode()
+        return self.as_staff().get(f"/manage/kunder/{customer.pk}/?flik=kontakter").content.decode()
 
     def contact_line(self, html, email):
         match = re.search(rf"<small class=\"tv-muted\">{re.escape(email)}(.*?)</small>", html)
@@ -396,7 +396,7 @@ class CustomerCardTests(ActivityFixture, TestCase):
 
     def test_the_contacts_cost_the_same_queries_however_many(self):
         client = self.as_staff()
-        url = f"/manage/kunder/{self.acme.pk}/"
+        url = f"/manage/kunder/{self.acme.pk}/?flik=kontakter"
         client.get(url)
         with CaptureQueriesContext(connection) as few:
             client.get(url)

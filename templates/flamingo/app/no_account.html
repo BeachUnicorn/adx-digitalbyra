@@ -14,6 +14,6 @@ konto. Aktiveringen görs på kundkortet i panelen.
 </header>
 <div class="fl-empty fl-panel">
   <p class="fl-empty__text">Verktyget har inget att visa för {{ customer.name }}. Aktivera Flamingo på kundkortet i panelen, så finns allt här.</p>
-  <a class="fl-btn fl-btn--sm" href="{% url 'manage:customer_detail' customer.pk %}#flamingo">Till kundkortet</a>
+  <a class="fl-btn fl-btn--sm" href="{% url 'manage:customer_detail' customer.pk %}?flik=flamingo">Till kundkortet</a>
 </div>
 {% endblock %}

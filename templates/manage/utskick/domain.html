@@ -13,7 +13,7 @@ tabell, inga style-attribut.
 {% block content %}
 <div class="m-page-head">
   <h1 class="m-page-head__title">{{ row.domain }}</h1>
-  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:utskick_overview' %}#epost-domaner">Tillbaka till översikten</a> · <a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}#utskick">{{ row.account.customer.name }}</a></p>
+  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:utskick_overview' %}#epost-domaner">Tillbaka till översikten</a> · <a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}?flik=flamingo#utskick">{{ row.account.customer.name }}</a></p>
 </div>
 
 <div class="m-panel tv-panel tv-panel--read">

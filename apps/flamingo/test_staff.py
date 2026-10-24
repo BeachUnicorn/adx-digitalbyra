@@ -252,6 +252,7 @@ class AccessTests(StaffFixture, TestCase):
         for url in gets + [
             reverse("manage:flamingo_overview"),
             reverse("manage:customer_detail", args=[self.acme.pk]),
+            reverse("manage:customer_detail", args=[self.acme.pk]) + "?flik=flamingo",
         ]:
             with self.subTest(url=url):
                 self.assertEqual(client.get(url).status_code, 200)
@@ -976,7 +977,7 @@ class GoogleUpdateTests(StaffFixture, TestCase):
                 )
                 self.assertRedirects(
                     response,
-                    reverse("manage:customer_detail", args=[self.other.pk]) + "#flamingo",
+                    reverse("manage:customer_detail", args=[self.other.pk]) + "?flik=flamingo",
                     fetch_redirect_response=False,
                 )
                 self.other_account.refresh_from_db()
@@ -1038,7 +1039,9 @@ class GoogleUpdateTests(StaffFixture, TestCase):
         self.assertEqual(self.other_account.google_note, "Ringde kunden")
 
     def test_the_customer_card_shows_the_google_form_and_campaigns(self):
-        response = self.staff_client().get(reverse("manage:customer_detail", args=[self.acme.pk]))
+        response = self.staff_client().get(
+            reverse("manage:customer_detail", args=[self.acme.pk]) + "?flik=flamingo"
+        )
         self.assertContains(response, reverse("manage:flamingo_google_update", args=[self.acme.pk]))
         self.assertContains(response, 'value="123-456-7890"')
         self.assertContains(response, "Badrum Nacka")
@@ -1047,7 +1050,9 @@ class GoogleUpdateTests(StaffFixture, TestCase):
 
     def test_a_customer_without_flamingo_has_no_google_form(self):
         plain = Customer.objects.create(name="Utan Flamingo AB")
-        response = self.staff_client().get(reverse("manage:customer_detail", args=[plain.pk]))
+        response = self.staff_client().get(
+            reverse("manage:customer_detail", args=[plain.pk]) + "?flik=flamingo"
+        )
         self.assertNotContains(response, reverse("manage:flamingo_google_update", args=[plain.pk]))
         response = self.staff_client().post(
             reverse("manage:flamingo_google_update", args=[plain.pk]),

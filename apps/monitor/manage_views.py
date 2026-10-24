@@ -12,6 +12,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.common import providers
 from apps.projects.access import staff_required
+from apps.projects.card_tabs import OPERATIONS, card_redirect
 from apps.projects.models import Customer
 
 from . import google_present
@@ -30,7 +31,7 @@ from .runner import GoogleRun, active_domains, run_daily, run_google, run_quick
 
 
 def _back(customer_id):
-    return redirect(reverse("manage:customer_detail", args=[customer_id]) + "#overvakning")
+    return card_redirect(customer_id, OPERATIONS)
 
 
 def _clean_domain(raw):

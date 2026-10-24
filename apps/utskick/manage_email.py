@@ -32,6 +32,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.projects.access import staff_required
+from apps.projects.card_tabs import FLAMINGO, card_redirect
 
 from .email import domains, transport
 from .inbound import queues
@@ -189,8 +190,7 @@ def health_release(request, pk):
         messages.info(request, "Kontot hade ingen e-postspärr.")
     back = str(request.POST.get("back") or "")
     if back == "kund" and account.customer_id:
-        card = reverse("manage:customer_detail", args=[account.customer_id])
-        return redirect(card + "#utskick")
+        return card_redirect(account.customer_id, FLAMINGO, "utskick")
     return _back()
 
 

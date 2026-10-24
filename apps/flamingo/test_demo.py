@@ -615,7 +615,7 @@ class DemoContentTests(DemoFixture, TestCase):
         urls = [
             reverse("manage:flamingo_overview"),
             reverse("manage:flamingo_queue"),
-            reverse("manage:customer_detail", args=[self.customer.pk]),
+            reverse("manage:customer_detail", args=[self.customer.pk]) + "?flik=flamingo",
             reverse("manage:utskick_overview"),
             reverse("manage:utskick_customer_end", args=[self.customer.pk]),
         ]
@@ -641,7 +641,9 @@ class DemoStaffViewTests(DemoFixture, TestCase):
         self.assertNotIn("Google Ads API är inte inkopplat", to_publish)
 
     def test_the_card_links_to_the_queue_with_the_demo_shown(self):
-        card = self.staff_client().get(reverse("manage:customer_detail", args=[self.customer.pk]))
+        card = self.staff_client().get(
+            reverse("manage:customer_detail", args=[self.customer.pk]) + "?flik=flamingo"
+        )
         self.assertContains(card, reverse("manage:flamingo_queue") + "?demo=1")
 
     def test_the_publish_panel_never_links_to_google_ads(self):

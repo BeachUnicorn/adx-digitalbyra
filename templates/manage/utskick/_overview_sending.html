@@ -21,7 +21,7 @@ via manage-tables.js); inga style-attribut. Inget här mejlar någon kund.
       {% for row in sending_rows %}
       <tr{% if row.is_paused %} class="is-off"{% endif %}>
         <td><span><b>{{ row.name }}</b>{% if row.is_information %} <span class="m-badge">Information</span>{% endif %}</span></td>
-        <td><span><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}#utskick">{{ row.account.customer.name }}</a>{% if row.account.is_demo %} <span class="m-badge">Demo</span>{% endif %}</span></td>
+        <td><span><a class="tv-link" href="{% url 'manage:customer_detail' row.account.customer.pk %}?flik=flamingo#utskick">{{ row.account.customer.name }}</a>{% if row.account.is_demo %} <span class="m-badge">Demo</span>{% endif %}</span></td>
         <td><span>{% if row.is_paused %}<span class="m-badge m-badge--alert">{{ row.label }}</span>{% if row.note %} {{ row.note }}{% endif %}{% else %}{{ row.label }}{% endif %}</span></td>
         <td class="m-num">{{ row.n_queued|tal }}</td>
         <td class="m-num">{{ row.n_sent|tal }}</td>

@@ -1186,7 +1186,9 @@ class ExternalLinkTests(LinkFixture, TestCase):
         overview = staff.get(reverse("manage:utskick_overview"))
         self.assertContains(overview, "grannen.example")
         self.assertContains(overview, decide)
-        card = staff.get(reverse("manage:customer_detail", args=[self.customer.pk]))
+        card = staff.get(
+            reverse("manage:customer_detail", args=[self.customer.pk]) + "?flik=flamingo"
+        )
         self.assertContains(card, "grannen.example")
         self.assertContains(card, decide)
         # Kunden (och den som inte är inloggad) kan inte besluta.

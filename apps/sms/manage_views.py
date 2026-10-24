@@ -1,5 +1,5 @@
 """
-Byråns sida av SMS-API:t i /manage/: kundkortets panel (#sms), översikten
+Byråns sida av SMS-API:t i /manage/: kundkortets panel (?flik=sms), översikten
 /manage/sms/ med månadsunderlagen, stängningen, CSV-filen för
 faktureringen och sms:en att stämma av mot 46elks.
 
@@ -23,6 +23,7 @@ from django.utils.cache import add_never_cache_headers
 from django.views.decorators.http import require_POST
 
 from apps.projects.access import VIEW_AS_KEY, staff_required
+from apps.projects.card_tabs import SMS, card_redirect
 from apps.projects.models import Customer
 
 from . import elks, numbers, pricing, service
@@ -41,7 +42,7 @@ MAX_YEARLY_FEE_KR = 100_000
 
 
 def _back(customer_id):
-    return redirect(reverse("manage:customer_detail", args=[customer_id]) + "#sms")
+    return card_redirect(customer_id, SMS)
 
 
 def suggest_sender(name):

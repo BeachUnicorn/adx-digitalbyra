@@ -25,7 +25,7 @@ på. Ingenting här mejlar kunden.
     {% for r in ut_hosts %}
     <form method="post" action="{% url 'manage:utskick_host_decide' r.host.pk %}" class="tv-row">{% csrf_token %}
       <span><b>{{ r.host.host }}</b>: {% if r.host.status == "refused" %}nekad{% if r.host.note %} ({{ r.host.note }}){% endif %}{% else %}väntar på beslut{% endif %}, begärd {{ r.host.requested_at|date:"j b Y" }}{% if r.requested_by %} av {{ r.requested_by }}{% endif %}</span>
-      <input type="hidden" name="next" value="{% url 'manage:customer_detail' customer.pk %}#utskick">
+      <input type="hidden" name="next" value="{% url 'manage:customer_detail' customer.pk %}?flik=flamingo#utskick">
       <label class="m-sr-only" for="ut-host-note-{{ r.host.pk }}">Anteckning för {{ r.host.host }} (krävs för att neka)</label>
       <input id="ut-host-note-{{ r.host.pk }}" name="note" maxlength="200" class="tv-input" placeholder="Anteckning" autocomplete="off">
       <button type="submit" name="action" value="approve" class="m-btn m-btn--small">Godkänn</button>

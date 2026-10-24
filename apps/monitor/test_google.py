@@ -1193,7 +1193,11 @@ class RenderingTests(Fixture):
         html = self.client_for(self.staff).get("/manage/drift/").content.decode()
         self.assertIn(f"/manage/overvakning/doman/{self.domain.pk}/google/", html)
         self.assertIn("Google 2", html)
-        card = self.client_for(self.staff).get(f"/manage/kunder/{self.acme.pk}/").content.decode()
+        card = (
+            self.client_for(self.staff)
+            .get(f"/manage/kunder/{self.acme.pk}/?flik=drift")
+            .content.decode()
+        )
         self.assertIn("Google-data", card)
 
     def test_the_customer_is_never_mailed(self):

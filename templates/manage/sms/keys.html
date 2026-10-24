@@ -11,7 +11,7 @@ annanstans. Kunden mejlas inte.
 {% block content %}
 <div class="m-page-head">
   <h1 class="m-page-head__title">SMS-nycklar</h1>
-  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}#sms">{{ customer.name }}</a>{% if account.customer_manages_api %}: kunden sköter också nycklarna själv i portalen.{% else %}: ADX sköter nycklarna åt kunden.{% endif %}</p>
+  <p class="m-page-head__subtitle"><a class="tv-link" href="{% url 'manage:customer_detail' customer.pk %}?flik=sms">{{ customer.name }}</a>{% if account.customer_manages_api %}: kunden sköter också nycklarna själv i portalen.{% else %}: ADX sköter nycklarna åt kunden.{% endif %}</p>
 </div>
 
 <div class="sms-keys">

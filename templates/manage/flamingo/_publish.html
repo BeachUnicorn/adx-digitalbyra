@@ -102,7 +102,7 @@ Google sagt nej till innehållet. Demokontots påhittade id:n visas inte.
         <div class="m-form-error mf-blockers-box" role="status">
             <p><b>Kan inte publiceras än.</b></p>
             <ul class="mf-blockers">{% for b in publish_blockers %}<li>{{ b }}</li>{% endfor %}</ul>
-            <p><a href="{% url 'manage:customer_detail' customer.pk %}#flamingo">Till kundkortet</a></p>
+            <p><a href="{% url 'manage:customer_detail' customer.pk %}?flik=flamingo">Till kundkortet</a></p>
         </div>
         {% else %}
         <form method="post" action="{% url 'manage:flamingo_publish' campaign.pk %}" class="m-form mf-publish-form" data-confirm="Publicera {{ campaign.name }} hos Google? Kampanjen startar direkt och landningssidan öppnas.">{% csrf_token %}
@@ -138,7 +138,7 @@ Google sagt nej till innehållet. Demokontots påhittade id:n visas inte.
         <div class="m-form-error mf-blockers-box" role="status">
             <p><b>Kan inte markeras som live än.</b></p>
             <ul class="mf-blockers">{% for b in publish_blockers %}<li>{{ b }}</li>{% endfor %}</ul>
-            <p><a href="{% url 'manage:customer_detail' customer.pk %}#flamingo">Till kundkortet</a></p>
+            <p><a href="{% url 'manage:customer_detail' customer.pk %}?flik=flamingo">Till kundkortet</a></p>
         </div>
         {% else %}
         <form method="post" action="{% url 'manage:flamingo_publish' campaign.pk %}" class="m-form mf-publish-form" data-confirm="Markera {{ campaign.name }} som live? Landningssidan öppnas direkt.">{% csrf_token %}

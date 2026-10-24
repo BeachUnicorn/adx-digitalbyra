@@ -4,11 +4,11 @@ import re
 
 from django.contrib import messages
 from django.http import FileResponse, Http404, HttpResponse
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
+from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_POST
 
 from apps.projects.access import staff_required
+from apps.projects.card_tabs import OPERATIONS, card_redirect
 from apps.projects.models import Customer
 
 from . import role_template
@@ -17,7 +17,7 @@ from .sync import sync_account
 
 
 def _back(customer_id):
-    return redirect(reverse("manage:customer_detail", args=[customer_id]) + "#aws")
+    return card_redirect(customer_id, OPERATIONS, "aws")
 
 
 @staff_required

@@ -155,7 +155,7 @@ saknas visas, aldrig värdena, och den sparade nyckeln visas aldrig.
         <tbody>
         {% for a in accounts %}
             <tr>
-                <td><a class="mf-strong" href="{% url 'manage:customer_detail' a.customer.pk %}#flamingo-google">{{ a.customer.name }}</a>{% if a.is_demo %} <span class="m-badge">Demo</span>{% endif %}</td>
+                <td><a class="mf-strong" href="{% url 'manage:customer_detail' a.customer.pk %}?flik=flamingo#flamingo-google">{{ a.customer.name }}</a>{% if a.is_demo %} <span class="m-badge">Demo</span>{% endif %}</td>
                 <td class="m-num">{{ a.google_ads_customer_id|default:"-" }}</td>
                 <td>{{ a.get_google_status_display }}{% if a.google_link_requested_at and not a.google_linked %}<br><span class="m-muted">Förfrågan skickad {{ a.google_link_requested_at|date:"j b" }}</span>{% endif %}</td>
                 <td>{{ a.google_billing_status|flamingo_billing|default:"-" }}</td>

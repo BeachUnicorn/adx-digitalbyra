@@ -45,6 +45,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from apps.projects.access import staff_required
+from apps.projects.card_tabs import FLAMINGO, card_redirect
 from apps.projects.models import Customer
 
 from . import google_accounts, google_ads, google_conversions
@@ -66,7 +67,7 @@ def _page():
 
 
 def _back_to_card(customer_pk):
-    return redirect(reverse("manage:customer_detail", args=[customer_pk]) + "#flamingo-google")
+    return card_redirect(customer_pk, FLAMINGO, "flamingo-google")
 
 
 def redirect_uri(request):
