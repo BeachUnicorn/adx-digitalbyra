@@ -71,7 +71,7 @@ rubriken (vanliga länkar, rullar i sidled inne i raden i telefon).
 | Punkt | Flikar (adress) |
 |---|---|
 | Översikt | (inga) `app/` |
-| Inkorg | (inga; typchips i listan) `app/inkorg/` |
+| Inkorg | (inga; typchips i listan, källans chip på varje förfrågan från en sida) `app/inkorg/` |
 | Landningssidor | (ingen i listan `app/sidor/`); en sida: Statistik `app/sidor/<pk>/statistik/`, Länkar per källa `app/sidor/<pk>/lankar/`, Svar i formuläret `app/sidor/<pk>/svar/` (Redigera öppnar sidbyggaren) |
 | Annonser | Kampanjer `app/kampanjer/`, Google-kontot `app/google/` |
 | Sms och e-post (bara med utskick) | Skickade `app/utskick/`, Kontakter `app/kontakter/`, Listor och segment `app/kontakter/listor/`, Länkar och QR `app/utskick/lankar/`, Leveranshälsa `app/utskick/halsa/`, Sms-API `/kund/sms/` (bara med aktiverat sms-konto); Nytt sms och Nytt mejl överst |
@@ -173,8 +173,25 @@ statistiksidan som visar det är samma men kan visa alla källor." Steg 1
 - **Kampanjens adress är oförändrad.** `/lp/<page_slug>/` (och `tack/`,
   `ring/`, `besok/`) svarar exakt som förut: sidan kampanjen visar,
   förfrågan och besöket räknas på kampanjen, och källan är Annons (eller
-  utskickets kanal när besöket bär `ut`). Google Ads-annonserna pekar dit
-  och ändras inte.
+  utskickets kanal när besöket bär `ut`). Kampanjer som publicerades före
+  2026-10-28 har annonser som pekar dit, och de skrivs aldrig om.
+- **Annonserna leder till sidans egen adress** (beställt 2026-10-28). En
+  kampanj som publiceras nu (med API:t eller för hand med Editor-filen) får
+  annonsens slutadress `https://adx.se/lp/<konto>/<sida>/`
+  (`exports.ad_landing_url`) och kampanjens slutadressuffix (Final URL
+  suffix, `finalUrlSuffix`) `kampanj=<kampanjens id>`
+  (`exports.ad_url_suffix`). Google lägger suffixet sist i adressen efter
+  `gclid`, så ett klick landar på `.../<sida>/?gclid=...&kampanj=12`.
+  Flamingo sätter inga andra spårningsparametrar (ingen utm, ingen
+  spårningsmall), så suffixet är bara kampanjens nummer. Adressen sparas när
+  kampanjen blivit live (`Campaign.ads_final_url`); tom för en kampanj från
+  före, vars annonser leder till kampanjens adress. Ingenting skriver om en
+  publicerad kampanjs annonser: publiceringen skapar bara nya kampanjer, och
+  paus och återupptagning ändrar bara läget. Byter en live- eller pausad
+  kampanj sida i verktyget landar annonserna kvar på den förra sidan;
+  byråns larm om bytet säger det och vilken adress som ska skrivas in i
+  Google Ads för hand. Kunden ser vart annonserna leder i kampanjens flik
+  Sidan (`_ads_address.html`), byrån i granskningen.
 
 ### Källorna
 
@@ -183,7 +200,7 @@ sort plus den främmande nyckeln som hör till (`apps/flamingo/sources.py`):
 
 | Källa | `page_source` | Nyckeln | När |
 |---|---|---|---|
-| Annons | `ad` | `campaign` | kampanjens adress, eller ett `gclid` (`gbraid`, `wbraid`) på sidans egen adress |
+| Annons | `ad` | `campaign` | kampanjens adress, ett giltigt `?kampanj=<id>` på sidans egen adress (med kampanjen), eller ett `gclid` (`gbraid`, `wbraid`) där utan giltigt kampanjnummer (utan kampanj) |
 | Sms | `sms` | `utskick` | ett `ut` från ett sms-utskick hos samma konto |
 | E-post | `email` | `utskick` | ett `ut` från ett mejl hos samma konto |
 | QR-kod, Instagram, Annat | `named` | `named_link` (`TrackedLink`) | ett `ut` från en namngiven länk; vilken av de tre avgör länkens `medium` (väljs på länken, läses när statistiken ritas) |
@@ -210,10 +227,25 @@ sort plus den främmande nyckeln som hör till (`apps/flamingo/sources.py`):
   kontot aktiverat, kunden aktiv och kontot inte demo (en kampanjs adress:
   som förut, bara live). Spärrarna är kampanjens, räknade per sida
   (`limits`, ett eget lås per sida).
-- **En förfrågan på sidans egen adress går aldrig till Google**
-  (`Lead.can_send_to_google`): adressen är ingen Flamingo-kampanjs, så ett
-  klick-id där kan inte kopplas till en av ADX:s kampanjer. Den räknas
-  inte heller som Googles på översikten.
+- **`?kampanj=<id>` på sidans egen adress** (`sources.ad_campaign_for`)
+  gäller bara när kampanjen finns, hör till sidans konto och leder till
+  just den sidan (kampanjens sida, eller sidan annonserna publicerades med
+  enligt `Campaign.ads_final_url`). Då får besöket (`PageVisitDay` med
+  `ad:c<kampanj>`), klicket på numret (`flamingo-lp.js` skickar `kampanj`
+  ur adressen) och förfrågan kampanjen, tjänsten och kampanjens spärrar,
+  som på kampanjens adress; `ut` från ett utskick vinner som förut. Ett
+  främmande, okänt, felaktigt eller annan sidas id ignoreras helt (vanliga
+  reglerna). Sidan ritas likadant med och utan kampanj. `kampanj` är ingen
+  utm och hamnar aldrig i `Lead.utm`.
+- **Till Google** (`Lead.can_send_to_google`): en förfrågan på sidans egen
+  adress med giltigt kampanjnummer och `gclid` går till Google precis som en på
+  kampanjens adress (förfrågan, samtal, affär). Ett `gclid` utan giltigt
+  kampanjnummer räknas som Annons utan känd kampanj och skickas inte: klicket
+  kan komma från en annons som inte är Flamingos (kundens egen kampanj, ett
+  annat Google Ads-konto, en länk som delats vidare med klick-id:t kvar),
+  och en konvertering till fel klick ger Google en affär som ADX:s
+  kampanjer inte gjorde, eller ett nej som stoppar kön. En sådan förfrågan
+  räknas inte heller som Googles på översikten.
 
 ### Länkar per källa
 
@@ -224,6 +256,14 @@ sort plus den främmande nyckeln som hör till (`apps/flamingo/sources.py`):
   (publicerade sidor) först och sedan kampanjernas adresser; Förvälj svar
   fungerar för båda. Ett mejl som länkar till sidans egen adress blir en
   spårad länk till sidan vid frysningen, som en kampanjs adress.
+- **Brevs länkfält** (knapparna, bildens länk och länken i Bild och text,
+  `utskick.app_views.brev.PAGE_LINK_FIELDS`) har ett val ovanför adressen:
+  "Annan adress, skriv den nedan" eller en av kontots publicerade
+  landningssidor (`config.pageLinks`, `flamingo-app-brev.js`). En sida
+  skriver sidans egen adress i fältet, och frysningen gör den till en
+  spårad länk till sidan (`TrackedLink.landing_page`, personlig per
+  mottagare), så att besöket och förfrågan räknas som E-post på sidans
+  Statistik. Fri text och sparade mejl fungerar som förut.
 - Den namngivna länken får fältet "Var används länken?": QR-kod,
   Instagram eller Annat (`TrackedLink.medium`, äldre länkar Annat).
 - En sida som en namngiven länk går till kan inte tas bort (en tryckt
@@ -248,6 +288,16 @@ sort plus den främmande nyckeln som hör till (`apps/flamingo/sources.py`):
   den dag då räkningen började (det står när perioden börjar tidigare).
   Frågorna är platta: en för besöken, en för förfrågningarna och en för
   när räkningen började, oavsett antal källor.
+- **Inkorgen** (`app_views/inbox.py`, `sources.lead_source`): varje
+  förfrågan från en landningssida visar källans chip med Statistiks texter
+  och färger (`.fl-lpsrc` i `flamingo-app.css`), sidans namn och kampanjen
+  (Annons, "Google Ads" utan känd kampanj), utskicket (Sms, E-post) eller
+  länkens namn, i listan i stället för kanalen och som "Källa" på
+  förfrågan ("Sidan" leder till sidans Statistik). Gamla rader utan sparad
+  källa läses med Statistiks regler. Svar på utskick, samtal och
+  förfrågningar lagda för hand har kvar sin kanal. Allt chipet läser hämtas
+  med förfrågan (`select_related`), så listan gör lika många frågor oavsett
+  antal.
 - **Länkar per källa**: sidans egna adress (Direkt), kampanjerna som visar
   sidan (adressen som annonsen gör, "Skapas av annonsen"), utskicken som
   länkat till den (personliga länkar per mottagare) och de namngivna
@@ -268,6 +318,8 @@ sort plus den främmande nyckeln som hör till (`apps/flamingo/sources.py`):
 `LandingPageOldSlug` och `PageVisitDay`, och en datamigrering (bara rader
 som saknar värdet, så den kan köras igen) som ger konton och sidor sina
 adresser och gamla förfrågningar sin sida och källa.
+`flamingo.0020_annonsernas_slutadress`: `Campaign.ads_final_url`
+(`db_default ""`, tom för kampanjer som redan publicerats).
 `utskick.0006_lankar_till_sidor`: `TrackedLink.landing_page` (null) och
 `TrackedLink.medium` (`db_default ""`). Varje ny främmande nyckel får sin
 raderingsregel i databasen (`dbfk.apply`), så att den förra versionen kan
@@ -285,12 +337,16 @@ ta bort en sida, en kampanj, ett utskick eller en länk.
   cron. Kör `flamingo_demo --prod` efteråt, så att demot får sina besök.
   Besöken räknas från deployen; Statistik säger från vilken dag när
   perioden börjar tidigare.
-- **Inte byggt**: kampanjernas annonser pekar fortfarande på kampanjens
-  adress (inget byte till sidans egen); kontots del av adressen ändras
-  inte i verktyget; Brevs länkfält har ingen väljare (sidans adress klistras
-  in, och "E-post" under Länkar per källa ger en knapp "Läs mer" till
-  sidan); Inkorgen visar inte källans chip; mockupens kolumn "Andel av
-  förfrågningarna" (stapeln) är inte med, tabellen har fyra kolumner.
+- **Byggt efteråt (2026-10-28)**: annonserna till sidans egen adress med
+  `?kampanj=`, Brevs val av landningssida i länkfälten och källans chip i
+  Inkorgen (ovan).
+- **Inte byggt**: kontots del av adressen ändras inte i verktyget; en
+  publicerad kampanjs annonser byter inte slutadress när kampanjen byter
+  sida (byrån gör det för hand i Google Ads); länkar i Brevs text med
+  formatering (`[text](https://...)`) har inget val av sida (adressen
+  klistras in och blir ändå en spårad länk till sidan); mockupens kolumn
+  "Andel av förfrågningarna" (stapeln) är inte med, tabellen har fyra
+  kolumner.
 
 ## Kontakter och utskick (`apps/utskick`)
 
@@ -927,10 +983,12 @@ om en kopplingsförfrågan, och mejlar en inbjudan bara när rutan är ibockad
    klickets gclid når landningssidan.
 4. Allt skapas i ett anrop (googleAds:mutate), allt eller inget: budget per
    dag, kampanjen "Flamingo: <namn> #<pk>" (Sök, bara Google sök, Maximera
-   klick, platsinriktning på närvaro, svenska), en radie per ort, de
-   negativa sökorden, en annonsgrupp med sökorden och en responsiv
-   sökannons till landningssidan.
+   klick, platsinriktning på närvaro, svenska, slutadressuffixet
+   `kampanj=<pk>`), en radie per ort, de negativa sökorden, en annonsgrupp
+   med sökorden och en responsiv sökannons till sidans egen adress
+   `/lp/<konto>/<sida>/` (Steg 2 ovan).
 5. Kampanjen blir live och landningssidan öppnas först när Google svarat.
+   Annonsens slutadress sparas i `Campaign.ads_final_url`.
 
 Ett fel ändrar inte kampanjen: felet sparas i `Campaign.google_error` och
 visas i panelen och i kön med vilken ändring det gällde.

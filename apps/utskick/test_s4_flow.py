@@ -376,7 +376,11 @@ class NamedLinkFlowTests(S4FlowFixture, TestCase):
         self.assertFalse(lead.can_send_to_google)
 
         inbox = client.get(reverse("flamingo:app_inbox"))
-        self.assertContains(inbox, "Länk: Affisch i verkstaden")
+        # Källans chip (Flamingos README Steg 2): en länk utan sort är Annat.
+        self.assertContains(
+            inbox, '<span class="fl-lpsrc fl-lpsrc--other">Annat</span>', html=False
+        )
+        self.assertContains(inbox, "Affisch i verkstaden")
         detail = client.get(reverse("flamingo:app_link", args=[link.pk]))
         self.assertContains(detail, "Förfrågningar")
         self.assertEqual(detail.context["numbers"]["leads"], 1)

@@ -756,7 +756,7 @@ class EditorCsvTests(StaffFixture, TestCase):
             + ",".join(f"Headline {n}" for n in range(1, 16))
             + ","
             + ",".join(f"Description {n}" for n in range(1, 5))
-            + ",Final URL,Status,Comment",
+            + ",Final URL,Final URL suffix,Status,Comment",
         )
         records = [dict(zip(header, row, strict=True)) for row in rows[1:]]
 
@@ -768,6 +768,8 @@ class EditorCsvTests(StaffFixture, TestCase):
         self.assertEqual(campaign["Campaign Status"], "Paused")
         self.assertIn("Nacka + 15 km", campaign["Comment"])
         self.assertIn("15 km", campaign["Comment"])
+        # Kampanjens nummer i annonsernas adress (README Steg 2).
+        self.assertEqual(campaign["Final URL suffix"], f"kampanj={self.approved.pk}")
 
         group = records[1]
         self.assertEqual(group["Ad Group"], "Rörjour")
@@ -789,7 +791,9 @@ class EditorCsvTests(StaffFixture, TestCase):
         self.assertEqual(ad["Headline 3"], HEADLINES[2])
         self.assertEqual(ad["Headline 4"], "")
         self.assertEqual(ad["Description 2"], DESCRIPTIONS[1])
-        self.assertEqual(ad["Final URL"], f"https://adx.se/lp/{self.approved.page_slug}/")
+        # Sidans egen adress när kampanjen har en sida, annars kampanjens.
+        self.assertEqual(ad["Final URL"], exports.ad_landing_url(self.approved))
+        self.assertTrue(ad["Final URL"].startswith("https://adx.se/lp/"))
 
     def test_the_download_is_an_attachment_with_a_bom(self):
         response = self.staff_client().get(

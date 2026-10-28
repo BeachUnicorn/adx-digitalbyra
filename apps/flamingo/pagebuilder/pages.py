@@ -283,18 +283,29 @@ def use_shared_page(campaign, page, user=None):
     if visible:
         state = "live" if campaign.status == Campaign.STATUS_LIVE else "pausad"
         who = who_text(user)
+        lines = [
+            f"Kampanjen {campaign.name} ({state}) visar nu sidan {page.name} i stället för "
+            f"{before.name if before is not None else 'ingen sida'}"
+            + (f". Bytet gjordes av {who}." if who else "."),
+            "Den publicerade versionen av sidan klarade kontrollerna, så bytet syns direkt "
+            "för besökarna" + (" när kampanjen återupptas:" if state == "pausad" else ":"),
+            f"- {campaign.name}: {exports.landing_page_url(campaign)}",
+        ]
+        if campaign.ads_final_url and (
+            campaign.ads_final_url.rstrip("/") != exports.landing_page_url(page).rstrip("/")
+        ):
+            # Annonserna leder till sidans egen adress (README Steg 2), och
+            # den skrivs inte om av bytet: de landar kvar på den förra sidan.
+            lines.append(
+                f"Annonserna hos Google leder fortfarande till {campaign.ads_final_url}"
+                f"?{exports.ad_url_suffix(campaign)}. Ändra annonsens slutadress i Google Ads "
+                f"till {exports.landing_page_url(page)} om annonserna ska landa på den nya sidan."
+            )
         alert_live_change(
             campaign.account,
             [campaign],
             f"Flamingo: {campaign.name} visar sidan {page.name} ({campaign.account.customer.name})",
-            [
-                f"Kampanjen {campaign.name} ({state}) visar nu sidan {page.name} i stället för "
-                f"{before.name if before is not None else 'ingen sida'}"
-                + (f". Bytet gjordes av {who}." if who else "."),
-                "Den publicerade versionen av sidan klarade kontrollerna, så bytet syns direkt "
-                "för besökarna" + (" när kampanjen återupptas:" if state == "pausad" else ":"),
-                f"- {campaign.name}: {exports.landing_page_url(campaign)}",
-            ],
+            lines,
         )
     return campaign
 

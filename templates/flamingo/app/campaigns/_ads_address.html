@@ -1,0 +1,18 @@
+{% comment %}
+Vart annonserna leder (fliken Sidan, README Steg 2, campaigns.ads_address):
+sidans egen adress med kampanjens nummer, så att besöken och förfrågningarna
+från annonserna räknas på kampanjen. Adressen bryts var som helst i en smal
+skärm (.fl-camp-ads__url). Kontext: ads_url_text, ads_published,
+ads_old_address, ads_other_page, campaign.
+{% endcomment %}<div class="fl-camp-ads">
+  <p class="fl-camp-ads__label">{% if ads_published %}Annonserna leder till{% else %}Annonserna kommer att leda till{% endif %}</p>
+  <p class="fl-camp-ads__url">{{ ads_url_text }}</p>
+  {% if ads_old_address %}
+  <p class="fl-camp-hint">Kampanjen publicerades innan annonserna gick till sidans egen adress, så de leder till kampanjens adress. Den fungerar som förut.</p>
+  {% else %}
+  <p class="fl-camp-hint">Sidans egen adress med kampanjens nummer på slutet, så att besöken och förfrågningarna från annonserna räknas på {{ campaign.name }}.</p>
+  {% endif %}
+  {% if ads_other_page %}
+  <p class="fl-camp-hint">Annonserna leder fortfarande till sidan {{ ads_other_page.name }}, som kampanjen visade när den publicerades. ADX har fått veta att kampanjen bytt sida.</p>
+  {% endif %}
+</div>

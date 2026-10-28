@@ -852,7 +852,10 @@ def _review_context(campaign, form, pending, problems, problems_need_ack=False):
         "can_publish": _can_publish(campaign, pending),
         "publish_blockers": _publish_blockers(campaign, pending),
         **google_publish.panel(campaign),
-        "landing_full_url": exports.landing_page_url(campaign),
+        # Adressen annonserna leder till (README Steg 2): sidans egen adress
+        # med ?kampanj=<id>, eller kampanjens för en kampanj som publicerades
+        # före den.
+        "landing_full_url": exports.ads_url(campaign),
         "keyword_list": [
             (text, MATCH_LABELS.get(match, match))
             for text, match in (_keyword_item(k) for k in campaign.keywords or [])
@@ -1071,7 +1074,9 @@ def publish(request, pk):
         campaign.published_at = now
         # Ett tidigare fel (API:t efter kundens godkännande) gäller inte längre.
         campaign.google_error = ""
-        fields = ["status", "published_at", "google_error", "updated_at"]
+        # Editor-filens slutadress (sidans egen adress, README Steg 2).
+        campaign.ads_final_url = exports.ad_landing_url(campaign)[:500]
+        fields = ["status", "published_at", "google_error", "ads_final_url", "updated_at"]
         if google_id:
             campaign.google_campaign_id = google_id
             fields.append("google_campaign_id")

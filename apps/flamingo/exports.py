@@ -51,8 +51,11 @@ oktober 2026. Antaganden, eftersom Editor inte kan provköras här:
   står därför i Comment på kampanjraden och läggs in för hand.
 - Annonsen är en responsiv sökannons (Ad type = "Responsive search ad")
   med upp till 15 rubriker och 4 beskrivningar och slutadressen
-  https://adx.se/lp/<slug>/ (settings.FLAMINGO_LANDING_BASE_URL byter
-  domänen när sidorna flyttar till kundens egen subdomän).
+  https://adx.se/lp/<konto>/<sida>/, sidans egen adress (ad_landing_url,
+  README Steg 2; settings.FLAMINGO_LANDING_BASE_URL byter domänen när
+  sidorna flyttar till kundens egen subdomän). Kampanjraden har
+  slutadressuffixet kampanj=<id> (Final URL suffix, ad_url_suffix), så att
+  sidan vet vilken kampanj besöket kom från.
 - Teckenkodning: UTF-8. Vyn lägger till en BOM så att Editor och Excel
   läser å, ä och ö rätt; funktionen här returnerar texten utan BOM.
 
@@ -79,7 +82,7 @@ som redan kommit in den andra vägen.
 
 import csv
 import io
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
@@ -138,6 +141,7 @@ EDITOR_HEADER = [
     *[f"Headline {n}" for n in range(1, HEADLINE_COUNT + 1)],
     *[f"Description {n}" for n in range(1, DESCRIPTION_COUNT + 1)],
     "Final URL",
+    "Final URL suffix",
     "Status",
     "Comment",
 ]
@@ -172,8 +176,52 @@ def landing_base_url():
 
 
 def landing_page_url(campaign):
-    """Annonsens slutadress: https://adx.se/lp/<slug>/."""
+    """Kampanjens eller sidans adress med domän: https://adx.se/lp/<slug>/
+    för en kampanj, https://adx.se/lp/<konto>/<sida>/ för en sida."""
     return landing_base_url().rstrip("/") + campaign.landing_url
+
+
+#: Kampanjens nummer i annonsernas adress (README Steg 2): sidans egen adress
+#: ?kampanj=<id>. Sidan räknar besöket som Annons för just den kampanjen
+#: (sources.ad_campaign_for).
+AD_CAMPAIGN_PARAM = "kampanj"
+
+
+def ad_landing_url(campaign):
+    """Annonsens slutadress när kampanjen publiceras nu: sidans egen adress
+    (https://adx.se/lp/<konto>/<sida>/, README Steg 2), eller kampanjens
+    adress när kampanjen saknar sida. Publiceringen (google_publish och för
+    hand med Editor-filen) sparar den i Campaign.ads_final_url; en kampanj
+    som redan publicerats skrivs aldrig om härifrån."""
+    page = campaign.landing_page if campaign.landing_page_id else None
+    if page is None:
+        return landing_page_url(campaign)
+    return landing_page_url(page)
+
+
+def ad_url_suffix(campaign):
+    """Kampanjens slutadressuffix hos Google (finalUrlSuffix, Final URL
+    suffix i Editor): kampanj=<id>. Google lägger det sist i adressen vid
+    varje klick, efter gclid från den automatiska taggningen. Flamingo
+    sätter inga andra spårningsparametrar (ingen utm, ingen spårningsmall),
+    så suffixet är bara kampanjens nummer."""
+    return urlencode({AD_CAMPAIGN_PARAM: campaign.pk})
+
+
+def ads_url(campaign):
+    """Adressen annonserna leder till, som Google skickar besökaren dit (utan
+    gclid): den sparade slutadressen för en publicerad kampanj (tom för en
+    som publicerades före sidans egen adress: kampanjens adress), annars den
+    en publicering skulle använda nu. Med suffixet bara för sidans egen
+    adress: på kampanjens adress räknas kampanjen ändå."""
+    published = campaign.status in (campaign.STATUS_LIVE, campaign.STATUS_PAUSED)
+    if published:
+        base = campaign.ads_final_url or landing_page_url(campaign)
+    else:
+        base = ad_landing_url(campaign)
+    if base.rstrip("/") == landing_page_url(campaign).rstrip("/"):
+        return base
+    return f"{base}?{ad_url_suffix(campaign)}"
 
 
 def landing_host():
@@ -243,6 +291,7 @@ def google_ads_editor_csv(campaign):
     campaign_row[col["Languages"]] = "sv"
     campaign_row[col["Bid Strategy Type"]] = "Maximize clicks"
     campaign_row[col["Campaign Status"]] = "Paused"
+    campaign_row[col["Final URL suffix"]] = ad_url_suffix(campaign)
     campaign_row[col["Comment"]] = location_note(campaign)
     rows.append(campaign_row)
 
@@ -272,7 +321,7 @@ def google_ads_editor_csv(campaign):
         ad_row[col[f"Headline {n}"]] = text
     for n, text in enumerate(descriptions, start=1):
         ad_row[col[f"Description {n}"]] = text
-    ad_row[col["Final URL"]] = landing_page_url(campaign)
+    ad_row[col["Final URL"]] = ad_landing_url(campaign)
     ad_row[col["Status"]] = "Enabled"
     rows.append(ad_row)
     return _write(rows)

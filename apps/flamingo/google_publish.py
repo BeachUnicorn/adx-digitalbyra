@@ -77,6 +77,16 @@ Kampanjen hos Google:
 - De negativa sökorden på kampanjen, sökorden i en annonsgrupp och en
   responsiv sökannons till landningssidan, med samma texter och
   matchningstyper som Editor-filen (exports.keyword_rows och negative_rows).
+- Annonsens slutadress är sidans egen adress, /lp/<konto>/<sida>/
+  (exports.ad_landing_url, README Steg 2), och kampanjens slutadressuffix
+  (finalUrlSuffix) är kampanj=<id> (exports.ad_url_suffix): sidan räknar
+  besöket, klicket på numret och förfrågan på kampanjen, och med gclid går
+  förfrågan till Google som konvertering. Adressen sparas när kampanjen
+  blivit live (Campaign.ads_final_url). En kampanj som redan publicerats
+  skrivs aldrig om: anropet skapar bara nya kampanjer, och paus och
+  återupptagning ändrar bara läget. En kampanj som publicerades innan det
+  här byggdes leder kvar till kampanjens adress /lp/<page_slug>/, som
+  fungerar som förut.
 - Deklarationen om politisk reklam i EU: innehåller ingen.
 
 Kunden mejlas aldrig härifrån. Demokonton anropar aldrig Google.
@@ -354,8 +364,9 @@ def _unique_criteria(rows):
 
 def build_operations(campaign, customer_id):
     """Ändringarna som skapar kampanjen hos Google, i den ordning Google
-    kräver (det som pekas på skapas först). Ren funktion: ingen databas,
-    inget nätverk. Kastar ValueError om området inte ger någon ort."""
+    kräver (det som pekas på skapas först). Inget nätverk och inga
+    skrivningar; kampanjens sida och kontot läses (go_live hämtar dem med
+    kampanjen). Kastar ValueError om området inte ger någon ort."""
     base = f"customers/{google_ads.digits(customer_id)}"
     budget = f"{base}/campaignBudgets/{TEMP_BUDGET_ID}"
     campaign_rn = f"{base}/campaigns/{TEMP_CAMPAIGN_ID}"
@@ -397,6 +408,9 @@ def build_operations(campaign, customer_id):
                     },
                     "geoTargetTypeSetting": {"positiveGeoTargetType": "PRESENCE"},
                     "containsEuPoliticalAdvertising": "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+                    # Kampanjens nummer i adressen (README Steg 2): Google
+                    # lägger det sist, efter gclid.
+                    "finalUrlSuffix": exports.ad_url_suffix(campaign),
                 }
             }
         },
@@ -452,7 +466,7 @@ def build_operations(campaign, customer_id):
                     "adGroup": ad_group,
                     "status": "ENABLED",
                     "ad": {
-                        "finalUrls": [exports.landing_page_url(campaign)],
+                        "finalUrls": [exports.ad_landing_url(campaign)],
                         "responsiveSearchAd": {
                             "headlines": [{"text": h} for h in headlines[:HEADLINE_COUNT]],
                             "descriptions": [{"text": d} for d in descriptions[:DESCRIPTION_COUNT]],
@@ -624,7 +638,7 @@ def _lock(pk):
     try:
         return (
             Campaign.objects.select_for_update(nowait=True, no_key=True, of=("self",))
-            .select_related("account__customer", "service")
+            .select_related("account__customer", "service", "landing_page__account")
             .get(pk=pk)
         )
     except DatabaseError:
@@ -694,7 +708,9 @@ def go_live(campaign, user=None, now=None, _again=False):
         ) from None
 
     now = now or timezone.now()
-    current = Campaign.objects.select_related("account__customer", "service").get(pk=campaign.pk)
+    current = Campaign.objects.select_related(
+        "account__customer", "service", "landing_page__account"
+    ).get(pk=campaign.pk)
     if not generator.places_of(current.area):
         raise PublishError(MSG_NO_PLACES)
     sending = sent_marker(current, customer_id)
@@ -783,6 +799,9 @@ def go_live(campaign, user=None, now=None, _again=False):
             locked.google_error = ""
             locked.status = Campaign.STATUS_LIVE
             locked.published_at = now
+            # Det annonsen leder till (samma som i anropet; en övertagen
+            # kampanj har samma innehåll som försöket skickade).
+            locked.ads_final_url = exports.ad_landing_url(locked)[:500]
             locked.save(
                 update_fields=[
                     "google_resources",
@@ -791,6 +810,7 @@ def go_live(campaign, user=None, now=None, _again=False):
                     "google_error",
                     "status",
                     "published_at",
+                    "ads_final_url",
                     "updated_at",
                 ]
             )
@@ -818,7 +838,13 @@ def go_live(campaign, user=None, now=None, _again=False):
             campaign.release_google_publish()
         raise
 
-    for name in ("google_resources", "google_campaign_id", "status", "published_at"):
+    for name in (
+        "google_resources",
+        "google_campaign_id",
+        "status",
+        "published_at",
+        "ads_final_url",
+    ):
         setattr(campaign, name, getattr(locked, name))
     campaign.google_synced_at = now
     campaign.google_error = ""

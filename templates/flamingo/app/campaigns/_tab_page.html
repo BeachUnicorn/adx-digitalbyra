@@ -5,9 +5,12 @@ tydlig varning som namnger de andra kampanjerna), blocken, läget,
 kontrollerna, "Redigera sidan", "Svaren i formuläret" (svaren på
 formulärets flerval, app_views/pages.page_answers) och en förhandsvisning i telefonformat
 (utkastet ritat av pagebuilder.render_page_html i en iframe med sandbox,
-eller telefonbilden om den inte går att rita). Sidan blir publik på
-/lp/<slug>/ först när kampanjen är live; då publiceras den också om den
-aldrig varit det. Kontext: campaigns.page_context.
+eller telefonbilden om den inte går att rita). Sidan publiceras när
+kampanjen går live, om den aldrig varit det. "Annonserna leder till"
+(campaigns.ads_address, README Steg 2): sidans egen adress med kampanjens
+nummer (?kampanj=), kampanjens adress för en kampanj som publicerades före
+det, och en rad när kampanjen bytt sida efter publiceringen. Kontext:
+campaigns.page_context.
 {% endcomment %}
 <div class="fl-camp-pagegrid">
   <div class="fl-pb-side">
@@ -22,6 +25,7 @@ aldrig varit det. Kontext: campaigns.page_context.
       {% else %}
       <p class="fl-camp-hint">Kampanjens egen sida. Ingen annan kampanj visar den, så en ändring här syns bara i {{ campaign.name }}.</p>
       {% endif %}
+      {% include "flamingo/app/campaigns/_ads_address.html" %}
       {% if page_blocks %}
       <ol class="fl-pb-blocks">
         {% for row in page_blocks %}<li class="fl-pb-blocks__row"><span class="fl-pb-blocks__name">{{ row.name }}</span><span class="fl-pb-blocks__meta">{{ row.variant }}{% if row.headline and row.headline|lower != row.name|lower %}: {{ row.headline }}{% endif %}</span></li>{% endfor %}
@@ -41,7 +45,7 @@ aldrig varit det. Kontext: campaigns.page_context.
     {% if not read_only and campaign.status != "in_review" %}
     <section class="fl-panel" aria-labelledby="camp-page-choice">
       <h2 class="fl-panel__title" id="camp-page-choice">Vilken sida kampanjen visar</h2>
-      <p class="fl-camp-hint">En egen sida rekommenderas: den kan säga exakt samma sak som annonserna, ort och tjänst. En delad sida passar när flera kampanjer säljer samma sak, men då syns en ändring i alla kampanjer som visar den. Adressen är kampanjens egen i båda fallen, så förfrågningarna räknas rätt.</p>
+      <p class="fl-camp-hint">En egen sida rekommenderas: den kan säga exakt samma sak som annonserna, ort och tjänst. En delad sida passar när flera kampanjer säljer samma sak, men då syns en ändring i alla kampanjer som visar den. Annonserna bär kampanjens nummer i adressen i båda fallen, så förfrågningarna räknas på rätt kampanj.</p>
       {% if page_is_live %}<p class="fl-camp-hint">Kampanjen är live, så den kan bara byta till en sida som är publicerad.</p>{% endif %}
       <form method="post" class="fl-form fl-pb-choice">
         {% csrf_token %}

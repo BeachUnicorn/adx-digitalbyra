@@ -11,7 +11,9 @@ app_views/inbox.py. Ett svar på utskick (is_reply, S2) visar svarstråden
 (flamingo/app/utskick/_thread.html, kontexten th_* från
 apps/utskick/app_views/inbox_reply.thread_context) i stället för
 meddelandet och "Var kom hen ifrån?" i kort form. Räknaren i svarsrutan
-kommer från flamingo-app-utskick.js.
+kommer från flamingo-app-utskick.js. "Källa" är chipet från sidans
+Statistik (lead_source, README Steg 2), med kampanjen, utskicket eller
+länken; "Sidan" leder till sidans Statistik.
 {% endcomment %}
 {% block app_title %}{{ lead.display_name }}{% endblock %}
 {% block app_head %}{% if thread %}
@@ -74,13 +76,14 @@ kommer från flamingo-app-utskick.js.
     <section class="fl-leadcard__source" aria-labelledby="fl-lead-from">
       <h2 class="fl-leadcard__label" id="fl-lead-from">Var kom hen ifrån?</h2>
       <dl class="fl-kv">
+        {% if lead_source %}<div><dt>Källa</dt><dd class="fl-leadcard__src"><span class="fl-lpsrc fl-lpsrc--{{ lead_source.tone }}">{{ lead_source.chip }}</span>{% if lead_source.text %} <span>{{ lead_source.text }}</span>{% endif %}</dd></div>{% endif %}
         <div><dt>Kanal</dt><dd>{{ channel }}</dd></div>
         {% if lead.campaign %}<div><dt>Kampanj</dt><dd><a href="{% url 'flamingo:app_campaign' lead.campaign.pk %}">{{ lead.campaign.name }}</a></dd></div>{% endif %}
         <div><dt>Tjänst</dt><dd>{{ lead.service_name|default:"Ingen angiven" }}</dd></div>
         {% if lead.source != "manual" %}<div><dt>Sökord</dt><dd>{% if lead.keyword %}"{{ lead.keyword }}"{% else %}Okänt{% endif %}</dd></div>{% endif %}
         {% if utm_campaign %}<div><dt>Kampanj i länken</dt><dd>{{ utm_campaign }}</dd></div>{% endif %}
         <div><dt>Klick-id från Google</dt><dd>{% if has_click_id %}Ja{% else %}Nej{% endif %}</dd></div>
-        {% if lead.campaign %}<div><dt>Sidan</dt><dd>{% if lead.campaign.is_public %}<a href="{{ lead.campaign.landing_url }}">{{ lead.campaign.landing_url }}</a>{% else %}{{ lead.campaign.landing_url }}, stängd medan kampanjen inte är live{% endif %}</dd></div>{% elif lead.landing_page %}<div><dt>Sidan</dt><dd><a href="{% url 'flamingo:app_page_stats' lead.landing_page.pk %}">{{ lead.landing_page.name }}</a>, sidans egen adress</dd></div>{% endif %}
+        {% if lead.landing_page %}<div><dt>Sidan</dt><dd><a href="{% url 'flamingo:app_page_stats' lead.landing_page.pk %}">{{ lead.landing_page.name }}</a></dd></div>{% elif lead.campaign %}<div><dt>Sidan</dt><dd>{% if lead.campaign.landing_page %}<a href="{% url 'flamingo:app_page_stats' lead.campaign.landing_page.pk %}">{{ lead.campaign.landing_page.name }}</a>{% else %}{{ lead.campaign.landing_url }}{% endif %}</dd></div>{% endif %}
       </dl>
     </section>
     {% endif %}

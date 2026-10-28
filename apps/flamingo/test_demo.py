@@ -963,7 +963,9 @@ class DemoUtskickS2Tests(DemoFixture, TestCase):
         inbox = client.get(reverse("flamingo:app_inbox"))
         for text in ("Sms-svar", "STOPP", "Avregistrerad automatiskt", "Klar"):
             self.assertContains(inbox, text)
-        self.assertContains(inbox, "Utskick: Spolning inför vintern")
+        # Förfrågningarna via sms-utskicket har källans chip (README Steg 2).
+        self.assertContains(inbox, '<span class="fl-lpsrc fl-lpsrc--sms">Sms</span>', html=False)
+        self.assertContains(inbox, "Spolning inför vintern")
         threads = Thread.objects.filter(account=self.account)
         self.assertEqual(sorted(threads.values_list("kind", flat=True)), ["reply", "reply", "stop"])
         for thread in threads:
@@ -1237,7 +1239,9 @@ class DemoUtskickS4Tests(DemoFixture, TestCase):
 
         client = self.staff_as_customer()
         inbox = client.get(reverse("flamingo:app_inbox"))
-        self.assertContains(inbox, "Länk: Affisch i verkstaden")
+        # Affischen är en QR-kod (README Steg 2): källans chip och länkens namn.
+        self.assertContains(inbox, '<span class="fl-lpsrc fl-lpsrc--qr">QR-kod</span>', html=False)
+        self.assertContains(inbox, "Affisch i verkstaden")
         page = client.get(reverse("flamingo:app_link", args=[poster.pk]))
         self.assertContains(page, links.named_link_text(poster))
         listing = client.get(reverse("flamingo:app_links"))

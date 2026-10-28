@@ -15,7 +15,10 @@
      villkoren   "Uppgifterna stämmer" för villkoren i erbjudandet (F.7)
      Fält        panelen med blockets fält: länkar, datum, tider, koder,
                  telefon, e-post, val, listor och text med fetstil
-                 (FlamingoPB.setField); öppnas när ett sådant fält klickas
+                 (FlamingoPB.setField); öppnas när ett sådant fält klickas.
+                 Knapparnas och bildernas länkar har ett val med kundens
+                 publicerade landningssidor (config.pageLinks, README Steg 2)
+                 ovanför adressen; fri text finns kvar för andra adresser
      Kontroller  email.checks som en lista och en siffra på knappen
      Testmejl    till den inloggades adress (app_utskick_test, kanal epost)
      AI          ett förslag till blocket eller ett nytt block (brev/ai/)
@@ -579,6 +582,7 @@
 
   var KIND_HELP = {
     url: "Hela adressen med https://, eller mailto: eller tel:.",
+    url_pages: "Välj en av dina landningssidor, så räknas besöken och förfrågningarna som E-post i sidans statistik. Eller skriv hela adressen med https://, mailto: eller tel:.",
     rich_basic: "Tom rad ger ett nytt stycke. **fet**, *kursiv*, [text](https://...) och rader som börjar med - blir en lista.",
     rich_bold: "Tom rad ger ett nytt stycke. **fet** text blir fet.",
     code: "Stora bokstäver, siffror och bindestreck, 3 till 20 tecken.",
@@ -607,6 +611,82 @@
 
   function fieldId(path) {
     return "br-f-" + path.replace(/[^A-Za-z0-9_-]/g, "-");
+  }
+
+  /* Länk till en landningssida (Flamingos README Steg 2, brev.PAGE_LINK_FIELDS).
+     Ett val ovanför adressen: "Annan adress" eller en av kundens publicerade
+     sidor. En sida skriver sidans egen adress i fältet, och servern gör den
+     till en spårad länk till sidan när utskicket fryses (källan E-post,
+     personlig per mottagare). Valet följer fältet: en adress som skrivs för
+     hand och är en sidas visar den sidan (ankare och fråga räknas inte).
+     Bara de här fälten i de här blocken; sidbyggaren har inget av det. */
+  var PAGE_LINKS = config.pageLinks || {};
+  var LINK_PAGES = Array.isArray(PAGE_LINKS.pages) ? PAGE_LINKS.pages : [];
+
+  function bareUrl(url) {
+    return String(url || "").trim().split("#")[0].split("?")[0].replace(/\/+$/, "").toLowerCase();
+  }
+
+  function linkPageFor(url) {
+    var key = bareUrl(url);
+    if (!key) {
+      return null;
+    }
+    for (var i = 0; i < LINK_PAGES.length; i++) {
+      if (bareUrl(LINK_PAGES[i].url) === key) {
+        return LINK_PAGES[i];
+      }
+    }
+    return null;
+  }
+
+  function pagePickable(blockId, path) {
+    if (!LINK_PAGES.length || !PAGE_LINKS.fields) {
+      return false;
+    }
+    var block = findBlock(blockId);
+    var keys = block ? PAGE_LINKS.fields[block.type] : null;
+    return !!(keys && keys.indexOf(path) !== -1);
+  }
+
+  function pagePicker(blockId, path, spec, input) {
+    var select = h("select", {
+      class: "fl-input fl-br-pagepick",
+      id: fieldId(path) + "-sida",
+      "aria-label": spec.label + ": en landningssida eller en annan adress",
+      disabled: readOnly ? true : null,
+    });
+    select.appendChild(h("option", { value: "", text: "Annan adress, skriv den nedan" }));
+    var group = h("optgroup", { label: "Landningssidor" });
+    LINK_PAGES.forEach(function (page) {
+      group.appendChild(h("option", { value: String(page.id), text: page.name }));
+    });
+    select.appendChild(group);
+    function sync() {
+      var found = linkPageFor(input.value);
+      select.value = found ? String(found.id) : "";
+    }
+    sync();
+    select.addEventListener("change", function () {
+      var picked = null;
+      LINK_PAGES.forEach(function (page) {
+        if (String(page.id) === select.value) {
+          picked = page;
+        }
+      });
+      if (picked) {
+        input.value = picked.url;
+        pb.setField(blockId, path, picked.url, { delay: 0 });
+        return;
+      }
+      if (linkPageFor(input.value)) {
+        input.value = "";
+        pb.setField(blockId, path, "", { delay: 0 });
+      }
+      input.focus();
+    });
+    input.addEventListener("input", sync);
+    return select;
   }
 
   function control(blockId, path, spec, value) {
@@ -678,6 +758,9 @@
     if (kind === "rich_basic") {
       return h("div", { class: "fl-br-rich" }, richBar(input, !!spec.bold_only), input);
     }
+    if (kind === "url" && pagePickable(blockId, path)) {
+      return h("div", { class: "fl-br-url" }, pagePicker(blockId, path, spec, input), input);
+    }
     return input;
   }
 
@@ -720,6 +803,9 @@
 
   function fieldRow(blockId, path, spec, value) {
     var help = spec.kind === "rich_basic" ? KIND_HELP[spec.bold_only ? "rich_bold" : "rich_basic"] : KIND_HELP[spec.kind] || "";
+    if (spec.kind === "url" && pagePickable(blockId, path)) {
+      help = KIND_HELP.url_pages;
+    }
     var labelText = spec.label + (spec.required ? " (krävs)" : "");
     var label = spec.kind === "media"
       ? h("span", { class: "fl-field__label", text: labelText })

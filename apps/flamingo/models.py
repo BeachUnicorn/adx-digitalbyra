@@ -1305,6 +1305,16 @@ class Campaign(models.Model):
     #: försök som hittar kampanjen hos Google tar bara över den om
     #: innehållet är detsamma (google_publish.go_live).
     google_publish_sent = models.JSONField("Skickat till Google", default=dict, blank=True)
+    #: Annonsernas slutadress när kampanjen publicerades (med API:t eller för
+    #: hand med Editor-filen): sidans egen adress, https://adx.se/lp/<konto>/
+    #: <sida>/ (exports.ad_landing_url, README Steg 2). Kampanjens
+    #: slutadressuffix kampanj=<id> står inte här. Tom för en kampanj som
+    #: publicerades innan annonserna gick till sidans egen adress: de leder
+    #: till kampanjens adress /lp/<page_slug>/, och ingenting skriver om dem.
+    #: db_default: README för utskick B.0.
+    ads_final_url = models.CharField(
+        "Annonsernas slutadress", max_length=500, blank=True, default="", db_default=""
+    )
     #: Senaste publiceringen hos Google som kundens inskick eller godkännande
     #: startade och som inte lyckades (google_publish.publish_approved): ett
     #: nytt inskick strax efter anropar inte Google igen.
@@ -1799,12 +1809,22 @@ class Lead(models.Model):
         De sparas på förfrågan men laddas inte upp. Samtycket (ad_consent)
         avgör inte: konverteringarna skickas utan fråga på sidan (beslut
         2026-10-03). En förfrågan via ett utskick går aldrig till Google
-        (apps/utskick, D11), också om sidan råkade ha ett gclid. Inte heller
-        en förfrågan på sidans egen adress (README Steg 2: ingen kampanj, så
-        klick-id:t hör inte till någon av ADX:s kampanjer)."""
+        (apps/utskick, D11), också om sidan råkade ha ett gclid.
+
+        På sidans egen adress (README Steg 2) bär Flamingos annonser
+        ?kampanj=<id> (kampanjens slutadressuffix hos Google). En förfrågan
+        där med ett giltigt kampanjnummer (samma konto, kampanjen leder till
+        sidan, sources.ad_campaign_for) får kampanjen och går till Google
+        precis som en förfrågan på kampanjens adress. Ett gclid utan giltigt
+        kampanjnummer (campaign tom) skickas inte: klicket kan komma från en annons
+        som inte är Flamingos (kundens egen kampanj, ett annat Google
+        Ads-konto, en gammal länk som delats vidare), och en konvertering
+        till fel klick ger Google en affär som ADX:s kampanjer inte gjorde,
+        eller ett nej som stoppar kön. Förfrågan räknas som Annons utan känd
+        kampanj i statistiken, men inte som Googles på översikten."""
         if self.campaign_id is None and self.landing_page_id is not None:
-            # Sidans egen adress (README Steg 2) är ingen kampanjs: ett
-            # klick-id där hör inte till någon av ADX:s kampanjer.
+            # Sidans egen adress utan giltigt kampanjnummer (README Steg 2):
+            # klick-id:t går inte att knyta till någon av ADX:s kampanjer.
             return False
         return bool(self.gclid) and not self.utskick_id
 

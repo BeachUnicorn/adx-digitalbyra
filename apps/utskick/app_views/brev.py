@@ -161,6 +161,21 @@ BREV_PROFILE = {
     },
 }
 
+#: Länkfälten där kunden kan välja en av sina publicerade landningssidor
+#: (Flamingos README Steg 2): knapparna, bildens länk och länken i Bild och
+#: text. Videons adress och sociala medier går till något annat. Valet skriver
+#: sidans egen adress i fältet (exports.landing_page_url); frysningen gör den
+#: till en spårad länk till sidan (sending.email._tracked_link, TrackedLink
+#: med landing_page), personlig per mottagare som varje länk i mejlet, så att
+#: besöket och förfrågan räknas som E-post i sidans statistik. Fri text finns
+#: kvar för andra adresser, med samma regler som förut.
+PAGE_LINK_FIELDS = {
+    "hero": ("button_url",),
+    "button": ("primary_url", "secondary_url"),
+    "image": ("url",),
+    "image_text": ("link_url",),
+}
+
 #: Testmejlets utfall (transport.Sent.error) i klartext.
 TEST_ERRORS = {
     "email_off": state.EMAIL_OFF_TEXT,
@@ -604,6 +619,25 @@ def _test_targets(request, account):
     return {"own": own, "staff": actor.staff, "customers": customers, "demo": account.is_demo}
 
 
+def _page_links(account):
+    """Väljaren i länkfälten (PAGE_LINK_FIELDS): kontots publicerade
+    landningssidor med sidans egen adress, i namnordning (som sms-länkens
+    väljare, app_views.links.lp_pages)."""
+    from apps.flamingo.exports import landing_page_url
+
+    from .links import lp_pages
+
+    pages = []
+    for page in lp_pages(account):
+        try:
+            url = landing_page_url(page)
+        except Exception:  # noqa: BLE001 - en sida utan adress går inte att välja
+            logger.exception("Brev: sidan %s har ingen adress", page.pk)
+            continue
+        pages.append({"id": page.pk, "name": page.name, "url": url})
+    return {"pages": pages, "fields": {k: list(v) for k, v in PAGE_LINK_FIELDS.items()}}
+
+
 def _br_config(request, account, utskick, sender, picker):
     pk = utskick.pk
     return {
@@ -636,6 +670,7 @@ def _br_config(request, account, utskick, sender, picker):
         "staffText": STAFF_TEXT.format(name=_display_name(request)),
         "demo": account.is_demo,
         "test": _test_targets(request, account),
+        "pageLinks": _page_links(account),
     }
 
 

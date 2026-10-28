@@ -28,6 +28,15 @@ Svar på sms, Svar på mejl, Avregistreringar; ?typ=) och statusen ett val
 med en Visa-knapp. Inkorgen är alltså en lista för förfrågningar och svar
 på kundens sms och mejl (menyn med sex punkter, app_nav.py).
 Utan utskick är listan som förut.
+
+Källan (README Steg 2): varje förfrågan från en landningssida har ett chip
+med samma texter och färger som sidans Statistik (Annons, Sms, E-post,
+QR-kod, Instagram, Annat, Direkt; sources.lead_source), sidans namn och
+kampanjen (Annons), utskicket (Sms, E-post) eller länkens namn. En gammal
+förfrågan utan sparad källa läses med Statistiks regler. Svar på utskick,
+samtal och förfrågningar lagda för hand har kvar sin kanal som förut. Allt
+chipet läser hämtas med förfrågan (_base_queryset), så listan gör lika
+många frågor oavsett hur många förfrågningar den visar.
 """
 
 from datetime import timedelta
@@ -40,7 +49,7 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils import timezone
 
 from .. import answers as form_answers
-from .. import leads, sms
+from .. import leads, sms, sources
 from ..models import ConversionUpload, Lead
 from ..rules import when_text
 from ..templatetags.flamingo_app import kr, tal
@@ -199,13 +208,49 @@ def _cards(lead_list, now):
         moment = lead.activity_at if lead.source == Lead.SOURCE_REPLY else lead.created_at
         lead.card_ago = ago(moment or lead.created_at, now)
         lead.card_channel = channel(lead)
+        lead.card_source = sources.lead_source(lead)
         lead.card_status = status_label(lead)
         lead.card_text = lead.message or form_answers.card_text(lead)
     return lead_list
 
 
+#: Utskickets stora fält, som chipet aldrig läser (bara namnet): de hämtas
+#: inte med varje förfrågan i listan.
+_UTSKICK_DEFERRED = (
+    "content_override",
+    "audience",
+    "sms_body",
+    "merge_fallbacks",
+    "email_doc",
+    "confirmed_terms",
+    "text_override",
+    "email_snapshot",
+    "confirm_summary",
+    "frozen_counts",
+    "stats",
+)
+#: Sidornas block (utkastet och den publicerade versionen) läses inte heller.
+_PAGE_DEFERRED = ("draft", "published")
+
+
 def _base_queryset(account):
-    return account.leads.select_related("service", "campaign__service", "reply_thread")
+    """Förfrågningarna med det korten och chipet läser (sources.lead_source):
+    sidan, kampanjen och dess sida, utskicket och den namngivna länken, utan
+    utskickets och sidornas stora fält."""
+    return (
+        account.leads.select_related(
+            "service",
+            "campaign__service",
+            "campaign__landing_page",
+            "landing_page",
+            "utskick",
+            "named_link",
+            "reply_thread",
+        )
+        .defer(*(f"utskick__{name}" for name in _UTSKICK_DEFERRED))
+        .defer(*(f"landing_page__{name}" for name in _PAGE_DEFERRED))
+        .defer(*(f"campaign__landing_page__{name}" for name in _PAGE_DEFERRED))
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -396,6 +441,7 @@ def render_detail(
         "lead": lead,
         "side_leads": side,
         "channel": channel(lead),
+        "lead_source": sources.lead_source(lead),
         "received": when_text(lead.created_at, now),
         "answers": list((lead.answers or {}).items()) if isinstance(lead.answers, dict) else [],
         "tel": sms.tel_href(lead.phone) if lead.phone else "",

@@ -66,9 +66,14 @@ KEYWORD_KEY = "keyword"
 #: Utskickets token (apps/utskick, E.2): klickets id och en signatur. Inte
 #: med i TRACKING_KEYS: den får aldrig hamna i Lead.utm.
 UT_KEY = "ut"
+#: Kampanjens nummer i Flamingos annonser på sidans egen adress (README Steg
+#: 2, exports.AD_CAMPAIGN_PARAM). Inte med i TRACKING_KEYS: det är ingen utm,
+#: och om det gäller avgör sources.ad_campaign_for.
+CAMPAIGN_KEY = "kampanj"
 
 _CLICK_ID_RE = re.compile(r"[A-Za-z0-9_\-]{1,200}")  # fullmatch
 _UT_RE = re.compile(r"[A-Za-z0-9]{1,12}\.[A-Za-z0-9]{10}")  # fullmatch
+_CAMPAIGN_RE = re.compile(r"[1-9][0-9]{0,8}")  # fullmatch, högst nio siffror
 
 #: Statusarna inkorgen erbjuder som knappar (Ny sätts bara när förfrågan kommer in).
 INBOX_STATUSES = (
@@ -144,6 +149,22 @@ def ut_from(*sources):
         if raw and _UT_RE.fullmatch(raw):
             return raw
     return ""
+
+
+def campaign_param(*sources):
+    """Kampanjens id ur ?kampanj= (eller det som postas), om det ser ut som
+    ett id; annars None. Det första giltiga värdet vinner. Om kampanjen hör
+    till sidan avgör sources.ad_campaign_for."""
+    for source in sources:
+        if not source:
+            continue
+        raw = source.get(CAMPAIGN_KEY, "")
+        if isinstance(raw, list | tuple):
+            raw = raw[0] if raw else ""
+        raw = str(raw or "").strip()
+        if raw and _CAMPAIGN_RE.fullmatch(raw):
+            return int(raw)
+    return None
 
 
 def _attach(lead, click):

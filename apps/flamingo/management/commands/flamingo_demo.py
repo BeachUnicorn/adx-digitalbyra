@@ -68,7 +68,7 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 from apps.projects.card_tabs import FLAMINGO, card_url
 from apps.projects.models import Customer
 
-from ... import pagebuilder, sms
+from ... import exports, pagebuilder, sms
 from ...models import (
     MEDIA_FORMAT,
     MEDIA_THUMB_SIDE,
@@ -1382,6 +1382,14 @@ class Command(BaseCommand):
             Campaign.objects.filter(pk__in=[c.pk for c in users]).update(landing_page=page)
             for campaign in users:
                 campaign.landing_page = page
+            # Annonserna leder till sidans egen adress med ?kampanj= (README
+            # Steg 2), som för en kampanj som publiceras nu.
+            shown = [c for c in users if c.status in (Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED)]
+            if shown:
+                url = exports.landing_page_url(page)
+                Campaign.objects.filter(pk__in=[c.pk for c in shown]).update(ads_final_url=url)
+                for campaign in shown:
+                    campaign.ads_final_url = url
             pages[name] = page
         return pages
 

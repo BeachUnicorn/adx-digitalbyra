@@ -16,7 +16,8 @@
      .fl-pg-period / __opt            7, 30 eller 90 dagar (länkar)
      .fl-lpsrc--<ton>                 källans chip: ad, sms, mail, qr, social,
                                       other, direct (inte .fl-src, som är
-                                      uppgifternas källa)
+                                      uppgifternas källa); i flamingo-app.css,
+                                      eftersom inkorgen delar det
      .fl-pg-table                     tabellen per källa (kort under 760 px,
                                       flamingo-app.css)
      .fl-pg-new                       "Ny länk för:" med knapparna
@@ -93,16 +94,7 @@
 .fl-pg-kpis{margin:0 0 16px}
 .fl-pg-sources .fl-table-wrap{margin:4px 0 12px}
 .fl-pg-table__name{overflow-wrap:anywhere}
-.fl-lpsrc{
-  display:inline-flex;align-items:center;padding:2px 10px;border:1px solid var(--fl-line);
-  border-radius:999px;background:var(--fl-panel2);font-size:13px;font-weight:500;line-height:1.5;
-  color:var(--fl-body);white-space:nowrap;
-}
-.fl-lpsrc--ad{background:var(--fl-violet-tint);border-color:#DCD2FF}
-.fl-lpsrc--sms{background:#EEF6FF;border-color:#CFE3FF}
-.fl-lpsrc--mail{background:#FFF3E6;border-color:#FFDDB8}
-.fl-lpsrc--qr{background:#EAF7EF;border-color:#C6EBD3}
-.fl-lpsrc--social{background:#FFEFF8;border-color:#F8CDEA}
+/* Källans chip (.fl-lpsrc) bor i flamingo-app.css: inkorgen visar samma. */
 
 /* ---------- Steg 2: Länkar per källa ---------- */
 .fl-pg-new{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}

@@ -53,7 +53,7 @@ Google sagt nej till innehållet. Demokontots påhittade id:n visas inte.
     {% endif %}
 
     {% if campaign.status == "live" %}
-        <p class="m-form-hint">Landningssidan: <a href="{{ campaign.landing_url }}" target="_blank" rel="noopener">{{ landing_full_url }} ↗</a></p>
+        <p class="m-form-hint">Annonserna leder till <a href="{{ landing_full_url }}" target="_blank" rel="noopener">{{ landing_full_url }} ↗</a></p>
         <div class="mf-actions">
             <a class="m-btn m-btn--ghost m-btn--small" href="{% url 'manage:flamingo_editor_csv' campaign.pk %}">Ladda ner Editor-filen</a>
             {% if publish_api %}

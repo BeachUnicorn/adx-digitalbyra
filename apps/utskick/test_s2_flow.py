@@ -364,7 +364,9 @@ class ClickFlowTests(FlowFixture, TestCase):
         numbers = reports.summary(utskick)
         self.assertEqual((numbers["clicked"], numbers["engaged"], numbers["leads"]), (1, 1, 1))
         inbox = self.customer_client.get(reverse("flamingo:app_inbox"))
-        self.assertContains(inbox, "Utskick: Höstservice badrum")
+        # Källans chip med utskickets namn (Flamingos README Steg 2).
+        self.assertContains(inbox, '<span class="fl-lpsrc fl-lpsrc--sms">Sms</span>', html=False)
+        self.assertContains(inbox, "Höstservice badrum")
         overview = self.customer_client.get(reverse("flamingo:app"))
         self.assertContains(overview, "Varav via utskick")
         # Ägaren får förfrågan i ett samlat sms från ticken, inte direkt.

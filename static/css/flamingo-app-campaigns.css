@@ -278,3 +278,11 @@ span.fl-camp-submit__direct,span.fl-camp-submit__review{display:none}
 @media (max-width:560px){
   .fl-camp-opt__pick{padding-left:0}
 }
+
+/* ---------- Fliken Sidan: vart annonserna leder (README Steg 2) ----------
+   _ads_address.html. Adressen i monospace och bryts var som helst, så att
+   den aldrig gör sidan bredare i en telefon (375 px). */
+.fl-camp-ads{display:flex;flex-direction:column;gap:4px;min-width:0;padding:12px 14px;border:1px solid var(--fl-line);border-radius:var(--fl-r-sm);background:var(--fl-white)}
+.fl-camp-ads__label{margin:0;font-family:var(--fl-mono);font-size:12px;font-weight:500;letter-spacing:.04em;line-height:1.4;text-transform:uppercase;color:var(--fl-muted)}
+.fl-camp-ads__url{margin:0;min-width:0;font-family:var(--fl-mono);font-size:14px;line-height:1.45;color:var(--fl-ink);overflow-wrap:anywhere;-webkit-user-select:all;user-select:all}
+.fl-camp-ads .fl-camp-hint{margin:2px 0 0}

@@ -41,6 +41,7 @@ demokonto larmar inte och anropar aldrig Google.
 
 import logging
 import re
+from urllib.parse import urlsplit
 
 from django import forms
 from django.contrib import messages
@@ -53,7 +54,7 @@ from django.utils import timezone
 
 from apps.common.security import sanitize_multiline_text, sanitize_plain_text
 
-from .. import checks, generator, google_publish, pagebuilder
+from .. import addresses, checks, exports, generator, google_publish, pagebuilder
 from ..alerts import send_agency_alert
 from ..models import (
     DESCRIPTION_COUNT,
@@ -588,9 +589,11 @@ def _ad_previews(request, campaign, fact_values):
                 ],
             }
         )
-    host = request.get_host()
+    # Adressen annonsen leder till (sidans egen, README Steg 2), utan
+    # kampanjens nummer: Google visar inte frågan i annonsen.
+    url = exports.ads_url(campaign).split("://", 1)[-1].split("?", 1)[0].rstrip("/")
     for preview in previews:
-        preview["url"] = f"{host}{campaign.landing_url}".rstrip("/")
+        preview["url"] = url
     return previews
 
 
@@ -616,9 +619,41 @@ def landing_preview(request, campaign, page):
         return None
 
 
+def ads_address(campaign, page):
+    """Vart annonserna leder (fliken Sidan, README Steg 2): adressen som
+    text och läget.
+
+    ads_url_text      adressen utan https://, med ?kampanj=<id> på sidans egen
+    ads_published     kampanjen är publicerad (adressen gäller nu, annars när
+                      den publiceras)
+    ads_old_address   publicerad innan annonserna gick till sidans egen
+                      adress: de leder till kampanjens adress
+    ads_other_page    sidan annonserna publicerades med, när kampanjen sedan
+                      bytt till en annan sida (annonserna skrivs inte om),
+                      annars None"""
+    published = campaign.status in (Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED)
+    url = exports.ads_url(campaign)
+    other = None
+    if published and campaign.ads_final_url and page is not None:
+        path = urlsplit(campaign.ads_final_url).path
+        if path != page.landing_url:
+            parts = path.strip("/").split("/")
+            if len(parts) == 3 and parts[0] == "lp":
+                found, _old = addresses.page_for_address(parts[1], parts[2])
+                if found is not None and found.account_id == campaign.account_id:
+                    other = found
+    return {
+        "ads_url_text": url.split("://", 1)[-1],
+        "ads_published": published,
+        "ads_old_address": published and not campaign.ads_final_url,
+        "ads_other_page": other,
+    }
+
+
 def page_context(request, campaign, account, *, with_preview=False):
     """Fliken Sidan och granskningen: kampanjens sida i sidbyggaren, vilka
-    andra kampanjer som visar den, läget och problemen."""
+    andra kampanjer som visar den, läget, problemen och vart annonserna
+    leder (ads_address)."""
     page = campaign.landing_page if campaign.landing_page_id else None
     if page is None:
         return {"landing_page": None}
@@ -641,6 +676,7 @@ def page_context(request, campaign, account, *, with_preview=False):
         "page_answers_url": reverse("flamingo:app_page_answers", args=[page.pk]),
         "page_preview_url": f"{campaign.landing_url}?utkast=1",
         "landing_html": landing_preview(request, campaign, page) if with_preview else None,
+        **ads_address(campaign, page),
     }
 
 

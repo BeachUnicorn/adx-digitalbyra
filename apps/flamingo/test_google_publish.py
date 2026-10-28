@@ -242,6 +242,8 @@ class BuildOperationsTests(PublishFixture, TestCase):
                 },
                 "geoTargetTypeSetting": {"positiveGeoTargetType": "PRESENCE"},
                 "containsEuPoliticalAdvertising": "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+                # Kampanjens nummer i adressen (README Steg 2).
+                "finalUrlSuffix": f"kampanj={self.campaign.pk}",
             },
         )
 
@@ -322,7 +324,12 @@ class BuildOperationsTests(PublishFixture, TestCase):
         ad = ops[-1]["adGroupAdOperation"]["create"]
         self.assertEqual(ad["adGroup"], temp_group)
         self.assertEqual(ad["status"], "ENABLED")
-        self.assertEqual(ad["ad"]["finalUrls"], [f"https://adx.se/lp/{self.campaign.page_slug}/"])
+        # Sidans egen adress (README Steg 2), inte kampanjens /lp/<page_slug>/.
+        page = self.reload().landing_page
+        self.assertEqual(
+            ad["ad"]["finalUrls"],
+            [f"https://adx.se/lp/{page.account.lp_slug}/{page.slug}/"],
+        )
         self.assertEqual(
             ad["ad"]["responsiveSearchAd"],
             {
@@ -339,8 +346,10 @@ class BuildOperationsTests(PublishFixture, TestCase):
     @override_settings(FLAMINGO_LANDING_BASE_URL="https://sidor.adx.se/")
     def test_the_final_url_follows_the_landing_domain(self):
         ad = self.operations()[-1]["adGroupAdOperation"]["create"]
+        page = self.reload().landing_page
         self.assertEqual(
-            ad["ad"]["finalUrls"], [f"https://sidor.adx.se/lp/{self.campaign.page_slug}/"]
+            ad["ad"]["finalUrls"],
+            [f"https://sidor.adx.se/lp/{page.account.lp_slug}/{page.slug}/"],
         )
 
     def test_an_area_without_places_is_refused(self):

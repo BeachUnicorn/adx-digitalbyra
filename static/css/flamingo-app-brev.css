@@ -96,6 +96,11 @@
 .fl-br-field .fl-input{width:100%}
 .fl-br-textarea{min-height:5.5em;resize:vertical;line-height:1.5}
 .fl-br-rich{display:flex;flex-direction:column;gap:6px}
+/* Länkfält med valet av landningssida (README Steg 2): valet över adressen,
+   båda i full bredd, så att panelen ryms i 375 px. En lång sidtitel kortas
+   i valet (text-overflow), aldrig i sidled. */
+.fl-br-url{display:flex;flex-direction:column;gap:6px;min-width:0}
+.fl-br-field select.fl-br-pagepick{min-width:0;max-width:100%;text-overflow:ellipsis}
 .fl-br-richbar{display:flex;flex-wrap:wrap;gap:4px}
 .fl-br-richbar__b{font-weight:700}
 .fl-br-richbar__i{font-style:italic}

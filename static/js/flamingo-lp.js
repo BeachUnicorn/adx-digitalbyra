@@ -12,6 +12,10 @@
    Sidan frågar inte om samtycke och skickar inget svar om det (beslut
    2026-10-03). Inga kakor, ingen lagring i webbläsaren.
 
+   Sidans egen adress (README Steg 2): Flamingos annonser leder dit med
+   ?kampanj=<id>. Det skickas med klicket, så att servern kan räkna klicket
+   på kampanjen (sources.ad_campaign_for prövar att den hör till sidan).
+
    Utskick (apps/utskick, README C.2, E.4): ett besök från ett sms bär
    ?ut=<token>. Skriptet läser den en gång, tar bort den ur adressfältet med
    history.replaceState (en kopierad länk ska inte bära mottagarens token)
@@ -121,6 +125,7 @@
     "utm_term",
     "utm_content",
     "keyword",
+    "kampanj",
     "ut",
   ];
 

@@ -6,7 +6,7 @@ sidan direkt); det byrån sparar där sparas i byråns namn. En ändring på en
 sida som är live går live när kontrollerna är gröna.
 {% endcomment %}
 {% if landing %}
-<p class="m-form-hint">{{ landing.page.name }}: {{ landing.state|lower }}.{% if landing.others %} Delas med {% for c in landing.others %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %} Adressen <code>{{ campaign.landing_url }}</code> är kampanjens egen.</p>
+<p class="m-form-hint">{{ landing.page.name }}: {{ landing.state|lower }}.{% if landing.others %} Delas med {% for c in landing.others %}{{ c.name }}{% if not forloop.last %}, {% endif %}{% endfor %}.{% endif %} Annonserna leder till <code>{{ landing_full_url }}</code>; kampanjens adress <code>{{ campaign.landing_url }}</code> fungerar också.</p>
 {% if landing.blocks %}
 <ol class="mf-read__list">
     {% for row in landing.blocks %}<li><b>{{ row.name }}</b> <span class="m-muted">{{ row.variant }}</span>{% if row.headline %}: {{ row.headline }}{% endif %}</li>{% endfor %}

@@ -974,6 +974,16 @@ Landing pages got their own address `/lp/<account>/<page>/` and statistics per s
 - **Attribution**: `attribution.resolve` accepts a page (same account check);
   `record_lp_visit` stores "<account>/<page>" as `sida` for a visit on the own address. Counter
   scope `lp_visit` (one visit per visitor, page, source and hour).
+- **Brev link picker** (2026-10-28): the link fields of hero, button (both), image and
+  image_text (`app_views/brev.PAGE_LINK_FIELDS`; not video or social) get a select above the
+  address in the Fält panel (`flamingo-app-brev.js`, brev only; `flamingo-pb.js` is unchanged):
+  "Annan adress, skriv den nedan" or one of the account's published landing pages
+  (`br-config.pageLinks`: id, name and `exports.landing_page_url`). Picking a page writes its own
+  address into the field; the select follows the field (an address typed by hand that is a page's
+  shows that page; query and fragment ignored). Nothing new on the server side: the value passes
+  the same `url` validation, and the freeze turns it into an `lp` TrackedLink with `landing_page`
+  (`sending.email._tracked_link`), personal per recipient via `/m/`, so the visit and the lead count
+  as E-post on the page's statistics. Saved mails are unchanged. Tests: `test_brev_page_links.py`.
 
 ---
 
@@ -2436,8 +2446,9 @@ engagement beacon is upgraded to `human`. Only human clicks count anywhere in th
   ticked in the page's form; `bare_destination` keeps it (like the `#fragment`), only a value on
   the campaign's page now is accepted when the link is made (`links.PRESELECT_TEXT`), and the page
   treats it as a preselect only (apps/flamingo/answers.py). Named links and the sms link slot have
-  the select; the email slot keeps a pasted own-page address with `?val=` (`sending/email._tracked_link`)
-  but has no picker (the Brev link fields are free text).
+  the select; the email slot keeps a pasted own-page address with `?val=` (`sending/email._tracked_link`).
+  The Brev link fields have a landing-page picker since 2026-10-28 (see "After S4" below) but no
+  preselect select: `?val=` is typed into the address.
 - `external` links: the stored absolute destination (E.8), existing query and fragment kept, utm
   appended when `add_utm`, `adx=<token>` appended only when the destination host is a `SiteSnippet`
   domain (or a subdomain of it) whose `last_seen_at` is set (S4). Codes never carry URLs, so there

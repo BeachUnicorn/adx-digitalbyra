@@ -5,7 +5,11 @@ en förfrågan kom, besöken per dag och statistiken per sida (README, Steg 2).
     origin_for(campaign, click, tracking) -> Origin
                                 källan för ett besök eller en förfrågan: utskickets
                                 eller den namngivna länkens klick först, sedan
-                                kampanjens adress, sedan ett klick-id, annars Direkt
+                                kampanjens adress (eller ett giltigt ?kampanj= på
+                                sidans egen), sedan ett klick-id, annars Direkt
+    ad_campaign_for(page, campaign_id) -> Campaign eller None
+                                kampanjen ?kampanj= pekar på, när den hör till
+                                sidans konto och leder till sidan
     is_counted_request(request) -> bool
                                 en riktig sidvisning: GET, ingen förhämtning, ingen
                                 bot eller länkförhandsvisning
@@ -21,6 +25,18 @@ en förfrågan kom, besöken per dag och statistiken per sida (README, Steg 2).
                                 Statistik: summorna och en rad per källa
     list_numbers(account, now=None, days=30) -> {sidans id: ListNumbers}
                                 listans siffror: besök, förfrågningar, antal källor
+    lead_source(lead) -> LeadSource eller None
+                                inkorgens chip: källan, sidan och kampanjen,
+                                utskicket eller länken (som Statistik)
+
+Annonserna på sidans egen adress: Flamingos kampanjer hos Google leder till
+/lp/<konto>/<sida>/ med kampanjens slutadressuffix kampanj=<id>
+(exports.ad_url_suffix). Ett ?kampanj= räknas bara när kampanjen finns, hör
+till sidans konto och leder till just den sidan (kampanjens sida, eller
+sidan annonserna publicerades med, Campaign.ads_final_url); då är besöket,
+klicket på numret och förfrågan kampanjens, som på kampanjens adress. Ett
+främmande, okänt eller felaktigt kampanjnummer ignoreras helt (vanliga reglerna:
+ett klick-id ger Annons utan kampanj, annars Direkt).
 
 Källorna (models.PAGE_SOURCE_*): Annons (ad, kampanjen eller ett klick-id),
 Sms och E-post (sms, email, utskicket), en namngiven länk (named, länken;
@@ -58,6 +74,7 @@ from .models import (
     PAGE_SOURCE_EMAIL,
     PAGE_SOURCE_NAMED,
     PAGE_SOURCE_SMS,
+    Campaign,
     Lead,
     PageVisitDay,
 )
@@ -121,6 +138,33 @@ def origin_for(campaign=None, click=None, tracking=None):
     if any(tracking.get(key) for key in ("gclid", "gbraid", "wbraid")):
         return Origin(PAGE_SOURCE_AD, PAGE_SOURCE_AD)
     return Origin(PAGE_SOURCE_DIRECT, PAGE_SOURCE_DIRECT)
+
+
+def ad_campaign_for(page, campaign_id):
+    """Kampanjen som ?kampanj=<id> på sidans egen adress pekar på, eller None.
+
+    Bara en kampanj hos sidans konto som leder till sidan: kampanjens sida
+    nu, eller sidan annonserna publicerades med (Campaign.ads_final_url,
+    så att en kampanj som bytt sida efter publiceringen fortfarande räknas
+    där annonserna landar). Ett annat kontos kampanj, en okänd eller en som
+    leder till en annan sida ignoreras. En fråga, bara när id:t finns."""
+    if page is None or not campaign_id:
+        return None
+    campaign = (
+        Campaign.objects.select_related("account__customer", "service")
+        .filter(pk=campaign_id, account_id=page.account_id)
+        .first()
+    )
+    if campaign is None:
+        return None
+    if campaign.landing_page_id == page.pk:
+        return campaign
+    from urllib.parse import urlsplit
+
+    published = urlsplit(campaign.ads_final_url or "").path
+    if published and published == page.landing_url:
+        return campaign
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -432,3 +476,70 @@ def list_numbers(account, now=None, days=DEFAULT_DAYS):
             _lead_key(item["src"], item["campaign_id"], item["utskick_id"], item["named_link_id"])
         )
     return out
+
+
+# ---------------------------------------------------------------------------
+# Inkorgen: förfrågans källa som chip
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class LeadSource:
+    """Inkorgens chip för en förfrågan: källan (Annons, Sms, E-post, QR-kod,
+    Instagram, Annat, Direkt), sidan och texten (kampanjen, utskicket eller
+    länken, som Statistik)."""
+
+    source: str
+    chip: str
+    tone: str
+    page_name: str
+    text: str
+
+
+def _lead_source_value(lead):
+    """Som lead_source_expr, i Python för en rad som redan är läst."""
+    if lead.page_source:
+        return lead.page_source
+    attribution = lead.attribution if isinstance(lead.attribution, dict) else {}
+    channel = attribution.get("channel")
+    if channel in (PAGE_SOURCE_NAMED, PAGE_SOURCE_SMS, PAGE_SOURCE_EMAIL):
+        return channel
+    if lead.campaign_id:
+        return PAGE_SOURCE_AD
+    return PAGE_SOURCE_DIRECT
+
+
+def lead_source(lead):
+    """Chipet för förfrågan, eller None för en förfrågan som inte kom från
+    en landningssida (lagd för hand, ett samtal, ett svar på ett utskick,
+    som har sina egna chips). En gammal rad utan sparad källa läses med
+    samma regler som Statistik (lead_source_expr): spårets kanal, annars
+    Annons för en kampanj, annars Direkt; sidan är kampanjens sida.
+
+    Läser lead.landing_page, lead.campaign (och dess landing_page),
+    lead.utskick och lead.named_link: inkorgen hämtar dem med förfrågan
+    (select_related), så att listan gör lika många frågor hur många
+    förfrågningar den än visar."""
+    if lead.source not in (Lead.SOURCE_FORM, Lead.SOURCE_CALL_CLICK):
+        return None
+    campaign = lead.campaign if lead.campaign_id else None
+    page = lead.landing_page if lead.landing_page_id else None
+    if page is None and campaign is not None and campaign.landing_page_id:
+        page = campaign.landing_page
+    attribution = lead.attribution if isinstance(lead.attribution, dict) else {}
+    if page is None and campaign is None and not lead.page_source and not attribution:
+        return None
+    source = _lead_source_value(lead)
+    link = lead.named_link if lead.named_link_id else None
+    chip, tone = _chip(source, link.medium if link is not None else "")
+    utskick = lead.utskick if lead.utskick_id else None
+    utskick_name = utskick.name if utskick is not None else str(attribution.get("name") or "")
+    link_label = link.label if link is not None else str(attribution.get("label") or "")
+    text = _text(source, campaign.name if campaign else "", utskick_name, link_label)
+    return LeadSource(
+        source=source,
+        chip=chip,
+        tone=tone,
+        page_name=page.name if page is not None else "",
+        text="" if source == PAGE_SOURCE_DIRECT else text,
+    )

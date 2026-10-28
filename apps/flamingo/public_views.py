@@ -81,8 +81,14 @@ kampanj (addresses.page_for_address: bara kontot med just den delen). En
 publicerad sida är öppen för alla; en sida som aldrig publicerats är 404,
 utom för byrån (förhandsvisning). En tidigare adress skickar vidare (302,
 frågan kvar). Förfrågningar och klick på numret där har ingen kampanj
-(Lead.landing_page, källan i Lead.page_source) och går aldrig till Google.
-Kampanjens adress /lp/<page_slug>/ är oförändrad.
+(Lead.landing_page, källan i Lead.page_source) och går inte till Google,
+utom när besöket kommer från en av Flamingos annonser: de leder hit med
+?kampanj=<id> (kampanjens slutadressuffix hos Google). Ett kampanjnummer
+som hör till sidans konto och leder till sidan (sources.ad_campaign_for) ger
+besöket, klicket på numret och förfrågan kampanjen, som på kampanjens
+adress, och med gclid går förfrågan till Google (Lead.can_send_to_google).
+Ett främmande eller felaktigt kampanjnummer ignoreras. Sidan ritas likadant med
+och utan kampanj. Kampanjens adress /lp/<page_slug>/ är oförändrad.
 
 Besöken (sources.py): en GET av sidan räknas i PageVisitDay med sin källa
 (Annons, Sms, E-post, en namngiven länk eller Direkt), högst en gång per
@@ -579,10 +585,20 @@ def _respond(html, status=200):
     return response
 
 
+def _ad_campaign(target, *data):
+    """På sidans egen adress: kampanjen ur ?kampanj= (Flamingos annonser,
+    sources.ad_campaign_for), eller None. På kampanjens adress None: där är
+    kampanjen redan känd."""
+    if target.campaign is not None:
+        return None
+    return sources.ad_campaign_for(target.page, leads.campaign_param(*data))
+
+
 def _serve(request, target):
     """Sidan med formuläret: visa (GET) eller ta emot en förfrågan (POST),
-    på kampanjens adress eller sidans egen."""
-    page, account, campaign = target.page, target.account, target.campaign
+    på kampanjens adress eller sidans egen. På sidans egen adress ger ett
+    giltigt ?kampanj= besöket och förfrågan kampanjen (_ad_campaign)."""
+    page, account = target.page, target.account
     blocks = page.blocks_for(target.which)
     # Sidan utan formulär (bara ringknappar) tar ändå emot en postning med
     # det korta formulärets fält, så att ingen förfrågan tappas.
@@ -592,6 +608,9 @@ def _serve(request, target):
     status = 200
     post = request.POST if request.method == "POST" else None
     ut, click = _utskick_click(target.owner, post, request.GET)
+    # Kampanjen förfrågan och besöket räknas på: kampanjens adress, eller
+    # Flamingos annons på sidans egen adress.
+    campaign = target.campaign or _ad_campaign(target, post, request.GET)
     counted = _counted_visit(request, account, target.preview)
     if request.method == "GET" and counted:
         if click is not None:
@@ -602,7 +621,7 @@ def _serve(request, target):
             sources.record_visit(page, sources.origin_for(campaign, click, tracking), request)
 
     if request.method == "POST":
-        owner_text = f"kampanj {campaign.pk}" if campaign is not None else f"sida {page.pk}"
+        owner_text = f"kampanj {campaign.pk}" if target.campaign is not None else f"sida {page.pk}"
         if request.POST.get(HONEYPOT, ""):
             # Samma svar som en lyckad förfrågan, utan sidoeffekter: boten
             # ska inte lära sig vad som stoppade den.
@@ -618,7 +637,7 @@ def _serve(request, target):
                 form.lead_data(),
                 request,
                 click=click,
-                page=page if campaign is None else None,
+                page=page if target.campaign is None else None,
             )
             if lead is not None:
                 email_ticked = _capture(lead, form, request, click if lead.utskick_id else None)
@@ -644,7 +663,7 @@ def _serve(request, target):
     extra["ut"] = ut
     extra["visit_beacon"] = target.beacon_url if click is not None and counted else ""
     html = pagebuilder.render_page_html(
-        page, account, campaign, which=target.which, request=request, form=form, extra=extra
+        page, account, target.campaign, which=target.which, request=request, form=form, extra=extra
     )
     return _respond(html, status=status)
 
@@ -792,7 +811,10 @@ def page_thanks(request, account, page):
 def page_call_click(request, account, page):
     """Ett klick på numret på sidans egen adress (som call_click). Räknas
     när sidan är publicerad, kontot aktiverat, kunden aktiv och kontot inte
-    demo; annars 404. Spärrarna räknas per sida (limits)."""
+    demo; annars 404. Spärrarna räknas per sida (limits). Med ett giltigt
+    kampanjnummer (flamingo-lp.js skickar det ur adressen, sources.ad_campaign_for)
+    blir klicket kampanjens, med kampanjens spärrar, som på kampanjens
+    adress."""
     found, old = _found_page(account, page)
     owner = found.account
     if old or not (
@@ -803,8 +825,9 @@ def page_call_click(request, account, page):
     response = _beacon_response()
     if _not_counted(request, owner):
         return response
+    campaign = sources.ad_campaign_for(found, leads.campaign_param(request.POST))
     lead, refused = limits.create_call_click_lead(
-        None, request.POST, request, click=click, page=found
+        campaign, request.POST, request, click=click, page=found
     )
     if lead is None and refused != limits.LIMIT_DUPLICATE:
         logger.warning("flamingo lp: för många klick på numret (%s, sida %s)", refused, found.pk)

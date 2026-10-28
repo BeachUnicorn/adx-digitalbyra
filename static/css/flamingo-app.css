@@ -24,6 +24,8 @@
      .fl-chips                                         val som chips (radio/checkbox)
      .fl-seg                                           segmenterat val (radio)
      .fl-src--<källa>                                  uppgiftens källa
+     .fl-lpsrc--<ton>                                  besökets och förfrågans källa
+                                                       (sidans Statistik, inkorgen)
      .fl-ad                                            Googles sökannons
      .fl-notice--<ton>                                 info/ok/warn/error
      .fl-list .fl-kv .fl-cols .fl-sr                   listor, rader, spalter
@@ -359,6 +361,23 @@
 .fl-src--google{border-color:#CFE0FF;background:#F2F7FF;color:#2456BE}
 .fl-src--customer{border-color:#D9CFFB;background:#F6F2FF;color:var(--fl-violet-ink)}
 .fl-src--adx{border-color:var(--fl-ink);background:var(--fl-white);color:var(--fl-ink)}
+
+/* ---------- Besökets och förfrågans källa (README Steg 2) ----------
+   <span class="fl-lpsrc fl-lpsrc--{{ row.tone }}">{{ row.chip }}</span>
+   sources.SOURCE_CHIPS och MEDIUM_CHIPS: ad = Annons, sms = Sms, mail =
+   E-post, qr = QR-kod, social = Instagram, other = Annat, direct = Direkt.
+   Sidans Statistik (pages/stats.html) och inkorgen (inbox/_card.html,
+   detail.html) delar samma chip. */
+.fl-lpsrc{
+  display:inline-flex;align-items:center;padding:2px 10px;border:1px solid var(--fl-line);
+  border-radius:999px;background:var(--fl-panel2);font-size:13px;font-weight:500;line-height:1.5;
+  color:var(--fl-body);white-space:nowrap;
+}
+.fl-lpsrc--ad{background:var(--fl-violet-tint);border-color:#DCD2FF}
+.fl-lpsrc--sms{background:#EEF6FF;border-color:#CFE3FF}
+.fl-lpsrc--mail{background:#FFF3E6;border-color:#FFDDB8}
+.fl-lpsrc--qr{background:#EAF7EF;border-color:#C6EBD3}
+.fl-lpsrc--social{background:#FFEFF8;border-color:#F8CDEA}
 
 /* ---------- Googles sökannons ----------
    <div class="fl-ad"><p class="fl-ad__top"><b>Sponsrad</b> <span>exempel.se</span></p>
