@@ -1435,6 +1435,13 @@ class TrackedLink(models.Model):
         # Skrivs aldrig: en namngiven länk har kind lp eller external (S4).
         NAMED = "named", "Namngiven"
 
+    class Medium(models.TextChoices):
+        """Var en namngiven länk används (Flamingos README, Steg 2)."""
+
+        QR = "qr", "QR-kod"
+        INSTAGRAM = "instagram", "Instagram"
+        OTHER = "other", "Annat"
+
     account = models.ForeignKey(
         FlamingoAccount, on_delete=models.CASCADE, related_name="utskick_links"
     )
@@ -1452,7 +1459,17 @@ class TrackedLink(models.Model):
         on_delete=models.SET_NULL,
         related_name="utskick_links",
     )
-    #: Absolut http(s)-adress (E.8) eller kampanjens landing_url.
+    #: kind lp direkt till en landningssida (Flamingos README, Steg 2):
+    #: sidans egen adress /lp/<konto>/<sida>/, utan kampanj. Kontots egen
+    #: (landing_page.account_id ska vara account_id). Nullbar: B.0.
+    landing_page = models.ForeignKey(
+        "flamingo.LandingPage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="utskick_links",
+    )
+    #: Absolut http(s)-adress (E.8), kampanjens eller sidans landing_url.
     destination = models.CharField(max_length=500)
     label = models.CharField(max_length=120, blank=True)
     add_utm = models.BooleanField(default=True)
@@ -1461,6 +1478,12 @@ class TrackedLink(models.Model):
     position = models.PositiveSmallIntegerField(default=0)
     #: Namngivna länkar (S4): klick.adx.se/<public_slug>/<slug>.
     slug = models.SlugField(max_length=40, blank=True)
+    #: Var en namngiven länk används (Flamingos README, Steg 2): källan i
+    #: landningssidans statistik. Tomt för äldre länkar (räknas som Annat).
+    #: db_default: B.0.
+    medium = models.CharField(
+        max_length=10, choices=Medium.choices, blank=True, default="", db_default=""
+    )
     #: Summor som ticken räknar upp (E.3).
     human_clicks = models.PositiveIntegerField(default=0)
     bot_hits = models.PositiveIntegerField(default=0)
@@ -1503,6 +1526,11 @@ class TrackedLink(models.Model):
     def is_named(self):
         """En namngiven länk (S4): ingen utskick, en slug."""
         return self.utskick_id is None and bool(self.slug)
+
+    @property
+    def medium_label(self):
+        """QR-kod, Instagram eller Annat (en äldre länk utan sort är Annat)."""
+        return dict(self.Medium.choices).get(self.medium or self.Medium.OTHER, "Annat")
 
 
 class LinkCode(models.Model):

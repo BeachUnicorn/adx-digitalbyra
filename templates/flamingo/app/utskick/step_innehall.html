@@ -8,8 +8,10 @@ longest_count, non_gsm, sender), non_gsm_text (tecknen i klartext: "ett
 hårt mellanslag"), errors (composer.validate), kontakt och next_kontakt
 (förhandsvisningens kontakt och "byt kontakt", en knapp som sparar först), insert_tags
 ([(platshållare, rubrik)]), used_tags (reservtexterna), link_rows ([{link,
-host, status, token, preselect_text}]), campaigns, preselect_groups
-([(kampanj, [(värde, text)])] för Förvälj svar, sidorna med ett flerval;
+host, status, token, preselect_text}]), campaigns, lp_options (väljarens
+grupper: Landningssidor och Kampanjernas adresser, Flamingos steg 2),
+preselect_groups ([{value, name, choices}] för Förvälj svar, sidorna med
+ett flerval;
 flamingo-app-links.js visar bara den valda sidans grupp), templates ([{key, label, text,
 information}]), sender_identified, too_long, max_parts, planned (antal sms),
 total_text, test (owner, owner_text, staff, demo), opt_out, reply_sender,
@@ -137,14 +139,14 @@ platshållare där markören står.
         </fieldset>
         <div class="fl-field">
           <label class="fl-field__label" for="ut-lank-kampanj">Flamingo-sida</label>
-          {% if campaigns %}
+          {% if lp_options %}
           <select class="fl-input" id="ut-lank-kampanj" name="lank_kampanj">
             <option value="">Välj sida</option>
-            {% for campaign in campaigns %}<option value="{{ campaign.pk }}">{{ campaign.name }}</option>{% endfor %}
+            {% for group in lp_options %}<optgroup label="{{ group.label }}">{% for item in group.items %}<option value="{{ item.value }}">{{ item.name }}</option>{% endfor %}</optgroup>{% endfor %}
           </select>
-          <p class="fl-field__help">Full spårning: besök, tid på sidan och förfrågningar.</p>
+          <p class="fl-field__help">Full spårning: besök, tid på sidan och förfrågningar. En landningssida får länken på sin egen adress.</p>
           {% else %}
-          <p class="fl-field__help">Du har ingen publicerad Flamingo-sida än. Publicera en kampanj under Kampanjer, eller välj Egen adress.</p>
+          <p class="fl-field__help">Du har ingen publicerad Flamingo-sida än. Publicera en sida under Landningssidor, eller välj Egen adress.</p>
           {% endif %}
         </div>
         {% if preselect_groups %}
@@ -152,8 +154,8 @@ platshållare där markören står.
           <label class="fl-field__label" for="ut-lank-forval">Förvälj svar (valfritt)</label>
           <select class="fl-input" id="ut-lank-forval" name="lank_forval" data-ln-preselect="ut-lank-kampanj" aria-describedby="ut-lank-forval-help">
             <option value="">Inget förval</option>
-            {% for campaign, choices in preselect_groups %}<optgroup label="{{ campaign.name }}" data-ln-campaign="{{ campaign.pk }}">
-              {% for value, label in choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            {% for group in preselect_groups %}<optgroup label="{{ group.name }}" data-ln-campaign="{{ group.value }}">
+              {% for value, label in group.choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
             </optgroup>{% endfor %}
           </select>
           <p class="fl-field__help" id="ut-lank-forval-help">Svaret är redan valt när besökaren öppnar sidan. Besökaren kan ändra det.</p>

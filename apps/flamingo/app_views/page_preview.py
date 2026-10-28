@@ -1,28 +1,23 @@
 """
-Sidans adresser i verktyget (Giovanni 2026-10-10, "Good build the landing
-page urls"): var en sida kan ses, och förhandsvisningen av en sida som
-ingen kampanj använder.
+Förhandsvisningen av en sida i verktyget (Giovanni 2026-10-10, "Good build
+the landing page urls"; steg 2 2026-10-28, README):
 
-    page_links(campaigns)   en adress per kampanj som visar sidan: href är
-                            kampanjens /lp/<slug>/ (samma värd som verktyget,
-                            så att inloggningen följer med och kundens eget
-                            besök inte räknas, public_views._own_visit), url
-                            är adressen annonserna använder
-                            (exports.landing_page_url), den som kopieras
-    page_preview            /flamingo/app/sidor/<pk>/forhandsvisa/: sidans
-                            utkast ritat som besökarna skulle se det
+    page_preview    /flamingo/app/sidor/<pk>/forhandsvisa/: sidans utkast
+                    ritat som besökarna skulle se det
 
-En sida har ingen egen publik adress. Varje kampanj som visar den har sin
-/lp/<slug>/, alltid öppen utan inloggning och aldrig indexerad
-(public_views.py). En sida utan kampanj har därför bara förhandsvisningen:
-den kräver inloggning i verktyget (app_view, samma kontroll av kunden som
-de andra sidvyerna, också för byrån i kundvyn och demokontot), har
-noindex både i sidan och i X-Robots-Tag, och formuläret skickar ingenting:
-ett ifyllt formulär visar tacksidan, märkt som förhandsvisning, utan att
-någon förfrågan skapas, något sms skickas eller något räknas.
+Varje sida har en egen adress, /lp/<konto>/<sida>/ (addresses.py,
+public_views.page_landing), öppen när sidan är publicerad. Kampanjerna som
+visar sidan har dessutom sin /lp/<slug>/. En sida som inte är publicerad har
+bara förhandsvisningen: den kräver inloggning i verktyget (app_view, samma
+kontroll av kunden som de andra sidvyerna, också för byrån i kundvyn och
+demokontot), har noindex både i sidan och i X-Robots-Tag, och formuläret
+skickar ingenting: ett ifyllt formulär visar tacksidan, märkt som
+förhandsvisning, utan att någon förfrågan skapas, något sms skickas eller
+något räknas.
 
-Listan (pages/list.html) och sidbyggaren (pages/editor.html) hämtar
-adresserna med filtret page_links (templatetags/flamingo_pages.py).
+Listan (pages/list.html), sidbyggaren (pages/editor.html) och sidans flikar
+(pages/_detail_head.html) visar "Öppna sidan" (sidans egen adress) eller
+"Förhandsvisa" med taggen page_preview_url (templatetags/flamingo_pages.py).
 """
 
 from django.http import HttpResponse
@@ -30,21 +25,12 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_http_methods
 
-from .. import exports, pagebuilder
+from .. import pagebuilder
 from ..models import LandingPage
 from . import app_view
 
 #: ?tack=1 visar förhandsvisningens tacksida (efter ett ifyllt formulär).
 THANKS_PARAM = "tack"
-
-
-def page_links(campaigns):
-    """[{campaign, href, url}] för kampanjerna som visar en sida, i samma
-    ordning. Tom lista när ingen kampanj visar den."""
-    return [
-        {"campaign": c, "href": c.landing_url, "url": exports.landing_page_url(c)}
-        for c in campaigns
-    ]
 
 
 def preview_url(page):

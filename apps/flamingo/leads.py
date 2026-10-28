@@ -25,6 +25,13 @@ TRACKING_KEYS och hamnar alltså aldrig i Lead.utm. Med ett klick (click=)
 får förfrågan utskicket och spåret (attribution.attach) innan
 konverteringen köas, och en sådan förfrågan går aldrig till Google
 (Lead.can_send_to_google).
+
+Sidan och källan (README Steg 2): varje förfrågan från en landningssida får
+Lead.landing_page (sidans egen adress, annars sidan kampanjen visar) och
+Lead.page_source och Lead.named_link ur sources.origin_for (utskickets
+eller länkens klick, kampanjen, ett klick-id, annars Direkt). På sidans
+egen adress (page=, campaign None) har förfrågan ingen kampanj och ingen
+tjänst.
 """
 
 import logging
@@ -171,8 +178,31 @@ def _clean_answers(answers):
     return cleaned
 
 
-def create_lead(campaign, data, request=None, ip_hash="", click=None):
-    """En förfrågan från kampanjens landningssida (källa: formulär).
+def _page_fields(campaign, page, click, tracking):
+    """Sidan och källan för en förfrågan (README Steg 2, sources.origin_for):
+    landing_page (sidans egen adress, annars sidan kampanjen visar),
+    page_source och named_link_id."""
+    from . import sources
+
+    origin = sources.origin_for(campaign, click, tracking)
+    page_id = page.pk if page is not None else (campaign.landing_page_id if campaign else None)
+    return {
+        "landing_page_id": page_id,
+        "page_source": origin.source,
+        "named_link_id": origin.link_id,
+    }
+
+
+def _owner(campaign, page):
+    """(kontot, tjänsten) för förfrågan: kampanjens, eller sidans konto utan tjänst."""
+    if campaign is not None:
+        return campaign.account, campaign.service
+    return page.account, None
+
+
+def create_lead(campaign, data, request=None, ip_hash="", click=None, page=None):
+    """En förfrågan från kampanjens landningssida (källa: formulär), eller
+    från sidans egen adress (campaign None, page sidan: README Steg 2).
 
     data: name, phone, email, message, answers ({fråga: svar}), choices
     (flervalen med alternativens nycklar, answers.clean_choices: blir
@@ -187,17 +217,20 @@ def create_lead(campaign, data, request=None, ip_hash="", click=None):
     query = request.GET if request is not None else None
     tracking = tracking_from(data, query)
     utm = {key: tracking[key] for key in UTM_KEYS if key in tracking}
+    account, service = _owner(campaign, page)
+    fields = _page_fields(campaign, page, click, tracking)
     lead = Lead.objects.create(
-        account=campaign.account,
+        account=account,
         campaign=campaign,
-        service=campaign.service,
+        service=service,
         source=Lead.SOURCE_FORM,
+        **fields,
         name=_plain(data.get("name"), NAME_MAX),
         phone=clean_phone(data.get("phone")),
         email=clean_email(data.get("email")),
         message=sanitize_multiline_text(str(data.get("message") or ""), max_length=MESSAGE_MAX),
         answers=_clean_answers(data.get("answers")),
-        choice_answers=form_answers.clean_choices(data.get("choices"), campaign.landing_page_id),
+        choice_answers=form_answers.clean_choices(data.get("choices"), fields["landing_page_id"]),
         gclid=tracking.get("gclid", ""),
         gbraid=tracking.get("gbraid", ""),
         wbraid=tracking.get("wbraid", ""),
@@ -207,11 +240,15 @@ def create_lead(campaign, data, request=None, ip_hash="", click=None):
     )
     _attach(lead, click)
     lead.queue_arrival_conversion()
-    logger.info("Flamingo: ny förfrågan %s på kampanj %s", lead.pk, campaign.pk)
+    logger.info(
+        "Flamingo: ny förfrågan %s på %s",
+        lead.pk,
+        f"kampanj {campaign.pk}" if campaign is not None else f"sida {page.pk}",
+    )
     return lead
 
 
-def create_call_click_lead(campaign, data, ip_hash="", click=None):
+def create_call_click_lead(campaign, data, ip_hash="", click=None, page=None):
     """Ett klick på telefonnumret på kampanjens landningssida (källa: klick
     på telefonnumret). Inget namn och inget nummer: ägaren får samtalet och
     sätter status när hen vet hur det gick.
@@ -222,11 +259,13 @@ def create_call_click_lead(campaign, data, ip_hash="", click=None):
     utskickets klick eller None: förfrågan får spåret och klicket called."""
     tracking = tracking_from(data)
     utm = {key: tracking[key] for key in UTM_KEYS if key in tracking}
+    account, service = _owner(campaign, page)
     lead = Lead.objects.create(
-        account=campaign.account,
+        account=account,
         campaign=campaign,
-        service=campaign.service,
+        service=service,
         source=Lead.SOURCE_CALL_CLICK,
+        **_page_fields(campaign, page, click, tracking),
         gclid=tracking.get("gclid", ""),
         gbraid=tracking.get("gbraid", ""),
         wbraid=tracking.get("wbraid", ""),
@@ -240,7 +279,11 @@ def create_call_click_lead(campaign, data, ip_hash="", click=None):
         _attach(lead, click)
         attribution.mark_called(click)
     lead.queue_arrival_conversion()
-    logger.info("Flamingo: klick på numret %s på kampanj %s", lead.pk, campaign.pk)
+    logger.info(
+        "Flamingo: klick på numret %s på %s",
+        lead.pk,
+        f"kampanj {campaign.pk}" if campaign is not None else f"sida {page.pk}",
+    )
     return lead
 
 

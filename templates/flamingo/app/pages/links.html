@@ -1,0 +1,93 @@
+{% extends "flamingo/app/base.html" %}
+{% load static flamingo_app %}
+{% comment %}
+Länkar per källa för en landningssida (app_views/page_stats.page_link_list,
+README Steg 2, mockups/flamingo-meny.html skärmen Avloppsspolning). En lista
+(inte en tabell, så inget blir bredare än skärmen i 375 px), en rad per
+länk: sidans egen adress (Direkt), kampanjerna som visar sidan (adressen
+annonsen gör), utskicken som länkat till den (personliga länkar per
+mottagare) och de namngivna länkarna (QR-kod, Instagram, Annat) med QR-kod
+och Kopiera. "Ny länk för": Sms och E-post skapar ett nytt utskick med en
+länk till sidan (utskick_new med sida=), QR-kod och "Instagram eller
+annat" öppnar Ny länk med sidan och sorten valda. Utan utskick står en rad
+om att de länkarna finns med Sms och e-post.
+
+Kontext: page och huvudet (_detail_head.html), direct_chip, ad_chip,
+campaign_rows ([{campaign, url, text, status}]), utskick_rows ([{utskick,
+chips, text, sent, href}]), named_rows ([{link, chip, tone, text, url, qr,
+href}]), utskick_on, can_link, can_named, can_email, new_link_url,
+utskick_off_text, unpublished_text.
+{% endcomment %}
+{% block app_title %}Länkar per källa, {{ page.name }}{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-pages.css' %}?v={{ static_version }}">{% endblock %}
+{% block app_header %}{% include "flamingo/app/pages/_detail_head.html" %}{% endblock %}
+{% block app_content %}
+<section class="fl-panel fl-pg-links" aria-labelledby="fl-pg-links-title">
+  <h2 class="fl-panel__title" id="fl-pg-links-title">Länkar till sidan</h2>
+  {% if can_link %}
+  <div class="fl-pg-new">
+    <span class="fl-pg-new__label">Ny länk för:</span>
+    <form method="post" action="{% url 'flamingo:app_utskick_new' %}">
+      {% csrf_token %}<input type="hidden" name="kanal" value="sms"><input type="hidden" name="sida" value="{{ page.pk }}">
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">Sms</button>
+    </form>
+    {% if can_email %}
+    <form method="post" action="{% url 'flamingo:app_utskick_new' %}">
+      {% csrf_token %}<input type="hidden" name="kanal" value="e-post"><input type="hidden" name="sida" value="{{ page.pk }}">
+      <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm">E-post</button>
+    </form>
+    {% endif %}
+    {% if can_named %}
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ new_link_url }}?sida={{ page.pk }}&amp;typ=qr">QR-kod</a>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ new_link_url }}?sida={{ page.pk }}&amp;typ=instagram">Instagram eller annat</a>
+    {% endif %}
+  </div>
+  {% elif not page_published %}
+  <p class="fl-panel__note">{{ unpublished_text }}</p>
+  {% elif not utskick_on %}
+  <p class="fl-panel__note">{{ utskick_off_text }}</p>
+  {% endif %}
+
+  <ul class="fl-pg-linklist">
+    <li class="fl-pg-link">
+      <div class="fl-pg-link__main">
+        <p class="fl-pg-link__title"><span class="fl-lpsrc fl-lpsrc--{{ direct_chip.1 }}">{{ direct_chip.0 }}</span> <b>Sidans egen adress</b></p>
+        <p class="fl-pg-link__addr">{{ page_address }}</p>
+      </div>
+      <div class="fl-pg-link__side">{% if page_published %}<button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ln-copy="{{ page_full_url }}" hidden>Kopiera<span class="fl-sr"> sidans adress</span></button>{% else %}<span class="fl-pg-link__note">Öppnas när sidan publiceras</span>{% endif %}</div>
+    </li>
+    {% for row in campaign_rows %}
+    <li class="fl-pg-link">
+      <div class="fl-pg-link__main">
+        <p class="fl-pg-link__title"><span class="fl-lpsrc fl-lpsrc--{{ ad_chip.1 }}">{{ ad_chip.0 }}</span> <b>Google Ads, kampanjen <a href="{% url 'flamingo:app_campaign' row.campaign.pk %}">{{ row.campaign.name }}</a></b> <span class="fl-pg-link__state">{{ row.status }}</span></p>
+        <p class="fl-pg-link__addr">{{ row.text }}</p>
+      </div>
+      <div class="fl-pg-link__side"><span class="fl-pg-link__note">Skapas av annonsen</span></div>
+    </li>
+    {% endfor %}
+    {% for row in utskick_rows %}
+    <li class="fl-pg-link">
+      <div class="fl-pg-link__main">
+        <p class="fl-pg-link__title">{% for chip in row.chips %}<span class="fl-lpsrc fl-lpsrc--{{ chip.1 }}">{{ chip.0 }}</span> {% endfor %}<b><a href="{{ row.href }}">{{ row.utskick.name }}</a></b>{% if not row.sent %} <span class="fl-pg-link__state">Utkast</span>{% endif %}</p>
+        <p class="fl-pg-link__addr">{{ row.text }} (personlig per mottagare)</p>
+      </div>
+      <div class="fl-pg-link__side"><span class="fl-pg-link__note">Skapas av utskicket</span></div>
+    </li>
+    {% endfor %}
+    {% for row in named_rows %}
+    <li class="fl-pg-link">
+      <div class="fl-pg-link__main">
+        <p class="fl-pg-link__title"><span class="fl-lpsrc fl-lpsrc--{{ row.tone }}">{{ row.chip }}</span> <b>{% if row.href %}<a href="{{ row.href }}">{{ row.link.label }}</a>{% else %}{{ row.link.label }}{% endif %}</b></p>
+        {% if row.text %}<p class="fl-pg-link__addr">{{ row.text }}</p>{% endif %}
+      </div>
+      <div class="fl-pg-link__side">
+        {% if row.qr %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ row.qr }}">QR-kod<span class="fl-sr"> för {{ row.link.label }} (laddas ner)</span></a>{% endif %}
+        {% if row.url %}<button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ln-copy="{{ row.url }}" hidden>Kopiera<span class="fl-sr"> {{ row.text }}</span></button>{% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  <p class="fl-panel__note">Varje källa har en egen länk, så att besöken och förfrågningarna räknas på rätt källa under Statistik. Sidans egen adress utan länk räknas som Direkt.</p>
+</section>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>{% endblock %}

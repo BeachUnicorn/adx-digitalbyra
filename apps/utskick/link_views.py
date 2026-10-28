@@ -210,7 +210,12 @@ def click(request, code):
     if _blocked(ip_hash):
         return _too_many(request)
     row = (
-        LinkCode.objects.select_related("recipient", "link__campaign", "link__account__customer")
+        LinkCode.objects.select_related(
+            "recipient",
+            "link__campaign",
+            "link__landing_page__account",
+            "link__account__customer",
+        )
         .filter(code=code, kind=LinkCode.Kind.LINK)
         .first()
     )
@@ -535,7 +540,7 @@ def email_click(request, token):
     if ref is None:
         return not_found(request)
     link = (
-        TrackedLink.objects.select_related("campaign", "account__customer")
+        TrackedLink.objects.select_related("campaign", "landing_page__account", "account__customer")
         .filter(pk=ref.link_id)
         .first()
     )
@@ -988,7 +993,7 @@ def named(request, account, slug):
     if account_id is None:
         return not_found(request)
     link = (
-        TrackedLink.objects.select_related("campaign", "account__customer")
+        TrackedLink.objects.select_related("campaign", "landing_page__account", "account__customer")
         .filter(account_id=account_id, slug=slug, utskick__isnull=True)
         .first()
     )

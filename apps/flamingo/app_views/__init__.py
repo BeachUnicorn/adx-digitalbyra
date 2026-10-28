@@ -94,16 +94,17 @@ def _shell_context(request):
     }
 
 
-def app_context(request, active):
+def app_context(request, active, tab_args=None):
     """Kontexten varje sida i verktyget behöver: menyn och flikraden, kunden
     och kontot, antal nya förfrågningar och var i kom-igång-stegen kunden är.
 
     active är sidnyckeln (app_nav.PAGE_KEYS): "overview", "inbox",
-    "ads/google" ... Delen blir app_active, fliken app_tab."""
+    "ads/google" ... Delen blir app_active, fliken app_tab. tab_args är
+    id:t för flikar som hör till en sak (en landningssida, app_nav.Tab.per_object)."""
     section, tab = app_nav.split_key(active)
     account = getattr(request, "flamingo_account", None)
     context = _shell_context(request)
-    tabs = app_nav.section_tabs(section, tab, account)
+    tabs = app_nav.section_tabs(section, tab, account, args=tab_args)
     context.update(
         {
             "account": account,
@@ -140,10 +141,11 @@ def _new_buttons(account, tabs, path):
     return {"sms": True, "email": account.is_demo or state.email_live()}
 
 
-def render_app(request, template, active, context=None, status=200):
+def render_app(request, template, active, context=None, status=200, tab_args=None):
     """render() med app_context(request, active) under vyns egen kontext.
-    active är sidnyckeln (app_nav.PAGE_KEYS)."""
-    merged = app_context(request, active)
+    active är sidnyckeln (app_nav.PAGE_KEYS); tab_args id:t för flikar som
+    hör till en sak (en landningssida)."""
+    merged = app_context(request, active, tab_args=tab_args)
     merged.update(context or {})
     return render(request, template, merged, status=status)
 

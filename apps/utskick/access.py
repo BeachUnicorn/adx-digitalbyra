@@ -290,11 +290,21 @@ def _account_of_row(exclude_pk):
 
 
 def _old_slug_taken(slug, account_id):
-    """Har ett annat konto (eller ett borttaget) haft adressen förut?"""
+    """Har ett annat konto (eller ett borttaget) haft adressen förut? Eller
+    har ett annat konto den i landningssidornas adresser
+    (FlamingoAccount.lp_slug, Flamingos README Steg 2)? Samma ord ska aldrig
+    vara två kunders."""
     rows = OldPublicSlug.objects.filter(slug=slug)
     if account_id:
         rows = rows.exclude(account_id=account_id)
-    return rows.exists()
+    if rows.exists():
+        return True
+    from apps.flamingo.models import FlamingoAccount
+
+    lp = FlamingoAccount.objects.filter(lp_slug=slug)
+    if account_id:
+        lp = lp.exclude(pk=account_id)
+    return lp.exists()
 
 
 def validate_public_slug(slug, exclude_pk=None, account_id=None):
@@ -322,12 +332,32 @@ def validate_public_slug(slug, exclude_pk=None, account_id=None):
     return slug
 
 
-def suggest_public_slug(name, exclude_pk=None, account_id=None):
+_UNKNOWN = object()
+
+
+def suggest_public_slug(name, exclude_pk=None, account_id=None, lp_slug=_UNKNOWN):
     """Ett förslag ur företagsnamnet (flamingo.models.company_slug), ledigt
     och inte reserverat (en annan kunds tidigare adress är inte ledig);
-    krockar får -2, -3 och så vidare."""
-    from apps.flamingo.models import company_slug
+    krockar får -2, -3 och så vidare. Kontots adress för landningssidorna
+    (FlamingoAccount.lp_slug) först när den är ledig; lp_slug kan skickas
+    med av den som redan har kontot (då ingen fråga)."""
+    from apps.flamingo.models import FlamingoAccount, company_slug
 
+    account_id = account_id or _account_of_row(exclude_pk)
+    # Kontots adress för landningssidorna (lp_slug) först, så att
+    # klick.adx.se/<adress>/ och adx.se/lp/<adress>/ blir samma ord.
+    own = lp_slug
+    if own is _UNKNOWN:
+        own = (
+            FlamingoAccount.objects.filter(pk=account_id).values_list("lp_slug", flat=True).first()
+            if account_id
+            else None
+        )
+    if own:
+        try:
+            return validate_public_slug(own, exclude_pk=exclude_pk, account_id=account_id)
+        except ValidationError:
+            pass
     base = company_slug(name)[:40].strip("-") or "foretaget"
     if base.startswith(RESERVED_PUBLIC_SLUG_PREFIXES):
         # S4: -2 räddar inte en reserverad början (tokenbolaget-2).
@@ -336,7 +366,6 @@ def suggest_public_slug(name, exclude_pk=None, account_id=None):
     taken = UtskickSettings.objects.all()
     if exclude_pk:
         taken = taken.exclude(pk=exclude_pk)
-    account_id = account_id or _account_of_row(exclude_pk)
     slug, n = base, 2
     while (
         is_reserved_slug(slug, reserved)

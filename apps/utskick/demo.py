@@ -69,7 +69,7 @@ from django.db.models import F, Value
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from apps.flamingo.models import Fact
+from apps.flamingo.models import Fact, FlamingoAccount
 from apps.sms.pricing import STOCKHOLM
 
 from . import consent as consents
@@ -148,6 +148,8 @@ def _settings(account, staff, now):
     taken = UtskickSettings.objects.filter(public_slug=slug).exclude(account=account).exists()
     # En annan kunds tidigare adress är inte ledig (OldPublicSlug).
     taken = taken or OldPublicSlug.objects.filter(slug=slug).exclude(account=account).exists()
+    # Inte heller en annan kunds adress för landningssidorna (lp_slug).
+    taken = taken or FlamingoAccount.objects.filter(lp_slug=slug).exclude(pk=account.pk).exists()
     if taken:
         slug = suggest_public_slug(DISPLAY_NAME + " demo", exclude_pk=row.pk, account_id=account.pk)
     if not row.pk:
@@ -1033,6 +1035,8 @@ NAMED_LINKS = (
     ("Affisch i verkstaden", "vinter", "lp"),
     ("Länk i Instagram", "instagram", SITE_URL),
 )
+#: Var länkarna används (TrackedLink.medium, Flamingos steg 2).
+NAMED_MEDIUMS = {"vinter": TrackedLink.Medium.QR, "instagram": TrackedLink.Medium.INSTAGRAM}
 #: Klicken på länkarna: (slug, dagar sedan, timme, sekunder på sidan).
 NAMED_CLICKS = (
     ("vinter", 6, 9, 55),
@@ -1122,6 +1126,7 @@ def _named_links(account, now):
             destination=destination[: links.URL_MAX],
             label=label,
             slug=slug,
+            medium=NAMED_MEDIUMS.get(slug, TrackedLink.Medium.OTHER),
             created_at=now - timedelta(days=10),
         )
     today = timezone.localtime(now, STOCKHOLM).date()
@@ -1164,6 +1169,10 @@ def _named_links(account, now):
             campaign=poster.campaign,
             service=poster.campaign.service,
             source=Lead.SOURCE_FORM,
+            # Sidan och källan (Flamingos steg 2): affischens QR-kod.
+            landing_page_id=poster.campaign.landing_page_id,
+            page_source="named",
+            named_link=poster,
             name=name,
             phone=_display(phone),
             message=message,

@@ -125,14 +125,17 @@ def numbers_for(account, now):
     # är null men spåret säger kanalen named) kom inte heller via Google.
     named = Q(attribution__contains={"channel": "named"})
     via_utskick = Q(utskick__isnull=False) | Q(source=Lead.SOURCE_REPLY) | named
+    # Steg 2 (README): en förfrågan på sidans egen adress (ingen kampanj) kom
+    # inte via en Flamingo-annons och är inte Googles.
+    not_google = via_utskick | Q(campaign__isnull=True, landing_page__isnull=False)
     stats = ad_stats(account, since)
     ours = leads.aggregate(
         all=Count("pk", filter=Q(utskick__isnull=False) | named),
         named=Count("pk", filter=named),
     )
     return Numbers(
-        google_leads=leads.exclude(via_utskick).count(),
-        google_deals=won.exclude(via_utskick).count(),
+        google_leads=leads.exclude(not_google).count(),
+        google_deals=won.exclude(not_google).count(),
         utskick_leads=ours["all"],
         named_leads=ours["named"],
         utskick_deals=won.filter(via_utskick).count(),

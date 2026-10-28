@@ -59,7 +59,7 @@ De här gäller före äldre beskrivningar:
 |---|---|---|---|
 | Sidorna (marknadsföring) | `/flamingo/`, `/flamingo/<slug>/` | Flamingo | Blocksidor med `design="flamingo"`, redigeras i /manage/, seed: `seed_flamingo` |
 | Verktyget | `/flamingo/app/...` | Flamingo, appläge | `app_views/`, `templates/flamingo/app/` |
-| Kundens landningssidor | `/lp/<slug>/`, `/lp/<slug>/tack/`, `/lp/<slug>/ring/` (POST) | Ren (sidbyggaren), kundens namn | `public_views.py`, `pagebuilder/`, `templates/flamingo/lp/ren/`, `static/css/flamingo-lp-ren.css`, `static/js/flamingo-lp.js` |
+| Kundens landningssidor | Kampanjens `/lp/<slug>/`, `/lp/<slug>/tack/`, `/lp/<slug>/ring/` (POST); sidans egen `/lp/<konto>/<sida>/` med samma underled (Steg 2) | Ren (sidbyggaren), kundens namn | `public_views.py`, `addresses.py`, `sources.py`, `pagebuilder/`, `templates/flamingo/lp/ren/`, `static/css/flamingo-lp-ren.css`, `static/js/flamingo-lp.js` |
 | Byråns sida | `/manage/flamingo/...` | Panelens | `manage_views.py`, `manage_review.py`, `manage_google.py`, `templates/manage/flamingo/` |
 | Google Ads API och Data Manager API | (ingen adress) | | `google_ads.py` (den enda HTTP-klienten), `google_publish.py`, `google_accounts.py`, `google_conversions.py`, `google_reports.py`, `flamingo_google_sync` |
 
@@ -72,15 +72,17 @@ rubriken (vanliga länkar, rullar i sidled inne i raden i telefon).
 |---|---|
 | Översikt | (inga) `app/` |
 | Inkorg | (inga; typchips i listan) `app/inkorg/` |
-| Landningssidor | (inga) `app/sidor/` |
+| Landningssidor | (ingen i listan `app/sidor/`); en sida: Statistik `app/sidor/<pk>/statistik/`, Länkar per källa `app/sidor/<pk>/lankar/`, Svar i formuläret `app/sidor/<pk>/svar/` (Redigera öppnar sidbyggaren) |
 | Annonser | Kampanjer `app/kampanjer/`, Google-kontot `app/google/` |
 | Sms och e-post (bara med utskick) | Skickade `app/utskick/`, Kontakter `app/kontakter/`, Listor och segment `app/kontakter/listor/`, Länkar och QR `app/utskick/lankar/`, Leveranshälsa `app/utskick/halsa/`, Sms-API `/kund/sms/` (bara med aktiverat sms-konto); Nytt sms och Nytt mejl överst |
 | Företaget | Uppgifter och tjänster `app/foretaget/`, Media `app/media/`, Inställningar `app/installningar/` |
 
 Varje vy anger sin plats med en sidnyckel till `render_app` ("ads/google",
 "messaging/contacts"); delen blir `app_active`, fliken `app_tab`. Steg 2
-(egna adresser för landningssidorna, länkar och statistik per källa) ger
-Landningssidor flikar i `SECTION_TABS`.
+(egna adresser för landningssidorna, länkar och statistik per källa) gav
+Landningssidor flikar i `SECTION_TABS`: de hör till en sida
+(`Tab.per_object`), så adressen tar sidans id (`render_app(..., tab_args=[pk])`)
+och listan har ingen flikrad.
 
 Verktygets sidor:
 
@@ -93,7 +95,8 @@ Verktygets sidor:
 | `app/kampanjer/`, `ny/`, `<pk>/` | Kampanjerna, ny kampanj, förslaget i flikarna Annonser, Sökord, Sidan och Granskning, och inskicket med valet om granskning. Fliken Sidan visar kampanjens sida i sidbyggaren och låter kunden välja egen eller delad sida | 06-08 |
 | `app/sidor/`, `ny/`, `<pk>/` | Sidorna i sidbyggaren: listan, en ny sida ur mallarna för en tjänst (högst 50 sidor per konto), och redigeraren (sidan i en ram, blocken, versionerna, problemlistan, "Publicera ändringarna") | Sidbyggaren 01-09 |
 | `app/sidor/<pk>/spara/`, `rita/`, `nytt-block/`, `installningar/`, `publicera/`, `kopiera/`, `ta-bort/` (POST) | Redigerarens anrop (JSON): spara med rev (409 när någon annan sparat), rita block, ett nytt block ur mallen med sidans tjänst och pris, namn och palett, publicera med rev, kopiera och ta bort (`app_views/pages.py`) | |
-| `app/sidor/<pk>/forhandsvisa/` | Förhandsvisningen av en sida som ingen kampanj använder: utkastet som besökarna skulle se det, bara inloggad, noindex, formuläret skickar inget (`app_views/page_preview.py`). Listan och sidbyggaren har "Öppna sidan" och "Visa sidan" med adressen och Kopiera: kampanjens `/lp/<slug>/`, en per kampanj, eller "Förhandsvisa" | |
+| `app/sidor/<pk>/forhandsvisa/` | Förhandsvisningen av en sida som inte är publicerad: utkastet som besökarna skulle se det, bara inloggad, noindex, formuläret skickar inget (`app_views/page_preview.py`). Listan, sidbyggaren och sidans flikar har sidans egna adress med Kopiera och "Öppna sidan" (publicerad) eller "Förhandsvisa" (Steg 2) | |
+| `app/sidor/<pk>/statistik/`, `lankar/`, `adress/` (POST) | Sidans flikar Statistik (7, 30 eller 90 dagar, en rad per källa) och Länkar per källa (Direkt, kampanjerna, utskicken, de namngivna länkarna, "Ny länk för"), och "Ändra adressen" före första publiceringen (`app_views/page_stats.py`, Steg 2) | |
 | `app/sidor/<pk>/ai/bygg/`, `ai/skriv-om/`, `konverteringskoll/` | "Bygg sidan åt mig", "Skriv om" och Konverteringskollen (JSON, `app_views/page_ai.py`, `pagebuilder/ai.py`, `koll.py`). Sparar ingenting | Sidbyggaren 05-07 |
 | `app/media/`, `lista/`, `ladda-upp/` | Mediaarkivet: logotypen, uppladdade bilder och bilderna från hemsidan, färgerna ur logotypen (`app_views/media.py`, `media.py`) | Sidbyggaren 08 |
 | `app/omdomen/` | Omdömen från Google: profilen, "Det här är vi", "Profilen är vår" och valet av omdömen (`app_views/reviews.py`, `reviews.py`). Under dem profilen på Reco (`#reco`): länken eller id:t, "Det här är vi", "Profilen är vår", "Hämta igen", "Koppla bort profilen" och valet av omdömen för Utvalda (gömt när Utvalda är av) (`reco.py`) | Sidbyggaren 10 |
@@ -125,6 +128,169 @@ Byråns sidor:
 | `/manage/kunder/<pk>/flamingo/google/api/` (POST) | Kundkortets knappar: kopplingsförfrågan, nytt konto, läget från Google |
 | Kundkortet, `#flamingo` | Aktivera, "Visa Flamingo som kunden", Google-kopplingen (status, id, notering, knapparna med API:t), kampanjerna, och sist Kontakter och utskick (`#utskick`, apps/utskick) |
 | `/manage/utskick/` | Kontakter och utskick för byrån: kunderna, kön för bekräftelsemejl, ticken, sändningen med informationsutskicken och "Provsms till mig" (S2), inkommande sms som väntar på byrån, länkar till nya webbplatser att godkänna, e-posten (S3: SES-kontot, köerna och DLQ:erna, kunder med e-postspärr och "Släpp spärren", kundernas domäner, "Provmejl till mig"), nödstoppet med klarmarkeringarna och biträdesavtalet (apps/utskick/README.md) |
+
+## Steg 2: egna adresser, källor och statistik per sida (2026-10-28)
+
+Giovannis beställning (mockups/flamingo-meny.html, skärmarna
+Landningssidor och Avloppsspolning): "varje typ av källa (sms, mail, ads,
+QR osv) får sin egen länk+spårning. Men landningssidan är gemensam och
+statistiksidan som visar det är samma men kan visa alla källor." Steg 1
+(menyn) är byggt; det här är steg 2.
+
+### Adresserna
+
+- **Sidans egen adress** är `/lp/<konto>/<sida>/` (med `tack/`, `ring/`
+  och `besok/` under, som kampanjens). `<konto>` är
+  `FlamingoAccount.lp_slug`, `<sida>` är `LandingPage.slug`.
+- **Kontots del är en egen kolumn, inte utskickens `public_slug`.**
+  `UtskickSettings` finns bara för konton där byrån slagit på utskick, så
+  alla Flamingo-konton har inte en. `lp_slug` sätts för varje konto
+  (migreringen, och när en sida sparas för ett konto som saknar den):
+  kontots `public_slug` när den finns, annars ett förslag ur kundens namn
+  med samma regler (`utskick.access.is_reserved_slug`: de reserverade
+  orden, länkvärdarnas första led och början `mcp`, `token` och så
+  vidare; aldrig ett annat kontos `public_slug`, tidigare adress
+  (`OldPublicSlug`) eller `lp_slug`). Åt andra hållet räknar
+  `validate_public_slug` och `suggest_public_slug` ett annat kontos
+  `lp_slug` som upptaget, och förslaget för ett konto blir dess eget
+  `lp_slug` när det är ledigt, så att `klick.adx.se/<adress>/...` och
+  `adx.se/lp/<adress>/...` blir samma ord. `lp_slug` ändras inte i
+  verktyget (den står i varje sidas adress).
+- **Sidans del** sätts när sidan skapas, ur namnet (`slugify`, högst 60
+  tecken, unik hos kontot, `-2`, `-3` vid krock, aldrig `tack`, `ring`
+  eller `besok`, som är kampanjadressernas underleden). Den kan ändras
+  ("Ändra adressen") tills sidan publicerats första gången, sedan aldrig.
+  En gammal adress sparas som `LandingPageOldSlug` och skickar vidare (302,
+  med frågan kvar, så att `ut` och `gclid` följer med; tillfällig eftersom
+  sidan får ta tillbaka en gammal adress före publiceringen). En gammal
+  adress tillhör sin sida: en annan sida hos kontot får den inte. Bara GET
+  och HEAD skickas vidare; inget räknas där.
+- **En sida som aldrig publicerats har ingen öppen egen adress** (404 för
+  besökarna; byrån ser den som förhandsvisning med remsan). Kunden ser
+  sitt utkast med "Förhandsvisa" som förut. En publicerad sida är öppen
+  för alla, vilket läge kontot än har, noindex och `Disallow: /lp/` som
+  alla landningssidor.
+- **Kampanjens adress är oförändrad.** `/lp/<page_slug>/` (och `tack/`,
+  `ring/`, `besok/`) svarar exakt som förut: sidan kampanjen visar,
+  förfrågan och besöket räknas på kampanjen, och källan är Annons (eller
+  utskickets kanal när besöket bär `ut`). Google Ads-annonserna pekar dit
+  och ändras inte.
+
+### Källorna
+
+Varje besök, klick på numret och förfrågan får en källa, sparad som en
+sort plus den främmande nyckeln som hör till (`apps/flamingo/sources.py`):
+
+| Källa | `page_source` | Nyckeln | När |
+|---|---|---|---|
+| Annons | `ad` | `campaign` | kampanjens adress, eller ett `gclid` (`gbraid`, `wbraid`) på sidans egen adress |
+| Sms | `sms` | `utskick` | ett `ut` från ett sms-utskick hos samma konto |
+| E-post | `email` | `utskick` | ett `ut` från ett mejl hos samma konto |
+| QR-kod, Instagram, Annat | `named` | `named_link` (`TrackedLink`) | ett `ut` från en namngiven länk; vilken av de tre avgör länkens `medium` (väljs på länken, läses när statistiken ritas) |
+| Direkt | `direct` | (ingen) | sidans egen adress utan spårad länk och utan klick-id |
+
+- `Lead` får `landing_page` (sidan förfrågan kom från), `page_source`
+  (`db_default ""`) och `named_link` (null). Migreringen fyller i dem för
+  gamla förfrågningar (sidan ur kampanjens sida, källan ur spåret eller
+  kampanjen); en förfrågan som den förra versionen skrev under deployen
+  (källan tom) får sin källa när den läses (`sources.lead_source_expr`),
+  med samma regler.
+- Besöken räknas i `PageVisitDay`: en rad per sida, svensk dag och källa
+  (nyckeln `ad:c<kampanj>`, `ad`, `sms:u<utskick>`, `email:u<utskick>`,
+  `named:l<länk>` eller `direct`) med antalet. Inga kakor och ingen
+  lagring i webbläsaren (D10): ett besök är en GET av sidan, högst ett per
+  besökare (`ip_hash`), sida och källa och timme (utskickens räknare
+  `lp_visit`, som tas bort efter två dygn). Inte räknat: byrån, kundens
+  egna inloggade kontakter (`_own_visit`), förhandsvisningen, demokontot,
+  HEAD, förhämtningar (`Sec-Purpose` eller `Purpose: prefetch`, ett
+  `Sec-Fetch-Dest` som inte är `document`) och bottar och
+  länkförhandsvisningar (`utskick.attribution.is_preview`, samma lista som
+  klicken på k.adx.se).
+- Klicken på numret på sidans egen adress räknas när sidan är publicerad,
+  kontot aktiverat, kunden aktiv och kontot inte demo (en kampanjs adress:
+  som förut, bara live). Spärrarna är kampanjens, räknade per sida
+  (`limits`, ett eget lås per sida).
+- **En förfrågan på sidans egen adress går aldrig till Google**
+  (`Lead.can_send_to_google`): adressen är ingen Flamingo-kampanjs, så ett
+  klick-id där kan inte kopplas till en av ADX:s kampanjer. Den räknas
+  inte heller som Googles på översikten.
+
+### Länkar per källa
+
+- En namngiven länk (Länkar och QR) och en länk i ett utskick kan gå
+  direkt till en landningssida (`TrackedLink.landing_page`), inte bara via
+  en kampanj. Klicket går till sidans egna adress med `ut`.
+  Väljarna (sms-länken i utskicket, namngivna länkar) visar Landningssidor
+  (publicerade sidor) först och sedan kampanjernas adresser; Förvälj svar
+  fungerar för båda. Ett mejl som länkar till sidans egen adress blir en
+  spårad länk till sidan vid frysningen, som en kampanjs adress.
+- Den namngivna länken får fältet "Var används länken?": QR-kod,
+  Instagram eller Annat (`TrackedLink.medium`, äldre länkar Annat).
+- En sida som en namngiven länk går till kan inte tas bort (en tryckt
+  QR-kod ska inte leda till en 404), som en sida en kampanj visar.
+
+### Verktyget
+
+- **Landningssidor** (`app/sidor/`): varje sida visar sin egna adress,
+  "Öppna sidan" (publicerad) eller "Förhandsvisa", Statistik och Redigera,
+  och för 30 dagar besök, förfrågningar och antal källor.
+- **En sida** har flikarna Statistik (`app/sidor/<pk>/statistik/`, den
+  första), Länkar per källa (`app/sidor/<pk>/lankar/`) och Svar i
+  formuläret (`app/sidor/<pk>/svar/`), `SECTION_TABS["pages"]`. Redigera
+  öppnar sidbyggaren (`app/sidor/<pk>/`, oförändrad adress). Överst
+  adressen med Kopiera och "Ändra adressen" före första publiceringen
+  (`app/sidor/<pk>/adress/`, POST).
+- **Statistik**: 7, 30 eller 90 dagar (`?dagar=`, 30 från början),
+  besök, förfrågningar och andelen som frågar, och en tabell med en rad
+  per källa (Källa, Besök, Förfrågningar, Andel) med `<thead>` (kort i
+  telefon). Förfrågningar räknas som på översikten: inte skräp och inte
+  svar på utskick; klick på numret är förfrågningar. Besöken räknas från
+  den dag då räkningen började (det står när perioden börjar tidigare).
+  Frågorna är platta: en för besöken, en för förfrågningarna och en för
+  när räkningen började, oavsett antal källor.
+- **Länkar per källa**: sidans egna adress (Direkt), kampanjerna som visar
+  sidan (adressen som annonsen gör, "Skapas av annonsen"), utskicken som
+  länkat till den (personliga länkar per mottagare) och de namngivna
+  länkarna med QR-kod och Kopiera. "Ny länk för": Sms och E-post skapar ett
+  nytt utskick med en länk till sidan (sms: `{länk:...}` i texten; mejl: en
+  knapp till sidan), QR-kod och "Instagram eller annat" öppnar Ny länk med
+  sidan och sorten valda. Utan utskick står i stället "Länkar för sms,
+  e-post, QR-koder och Instagram finns med Sms och e-post. Be ADX slå på
+  det."; för en sida som inte är publicerad "Publicera sidan först, så kan
+  du göra länkar till den."
+
+### Migreringarna (B.0)
+
+`flamingo.0019_egna_adresser`: `FlamingoAccount.lp_slug` (null, unik),
+`LandingPage.slug` (`db_default ""`, unik per konto när den inte är tom),
+`Lead.landing_page`,
+`Lead.page_source` (`db_default ""`), `Lead.named_link`, nya tabellerna
+`LandingPageOldSlug` och `PageVisitDay`, och en datamigrering (bara rader
+som saknar värdet, så den kan köras igen) som ger konton och sidor sina
+adresser och gamla förfrågningar sin sida och källa.
+`utskick.0006_lankar_till_sidor`: `TrackedLink.landing_page` (null) och
+`TrackedLink.medium` (`db_default ""`). Varje ny främmande nyckel får sin
+raderingsregel i databasen (`dbfk.apply`), så att den förra versionen kan
+ta bort en sida, en kampanj, ett utskick eller en länk.
+
+### Demot, driftsättningen och det som inte är byggt
+
+- **Demot** (`flamingo_demo`): demots sidor får adresser under
+  `/lp/exempelror-demo/`, affischen blir QR-kod och Instagram-länken
+  Instagram, förfrågan via affischen får sin källa, och varje publicerad
+  sida får 30 dagars påhittade besök (Annons per live- eller pausad
+  kampanj och Direkt) plus besöken ur demots klick från utskicken och
+  länkarna, så att Statistik visar alla fem källorna.
+- **Driftsättningen**: `./deploy` kör migreringarna; inget i `../.env` eller
+  cron. Kör `flamingo_demo --prod` efteråt, så att demot får sina besök.
+  Besöken räknas från deployen; Statistik säger från vilken dag när
+  perioden börjar tidigare.
+- **Inte byggt**: kampanjernas annonser pekar fortfarande på kampanjens
+  adress (inget byte till sidans egen); kontots del av adressen ändras
+  inte i verktyget; Brevs länkfält har ingen väljare (sidans adress klistras
+  in, och "E-post" under Länkar per källa ger en knapp "Läs mer" till
+  sidan); Inkorgen visar inte källans chip; mockupens kolumn "Andel av
+  förfrågningarna" (stapeln) är inte med, tabellen har fyra kolumner.
 
 ## Kontakter och utskick (`apps/utskick`)
 
@@ -237,9 +403,10 @@ Kontrakten (blockens JSON, registret, renderaren, hjälparna) står i
   servern inte känner igen (i utkastet eller det publicerade) och som saknar
   en giltig signatur blir den inloggades, vad redigeraren än säger om
   källan. "Ångra" efter "Använd förslaget" behåller vem som skrev vad.
-- **En sida per kampanj** (rekommenderas) **eller en delad sida**. Adressen är
-  alltid kampanjens egen (`/lp/<page_slug>/`), så förfrågningarna räknas till
-  rätt kampanj. `Campaign.landing_page` är RESTRICT: en sida som en kampanj
+- **En sida per kampanj** (rekommenderas) **eller en delad sida**. Kampanjens
+  adress är alltid dess egen (`/lp/<page_slug>/`), så förfrågningarna räknas
+  till rätt kampanj. Sidan har dessutom en egen adress (`/lp/<konto>/<sida>/`,
+  Steg 2) för sms, mejl, QR-koder och annat, med källan i statistiken. `Campaign.landing_page` är RESTRICT: en sida som en kampanj
   visar kan inte tas bort. Högst 50 sidor per konto (`pages.MAX_PAGES`).
 - **Ett nytt förslag rör bara sin egen orörda sida.** Sidan minns att
   förslaget byggde den, för vilken kampanj och vid vilket rev

@@ -6,24 +6,32 @@
    (app_views/page_preview.py). Bygger på flamingo-app.css och sidbyggarens
    flamingo-pb.css (.pb-btn, .pb-pagec) och lägger bara till sitt eget.
 
-     .fl-pg-camps / __item   listan: en rad per kampanj när flera delar sidan
-     .fl-pg-open             länken "Öppna sidan" bredvid kampanjens namn
+   Steg 2 (README, mockups/flamingo-meny.html): sidans egna adress och
+   siffror i listan, och flikarna Statistik, Länkar per källa och Svar i
+   formuläret (pages/stats.html, links.html, _detail_head.html):
+
+     .fl-pg-rowaddr, .fl-pg-rownums   listan: adressen och 30 dagars siffror
+     .fl-pg-head / __addr / __url     huvudet: namnet, adressen och Kopiera
+     .fl-pg-slug                      "Ändra adressen" före publiceringen
+     .fl-pg-period / __opt            7, 30 eller 90 dagar (länkar)
+     .fl-lpsrc--<ton>                 källans chip: ad, sms, mail, qr, social,
+                                      other, direct (inte .fl-src, som är
+                                      uppgifternas källa)
+     .fl-pg-table                     tabellen per källa (kort under 760 px,
+                                      flamingo-app.css)
+     .fl-pg-new                       "Ny länk för:" med knapparna
+     .fl-pg-linklist / .fl-pg-link    Länkar per källa, en rad per länk
+
      .fl-pg-addr             sidbyggaren: remsan under toppraden
-     .fl-pg-addr__row        en adress: (kampanjen,) Visa sidan, adressen, Kopiera
+     .fl-pg-addr__row        sidans adress: Visa sidan, adressen, Kopiera, Statistik
      .fl-pg-addr__url        adressen som text, markeras med ett klick
                              (utan skript kopieras den för hand)
 
    Från 1024 px är kortets knappspalt högst 300 px: knapparna radbryts i
    stället för att klämma sidans namn (Öppna sidan, Förhandsvisa och Svar
-   gjorde namnspalten 79 px bred vid 1024 px). Smalare än 1024 px har en
-   delad sida en rad per kampanj (namnet, Visa sidan, Kopiera) utan
-   adresstexten, som Kopiera ger; utan skript (Kopiera dold) står den kvar.
+   gjorde namnspalten 79 px bred vid 1024 px). Smalare än 1024 px står
+   adressen på en egen rad över knapparna.
    ========================================================================== */
-
-/* ---------- Listan ---------- */
-.fl-pg-camps{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
-.fl-pg-camps__item{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;min-width:0}
-.pb-pagec__camps .fl-pg-open{font-weight:600;color:var(--fl-violet-ink);white-space:nowrap}
 
 /* ---------- Sidbyggaren: remsan under toppraden ---------- */
 .fl-pg-addr{
@@ -32,9 +40,7 @@
 }
 /* Länkarna har knapparnas form (.pb-btn), utan understrykning. */
 .fl-pg-addr a.pb-btn{text-decoration:none}
-.fl-pg-addr__list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
 .fl-pg-addr__row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;min-width:0;margin:0}
-.fl-pg-addr__camp{flex:none;font-size:15px;font-weight:600;color:var(--fl-ink)}
 .fl-pg-addr__url{
   min-width:0;font-family:var(--fl-mono);font-size:14px;line-height:1.4;color:var(--fl-body);
   overflow-wrap:anywhere;-webkit-user-select:all;user-select:all;
@@ -49,12 +55,73 @@
   .fl-pg-addr{padding:8px 16px}
   .fl-pg-addr__row{gap:6px 8px}
   /* Adressen på en egen rad överst, knapparna under den. */
-  .fl-pg-addr__camp{order:-2;flex-basis:100%}
   .fl-pg-addr__url{order:-1;flex-basis:100%}
   .fl-pg-addr__note{font-size:14px}
-  /* Flera kampanjer: en rad per kampanj, så att sidan inte trycks ner. */
-  .fl-pg-addr__list .fl-pg-addr__row:has(> [data-ln-copy]:not([hidden])) > .fl-pg-addr__url{display:none}
-  .fl-pg-addr__list .fl-pg-addr__row:has(> [data-ln-copy]:not([hidden])) > .fl-pg-addr__camp{
-    order:0;flex:1 1 120px;min-width:0;overflow-wrap:anywhere;
-  }
 }
+
+/* ---------- Steg 2: listan ---------- */
+.fl-pg-rowaddr{
+  margin:4px 0 0;font-family:var(--fl-mono);font-size:13px;line-height:1.4;color:var(--fl-ink);
+  overflow-wrap:anywhere;-webkit-user-select:all;user-select:all;
+}
+.fl-pg-rownums{margin:4px 0 0;font-size:15px;line-height:1.45;color:var(--fl-muted)}
+
+/* ---------- Steg 2: huvudet på en sidas flikar ---------- */
+.fl-pg-crumb{color:inherit;text-decoration:none}
+.fl-pg-crumb:hover{text-decoration:underline;text-underline-offset:3px}
+.fl-pg-head__addr{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;min-width:0;margin:8px 0 0}
+.fl-pg-head__url{
+  min-width:0;padding:6px 10px;border:1px solid var(--fl-line);border-radius:10px;
+  background:var(--fl-panel2);font-family:var(--fl-mono);font-size:13px;line-height:1.4;
+  color:var(--fl-ink);overflow-wrap:anywhere;-webkit-user-select:all;user-select:all;
+}
+.fl-pg-head__note{margin:6px 0 0;font-size:15px;line-height:1.45;color:var(--fl-muted)}
+.fl-pg-head__actions{flex-wrap:wrap}
+.fl-pg-slug{margin:0 0 16px;min-width:0}
+.fl-pg-slug__summary{display:inline-block;padding:6px 0;font-weight:600;color:var(--fl-violet-ink);cursor:pointer}
+.fl-pg-slug__form{max-width:520px;margin-top:8px}
+
+/* ---------- Steg 2: Statistik ---------- */
+.fl-pg-period{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.fl-pg-period__opt{
+  display:inline-flex;align-items:center;min-height:44px;padding:0 16px;
+  border:1px solid var(--fl-line);border-radius:999px;background:var(--fl-white);
+  font-size:15px;color:var(--fl-ink);text-decoration:none;
+}
+.fl-pg-period__opt:hover{border-color:var(--fl-ink)}
+.fl-pg-period__opt[aria-current="page"]{border-color:var(--fl-ink);background:var(--fl-ink);color:var(--fl-white)}
+.fl-pg-kpis{margin:0 0 16px}
+.fl-pg-sources .fl-table-wrap{margin:4px 0 12px}
+.fl-pg-table__name{overflow-wrap:anywhere}
+.fl-lpsrc{
+  display:inline-flex;align-items:center;padding:2px 10px;border:1px solid var(--fl-line);
+  border-radius:999px;background:var(--fl-panel2);font-size:13px;font-weight:500;line-height:1.5;
+  color:var(--fl-body);white-space:nowrap;
+}
+.fl-lpsrc--ad{background:var(--fl-violet-tint);border-color:#DCD2FF}
+.fl-lpsrc--sms{background:#EEF6FF;border-color:#CFE3FF}
+.fl-lpsrc--mail{background:#FFF3E6;border-color:#FFDDB8}
+.fl-lpsrc--qr{background:#EAF7EF;border-color:#C6EBD3}
+.fl-lpsrc--social{background:#FFEFF8;border-color:#F8CDEA}
+
+/* ---------- Steg 2: Länkar per källa ---------- */
+.fl-pg-new{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
+.fl-pg-new form{margin:0}
+.fl-pg-new__label{font-size:15px;color:var(--fl-muted)}
+.fl-pg-linklist{display:flex;flex-direction:column;margin:0 0 12px;padding:0;list-style:none}
+.fl-pg-link{
+  display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:10px 16px;
+  min-width:0;padding:14px 0;border-top:1px solid var(--fl-soft);
+}
+.fl-pg-link:first-child{border-top:0}
+.fl-pg-link__main{flex:1 1 280px;min-width:0}
+.fl-pg-link__title{margin:0;line-height:1.5;overflow-wrap:anywhere}
+.fl-pg-link__title a{color:var(--fl-ink);text-underline-offset:3px}
+.fl-pg-link__state{font-size:14px;color:var(--fl-muted)}
+.fl-pg-link__addr{
+  display:inline-block;max-width:100%;margin:6px 0 0;padding:6px 10px;border:1px solid var(--fl-line);
+  border-radius:10px;background:var(--fl-panel2);font-family:var(--fl-mono);font-size:13px;
+  line-height:1.4;color:var(--fl-ink);overflow-wrap:anywhere;
+}
+.fl-pg-link__side{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.fl-pg-link__note{font-size:14px;color:var(--fl-muted)}

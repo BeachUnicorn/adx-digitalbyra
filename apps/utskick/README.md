@@ -946,6 +946,35 @@ Checklist for the lead (in addition to J S4):
 - Acceptance on a real test site: install the snippet on a page you own, open the test link
   (Installerat), then a klick link from a test mail, and see the visit on the contact card.
 
+## After S4: Flamingo stage 2 (2026-10-28, not deployed)
+
+Landing pages got their own address `/lp/<account>/<page>/` and statistics per source
+(apps/flamingo/README.md, "Steg 2"). What changed here:
+
+- **Data** (`utskick.0006_lankar_till_sidor`): `TrackedLink.landing_page` (null, `SET NULL`
+  also in the database through `dbfk.apply`) for an `lp` link straight to a page, and
+  `TrackedLink.medium` (`db_default ""`: qr, instagram, other; empty reads as other) for named
+  links. Both follow B.0.
+- **Links**: `links.add_link(..., page=)`, `links.bare_destination` and `lp_target_url` send a
+  page link to the page's current own address (so a slug change before publishing is followed).
+  The pickers (the sms link slot, Ny länk) list published landing pages first (value
+  `sida-<id>`, `app_views/links.resolve_target`, a foreign id is 400) and campaigns after
+  (plain id, as before). Förvälj svar works for both. `sending.email.own_pages` also maps the
+  published pages' own addresses, so an email link to one becomes an `lp` link with
+  `landing_page` at the freeze.
+- **Named links**: the form has "Var används länken?" (QR-kod, Instagram, Annat) and takes
+  `?sida=<id>&typ=qr` from the page's Länkar per källa; the list shows the kind after the label.
+  A page that a named link goes to cannot be deleted.
+- **New utskick from a page**: `utskick_new` with `sida=<id>` (a published page of the account)
+  starts an sms with `{länk:<page slug>}` and the link, or an email with a "Läs mer" button to
+  the page. Anything else is ignored and the draft is as before.
+- **Slugs**: `validate_public_slug` and `suggest_public_slug` treat another account's
+  `FlamingoAccount.lp_slug` as taken, and the suggestion is the account's own `lp_slug` when it
+  is free, so `klick.adx.se/<slug>/` and `adx.se/lp/<slug>/` stay one word per customer.
+- **Attribution**: `attribution.resolve` accepts a page (same account check);
+  `record_lp_visit` stores "<account>/<page>" as `sida` for a visit on the own address. Counter
+  scope `lp_visit` (one visit per visitor, page, source and hour).
+
 ---
 
 ## A. Goals and non-goals

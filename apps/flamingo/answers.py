@@ -237,12 +237,24 @@ def with_preselect(url, value):
     return urlunsplit(parts._replace(query=urlencode(query)))
 
 
+def _page_of(target):
+    """Sidan för en kampanj eller en landningssida (README Steg 2: en länk
+    kan gå direkt till sidan), eller None."""
+    from .models import LandingPage
+
+    if target is None:
+        return None
+    if isinstance(target, LandingPage):
+        return target
+    return target.landing_page if target.landing_page_id else None
+
+
 def preselect_choices(campaign):
-    """[(värde, "Alternativ (Fråga)")] för kampanjens sida, i sidans ordning;
-    [] när kampanjen inte har någon sida eller sidan inget flerval.
-    Alternativet står först, så att det syns också när en smal väljare
-    kortar texten."""
-    page = campaign.landing_page if campaign is not None and campaign.landing_page_id else None
+    """[(värde, "Alternativ (Fråga)")] för kampanjens sida (eller sidan
+    själv, när campaign är en LandingPage), i sidans ordning; [] när
+    kampanjen inte har någon sida eller sidan inget flerval. Alternativet
+    står först, så att det syns också när en smal väljare kortar texten."""
+    page = _page_of(campaign)
     if page is None:
         return []
     return [

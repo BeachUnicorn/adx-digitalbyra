@@ -34,7 +34,9 @@ giltig "ai"-källa.
                                         kunden bockade "Uppgifterna stämmer" (F.7).
                                         Nya länkvärdar blir väntande (links.request_if_new).
     clean_url(account, value, *, allow_pending=True) -> str
-    own_page(account, url) -> Campaign | None   kontots egen Flamingo-sida (S3, integrationen)
+    own_page(account, url) -> Campaign | LandingPage | None   kontots egen Flamingo-sida
+                                       (S3, integrationen; sidans egen adress från
+                                       Flamingos steg 2)
                                         F.1 url: absolut http, https, mailto eller tel,
                                         högst 500, klick-id bort, E.8 för http(s)
                                         (links.clean_external), aldrig sammanfogning;
@@ -413,7 +415,9 @@ def clean_url(account, value, *, allow_pending=True):
 
 def own_page(account, url, *, pages=None):
     """Kampanjen när adressen är en av kontots egna Flamingo-sidor
-    (https://adx.se/lp/<slug>/, exports.landing_page_url), annars None.
+    (https://adx.se/lp/<slug>/, exports.landing_page_url), eller sidan när
+    det är en publicerad sidas egen adress (https://adx.se/lp/<konto>/<sida>/,
+    Flamingos README Steg 2), annars None.
     En sådan länk är alltid kontots egen: den begärs aldrig hos ADX, prövas
     inte i Granska, och frysningen gör den till en TrackedLink av slaget lp
     (sending.email.freeze_email), så att klicket får ut och förfrågan

@@ -155,6 +155,18 @@ def page_state(page, campaigns):
     return STATE_PUBLISHED, "Publicerad"
 
 
+def named_links_to(page):
+    """Beskrivningarna på de namngivna länkarna (Länkar och QR) som går
+    direkt till sidan (README Steg 2)."""
+    from apps.utskick.models import TrackedLink
+
+    return list(
+        TrackedLink.objects.filter(
+            account_id=page.account_id, landing_page=page, utskick__isnull=True
+        ).values_list("label", flat=True)
+    )
+
+
 def usage_text(count):
     if not count:
         return "Ingen kampanj använder sidan än"
@@ -438,14 +450,24 @@ def _saved_text(moment):
 
 @app_view
 def page_list(request, account):
+    from .. import addresses, sources
+
     rows = []
     answered = form_answers.answered_page_ids(account)
+    # Listans siffror för 30 dagar (README Steg 2): två frågor för alla sidor.
+    numbers = sources.list_numbers(account)
     for page in pagebuilder.pages_for(account):
+        page.account = account
         campaigns = list(pagebuilder.campaigns_using(page))
         kind, text = page_state(page, campaigns)
         rows.append(
             {
                 "page": page,
+                # Sidans egen adress (/lp/<konto>/<sida>/): öppen när sidan är
+                # publicerad, annars Förhandsvisa.
+                "address": addresses.page_text(page),
+                "href": addresses.page_path(page),
+                "numbers": numbers.get(page.pk) or sources.ListNumbers(),
                 "campaigns": campaigns,
                 "usage": usage_text(len(campaigns)),
                 "state": text,
@@ -470,17 +492,18 @@ def page_list(request, account):
 def page_answers(request, account, pk):
     """Svar i formuläret: sidans flervalsfrågor med antal och procent per
     alternativ (answers.page_report). Bara läsning, bara kontots egen sida."""
-    page = get_object_or_404(LandingPage, pk=pk, account=account)
+    from .page_stats import head_context
+
+    page = get_object_or_404(LandingPage.objects.select_related("account"), pk=pk, account=account)
     report = form_answers.page_report(page)
+    context = head_context(request, account, page)
+    context.update({"report": report, "draft_only": not report and form_answers.draft_only(page)})
     return render_app(
         request,
         "flamingo/app/pages/answers.html",
-        "pages",
-        {
-            "page": page,
-            "report": report,
-            "draft_only": not report and form_answers.draft_only(page),
-        },
+        "pages/answers",
+        context,
+        tab_args=[page.pk],
     )
 
 
@@ -562,6 +585,15 @@ def page_delete(request, account, pk):
             request,
             f"Sidan {page.name} används av {names} och kan inte tas bort. Välj en annan sida "
             "för kampanjerna under fliken Sidan först.",
+        )
+        return redirect("flamingo:app_pages")
+    named = named_links_to(page)
+    if named:
+        # README Steg 2: en tryckt QR-kod ska inte leda till en sida som är borta.
+        messages.error(
+            request,
+            f"Sidan {page.name} har länken {', '.join(named)} och kan inte tas bort. Låt "
+            "länken gå någon annanstans under Länkar och QR först.",
         )
         return redirect("flamingo:app_pages")
     name = page.name
@@ -682,12 +714,18 @@ def page_detail(request, account, pk):
         canvas = None
     problems = page_problem_list(page)
     live = [c for c in campaigns if c.status == Campaign.STATUS_LIVE]
+    from .. import addresses
+
     return render_app(
         request,
         "flamingo/app/pages/editor.html",
         "pages",
         {
             "page": page,
+            # Sidans egen adress (README Steg 2) i remsan under toppraden.
+            "page_address": addresses.page_text(page),
+            "page_full_url": addresses.page_url(page),
+            "page_href": addresses.page_path(page),
             "campaigns": campaigns,
             "live_campaigns": live,
             "shared": len(campaigns) > 1,
@@ -985,11 +1023,14 @@ def page_publish(request, account, pk):
             )
         messages.error(request, f"Inget publicerades. {exc.message}")
         return back
+    from .. import addresses
+
+    where = addresses.page_text(page)
     if result.live_campaigns:
         names = ", ".join(c.name for c in result.live_campaigns)
-        text = f"Publicerad. Ändringen syns nu på sidan för {names}."
+        text = f"Publicerad. Ändringen syns nu på {where} och på sidan för {names}."
     else:
-        text = "Publicerad. Sidan syns för besökarna när en kampanj som använder den är live."
+        text = f"Publicerad. Sidan är öppen för besökarna på {where}."
     if wants_json:
         page.refresh_from_db()
         return JsonResponse(

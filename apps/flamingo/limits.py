@@ -45,6 +45,10 @@ SECRET_KEY som nyckel: samma adress ger samma värde, men värdet går inte att
 vända tillbaka till en adress. En IPv6-adress räknas som sitt /64-nät (en
 anslutning har ett helt /64 att välja adresser ur), en IPv4-adress som den är.
 
+På sidans egen adress (README Steg 2) gäller samma gränser per sida i
+stället för per kampanj, räknade på sidans förfrågningar utan kampanj, med
+ett eget lås per sida (_PAGE_LOCK_SPACE).
+
 Förfrågningarna till en kampanj räknas en i taget med ett lås i Postgres
 (pg_advisory_xact_lock) per kampanj, inte med kampanjens rad: publiceringen
 låser raden medan Google anropas, och en förfrågan ska aldrig vänta på Google.
@@ -86,6 +90,9 @@ CALL_CLICKS_PER_CAMPAIGN = 30
 UTSKICK_LEADS_PER_CAMPAIGN = 200
 #: Låsen per kampanj i Postgres: egen nyckelrymd ("FL") plus kampanjens id.
 _LOCK_SPACE = 0x464C << 32
+#: Låsen per sida för förfrågningar på sidans egen adress (README Steg 2):
+#: egen nyckelrymd ("FP") plus sidans id.
+_PAGE_LOCK_SPACE = 0x4650 << 32
 
 #: Publiceringar hos Google efter kundens inskick eller godkännande per
 #: konto och dygn. Byrån publicerar från kön utan gräns.
@@ -143,6 +150,23 @@ def _lock_campaign_leads(campaign_pk):
         cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_LOCK_SPACE + int(campaign_pk)])
 
 
+def _lock(campaign, page):
+    """Kampanjens lås, eller sidans på sidans egna adress (README Steg 2)."""
+    if campaign is not None:
+        _lock_campaign_leads(campaign.pk)
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_xact_lock(%s)", [_PAGE_LOCK_SPACE + int(page.pk)])
+
+
+def _scope(campaign, page):
+    """Förfrågningarna gränserna räknas på: kampanjens, eller sidans egna
+    (utan kampanj) på sidans egen adress."""
+    if campaign is not None:
+        return {"campaign_id": campaign.pk}
+    return {"landing_page_id": page.pk, "campaign__isnull": True}
+
+
 # ---------------------------------------------------------------------------
 # Förfrågningarna från landningssidan
 # ---------------------------------------------------------------------------
@@ -159,22 +183,23 @@ def _utskick_click(click, now):
     return click if attribution.usable_for_lead(click, now) else None
 
 
-def create_form_lead(campaign, data, request, now=None, click=None):
+def create_form_lead(campaign, data, request, now=None, click=None, page=None):
     """(förfrågan, "") eller (None, LIMIT_IP / LIMIT_CAMPAIGN).
 
-    Kampanjens rad låses medan förfrågningarna räknas och den nya sparas, så
-    samtidiga inskick till samma kampanj tas ett i taget och inte kan smita
-    förbi gränsen. click är utskickets klick (samma konto som kampanjen,
-    utskick.attribution.resolve) eller None."""
+    Kampanjens förfrågningar räknas en i taget under ett lås, så samtidiga
+    inskick till samma kampanj inte kan smita förbi gränsen. click är
+    utskickets klick (samma konto som kampanjen, utskick.attribution.resolve)
+    eller None. På sidans egen adress (campaign None, page sidan) gäller
+    samma gränser för sidans egna förfrågningar, under sidans lås."""
     now = now or timezone.now()
     hashed = ip_hash(client_ip(request))
     with transaction.atomic():
-        _lock_campaign_leads(campaign.pk)
+        _lock(campaign, page)
         click = _utskick_click(click, now)
         # Klicken på numret räknas för sig: en ström av klick får inte
         # stänga formuläret.
         recent = Lead.objects.filter(
-            campaign_id=campaign.pk, created_at__gte=now - LEAD_WINDOW
+            created_at__gte=now - LEAD_WINDOW, **_scope(campaign, page)
         ).exclude(source=Lead.SOURCE_CALL_CLICK)
         if click is not None:
             if recent.count() >= UTSKICK_LEADS_PER_CAMPAIGN:
@@ -183,10 +208,11 @@ def create_form_lead(campaign, data, request, now=None, click=None):
             return None, LIMIT_CAMPAIGN
         if hashed and recent.filter(ip_hash=hashed).count() >= LEADS_PER_IP:
             return None, LIMIT_IP
-        return leads.create_lead(campaign, data, request, ip_hash=hashed, click=click), ""
+        lead = leads.create_lead(campaign, data, request, ip_hash=hashed, click=click, page=page)
+        return lead, ""
 
 
-def create_call_click_lead(campaign, data, request, now=None, click=None):
+def create_call_click_lead(campaign, data, request, now=None, click=None, page=None):
     """(förfrågan, "") eller (None, LIMIT_DUPLICATE / LIMIT_CAMPAIGN / LIMIT_IP).
 
     Samma låsning som create_form_lead. Samma besökare från samma
@@ -196,21 +222,23 @@ def create_call_click_lead(campaign, data, request, now=None, click=None):
     båda. Utan IP-adress (ingen hash) gäller bara kampanjens gräns. Nås
     kampanjens gräns larmas byrån (cap_alert). Med ett utskicksklick (click)
     ingår klickets id i dubblettnyckeln och kampanjens gräns är
-    UTSKICK_LEADS_PER_CAMPAIGN."""
+    UTSKICK_LEADS_PER_CAMPAIGN. På sidans egen adress (campaign None, page
+    sidan) samma regler för sidans egna klick, och larmet gäller kontot."""
     now = now or timezone.now()
     hashed = ip_hash(client_ip(request))
     tracking = leads.tracking_from(data)
     same_click = {key: tracking.get(key, "") for key in ("gclid", "gbraid", "wbraid")}
+    scope = _scope(campaign, page)
     with transaction.atomic():
-        _lock_campaign_leads(campaign.pk)
+        _lock(campaign, page)
         click = _utskick_click(click, now)
         if click is not None:
             same_click["attribution__click"] = click.pk
         if (
             hashed
             and Lead.objects.filter(
-                campaign_id=campaign.pk,
                 ip_hash=hashed,
+                **scope,
                 created_at__gte=now - CALL_CLICK_DEDUPE,
                 **same_click,
             ).exists()
@@ -219,7 +247,7 @@ def create_call_click_lead(campaign, data, request, now=None, click=None):
         clicks = Lead.objects.filter(
             source=Lead.SOURCE_CALL_CLICK, created_at__gte=now - LEAD_WINDOW
         )
-        campaign_clicks = clicks.filter(campaign_id=campaign.pk)
+        campaign_clicks = clicks.filter(**scope)
         if click is not None:
             over = campaign_clicks.count() >= UTSKICK_LEADS_PER_CAMPAIGN
         else:
@@ -229,10 +257,32 @@ def create_call_click_lead(campaign, data, request, now=None, click=None):
         elif hashed and clicks.filter(ip_hash=hashed).count() >= CALL_CLICKS_PER_IP:
             return None, LIMIT_IP
         else:
-            lead = leads.create_call_click_lead(campaign, data, ip_hash=hashed, click=click)
+            lead = leads.create_call_click_lead(
+                campaign, data, ip_hash=hashed, click=click, page=page
+            )
             return lead, ""
-    cap_alert(campaign, now)
+    if campaign is not None:
+        cap_alert(campaign, now)
+    else:
+        page_cap_alert(page, now)
     return None, refused
+
+
+def page_cap_alert(page, now=None):
+    """Som cap_alert, för sidans egen adress (README Steg 2): larmet gäller
+    kontot (alerts.send_account_alert, högst några per konto och dag)."""
+    from .alerts import send_account_alert
+
+    account = page.account
+    lines = [
+        f"Sidan {page.name} ({account.customer.name}) fick {CALL_CLICKS_PER_CAMPAIGN} klick "
+        "på telefonnumret den senaste timmen, på sidans egen adress.",
+        "Fler klick räknas inte förrän timmen gått. Det kan vara påhittade klick: se "
+        "förfrågningarna i inkorgen.",
+    ]
+    return send_account_alert(
+        account, f"Flamingo: gränsen för klick på numret nådd ({page.name})", lines, now
+    )
 
 
 def cap_alert(campaign, now=None):

@@ -144,7 +144,7 @@ def _lead_items(contact, limit):
 
     rows = (
         Lead.objects.filter(account_id=contact.account_id, contact=contact)
-        .select_related("campaign", "service")
+        .select_related("campaign", "service", "landing_page")
         .order_by("-created_at", "-pk")[:limit]
     )
     items = []
@@ -152,6 +152,9 @@ def _lead_items(contact, limit):
         parts = [lead.get_source_display()]
         if lead.campaign_id:
             parts.append(lead.campaign.name)
+        elif lead.landing_page_id:
+            # Sidans egen adress (Flamingos README Steg 2): sidan, ingen kampanj.
+            parts.append(lead.landing_page.name)
         items.append(
             Item(
                 at=lead.created_at,

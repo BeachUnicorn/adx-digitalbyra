@@ -80,7 +80,7 @@ kommer från flamingo-app-utskick.js.
         {% if lead.source != "manual" %}<div><dt>Sökord</dt><dd>{% if lead.keyword %}"{{ lead.keyword }}"{% else %}Okänt{% endif %}</dd></div>{% endif %}
         {% if utm_campaign %}<div><dt>Kampanj i länken</dt><dd>{{ utm_campaign }}</dd></div>{% endif %}
         <div><dt>Klick-id från Google</dt><dd>{% if has_click_id %}Ja{% else %}Nej{% endif %}</dd></div>
-        {% if lead.campaign %}<div><dt>Sidan</dt><dd>{% if lead.campaign.is_public %}<a href="{{ lead.campaign.landing_url }}">{{ lead.campaign.landing_url }}</a>{% else %}{{ lead.campaign.landing_url }}, stängd medan kampanjen inte är live{% endif %}</dd></div>{% endif %}
+        {% if lead.campaign %}<div><dt>Sidan</dt><dd>{% if lead.campaign.is_public %}<a href="{{ lead.campaign.landing_url }}">{{ lead.campaign.landing_url }}</a>{% else %}{{ lead.campaign.landing_url }}, stängd medan kampanjen inte är live{% endif %}</dd></div>{% elif lead.landing_page %}<div><dt>Sidan</dt><dd><a href="{% url 'flamingo:app_page_stats' lead.landing_page.pk %}">{{ lead.landing_page.name }}</a>, sidans egen adress</dd></div>{% endif %}
       </dl>
     </section>
     {% endif %}

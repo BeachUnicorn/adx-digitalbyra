@@ -79,6 +79,7 @@ from .models import (
     Fact,
     FlamingoAccount,
     Lead,
+    PageVisitDay,
     Review,
     SmsLog,
 )
@@ -143,6 +144,8 @@ def counts():
         "utskicken": Utskick.objects.filter(account=account).count(),
         "mottagare": Recipient.objects.filter(utskick__account=account).count(),
         "länkar": TrackedLink.objects.filter(account=account).count(),
+        # Steg 2: besöken per sida och källa.
+        "besöksdagar": PageVisitDay.objects.filter(account=account).count(),
         "sms-koder": LinkCode.objects.filter(account=account).count(),
         "klick": Click.objects.filter(account=account).count(),
         "trådar": Thread.objects.filter(account=account).count(),
@@ -524,6 +527,16 @@ class DemoContentTests(DemoFixture, TestCase):
         urls = [reverse(name) for name in names]
         campaigns = self.account.campaigns.all()
         urls += [reverse("flamingo:app_campaign", args=[c.pk]) for c in campaigns]
+        # Steg 2: varje sidas flikar Statistik, Länkar per källa och Svar.
+        urls += [
+            reverse(name, args=[page.pk])
+            for page in self.account.landing_pages.all()
+            for name in (
+                "flamingo:app_page_stats",
+                "flamingo:app_page_links",
+                "flamingo:app_page_answers",
+            )
+        ]
         urls += [reverse("flamingo:app_lead", args=[x.pk]) for x in self.account.leads.all()]
         kontakter = Contact.objects.filter(account=self.account)
         urls += [reverse("flamingo:app_contact", args=[k.pk]) for k in kontakter]
@@ -681,6 +694,30 @@ class DemoLandingTests(DemoFixture, TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response["X-Robots-Tag"], "noindex, nofollow")
                 self.assertFalse(response.context["preview"])
+
+    def test_every_published_demo_page_has_its_own_address(self):
+        """Steg 2: sidans egen adress är öppen, och besöket räknas aldrig
+        för demot."""
+        before = PageVisitDay.objects.filter(account=self.account).count()
+        for page in self.account.landing_pages.filter(published_at__isnull=False):
+            with self.subTest(page=page.name):
+                self.assertTrue(page.landing_url.startswith("/lp/exempelror-demo/"))
+                response = Client().get(page.landing_url, HTTP_USER_AGENT="Mozilla/5.0 Chrome/148")
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.context["call_beacon"], "")
+        self.assertEqual(PageVisitDay.objects.filter(account=self.account).count(), before)
+
+    def test_the_demo_statistics_show_several_sources(self):
+        from apps.flamingo import sources
+
+        poster = TrackedLink.objects.get(account=self.account, slug="vinter")
+        stats = sources.page_stats(poster.campaign.landing_page)
+        kinds = {row.source for row in stats.rows}
+        self.assertTrue({"ad", "sms", "email", "direct", "named"} <= kinds, kinds)
+        self.assertGreater(stats.visits, stats.leads)
+        named = next(row for row in stats.rows if row.source == "named")
+        self.assertEqual((named.chip, named.text), ("QR-kod", "Affisch i verkstaden"))
+        self.assertEqual(named.leads, 1)
 
     def test_the_demo_customers_own_contact_sees_the_pages_like_anyone(self):
         _user, client = self.demo_contact()

@@ -205,7 +205,9 @@ def _count_human(recipient_id, now):
 def resolve(ut, campaign):
     """Klicket som ut pekar på, bara när signaturen stämmer och klicket hör
     till samma konto som kampanjen (E.4). Annars None: ingen loggning,
-    ingen koppling och inga högre gränser."""
+    ingen koppling och inga högre gränser. campaign kan också vara en
+    landningssida (sidans egen adress, Flamingos README Steg 2): det som
+    prövas är kontot (account_id)."""
     if not ut or campaign is None:
         return None
     click_id = tokens.read_ut(ut)
@@ -216,6 +218,16 @@ def resolve(ut, campaign):
         .filter(pk=click_id, account_id=campaign.account_id)
         .first()
     )
+
+
+def _page_name(owner):
+    """Sidans adress i händelsen: kampanjens page_slug, eller sidans egen
+    "<konto>/<sida>" (Flamingos README Steg 2)."""
+    slug = getattr(owner, "page_slug", "")
+    if slug:
+        return str(slug)
+    account = getattr(owner, "account", None)
+    return f"{getattr(account, 'lp_slug', '') or ''}/{getattr(owner, 'slug', '') or ''}"
 
 
 def record_lp_visit(click, campaign, now=None):
@@ -245,7 +257,7 @@ def record_lp_visit(click, campaign, now=None):
         at=now,
         utskick_id=click.utskick_id,
         recipient_id=click.recipient_id,
-        data={"klick": click.pk, "sida": str(campaign.page_slug or "")[:80]},
+        data={"klick": click.pk, "sida": _page_name(campaign)[:80]},
     )
 
 

@@ -1,0 +1,41 @@
+{% load flamingo_pages %}
+{% comment %}
+Överst på en landningssidas flikar (Statistik, Länkar per källa, Svar i
+formuläret; README Steg 2, mockups/flamingo-meny.html skärmen
+Avloppsspolning): namnet, sidans egna adress med Kopiera
+(flamingo-app-links.js, data-ln-copy; dold utan skript, då markeras
+adressen med ett klick), Öppna sidan (publicerad, ny flik) eller
+Förhandsvisa, och Redigera (sidbyggaren). Tills sidan publicerats:
+"Ändra adressen" (app_views/page_stats.page_address).
+
+Kontext från app_views/page_stats.head_context: page, page_address
+("adx.se/lp/exempelror/avloppsspolning"), page_full_url, page_href,
+page_published, can_change_slug.
+{% endcomment %}
+<header class="fl-app-head fl-pg-head">
+  <div class="fl-app-head__text">
+    <p class="fl-kicker"><a class="fl-pg-crumb" href="{% url 'flamingo:app_pages' %}">Landningssidor</a> / {{ page.name }}</p>
+    <h1 class="fl-app-title">{{ page.name }}</h1>
+    <p class="fl-pg-head__addr"><span class="fl-pg-head__url">{{ page_address }}</span>{% if page_published %}<button type="button" class="fl-btn fl-btn--ghost fl-btn--sm" data-ln-copy="{{ page_full_url }}" hidden>Kopiera<span class="fl-sr"> adressen</span></button>{% endif %}</p>
+    {% if not page_published %}<p class="fl-pg-head__note">Inte publicerad än. Adressen öppnas för besökarna när du publicerar sidan.</p>{% endif %}
+  </div>
+  <div class="fl-app-head__actions fl-pg-head__actions">
+    {% if page_published %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ page_href }}" target="_blank" rel="noopener">Öppna sidan<span class="fl-sr"> (ny flik)</span></a>{% else %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% page_preview_url page %}" target="_blank" rel="noopener">Förhandsvisa<span class="fl-sr"> (ny flik)</span></a>{% endif %}
+    <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_page' page.pk %}">Redigera<span class="fl-sr"> {{ page.name }}</span></a>
+  </div>
+</header>
+{% if can_change_slug %}
+<details class="fl-pg-slug">
+  <summary class="fl-pg-slug__summary">Ändra adressen</summary>
+  <form method="post" action="{% url 'flamingo:app_page_address' page.pk %}" class="fl-form fl-pg-slug__form">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ request.path }}">
+    <div class="fl-field">
+      <label class="fl-field__label" for="fl-pg-slug-{{ page.pk }}">Sidans del av adressen</label>
+      <input class="fl-input" id="fl-pg-slug-{{ page.pk }}" type="text" name="adress" value="{{ page.slug }}" maxlength="60" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="fl-pg-slug-help-{{ page.pk }}">
+      <p class="fl-field__help" id="fl-pg-slug-help-{{ page.pk }}">Små bokstäver, siffror och bindestreck. Adressen går att ändra tills sidan publiceras. En gammal adress skickar vidare till den nya.</p>
+    </div>
+    <div class="fl-form__actions"><button type="submit" class="fl-btn fl-btn--sm">Spara adressen</button></div>
+  </form>
+</details>
+{% endif %}

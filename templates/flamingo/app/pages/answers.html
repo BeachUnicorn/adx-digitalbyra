@@ -11,24 +11,19 @@ hade flera (q.any_multi), också om frågan har ett svar nu. Alternativ och frå
 längre på sidan står sist, märkta. Ingen tabell: raderna är en lista, så
 inget blir bredare än skärmen i 375 px. Bara läsning.
 
-Kontext: page, report (answers.page_report: [{key, label, multi,
+Fliken Svar i formuläret under en landningssida (README Steg 2): huvudet
+med adressen och Redigera är _detail_head.html, flikarna ritas av
+base.html.
+
+Kontext: page och huvudet (_detail_head.html), report (answers.page_report: [{key, label, multi,
 any_multi, current, answered, options: [{key, label, n, pct, width, current}]}]) och draft_only
 (utkastet har ett flerval som inte är publicerat än).
 {% endcomment %}
 {% block app_title %}Svar i formuläret, {{ page.name }}{% endblock %}
-{% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-svar.css' %}?v={{ static_version }}">{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-pages.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/flamingo-app-svar.css' %}?v={{ static_version }}">{% endblock %}
+{% block app_header %}{% include "flamingo/app/pages/_detail_head.html" %}{% endblock %}
 {% block app_content %}
-<header class="fl-app-head">
-  <div class="fl-app-head__text">
-    <p class="fl-kicker"><a class="fl-svar-crumb" href="{% url 'flamingo:app_pages' %}">Landningssidor</a>: {{ page.name }}</p>
-    <h1 class="fl-app-title">Svar i formuläret</h1>
-    <p class="fl-app-lead">Hur besökarna har svarat på flervalsfrågorna i formuläret på sidan.</p>
-  </div>
-  <div class="fl-app-head__actions">
-    <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_page' page.pk %}">Redigera sidan</a>
-    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_pages' %}">Till sidorna</a>
-  </div>
-</header>
+<p class="fl-app-lead fl-svar-lead">Hur besökarna har svarat på flervalsfrågorna i formuläret på sidan.</p>
 
 {% if report %}
 <div class="fl-svar">
@@ -65,3 +60,4 @@ any_multi, current, answered, options: [{key, label, n, pct, width, current}]}])
 </div>
 {% endif %}
 {% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>{% endblock %}

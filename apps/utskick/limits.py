@@ -22,7 +22,9 @@ början, sending/email.py), inbound_mail (hela ADX per timme), inbound_mail_ref
 svarsadressens bekräftelselänk); S4: segment_count (segmentbyggarens
 levande räkning per konto och minut, app_views/segments.py), site_beacon
 (skriptets besöksanrop per besökare och timme, link_views.snippet_beacon;
-klicken på namngivna länkar räknas i click). Nyckeln är en ip_hash, ett konto-id,
+klicken på namngivna länkar räknas i click); Flamingos steg 2: lp_visit
+(ett besök per besökare, landningssida, källa och timme,
+apps/flamingo/sources.py). Nyckeln är en ip_hash, ett konto-id,
 f"{account}:{value_hash}", en token eller "" för hela ADX; aldrig en adress
 i klartext.
 

@@ -1,7 +1,16 @@
 from django.urls import include, path
 
 from . import views
-from .app_views import campaigns, inbox, onboarding, overview, page_ai, page_preview, pages
+from .app_views import (
+    campaigns,
+    inbox,
+    onboarding,
+    overview,
+    page_ai,
+    page_preview,
+    page_stats,
+    pages,
+)
 from .app_views import media as media_views
 from .app_views import reviews as reviews_views
 
@@ -46,6 +55,11 @@ urlpatterns = [
     ),
     # Svaren på formulärets flervalsfrågor (app_views/pages.page_answers).
     path("app/sidor/<int:pk>/svar/", pages.page_answers, name="app_page_answers"),
+    # En sidas flikar Statistik och Länkar per källa, och Ändra adressen
+    # (app_views/page_stats.py, README Steg 2).
+    path("app/sidor/<int:pk>/statistik/", page_stats.page_stats, name="app_page_stats"),
+    path("app/sidor/<int:pk>/lankar/", page_stats.page_link_list, name="app_page_links"),
+    path("app/sidor/<int:pk>/adress/", page_stats.page_address, name="app_page_address"),
     # AI och Konverteringskollen i sidbyggaren (app_views/page_ai.py), JSON.
     path("app/sidor/<int:pk>/ai/bygg/", page_ai.page_ai_build, name="app_page_ai_build"),
     path("app/sidor/<int:pk>/ai/skriv-om/", page_ai.page_ai_rewrite, name="app_page_ai_rewrite"),

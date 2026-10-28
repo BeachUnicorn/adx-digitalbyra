@@ -196,7 +196,7 @@ def card_context(customer):
             "saved": bool(row.pk),
             "enabled": is_enabled(account, row),
             "suggested_slug": row.public_slug
-            or suggest_public_slug(customer.name, account_id=account.pk),
+            or suggest_public_slug(customer.name, account_id=account.pk, lp_slug=account.lp_slug),
             "display_name": row.display_name or customer.name[:80],
         }
     )

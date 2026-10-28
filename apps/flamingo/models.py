@@ -15,7 +15,10 @@ Datamodellen följer flödet i README.md (kundresan, steg 2-12):
     MediaAsset        en bild i kundens mediaarkiv (uppladdad eller från hemsidan)
     SiteImageCandidate  en bild som läsningen hittade på hemsidan (bara miniatyren)
     LandingPage       en landningssida i sidbyggaren: block i ett utkast och
-                      en publicerad version (pagebuilder/)
+                      en publicerad version (pagebuilder/), och en egen adress
+                      /lp/<konto>/<sida>/ (README Steg 2, addresses.py)
+    LandingPageOldSlug  en adress sidan hade förut (skickar vidare)
+    PageVisitDay      besöken per sida, svensk dag och källa (sources.py)
     Campaign          en kampanj per tjänst: annonser, sökord och sin landningssida
     CampaignDayStats  en dag ur Googles rapport: kostnad, visningar, klick
     Review            en granskningsrunda per inskick, med byråns ändringar
@@ -383,6 +386,14 @@ class FlamingoAccount(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="+",
+    )
+    #: Kontots del i landningssidornas egna adresser, /lp/<lp_slug>/<sida>/
+    #: (README, Steg 2). Samma ord som utskickens public_slug när kontot har
+    #: en, annars ett förslag ur kundens namn (sources.ensure_account_slug).
+    #: Null för ett konto som inte fått den än (en äldre version skapar konton
+    #: utan den, README för utskick B.0). Ändras inte i verktyget.
+    lp_slug = models.SlugField(
+        "Adress för landningssidorna", max_length=40, null=True, blank=True, unique=True
     )
 
     # Steg 1, förslaget: hemsidan som läses av.
@@ -994,7 +1005,9 @@ class LandingPage(models.Model):
 
     En sida kan användas av flera kampanjer (Campaign.landing_page). Varje
     kampanj har ändå sin egen adress /lp/<page_slug>/, så att förfrågningarna
-    räknas till rätt kampanj. Ingen låsning av sidor eller block: en ändring
+    räknas till rätt kampanj. Sidan har dessutom sin egen adress
+    /lp/<konto>/<slug>/ (README Steg 2), öppen när den är publicerad. Ingen
+    låsning av sidor eller block: en ändring
     på en sida som är live publiceras direkt när kontrollerna går igenom, och
     byrån får ett larm (pagebuilder.publish_page). Det gäller också paletten,
     logotypen och en live-kampanjs byte av sida. Kunden mejlas aldrig."""
@@ -1061,6 +1074,13 @@ class LandingPage(models.Model):
         on_delete=models.SET_NULL,
         related_name="+",
     )
+    #: Sidans del i den egna adressen /lp/<konto>/<slug>/ (README, Steg 2):
+    #: ur namnet när sidan skapas (addresses.page_slug_for), unik hos kontot,
+    #: aldrig ett av kampanjadressernas underled (tack, ring, besok). Kan
+    #: ändras tills sidan publicerats första gången; den gamla adressen blir
+    #: en LandingPageOldSlug som skickar vidare. Tom för en sida som en
+    #: äldre version skapat (fylls i när adressen behövs); db_default: B.0.
+    slug = models.SlugField("Adress", max_length=60, blank=True, default="", db_default="")
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -1068,9 +1088,36 @@ class LandingPage(models.Model):
         ordering = ["name", "id"]
         verbose_name = "Landningssida"
         verbose_name_plural = "Landningssidor"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["account", "slug"],
+                condition=~models.Q(slug=""),
+                name="flamingo_page_slug",
+            ),
+        ]
 
     def __str__(self):
         return self.name
+
+    def save(self, *args, **kwargs):
+        """En ny sida (eller en som en äldre version skapat) får sin adress
+        ur namnet, och kontot sin del av adressen (addresses.py)."""
+        if not self.slug and self.account_id:
+            from .addresses import ensure_account_slug, page_slug_for
+
+            self.slug = page_slug_for(self.account_id, self.name, exclude_pk=self.pk)
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = {*update_fields, "slug"}
+            ensure_account_slug(self.account)
+        super().save(*args, **kwargs)
+
+    @property
+    def landing_url(self):
+        """Sidans egen adress, /lp/<konto>/<sida>/ (addresses.page_path)."""
+        from .addresses import page_path
+
+        return page_path(self)
 
     @staticmethod
     def _blocks(content):
@@ -1103,6 +1150,27 @@ class LandingPage(models.Model):
     def blocks_for(self, which):
         """which = "draft" eller "published"."""
         return self.published_blocks if which == "published" else self.draft_blocks
+
+
+class LandingPageOldSlug(models.Model):
+    """En adress sidan hade förut (/lp/<konto>/<slug>/, README Steg 2). Den
+    skickar vidare till sidans adress nu och tillhör sidan: en annan sida
+    hos kontot får den inte (addresses.page_slug_for). Tas bort med sidan."""
+
+    account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="+")
+    page = models.ForeignKey(LandingPage, on_delete=models.CASCADE, related_name="old_slugs")
+    slug = models.SlugField("Tidigare adress", max_length=60)
+    retired_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        verbose_name = "Tidigare adress för en landningssida"
+        verbose_name_plural = "Tidigare adresser för landningssidor"
+        constraints = [
+            models.UniqueConstraint(fields=["account", "slug"], name="flamingo_page_old_slug"),
+        ]
+
+    def __str__(self):
+        return f"Tidigare adress {self.slug}"
 
 
 # ---------------------------------------------------------------------------
@@ -1386,6 +1454,59 @@ class CampaignDayStats(models.Model):
         return round((self.cost_micros or 0) / 1_000_000)
 
 
+#: Var ett besök, ett klick på numret eller en förfrågan kom ifrån (README
+#: Steg 2, sources.py): sorten, och den främmande nyckeln som hör till
+#: (kampanjen, utskicket eller den namngivna länken). Den namngivna länkens
+#: sort (QR-kod, Instagram, Annat) står på länken (TrackedLink.medium).
+PAGE_SOURCE_AD = "ad"
+PAGE_SOURCE_SMS = "sms"
+PAGE_SOURCE_EMAIL = "email"
+PAGE_SOURCE_NAMED = "named"
+PAGE_SOURCE_DIRECT = "direct"
+PAGE_SOURCE_CHOICES = [
+    (PAGE_SOURCE_AD, "Annons"),
+    (PAGE_SOURCE_SMS, "Sms"),
+    (PAGE_SOURCE_EMAIL, "E-post"),
+    (PAGE_SOURCE_NAMED, "Länk"),
+    (PAGE_SOURCE_DIRECT, "Direkt"),
+]
+
+
+class PageVisitDay(models.Model):
+    """Besöken på en landningssida en svensk dag från en källa (README Steg
+    2, sources.record_visit). key skiljer källorna åt: "ad:c<kampanj>", "ad"
+    (ett klick-id på sidans egen adress), "sms:u<utskick>",
+    "email:u<utskick>", "named:l<länk>" eller "direct". Inga personuppgifter:
+    bara antalet."""
+
+    account = models.ForeignKey(FlamingoAccount, on_delete=models.CASCADE, related_name="+")
+    page = models.ForeignKey(LandingPage, on_delete=models.CASCADE, related_name="visit_days")
+    day = models.DateField("Dag")
+    source = models.CharField("Källa", max_length=8, choices=PAGE_SOURCE_CHOICES)
+    key = models.CharField("Nyckel", max_length=40)
+    campaign = models.ForeignKey(
+        "Campaign", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    utskick = models.ForeignKey(
+        "utskick.Utskick", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    link = models.ForeignKey(
+        "utskick.TrackedLink", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    visits = models.PositiveIntegerField("Besök", default=0)
+
+    class Meta:
+        verbose_name = "Besök på en landningssida"
+        verbose_name_plural = "Besök på landningssidor"
+        constraints = [
+            models.UniqueConstraint(fields=["page", "day", "key"], name="flamingo_visit_day"),
+        ]
+        indexes = [models.Index(fields=["account", "day"], name="flamingo_visit_account_day")]
+
+    def __str__(self):
+        return f"Besök {self.day} ({self.key})"
+
+
 class Review(models.Model):
     """En granskningsrunda: kunden skickar in, byrån rättar och skriver varför.
 
@@ -1538,6 +1659,38 @@ class Lead(models.Model):
         on_delete=models.SET_NULL,
         related_name="leads",
     )
+    #: Sidan förfrågan kom från (README Steg 2): sidans egen adress, eller
+    #: sidan kampanjen visade. Null för förfrågningar utan sida (manuella,
+    #: svar) och för rader som den förra versionen skrev (sources läser då
+    #: kampanjens sida).
+    landing_page = models.ForeignKey(
+        LandingPage,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="leads",
+        verbose_name="Landningssida",
+    )
+    #: Källan (PAGE_SOURCE_CHOICES), tom för förfrågningar utan sida och för
+    #: rader som den förra versionen skrev (sources.lead_source_expr läser
+    #: den då ur spåret och kampanjen). db_default: README för utskick B.0.
+    page_source = models.CharField(
+        "Källa på sidan",
+        max_length=8,
+        choices=PAGE_SOURCE_CHOICES,
+        blank=True,
+        default="",
+        db_default="",
+    )
+    #: Den namngivna länken förfrågan kom via (källan named).
+    named_link = models.ForeignKey(
+        "utskick.TrackedLink",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+        verbose_name="Namngiven länk",
+    )
     #: Ögonblicksbild av spåret: klickets id, utskickets id och namn, kanal,
     #: länkens etikett, clicked_at, contact_matched och late
     #: (utskick/attribution.attach). db_default: den förra versionen skriver
@@ -1646,7 +1799,13 @@ class Lead(models.Model):
         De sparas på förfrågan men laddas inte upp. Samtycket (ad_consent)
         avgör inte: konverteringarna skickas utan fråga på sidan (beslut
         2026-10-03). En förfrågan via ett utskick går aldrig till Google
-        (apps/utskick, D11), också om sidan råkade ha ett gclid."""
+        (apps/utskick, D11), också om sidan råkade ha ett gclid. Inte heller
+        en förfrågan på sidans egen adress (README Steg 2: ingen kampanj, så
+        klick-id:t hör inte till någon av ADX:s kampanjer)."""
+        if self.campaign_id is None and self.landing_page_id is not None:
+            # Sidans egen adress (README Steg 2) är ingen kampanjs: ett
+            # klick-id där hör inte till någon av ADX:s kampanjer.
+            return False
         return bool(self.gclid) and not self.utskick_id
 
     @property

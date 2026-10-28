@@ -92,7 +92,7 @@ from ..sending import checks, sms_wrapper, state
 from ..templatetags.utskick_tags import procent
 from . import render_utskick
 from .contacts import clean_name, day_text
-from .links import preselect_groups
+from .links import lp_options, lp_pages, preselect_groups, resolve_target
 
 logger = logging.getLogger(__name__)
 
@@ -658,7 +658,74 @@ def utskick_new(request, account):
         # välja ADX-domänen under Från i mejlet).
         sender_domain=email_domains.verified_for(account),
     )
+    page = _page_from(account, request.POST.get("sida"))
+    if page is not None:
+        _link_page(request, account, utskick, page)
     return redirect(_step_url(utskick, "mottagare"))
+
+
+# --- Flamingos steg 2: Ny länk för Sms och E-post på en landningssida ------
+#
+# Landningssidans Länkar per källa skickar sida=<id> med Nytt sms eller Nytt
+# mejl. Utkastet får en länk till sidans egen adress från början: sms:et
+# {länk:<sidans adress>} i texten (en TrackedLink till sidan), mejlet en knapp
+# "Läs mer" till sidan. Allt går att ändra i guiden som vanligt. En sida som
+# inte är kontots eller inte är publicerad ignoreras (utkastet blir som
+# vanligt).
+
+PAGE_BUTTON_TEXT = "Läs mer"
+
+
+def _page_from(account, raw):
+    from apps.flamingo.models import LandingPage
+
+    raw = str(raw or "").strip()
+    if not raw.isdigit():
+        return None
+    return (
+        LandingPage.objects.filter(account=account, pk=int(raw), published_at__isnull=False)
+        .select_related("account")
+        .first()
+    )
+
+
+def _link_page(request, account, utskick, page):
+    from apps.flamingo.addresses import page_url
+
+    user = request.user if request.user.is_authenticated else None
+    if utskick.has_sms:
+        key = _link_key(page.slug or page.name) or "sida"
+        try:
+            links.add_link(utskick, key=key, page=page, label=page.name)
+        except links.LinkRefused:
+            logger.warning(
+                "Utskick %s: länken till sidan %s gick inte att lägga till", utskick.pk, page.pk
+            )
+            return
+        body = "{" + composer.LINK_PREFIX + key + "}"
+        Utskick.objects.filter(pk=utskick.pk).update(sms_body=body)
+        utskick.sms_body = body
+        return
+    from ..email import blocks as email_blocks
+
+    try:
+        block = email_blocks.new_block("button", account, utskick, user=user)
+        email_blocks.add_version(
+            block,
+            {"primary_text": PAGE_BUTTON_TEXT, "primary_url": page_url(page), "align": "left"},
+            email_blocks.SOURCE_TEMPLATE,
+            user,
+            account=account,
+            utskick=utskick,
+        )
+        email_blocks.save(utskick, [block], rev=utskick.email_rev, user=user, account=account)
+    except Exception:  # noqa: BLE001 - utkastet finns ändå; knappen läggs till för hand
+        logger.exception(
+            "Utskick %s: knappen till sidan %s gick inte att lägga till", utskick.pk, page.pk
+        )
+
+
+# --- slut steg 2
 
 
 # ---------------------------------------------------------------------------
@@ -1009,7 +1076,7 @@ def _link_rows(account, utskick):
     i sidans formulär ("Vilken tjänst önskar du?: Reparation", eller "")."""
     rows = []
     for link in TrackedLink.objects.filter(utskick=utskick).select_related(
-        "campaign", "campaign__landing_page"
+        "campaign", "campaign__landing_page", "landing_page"
     ):
         host = _host_of(link.destination)
         status = "allowed"
@@ -1020,7 +1087,9 @@ def _link_rows(account, utskick):
         if link.kind == TrackedLink.Kind.LP:
             preselect = form_answers.preselect_of(link.destination)
             if preselect:
-                preselect_text = form_answers.preselect_label(link.campaign, preselect)
+                preselect_text = form_answers.preselect_label(
+                    link.landing_page or link.campaign, preselect
+                )
         rows.append(
             {
                 "link": link,
@@ -1093,8 +1162,12 @@ def _add_link(request, account, utskick):
             if not raw:
                 messages.error(request, "Välj vilken Flamingo-sida länken ska gå till.")
                 return None, None
-            pk = owned_ids(Campaign, account, [raw])[0]
-            campaign = Campaign.objects.get(pk=pk, account=account)
+            # En landningssida ("sida-<id>", sidans egen adress, Flamingos
+            # steg 2) eller en kampanj; ett främmande id ger 400 (ForeignIds).
+            campaign, page = resolve_target(account, raw)
+            if page is None and campaign is None:
+                messages.error(request, "Välj vilken Flamingo-sida länken ska gå till.")
+                return None, None
             # Förvälj svar i sidans formulär (?val=); add_link prövar det mot
             # sidan och nekar med links.PRESELECT_TEXT.
             preselect = str(request.POST.get("lank_forval") or "").strip()[:200]
@@ -1102,7 +1175,8 @@ def _add_link(request, account, utskick):
                 utskick,
                 key=key,
                 campaign=campaign,
-                label=label or campaign.name,
+                page=page,
+                label=label or (page or campaign).name,
                 preselect=preselect,
             )
         else:
@@ -1317,6 +1391,7 @@ def _step_innehall(request, account, utskick):
         context.update({"content_tabs": False, "content_tab": "sms", "brev": None})
     # --- slut S3 ---
     campaigns = list(_lp_campaigns(account).select_related("landing_page"))
+    pages = lp_pages(account)
     context.update(
         {
             "sms": sms,
@@ -1337,7 +1412,8 @@ def _step_innehall(request, account, utskick):
             ],
             "link_rows": _link_rows(account, utskick),
             "campaigns": campaigns,
-            "preselect_groups": preselect_groups(campaigns),
+            "lp_options": lp_options(pages, campaigns),
+            "preselect_groups": preselect_groups(campaigns, pages),
             "templates": [
                 {
                     "key": t["key"],

@@ -76,6 +76,19 @@ adressfältet, så att en kopierad länk inte bär mottagarens token. Ett
 utskicksklick räknar också klicket på numret när Google-kampanjen är
 pausad (kontot aktiverat, kunden aktiv, inget demokonto).
 
+Sidans egen adress (README Steg 2): /lp/<konto>/<sida>/ visar sidan utan
+kampanj (addresses.page_for_address: bara kontot med just den delen). En
+publicerad sida är öppen för alla; en sida som aldrig publicerats är 404,
+utom för byrån (förhandsvisning). En tidigare adress skickar vidare (302,
+frågan kvar). Förfrågningar och klick på numret där har ingen kampanj
+(Lead.landing_page, källan i Lead.page_source) och går aldrig till Google.
+Kampanjens adress /lp/<page_slug>/ är oförändrad.
+
+Besöken (sources.py): en GET av sidan räknas i PageVisitDay med sin källa
+(Annons, Sms, E-post, en namngiven länk eller Direkt), högst en gång per
+besökare, sida, källa och timme, utan kakor. Inte byrån, kundens egna
+kontakter, förhandsvisningen, demokontot, förhämtningar eller bottar.
+
 Skydd: CSRF, ett osynligt honungsfält (en bot som fyller det får samma
 tack-sida, men ingen förfrågan skapas), spärrarna i limits.py (högst
 RATE_LIMIT förfrågningar i timmen per besökare och kampanj och högst
@@ -85,9 +98,10 @@ sanering i leads.py.
 """
 
 import logging
+from dataclasses import dataclass
 
 from django import forms
-from django.http import Http404, HttpResponse
+from django.http import Http404, HttpResponse, HttpResponseRedirect
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -95,8 +109,8 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from apps.projects.access import is_agency_user
 
+from . import addresses, leads, limits, pagebuilder, sms, sources
 from . import answers as form_answers
-from . import leads, limits, pagebuilder, sms
 from .manage_review import staff_state
 from .models import Campaign
 
@@ -390,73 +404,173 @@ def _limit_message(site, reason):
     return text + "Försök igen lite senare."
 
 
-def _layout_extra(request, campaign, preview, page, which):
+# ---------------------------------------------------------------------------
+# Vad som visas: kampanjens adress eller sidans egen (README Steg 2)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _Target:
+    """Sidan som visas och var den visas. campaign är None på sidans egen
+    adress; owner är det som utskickets token prövas mot (samma konto)."""
+
+    account: object
+    page: object
+    campaign: object
+    preview: bool
+    which: str
+    landing_url: str
+    thanks_url: str
+    call_url: str
+    beacon_url: str
+
+    @property
+    def owner(self):
+        return self.campaign if self.campaign is not None else self.page
+
+
+def _campaign_target(request, slug):
+    campaign, preview = _campaign_for(request, slug)
+    page, which = _page_for(request, campaign, preview)
+    args = [campaign.page_slug]
+    return _Target(
+        account=campaign.account,
+        page=page,
+        campaign=campaign,
+        preview=preview,
+        which=which,
+        landing_url=reverse("flamingo_public:landing", args=args),
+        thanks_url=reverse("flamingo_public:thanks", args=args),
+        call_url=reverse("flamingo_public:call_click", args=args),
+        beacon_url=reverse("flamingo_public:visit_beacon", args=args),
+    )
+
+
+def _found_page(account_slug, page_slug):
+    """(sidan, gammal adress?) eller 404. Bara kontot med just den delen
+    (addresses.page_for_address): ett annat kontos sida hittas aldrig."""
+    page, old = addresses.page_for_address(account_slug, page_slug)
+    if page is None:
+        raise Http404
+    return page, old
+
+
+def _moved(request, page, name):
+    """En tidigare adress: vidare till sidans adress nu, med frågan kvar
+    (ut, gclid och utm följer med). 302: adressen kan ändras tillbaka
+    innan sidan publiceras. Bara GET och HEAD; inget räknas här."""
+    if request.method not in ("GET", "HEAD"):
+        raise Http404
+    target = reverse(f"flamingo_public:{name}", args=[page.account.lp_slug, page.slug])
+    query = request.META.get("QUERY_STRING", "")
+    response = HttpResponseRedirect(f"{target}?{query}" if query else target)
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    response["Cache-Control"] = "no-store"
+    return response
+
+
+def _page_target(request, page):
+    """Sidans egen adress. En publicerad sida är öppen för alla, vilket läge
+    kontot än har. En sida som aldrig publicerats är 404, utom för byrån som
+    ser utkastet som förhandsvisning (remsan överst, formuläret skickar
+    inget). Byrån ser utkastet av en publicerad sida med ?utkast=1."""
+    staff = is_agency_user(request.user)
+    if not page.is_published:
+        if not staff:
+            raise Http404
+        preview, which = True, "draft"
+    else:
+        preview = False
+        which = "draft" if staff and request.GET.get(DRAFT_PARAM) == "1" else "published"
+    args = [page.account.lp_slug, page.slug]
+    return _Target(
+        account=page.account,
+        page=page,
+        campaign=None,
+        preview=preview,
+        which=which,
+        landing_url=reverse("flamingo_public:page", args=args),
+        thanks_url=reverse("flamingo_public:page_thanks", args=args),
+        call_url=reverse("flamingo_public:page_call_click", args=args),
+        beacon_url=reverse("flamingo_public:page_visit_beacon", args=args),
+    )
+
+
+def _layout_extra(request, target):
     """Layoutens kontext utöver sidan: remsan för byrån och länkarna mellan
     utkastet och den publicerade sidan."""
     is_staff = is_agency_user(request.user)
+    campaign = target.campaign
     extra = {
         "campaign": campaign,
-        "preview": preview,
+        "preview": target.preview,
         "is_staff": is_staff,
         # Remsan är byråns: byråns ord för läget ("Att granska", "Hos
         # kunden"), inte kundens ("Väntar på dig").
-        "status_label": staff_state(campaign, campaign.pending_review())[0] if is_staff else "",
-        "review_url": reverse("manage:flamingo_review", args=[campaign.pk]) if is_staff else "",
+        "status_label": staff_state(campaign, campaign.pending_review())[0]
+        if is_staff and campaign is not None
+        else "",
+        "review_url": reverse("manage:flamingo_review", args=[campaign.pk])
+        if is_staff and campaign is not None
+        else "",
         "draft_url": "",
         "published_url": "",
+        # Tacksidans "Tillbaka till sidan".
+        "back_url": target.landing_url,
     }
     if is_staff:
-        extra["draft_url"] = f"{campaign.landing_url}?{DRAFT_PARAM}=1"
-        if page.is_published:
-            extra["published_url"] = campaign.landing_url
+        extra["draft_url"] = f"{target.landing_url}?{DRAFT_PARAM}=1"
+        if target.page.is_published:
+            extra["published_url"] = target.landing_url
     return extra
 
 
-def _measure_context(request, campaign, preview):
+def _measure_context(request, target):
     """Mätningen på sidan (flamingo-lp.js):
 
     call_beacon   adressen klicken på numret skickas till, eller "" när
                   inget ska räknas: förhandsvisningen, demokonton, byrån och
                   kundens egna kontakter (ett klick för att kontrollera
                   numret är ingen förfrågan)"""
-    counted = not preview and not campaign.account.is_demo and not _not_counted(request, campaign)
-    return {
-        "call_beacon": reverse("flamingo_public:call_click", args=[campaign.page_slug])
-        if counted
-        else "",
-    }
+    counted = (
+        not target.preview
+        and not target.account.is_demo
+        and not _not_counted(request, target.account)
+    )
+    return {"call_beacon": target.call_url if counted else ""}
 
 
-def _utskick_click(campaign, *sources):
-    """(ut, klicket) när besöket kommer från ett utskick hos samma konto,
-    annars ("", None). Felaktiga och främmande token ignoreras helt (E.4)."""
+def _utskick_click(owner, *sources):
+    """(ut, klicket) när besöket kommer från ett utskick eller en namngiven
+    länk hos samma konto som owner (kampanjen eller sidan), annars ("",
+    None). Felaktiga och främmande token ignoreras helt (E.4)."""
     ut = leads.ut_from(*sources)
     if not ut:
         return "", None
     from apps.utskick import attribution
 
-    click = attribution.resolve(ut, campaign)
+    click = attribution.resolve(ut, owner)
     return (ut, click) if click is not None else ("", None)
 
 
-def _own_visit(request, campaign):
-    """Är besökaren inloggad som kontakt hos kampanjens kund? Kundens egna
+def _own_visit(request, account):
+    """Är besökaren inloggad som kontakt hos kontots kund? Kundens egna
     besök (till exempel "Öppna sidan" i verktyget) räknas inte."""
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
         return False
-    return user.customers.filter(pk=campaign.account.customer_id).exists()
+    return user.customers.filter(pk=account.customer_id).exists()
 
 
-def _not_counted(request, campaign):
+def _not_counted(request, account):
     """Byrån och kundens egna kontakter räknas aldrig som besökare."""
-    return is_agency_user(request.user) or _own_visit(request, campaign)
+    return is_agency_user(request.user) or _own_visit(request, account)
 
 
-def _counted_visit(request, campaign, preview):
-    """Loggas besöket från ett utskick? Inte för byrån, kundens egna
-    kontakter, förhandsvisningen eller demokontot (E.4)."""
-    return not preview and not campaign.account.is_demo and not _not_counted(request, campaign)
+def _counted_visit(request, account, preview):
+    """Räknas besöket (och loggas besöket från ett utskick)? Inte för
+    byrån, kundens egna kontakter, förhandsvisningen eller demokontot (E.4)."""
+    return not preview and not account.is_demo and not _not_counted(request, account)
 
 
 def _respond(html, status=200):
@@ -465,12 +579,11 @@ def _respond(html, status=200):
     return response
 
 
-@require_http_methods(["GET", "HEAD", "POST"])
-def landing(request, slug):
-    campaign, preview = _campaign_for(request, slug)
-    page, which = _page_for(request, campaign, preview)
-    account = campaign.account
-    blocks = page.blocks_for(which)
+def _serve(request, target):
+    """Sidan med formuläret: visa (GET) eller ta emot en förfrågan (POST),
+    på kampanjens adress eller sidans egen."""
+    page, account, campaign = target.page, target.account, target.campaign
+    blocks = page.blocks_for(target.which)
     # Sidan utan formulär (bara ringknappar) tar ändå emot en postning med
     # det korta formulärets fält, så att ingen förfrågan tappas.
     spec = pagebuilder.form_spec(blocks) or pagebuilder.FormSpec()
@@ -478,37 +591,43 @@ def landing(request, slug):
     consent = _lp_consent(account, spec)
     status = 200
     post = request.POST if request.method == "POST" else None
-    ut, click = _utskick_click(campaign, post, request.GET)
-    counted = _counted_visit(request, campaign, preview)
-    if request.method == "GET" and click is not None and counted:
-        from apps.utskick import attribution
+    ut, click = _utskick_click(target.owner, post, request.GET)
+    counted = _counted_visit(request, account, target.preview)
+    if request.method == "GET" and counted:
+        if click is not None:
+            from apps.utskick import attribution
 
-        attribution.record_lp_visit(click, campaign)
+            attribution.record_lp_visit(click, target.owner)
+        if sources.is_counted_request(request):
+            sources.record_visit(page, sources.origin_for(campaign, click, tracking), request)
 
     if request.method == "POST":
+        owner_text = f"kampanj {campaign.pk}" if campaign is not None else f"sida {page.pk}"
         if request.POST.get(HONEYPOT, ""):
             # Samma svar som en lyckad förfrågan, utan sidoeffekter: boten
             # ska inte lära sig vad som stoppade den.
-            logger.warning("flamingo lp: honungsfältet ifyllt (kampanj %s)", campaign.pk)
-            return redirect("flamingo_public:thanks", slug=campaign.page_slug)
+            logger.warning("flamingo lp: honungsfältet ifyllt (%s)", owner_text)
+            return redirect(target.thanks_url)
         form = LeadForm(request.POST, spec=spec, consent=consent)
         if form.is_valid():
-            if preview:
+            if target.preview:
                 # Förhandsvisningen skapar ingen förfrågan och skickar inget.
-                return redirect("flamingo_public:thanks", slug=campaign.page_slug)
+                return redirect(target.thanks_url)
             lead, refused = limits.create_form_lead(
-                campaign, form.lead_data(), request, click=click
+                campaign,
+                form.lead_data(),
+                request,
+                click=click,
+                page=page if campaign is None else None,
             )
             if lead is not None:
                 email_ticked = _capture(lead, form, request, click if lead.utskick_id else None)
                 sms.notify_new_lead(lead)
-                thanks_url = reverse("flamingo_public:thanks", args=[campaign.page_slug])
+                thanks_url = target.thanks_url
                 if email_ticked:
                     thanks_url += f"?{EMAIL_PENDING_PARAM}=1"
                 return redirect(thanks_url)
-            logger.warning(
-                "flamingo lp: för många förfrågningar (%s, kampanj %s)", refused, campaign.pk
-            )
+            logger.warning("flamingo lp: för många förfrågningar (%s, %s)", refused, owner_text)
             site = pagebuilder.render.site_info(page, account, blocks)
             form.add_error(None, _limit_message(site, refused))
             status = 429
@@ -518,20 +637,51 @@ def landing(request, slug):
         initial = form_answers.initial_for(spec, request.GET.getlist(form_answers.PRESELECT_PARAM))
         form = LeadForm(spec=spec, consent=consent, initial=initial)
 
-    extra = _layout_extra(request, campaign, preview, page, which)
-    extra.update(_measure_context(request, campaign, preview))
+    extra = _layout_extra(request, target)
+    extra.update(_measure_context(request, target))
     extra.update({"tracking": tracking, "action": request.get_full_path(), "lp_consent": consent})
     # Utskicket (E.4): det dolda fältet ut och besöksanropet för tiden på sidan.
     extra["ut"] = ut
-    extra["visit_beacon"] = (
-        reverse("flamingo_public:visit_beacon", args=[campaign.page_slug])
-        if click is not None and counted
-        else ""
-    )
+    extra["visit_beacon"] = target.beacon_url if click is not None and counted else ""
     html = pagebuilder.render_page_html(
-        page, account, campaign, which=which, request=request, form=form, extra=extra
+        page, account, campaign, which=target.which, request=request, form=form, extra=extra
     )
     return _respond(html, status=status)
+
+
+def _thanks(request, target):
+    extra = _layout_extra(request, target)
+    extra["email_pending_text"] = (
+        EMAIL_PENDING_TEXT if request.GET.get(EMAIL_PENDING_PARAM) == "1" else ""
+    )
+    context = pagebuilder.page_view_context(
+        target.page,
+        target.account,
+        target.campaign,
+        which=target.which,
+        request=request,
+        extra=extra,
+    )
+    response = render(request, pagebuilder.render.THANKS_TEMPLATE, context)
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
+def _beacon_response():
+    response = HttpResponse(status=204)
+    response["Cache-Control"] = "no-store"
+    response["X-Robots-Tag"] = "noindex, nofollow"
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Kampanjens adress: /lp/<page_slug>/ (oförändrad, Google Ads pekar hit)
+# ---------------------------------------------------------------------------
+
+
+@require_http_methods(["GET", "HEAD", "POST"])
+def landing(request, slug):
+    return _serve(request, _campaign_target(request, slug))
 
 
 def _live_campaign(slug, data=None):
@@ -568,10 +718,8 @@ def call_click(request, slug):
     och kundens egna kontakter räknas inte. Med utskickets ut
     (flamingo-lp.js skickar den) får förfrågan utskicket och spåret."""
     campaign, click = _live_campaign(slug, request.POST)
-    response = HttpResponse(status=204)
-    response["Cache-Control"] = "no-store"
-    response["X-Robots-Tag"] = "noindex, nofollow"
-    if _not_counted(request, campaign):
+    response = _beacon_response()
+    if _not_counted(request, campaign.account):
         return response
     lead, refused = limits.create_call_click_lead(campaign, request.POST, request, click=click)
     if lead is None and refused != limits.LIMIT_DUPLICATE:
@@ -585,6 +733,16 @@ def call_click(request, slug):
 VISIT_BEACON_MAX_BYTES = 512
 
 
+def _record_beacon(request, owner, account):
+    if account.is_demo or _own_visit(request, account):
+        return
+    _ut, click = _utskick_click(owner, request.POST)
+    if click is not None:
+        from apps.utskick import attribution
+
+        attribution.record_beacon(click, request.POST.get("s", ""))
+
+
 @csrf_exempt
 @require_POST
 def visit_beacon(request, slug):
@@ -595,33 +753,73 @@ def visit_beacon(request, slug):
     token gällde). Token från ett annat konto, byrån, kundens egna kontakter
     och demokontot ignoreras; högst en skrivning per klick och tio sekunder
     (attribution.record_beacon)."""
-    response = HttpResponse(status=204)
-    response["Cache-Control"] = "no-store"
-    response["X-Robots-Tag"] = "noindex, nofollow"
+    response = _beacon_response()
     if len(request.body or b"") > VISIT_BEACON_MAX_BYTES or is_agency_user(request.user):
         return response
     campaign = Campaign.objects.select_related("account").filter(page_slug=slug).first()
-    if campaign is None or campaign.account.is_demo or _own_visit(request, campaign):
-        return response
-    _ut, click = _utskick_click(campaign, request.POST)
-    if click is not None:
-        from apps.utskick import attribution
-
-        attribution.record_beacon(click, request.POST.get("s", ""))
+    if campaign is not None:
+        _record_beacon(request, campaign, campaign.account)
     return response
 
 
 @require_http_methods(["GET", "HEAD"])
 def thanks(request, slug):
-    campaign, preview = _campaign_for(request, slug)
-    page, which = _page_for(request, campaign, preview)
-    extra = _layout_extra(request, campaign, preview, page, which)
-    extra["email_pending_text"] = (
-        EMAIL_PENDING_TEXT if request.GET.get(EMAIL_PENDING_PARAM) == "1" else ""
+    return _thanks(request, _campaign_target(request, slug))
+
+
+# ---------------------------------------------------------------------------
+# Sidans egen adress: /lp/<konto>/<sida>/ (README Steg 2)
+# ---------------------------------------------------------------------------
+
+
+@require_http_methods(["GET", "HEAD", "POST"])
+def page_landing(request, account, page):
+    found, old = _found_page(account, page)
+    if old:
+        return _moved(request, found, "page")
+    return _serve(request, _page_target(request, found))
+
+
+@require_http_methods(["GET", "HEAD"])
+def page_thanks(request, account, page):
+    found, old = _found_page(account, page)
+    if old:
+        return _moved(request, found, "page_thanks")
+    return _thanks(request, _page_target(request, found))
+
+
+@require_POST
+def page_call_click(request, account, page):
+    """Ett klick på numret på sidans egen adress (som call_click). Räknas
+    när sidan är publicerad, kontot aktiverat, kunden aktiv och kontot inte
+    demo; annars 404. Spärrarna räknas per sida (limits)."""
+    found, old = _found_page(account, page)
+    owner = found.account
+    if old or not (
+        found.is_published and owner.is_enabled and owner.customer.is_active and not owner.is_demo
+    ):
+        raise Http404
+    _ut, click = _utskick_click(found, request.POST)
+    response = _beacon_response()
+    if _not_counted(request, owner):
+        return response
+    lead, refused = limits.create_call_click_lead(
+        None, request.POST, request, click=click, page=found
     )
-    context = pagebuilder.page_view_context(
-        page, campaign.account, campaign, which=which, request=request, extra=extra
-    )
-    response = render(request, pagebuilder.render.THANKS_TEMPLATE, context)
-    response["X-Robots-Tag"] = "noindex, nofollow"
+    if lead is None and refused != limits.LIMIT_DUPLICATE:
+        logger.warning("flamingo lp: för många klick på numret (%s, sida %s)", refused, found.pk)
+    return response
+
+
+@csrf_exempt
+@require_POST
+def page_visit_beacon(request, account, page):
+    """Tiden på sidan för ett besök från ett utskick eller en namngiven länk,
+    på sidans egen adress (som visit_beacon)."""
+    response = _beacon_response()
+    if len(request.body or b"") > VISIT_BEACON_MAX_BYTES or is_agency_user(request.user):
+        return response
+    found, old = addresses.page_for_address(account, page)
+    if found is not None and not old:
+        _record_beacon(request, found, found.account)
     return response

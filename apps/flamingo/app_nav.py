@@ -1,17 +1,19 @@
 """
 Verktygets meny (/flamingo/app/): sex punkter och flikarna under rubriken.
 
-Godkänd mockup: mockups/flamingo-meny.html (2026-10-28). Steg 1 av 2: bara
-menyn, grupperingen och rubrikerna ändras, inga adresser. Steg 2 ger
-landningssidorna egna adresser och statistik per källa; då får
-Landningssidor flikar här (SECTION_TABS["pages"]) utan att något annat
-behöver ändras.
+Godkänd mockup: mockups/flamingo-meny.html (2026-10-28). Steg 1 gav menyn,
+grupperingen och rubrikerna. Steg 2 (README, Steg 2) gav landningssidorna
+egna adresser och statistik per källa: en sida har flikarna Statistik,
+Länkar per källa och Svar i formuläret (SECTION_TABS["pages"]). De flikarna
+hör till en sida (Tab.per_object): adressen tar sidans id (tab_args), och
+listan Landningssidor har ingen flikrad.
 
     MAIN_NAV                    de sex punkterna i ordning
     SECTION_TABS                flikarna i varje del
     PAGE_KEYS                   varje giltig sidnyckel ("del" eller "del/flik")
     main_nav(account)           punkterna kontot ser (Sms och e-post bara med utskick)
-    section_tabs(section, tab, account)   flikraden med den aktiva markerad
+    section_tabs(section, tab, account, args=None)   flikraden med den aktiva markerad;
+                                args är id:t för flikar som hör till en sak (per_object)
     split_key(key)              "ads/google" -> ("ads", "google")
 
 Varje sida i verktyget säger var den hör hemma med en sidnyckel till
@@ -72,6 +74,9 @@ class Tab:
     label: str
     #: Fliken syns bara när villkoret gäller för kontot (CONDITIONS).
     needs: str = ""
+    #: Fliken hör till en sak (en landningssida) och adressen tar dess id;
+    #: utan id (listan) syns den inte.
+    per_object: bool = False
 
 
 #: De sex punkterna i ordning (mockupen).
@@ -86,6 +91,12 @@ MAIN_NAV = (
 
 #: Flikarna under rubriken i varje del. En del utan flikar har ingen rad.
 SECTION_TABS = {
+    # En landningssida (README Steg 2). Redigera öppnar sidbyggaren (ingen flik).
+    "pages": (
+        Tab("stats", "flamingo:app_page_stats", "Statistik", per_object=True),
+        Tab("links", "flamingo:app_page_links", "Länkar per källa", per_object=True),
+        Tab("answers", "flamingo:app_page_answers", "Svar i formuläret", per_object=True),
+    ),
     "ads": (
         Tab("campaigns", "flamingo:app_campaigns", "Kampanjer"),
         Tab("google", "flamingo:app_google", "Google-kontot"),
@@ -156,17 +167,20 @@ def main_nav(account):
     ]
 
 
-def section_tabs(section, tab, account):
+def section_tabs(section, tab, account, args=None):
     """Flikraden för delen: [{"key", "url", "label", "current"}], tom för
-    en del utan flikar."""
+    en del utan flikar. En flik som hör till en sak (per_object) syns bara
+    med args (sakens id i adressen)."""
     out = []
     for row in SECTION_TABS.get(section, ()):
         if row.needs and not CONDITIONS[row.needs](account):
             continue
+        if row.per_object and not args:
+            continue
         out.append(
             {
                 "key": row.key,
-                "url": reverse(row.url_name),
+                "url": reverse(row.url_name, args=args if row.per_object else None),
                 "label": row.label,
                 "current": row.key == tab,
             }

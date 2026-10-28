@@ -422,8 +422,11 @@ def snippet_tag(site):
 #   own_site(account) -> str              kundens webbplats ur kundregistret, eller ""
 #   request_host(account, host, user) -> AllowedHost
 #   request_if_new(account, url, user)    en ny värd blir väntande (och byrån larmas)
-#   add_link(utskick, *, key, campaign=None, destination="", label="", user=None,
-#            request_new=True, preselect="")
+#   add_link(utskick, *, key, campaign=None, page=None, destination="", label="",
+#            user=None, request_new=True, preselect="")
+#                                         page: direkt till en landningssida (sidans egen
+#                                         adress, Flamingos README Steg 2), utan kampanj
+#   lp_target_url(link) -> str            sidans eller kampanjens adress för en lp-länk
 #   link_problems(utskick) -> list[str]   Granska och förkontrollerna blockerar (I.6)
 #   destination_ok(link) -> bool          klicket: får länken fortfarande gå dit?
 #   check_destinations(account, urls) -> {url: True | False | None}
@@ -956,6 +959,7 @@ def add_link(
     *,
     key,
     campaign=None,
+    page=None,
     destination="",
     label="",
     user=None,
@@ -969,7 +973,9 @@ def add_link(
     request_new=False: den som anropar begär värden själv efteråt
     (request_if_new), utanför sitt radlås, eftersom larmet är ett mejl.
     preselect ("tjanst.reparation") förväljer ett svar i sidans formulär
-    (?val=); det ska finnas på kampanjens sida, annars PRESELECT_TEXT."""
+    (?val=); det ska finnas på kampanjens sida, annars PRESELECT_TEXT. page
+    (en landningssida hos kontot) går till sidans egen adress, utan kampanj
+    (Flamingos README Steg 2)."""
     from apps.flamingo import answers as form_answers
     from apps.flamingo.exports import landing_page_url
 
@@ -979,14 +985,15 @@ def add_link(
         raise LinkRefused(LOCKED_TEXT)
     key = _clean_key(key)
     account = utskick.account
-    if campaign is not None:
-        if campaign.account_id != utskick.account_id:
+    target = page if page is not None else campaign
+    if target is not None:
+        if target.account_id != utskick.account_id:
             raise LinkRefused(CAMPAIGN_TEXT)
         kind = TrackedLink.Kind.LP
-        cleaned = landing_page_url(campaign)
+        cleaned = landing_page_url(target)
         preselect = str(preselect or "").strip()
         if preselect:
-            if preselect not in dict(form_answers.preselect_choices(campaign)):
+            if preselect not in dict(form_answers.preselect_choices(target)):
                 raise LinkRefused(PRESELECT_TEXT)
             cleaned = form_answers.with_preselect(cleaned, preselect)
     else:
@@ -1000,7 +1007,8 @@ def add_link(
         defaults={
             "account": account,
             "kind": kind,
-            "campaign": campaign,
+            "campaign": campaign if page is None else None,
+            "landing_page": page,
             "destination": cleaned[:URL_MAX],
             "label": str(label or "")[:120],
         },
@@ -1044,16 +1052,39 @@ def link_problems(utskick):
     return problems
 
 
+def _lp_target(link):
+    """Landningssidan eller kampanjen en lp-länk går till, eller None (borta)."""
+    if link.kind != link.Kind.LP:
+        return None
+    if link.landing_page_id and link.landing_page is not None:
+        return link.landing_page
+    if link.campaign_id and link.campaign is not None:
+        return link.campaign
+    return None
+
+
+def lp_target_url(link):
+    """Den absoluta adressen en lp-länk går till nu: sidans egen adress
+    (Flamingos README Steg 2) eller kampanjens. "" när målet är borta."""
+    from apps.flamingo.exports import landing_page_url
+
+    target = _lp_target(link)
+    if target is None:
+        return ""
+    with site_urls():
+        return landing_page_url(target)
+
+
 def bare_destination(link):
     """Målet utan ut och utm (HEAD, E.3). En Flamingo-sida behåller ankaret
     som länken i mejlet hade (#boka, S3) och förvalet i formuläret
-    (?val=tjanst.reparation, answers.preselect_of)."""
-    if link.kind == link.Kind.LP and link.campaign_id and link.campaign is not None:
+    (?val=tjanst.reparation, answers.preselect_of). En länk direkt till en
+    landningssida går till sidans egen adress, också om adressen ändrats
+    efter att länken skapades."""
+    if _lp_target(link) is not None:
         from apps.flamingo import answers as form_answers
-        from apps.flamingo.exports import landing_page_url
 
-        with site_urls():
-            url = landing_page_url(link.campaign)
+        url = lp_target_url(link)
         preselect = form_answers.preselect_of(link.destination)
         if preselect:
             url = form_answers.with_preselect(url, preselect)

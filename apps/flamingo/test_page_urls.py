@@ -1,10 +1,9 @@
 """ADX Flamingo: sidornas adresser i verktyget (Giovanni 2026-10-10, "Good
 build the landing page urls").
 
-    PageListLinkTests     listan: "Öppna sidan" till kampanjens /lp/<slug>/,
-                          en länk per kampanj på en delad sida, "Förhandsvisa"
-                          för en sida utan kampanj
-    EditorAddressTests    sidbyggaren: "Visa sidan", adressen och Kopiera
+    PageListLinkTests     listan: sidans egna adress (README Steg 2), "Öppna
+                          sidan" dit när den är publicerad, annars "Förhandsvisa"
+    EditorAddressTests    sidbyggaren: "Visa sidan", sidans egna adress och Kopiera
     CampaignStatusLinkTests  samma adress i varje läge (utkast, granskas,
                           väntar på kunden, pausad): sidan är alltid öppen
     PagePreviewTests      förhandsvisningen: bara inloggad, bara kundens egen
@@ -151,52 +150,57 @@ class PageUrlFixture:
 
 @override_settings(**LANDING_BASE)
 class PageListLinkTests(PageUrlFixture, TestCase):
+    """Steg 2 (README): varje sida visar sin egna adress
+    (/lp/<konto>/<sida>/), "Öppna sidan" dit när den är publicerad och
+    "Förhandsvisa" annars. Kampanjernas adresser står under Länkar per källa."""
+
     def html(self, user=None, **kwargs):
         client = self.client_for(user or self.kund, **kwargs)
         return client.get(reverse("flamingo:app_pages")).content.decode()
 
-    def test_one_campaign_opens_its_address_in_a_new_tab(self):
+    def test_a_published_page_opens_its_own_address_in_a_new_tab(self):
         html = self.html()
+        self.assertEqual(self.single.landing_url, "/lp/cs-auto/dack/")
         self.assertIn(
-            f'<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{self.live.landing_url}" '
+            f'<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{self.single.landing_url}" '
             'target="_blank" rel="noopener">Öppna sidan<span class="fl-sr"> Däck (ny flik)'
             "</span></a>",
             html,
         )
+        self.assertIn('<p class="fl-pg-rowaddr">adx.se/lp/cs-auto/dack</p>', html)
         self.assertIn("css/flamingo-app-pages.css", html)
 
-    def test_a_shared_page_gets_one_link_per_campaign_next_to_its_name(self):
+    def test_a_shared_page_has_one_own_address_not_one_per_campaign(self):
         html = self.html()
+        self.assertIn('<p class="fl-pg-rowaddr">adx.se/lp/cs-auto/service</p>', html)
         for campaign in (self.nacka, self.varmdo):
             with self.subTest(campaign=campaign.name):
-                self.assertIn(
-                    f'?flik=sidan">{campaign.name}</a><a class="fl-pg-open" '
-                    f'href="{campaign.landing_url}" target="_blank" rel="noopener">Öppna sidan'
-                    f'<span class="fl-sr"> för {campaign.name} (ny flik)</span></a>',
-                    html,
-                )
-        # Inget gemensamt "Öppna sidan" för den delade sidan: länkarna står
-        # vid kampanjerna (Däck har sin egen knapp).
+                self.assertNotIn(f'href="{campaign.landing_url}"', html)
+                self.assertIn(f'?flik=sidan">{campaign.name}</a>', html)
         self.assertEqual(html.count(">Öppna sidan<"), 3)
 
-    def test_a_page_without_campaign_gets_a_preview(self):
+    def test_an_unpublished_page_gets_a_preview(self):
+        draft = LandingPage.objects.create(account=self.account, name="Höstkampanj")
         html = self.html()
         self.assertIn(
-            f'href="{self.preview_url()}" target="_blank" rel="noopener">Förhandsvisa'
-            '<span class="fl-sr"> Vinter (ny flik)</span>',
+            f'href="{self.preview_url(draft)}" target="_blank" rel="noopener">Förhandsvisa'
+            '<span class="fl-sr"> Höstkampanj (ny flik)</span>',
             html,
         )
+        self.assertIn('<p class="fl-pg-rowaddr">adx.se/lp/cs-auto/hostkampanj</p>', html)
         self.assertEqual(html.count(">Förhandsvisa<"), 1)
-        self.assertNotIn(self.preview_url(self.single), html)
+        self.assertNotIn(f'href="{draft.landing_url}"', html)
+
+    def test_each_row_has_statistics_and_edit(self):
+        html = self.html()
+        for page in (self.single, self.shared, self.unused):
+            with self.subTest(page=page.name):
+                self.assertIn(reverse("flamingo:app_page_stats", args=[page.pk]), html)
+                self.assertIn(f'href="{reverse("flamingo:app_page", args=[page.pk])}"', html)
 
     def test_staff_viewing_as_the_customer_sees_the_same_links(self):
         html = self.html(self.staff, view_as=self.customer)
-        for href in (
-            self.live.landing_url,
-            self.nacka.landing_url,
-            self.varmdo.landing_url,
-            self.preview_url(),
-        ):
+        for href in (self.single.landing_url, self.shared.landing_url, self.unused.landing_url):
             with self.subTest(href=href):
                 self.assertIn(f'href="{href}" target="_blank" rel="noopener">', html)
 
@@ -213,63 +217,61 @@ class PageListLinkTests(PageUrlFixture, TestCase):
 
 @override_settings(**LANDING_BASE)
 class EditorAddressTests(PageUrlFixture, TestCase):
+    """Remsan under toppraden visar sidans egna adress (README Steg 2), en
+    gång, också för en delad sida."""
+
     def html(self, page, user=None, **kwargs):
         client = self.client_for(user or self.kund, **kwargs)
         response = client.get(reverse("flamingo:app_page", args=[page.pk]))
         self.assertEqual(response.status_code, 200)
         return response.content.decode()
 
-    def test_one_campaign_shows_view_page_the_address_and_copy(self):
+    def test_a_published_page_shows_view_page_the_address_and_copy(self):
         html = self.html(self.single)
-        address = f"https://adx.se/lp/{self.live.page_slug}/"
         self.assertIn(
-            f'<a class="pb-btn pb-btn--ghost pb-btn--sm" href="{self.live.landing_url}" '
+            f'<a class="pb-btn pb-btn--ghost pb-btn--sm" href="{self.single.landing_url}" '
             'target="_blank" rel="noopener">Visa sidan<span class="fl-sr"> (ny flik)</span></a>',
             html,
         )
-        self.assertIn(f'<span class="fl-pg-addr__url">{address}</span>', html)
+        self.assertIn('<span class="fl-pg-addr__url">adx.se/lp/cs-auto/dack</span>', html)
         # Kopiera är dold utan skript (flamingo-app-links.js visar den);
         # adressen står kvar som text att markera.
-        self.assertIn(f'data-ln-copy="{address}" hidden>Kopiera', html)
+        self.assertIn('data-ln-copy="https://adx.se/lp/cs-auto/dack/" hidden>Kopiera', html)
         self.assertIn("js/flamingo-app-links.js", html)
         self.assertIn("css/flamingo-app-pages.css", html)
         self.assertNotIn(">Förhandsvisa<", html)
+        self.assertNotIn(self.live.landing_url, html)
 
-    def test_a_shared_page_has_one_row_per_campaign(self):
+    def test_a_shared_page_has_one_address(self):
         html = self.html(self.shared)
-        for campaign in (self.nacka, self.varmdo):
-            with self.subTest(campaign=campaign.name):
-                self.assertIn(f'<span class="fl-pg-addr__camp">{campaign.name}</span>', html)
-                self.assertIn(f'href="{campaign.landing_url}" target="_blank"', html)
-                self.assertIn(f'data-ln-copy="https://adx.se/lp/{campaign.page_slug}/"', html)
-        self.assertEqual(html.count(">Visa sidan<"), 2)
+        self.assertEqual(html.count(">Visa sidan<"), 1)
+        self.assertIn('data-ln-copy="https://adx.se/lp/cs-auto/service/"', html)
+        self.assertNotIn("fl-pg-addr__camp", html)
 
-    def test_no_campaign_means_preview_and_nothing_to_copy(self):
-        html = self.html(self.unused)
+    def test_an_unpublished_page_means_preview_and_nothing_to_copy(self):
+        draft = LandingPage.objects.create(account=self.account, name="Höstkampanj")
+        html = self.html(draft)
         self.assertIn(
-            f'href="{self.preview_url()}" target="_blank" rel="noopener">Förhandsvisa', html
+            f'href="{self.preview_url(draft)}" target="_blank" rel="noopener">Förhandsvisa', html
         )
-        self.assertIn(
-            "Förhandsvisningen visar utkastet och syns bara för den som är inloggad. "
-            "Sidan får en adress när en kampanj använder den.",
-            html,
-        )
+        self.assertIn('<span class="fl-pg-addr__url">adx.se/lp/cs-auto/hostkampanj</span>', html)
+        self.assertIn("Adressen öppnas för besökarna när du publicerar sidan.", html)
         self.assertNotIn("data-ln-copy", html)
         self.assertNotIn(">Visa sidan<", html)
 
     @override_settings(FLAMINGO_LANDING_BASE_URL="https://sidor.example")
-    def test_the_copied_address_is_the_one_the_ads_use(self):
-        """Kopiera ger annonsernas adress (exports.landing_page_url); länken
+    def test_the_copied_address_is_the_public_one(self):
+        """Kopiera ger den publika adressen (exports.landing_base_url); länken
         går till samma värd som verktyget, så att inloggningen följer med och
         besöket inte räknas."""
         html = self.html(self.single)
-        self.assertIn(f'data-ln-copy="https://sidor.example/lp/{self.live.page_slug}/"', html)
-        self.assertIn(f'href="{self.live.landing_url}" target="_blank"', html)
+        self.assertIn('data-ln-copy="https://sidor.example/lp/cs-auto/dack/"', html)
+        self.assertIn(f'href="{self.single.landing_url}" target="_blank"', html)
 
     def test_staff_viewing_as_the_customer_gets_the_same_strip(self):
         html = self.html(self.single, user=self.staff, view_as=self.customer)
         self.assertIn(
-            f'href="{self.live.landing_url}" target="_blank" rel="noopener">Visa sidan', html
+            f'href="{self.single.landing_url}" target="_blank" rel="noopener">Visa sidan', html
         )
 
 
@@ -277,7 +279,8 @@ class EditorAddressTests(PageUrlFixture, TestCase):
 class CampaignStatusLinkTests(PageUrlFixture, TestCase):
     """En kampanj som inte är live har samma adress: /lp/ är alltid öppen
     (public_views._campaign_for). Kunden ser den publicerade sidan, som en
-    besökare, och räknas inte."""
+    besökare, och räknas inte. Listan och sidbyggaren visar sidans egna
+    adress i varje läge (README Steg 2)."""
 
     STATUSES = (
         Campaign.STATUS_DRAFT,
@@ -286,21 +289,21 @@ class CampaignStatusLinkTests(PageUrlFixture, TestCase):
         Campaign.STATUS_PAUSED,
     )
 
-    def test_every_status_links_to_the_campaigns_address(self):
+    def test_every_status_keeps_the_campaigns_address_open(self):
         kund = self.client_for(self.kund)
         for status in self.STATUSES:
             with self.subTest(status=status):
                 Campaign.objects.filter(pk=self.live.pk).update(status=status)
                 html = kund.get(reverse("flamingo:app_pages")).content.decode()
                 self.assertIn(
-                    f'href="{self.live.landing_url}" target="_blank" rel="noopener">Öppna sidan'
+                    f'href="{self.single.landing_url}" target="_blank" rel="noopener">Öppna sidan'
                     '<span class="fl-sr"> Däck (ny flik)',
                     html,
                 )
                 editor = kund.get(reverse("flamingo:app_page", args=[self.single.pk]))
                 self.assertContains(
                     editor,
-                    f'href="{self.live.landing_url}" target="_blank" rel="noopener">Visa sidan',
+                    f'href="{self.single.landing_url}" target="_blank" rel="noopener">Visa sidan',
                 )
                 self.assertNotContains(editor, ">Förhandsvisa<")
                 page = kund.get(self.live.landing_url)
@@ -424,7 +427,9 @@ class DemoPageUrlTests(DemoFixture, TestCase):
         pages = list(LandingPage.objects.filter(account=self.account))
         self.assertTrue(pages)
         html = client.get(reverse("flamingo:app_pages")).content.decode()
-        self.assertIn(self.live.landing_url, html)
+        for page in pages:
+            with self.subTest(list=page.name):
+                self.assertIn(page.landing_url.rstrip("/").removeprefix("/"), html)
         for page in pages:
             with self.subTest(page=page.name):
                 editor = client.get(reverse("flamingo:app_page", args=[page.pk]))

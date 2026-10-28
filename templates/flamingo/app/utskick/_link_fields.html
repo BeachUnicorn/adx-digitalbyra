@@ -1,9 +1,12 @@
 {% comment %}
 Fälten för en namngiven länks beskrivning och mål (S4, länk-byggaren),
 i link_form.html (ny länk) och link.html (ändra). Kontext: values (label,
-target, campaign, address, preselect), errors, campaigns (kontots publicerade
-Flamingo-sidor), preselect_groups ([(kampanj, [(värde, text)])] för sidorna
-med ett flerval), target_lp, target_external. Fälten som bara gäller ett
+target, campaign, address, preselect, medium), errors, lp_options (väljarens
+grupper: Landningssidor, de publicerade sidornas egna adresser, och
+Kampanjernas adresser, [{label, items: [{value, name}]}], Flamingos steg 2),
+mediums (QR-kod, Instagram, Annat: var länken används, källan i
+landningssidans statistik), preselect_groups ([{value, name, choices}] för
+sidorna med ett flerval), target_lp, target_external. Fälten som bara gäller ett
 mål visas av flamingo-app-links.js ([data-ln-show-when]); utan skript syns
 båda och målet avgörs av valet. Förvälj svar har en grupp per sida; skriptet
 visar bara den valda sidans grupp och döljer fältet när sidan inget flerval
@@ -16,6 +19,13 @@ Utan skript syns alla grupper och servern prövar valet mot sidan.
   <p class="fl-field__help" id="ut-ln-label-help">Syns bara för dig, till exempel Affisch i verkstaden eller Instagram-profilen.</p>
   {% if errors.beskrivning %}<p class="fl-field__error" id="ut-ln-label-error">{{ errors.beskrivning }}</p>{% endif %}
 </div>
+<fieldset class="fl-field">
+  <legend class="fl-field__label">Var används länken?</legend>
+  <div class="fl-seg">
+    {% for value, label in mediums %}<label class="fl-seg__opt"><input type="radio" name="typ" value="{{ value }}"{% if values.medium == value %} checked{% endif %}><span>{{ label }}</span></label>{% endfor %}
+  </div>
+  <p class="fl-field__help">Syns som källa i landningssidans statistik.</p>
+</fieldset>
 <fieldset class="fl-field{% if errors.mal %} is-error{% endif %}">
   <legend class="fl-field__label">Vart går länken?</legend>
   <div class="fl-seg">
@@ -26,14 +36,14 @@ Utan skript syns alla grupper och servern prövar valet mot sidan.
 </fieldset>
 <div class="fl-field{% if errors.kampanj %} is-error{% endif %}" data-ln-show-when="mal={{ target_lp }}">
   <label class="fl-field__label" for="ut-ln-campaign">Flamingo-sida</label>
-  {% if campaigns %}
+  {% if lp_options %}
   <select class="fl-input" id="ut-ln-campaign" name="kampanj"{% if errors.kampanj %} aria-invalid="true" aria-describedby="ut-ln-campaign-error"{% endif %}>
     <option value="">Välj sida</option>
-    {% for campaign in campaigns %}<option value="{{ campaign.pk }}"{% if values.campaign == campaign.pk|stringformat:"d" %} selected{% endif %}>{{ campaign.name }}</option>{% endfor %}
+    {% for group in lp_options %}<optgroup label="{{ group.label }}">{% for item in group.items %}<option value="{{ item.value }}"{% if values.campaign == item.value %} selected{% endif %}>{{ item.name }}</option>{% endfor %}</optgroup>{% endfor %}
   </select>
-  <p class="fl-field__help">Full spårning: besök, tid på sidan och förfrågningar.</p>
+  <p class="fl-field__help">Full spårning: besök, tid på sidan och förfrågningar. En landningssida får länken på sin egen adress.</p>
   {% else %}
-  <p class="fl-field__help">Du har ingen publicerad Flamingo-sida än. Publicera en kampanj under Kampanjer, eller välj Egen adress.</p>
+  <p class="fl-field__help">Du har ingen publicerad Flamingo-sida än. Publicera en sida under Landningssidor, eller välj Egen adress.</p>
   {% endif %}
   {% if errors.kampanj %}<p class="fl-field__error" id="ut-ln-campaign-error">{{ errors.kampanj }}</p>{% endif %}
 </div>
@@ -42,8 +52,8 @@ Utan skript syns alla grupper och servern prövar valet mot sidan.
   <label class="fl-field__label" for="ut-ln-forval">Förvälj svar (valfritt)</label>
   <select class="fl-input" id="ut-ln-forval" name="forval" data-ln-preselect="ut-ln-campaign" aria-describedby="ut-ln-forval-help{% if errors.forval %} ut-ln-forval-error{% endif %}"{% if errors.forval %} aria-invalid="true"{% endif %}>
     <option value="">Inget förval</option>
-    {% for campaign, choices in preselect_groups %}<optgroup label="{{ campaign.name }}" data-ln-campaign="{{ campaign.pk }}">
-      {% for value, label in choices %}<option value="{{ value }}"{% if value == values.preselect and values.campaign == campaign.pk|stringformat:"d" %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    {% for group in preselect_groups %}<optgroup label="{{ group.name }}" data-ln-campaign="{{ group.value }}">
+      {% for value, label in group.choices %}<option value="{{ value }}"{% if value == values.preselect and values.campaign == group.value %} selected{% endif %}>{{ label }}</option>{% endfor %}
     </optgroup>{% endfor %}
   </select>
   <p class="fl-field__help" id="ut-ln-forval-help">Svaret är redan valt när besökaren öppnar sidan. Besökaren kan ändra det.</p>

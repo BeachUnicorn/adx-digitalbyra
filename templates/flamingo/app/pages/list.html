@@ -1,5 +1,5 @@
 {% extends "flamingo/app/base.html" %}
-{% load static flamingo_pages %}
+{% load static flamingo_app flamingo_pages %}
 {% comment %}
 Sidorna (app_views/pages.page_list, mockupen skärm 09): kontots
 landningssidor som kort med en liten bild av sidan (blocken i ordning, i
@@ -8,12 +8,15 @@ sidans färg), namnet, hur många kampanjer som visar den, läget och när den
 gör en kopia av utkastet; "Ta bort" går bara för en sida som ingen kampanj
 visar. "Svar" leder till svaren på formulärets flerval (page_answers) när
 sidan har ett flerval eller svar från förut. Kontext: rows [{page,
-campaigns, usage, state, state_kind, badge, changed, thumb, has_answers}],
-services.
-"Öppna sidan" (ny flik) går till kampanjens /lp/<slug>/; delar flera
-kampanjer sidan står en länk vid varje kampanjnamn. Utan kampanj blir det
-"Förhandsvisa" (utkastet, bara inloggad, app_views/page_preview.py).
-Adresserna kommer från filtret page_links (templatetags/flamingo_pages.py).
+campaigns, usage, state, state_kind, badge, changed, thumb, has_answers,
+address, href, numbers}], services.
+Steg 2 (README, mockups/flamingo-meny.html skärmen Landningssidor): varje
+sida visar sin egna adress (/lp/<konto>/<sida>/), siffrorna för 30 dagar
+(besök, förfrågningar och antal källor, sources.list_numbers), Statistik
+(sidans första flik), "Öppna sidan" (ny flik, sidans egen adress, bara när
+den är publicerad; annars "Förhandsvisa", utkastet, bara inloggad,
+app_views/page_preview.py) och Redigera. Kampanjerna som visar sidan står
+som namn; deras egna adresser finns under Länkar per källa.
 {% endcomment %}
 {% block app_title %}Landningssidor{% endblock %}
 {% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-pb.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/flamingo-app-pages.css' %}?v={{ static_version }}">{% endblock %}
@@ -22,7 +25,7 @@ Adresserna kommer från filtret page_links (templatetags/flamingo_pages.py).
   <div class="fl-app-head__text">
     <p class="fl-kicker">{{ customer.name }}</p>
     <h1 class="fl-app-title">Landningssidor</h1>
-    <p class="fl-app-lead">Landningssidorna dina annonser leder till. En egen sida per kampanj rekommenderas, men flera kampanjer som säljer samma sak kan dela en sida. En ändring på en delad sida syns i alla kampanjer som visar den.</p>
+    <p class="fl-app-lead">En sida per erbjudande. Varje sida har en egen adress, och varje källa (annons, sms, mejl, QR-kod, Instagram) får sin egen länk, så att du ser vad som ger förfrågningar.</p>
   </div>
   {% if not read_only and services %}
   <div class="fl-app-head__actions">
@@ -42,16 +45,18 @@ Adresserna kommer från filtret page_links (templatetags/flamingo_pages.py).
       </span>
     </a>
     <div class="pb-pagec__main">
-      <a class="pb-pagec__name" href="{% url 'flamingo:app_page' row.page.pk %}">{{ row.page.name }}</a>
+      <a class="pb-pagec__name" href="{% url 'flamingo:app_page_stats' row.page.pk %}">{{ row.page.name }}</a>
+      <p class="fl-pg-rowaddr">{{ row.address }}</p>
+      <p class="fl-pg-rownums">{% if row.page.is_published or row.numbers.visits or row.numbers.leads %}{{ row.numbers.visits|tal }} besök<span class="pb-sep" aria-hidden="true"></span>{{ row.numbers.leads|tal }} {% if row.numbers.leads == 1 %}förfrågan{% else %}förfrågningar{% endif %}<span class="pb-sep" aria-hidden="true"></span>{{ row.numbers.sources|tal }} {% if row.numbers.sources == 1 %}källa{% else %}källor{% endif %}<span class="fl-sr"> de senaste 30 dagarna</span>{% else %}Inte publicerad än{% endif %}</p>
       <p class="pb-pagec__meta">{{ row.usage }}<span class="pb-sep" aria-hidden="true"></span>ändrad {{ row.changed }}<span class="pb-sep" aria-hidden="true"></span>Färg: {{ row.page.get_palette_display|lower }}</p>
-      {% if row.campaigns|length > 1 %}<ul class="pb-pagec__camps fl-pg-camps">{% for link in row.campaigns|page_links %}<li class="fl-pg-camps__item"><a href="{% url 'flamingo:app_campaign' link.campaign.pk %}?flik=sidan">{{ link.campaign.name }}</a><a class="fl-pg-open" href="{{ link.href }}" target="_blank" rel="noopener">Öppna sidan<span class="fl-sr"> för {{ link.campaign.name }} (ny flik)</span></a></li>{% endfor %}</ul>
-      {% elif row.campaigns %}<p class="pb-pagec__camps">{% for c in row.campaigns %}<a href="{% url 'flamingo:app_campaign' c.pk %}?flik=sidan">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
+      {% if row.campaigns %}<p class="pb-pagec__camps">{% for c in row.campaigns %}<a href="{% url 'flamingo:app_campaign' c.pk %}?flik=sidan">{{ c.name }}</a>{% if not forloop.last %}, {% endif %}{% endfor %}</p>{% endif %}
     </div>
     <div class="pb-pagec__side">
       {% if row.state_kind == "published" %}<span class="fl-badge fl-badge--paused">Publicerad, ingen kampanj live</span>{% else %}<span class="fl-badge fl-badge--{{ row.badge }}">{{ row.state }}</span>{% endif %}
       <div class="pb-pagec__actions">
+        <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_page_stats' row.page.pk %}">Statistik<span class="fl-sr"> för {{ row.page.name }}</span></a>
+        {% if row.page.is_published %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ row.href }}" target="_blank" rel="noopener">Öppna sidan<span class="fl-sr"> {{ row.page.name }} (ny flik)</span></a>{% else %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% page_preview_url row.page %}" target="_blank" rel="noopener">Förhandsvisa<span class="fl-sr"> {{ row.page.name }} (ny flik)</span></a>{% endif %}
         <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_page' row.page.pk %}">Redigera<span class="fl-sr"> {{ row.page.name }}</span></a>
-        {% if row.campaigns|length == 1 %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{{ row.campaigns.0.landing_url }}" target="_blank" rel="noopener">Öppna sidan<span class="fl-sr"> {{ row.page.name }} (ny flik)</span></a>{% elif not row.campaigns %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% page_preview_url row.page %}" target="_blank" rel="noopener">Förhandsvisa<span class="fl-sr"> {{ row.page.name }} (ny flik)</span></a>{% endif %}
         {% if row.has_answers %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_page_answers' row.page.pk %}">Svar<span class="fl-sr"> i formuläret på {{ row.page.name }}</span></a>{% endif %}
         {% if not read_only %}
         <form method="post" action="{% url 'flamingo:app_page_copy' row.page.pk %}">

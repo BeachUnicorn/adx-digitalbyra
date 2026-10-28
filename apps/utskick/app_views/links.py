@@ -9,8 +9,9 @@ anmälningssidans (I.7 Anmälan). Länk-byggaren i S4.
                                                  personliga", till rapporten), med chipsen
                                                  Flamingo-sida, Skript finns och Extern
     link_new      utskick/lankar/ny/             GET formuläret, POST skapar: beskrivning,
-                                                 en Flamingo-sida (kontots kampanj,
-                                                 owned_ids) eller en adress
+                                                 en Flamingo-sida (kontots publicerade
+                                                 landningssida, "sida-<id>", eller
+                                                 kampanj, owned_ids) eller en adress
                                                  (links.clean_external, E.8) och slug
                                                  (links.clean_named_slug, ledig hos kontot;
                                                  tom: gjord av beskrivningen)
@@ -21,6 +22,12 @@ anmälningssidans (I.7 Anmälan). Länk-byggaren i S4.
     link_qr       utskick/lankar/<pk>/qr.<svg|png>   QR-koden för en namngiven länk
                                                  (?ladda=1 laddar ned)
     signup_qr     kontakter/anmalan/qr.<svg|png>     anmälningssidans QR-kod
+
+Flamingos steg 2 (apps/flamingo/README.md, Steg 2): målet kan vara en
+landningssida direkt (TrackedLink.landing_page, sidans egen adress
+/lp/<konto>/<sida>/), och länken säger var den används (typ: QR-kod,
+Instagram eller Annat, TrackedLink.medium), källan i sidans statistik. Ny
+länk tar ?sida=<id>&typ=qr från sidans Länkar per källa.
 
 Förvälj svar (Giovanni 2026-10-10): när målet är en Flamingo-sida med en
 flervalsfråga i formuläret kan länken förvälja ett svar (fältet forval,
@@ -64,7 +71,7 @@ from django.views.decorators.http import require_http_methods, require_safe
 
 from apps.flamingo import answers as form_answers
 from apps.flamingo.exports import landing_page_url
-from apps.flamingo.models import Campaign, Lead
+from apps.flamingo.models import Campaign, LandingPage, Lead
 
 from .. import links, optin, qr
 from ..access import actor_for, owned, owned_ids, utskick_view
@@ -166,15 +173,87 @@ def _lp_campaigns(account):
     ).order_by("name")
 
 
-def preselect_groups(campaigns):
-    """Förvälj svar: [(kampanj, [(värde, "Alternativ (Fråga)")])] för
-    kampanjerna vars sida har ett flerval, i kampanjernas ordning."""
+# --- Flamingos steg 2: länkar direkt till en landningssida -------------------
+#
+#   lp_pages(account)              kontots publicerade landningssidor (sidans egen adress)
+#   lp_options(pages, campaigns)   väljarens grupper: Landningssidor, sedan
+#                                  Kampanjernas adresser ({label, items: [{value, name}]})
+#   target_value(link)             väljarens värde för en lp-länk ("sida-12" eller "7")
+#   resolve_target(account, raw)   (kampanj, sida) ur väljarens värde; ett främmande id
+#                                  ger ForeignIds (400), en okänd eller opublicerad sida
+#                                  (None, None)
+#
+# Värdet för en sida är "sida-<id>", för en kampanj bara id:t (som förut, så
+# att ett formulär från före steg 2 fungerar).
+
+PAGE_VALUE = "sida-"
+
+
+def lp_pages(account):
+    return list(
+        LandingPage.objects.filter(account=account, published_at__isnull=False)
+        .select_related("account")
+        .order_by("name", "pk")
+    )
+
+
+def lp_options(pages, campaigns):
     groups = []
+    if pages:
+        groups.append(
+            {
+                "label": "Landningssidor",
+                "items": [{"value": f"{PAGE_VALUE}{p.pk}", "name": p.name} for p in pages],
+            }
+        )
+    if campaigns:
+        groups.append(
+            {
+                "label": "Kampanjernas adresser",
+                "items": [{"value": str(c.pk), "name": c.name} for c in campaigns],
+            }
+        )
+    return groups
+
+
+def target_value(link):
+    if link.landing_page_id:
+        return f"{PAGE_VALUE}{link.landing_page_id}"
+    return str(link.campaign_id or "")
+
+
+def resolve_target(account, raw):
+    raw = str(raw or "").strip()
+    if raw.startswith(PAGE_VALUE):
+        pk = owned_ids(LandingPage, account, [raw[len(PAGE_VALUE) :]], limit=1)[0]
+        page = (
+            LandingPage.objects.filter(account=account, pk=pk, published_at__isnull=False)
+            .select_related("account")
+            .first()
+        )
+        return None, page
+    pk = owned_ids(Campaign, account, [raw], limit=1)[0]
+    return _lp_campaigns(account).filter(pk=pk).first(), None
+
+
+def preselect_groups(campaigns, pages=()):
+    """Förvälj svar: [{"value", "name", "choices": [(värde, "Alternativ
+    (Fråga)")]}] för sidorna och kampanjerna vars sida har ett flerval,
+    sidorna först. value är väljarens värde för sidan eller kampanjen."""
+    groups = []
+    for page in pages:
+        choices = form_answers.preselect_choices(page)
+        if choices:
+            value = f"{PAGE_VALUE}{page.pk}"
+            groups.append({"value": value, "name": page.name, "choices": choices})
     for campaign in campaigns:
         choices = form_answers.preselect_choices(campaign)
         if choices:
-            groups.append((campaign, choices))
+            groups.append({"value": str(campaign.pk), "name": campaign.name, "choices": choices})
     return groups
+
+
+# --- slut steg 2
 
 
 def _named_or_404(account, pk):
@@ -377,6 +456,17 @@ def link_list(request, account):
 # ---------------------------------------------------------------------------
 
 
+#: Var länken används (Flamingos steg 2, TrackedLink.medium): källan i
+#: landningssidans statistik.
+MEDIUMS = TrackedLink.Medium.choices
+MEDIUM_TEXT = "Välj var länken används."
+
+
+def _clean_medium(raw):
+    value = str(raw or "").strip()
+    return value if value in dict(MEDIUMS) else ""
+
+
 def _posted(request):
     return {
         "label": request.POST.get("beskrivning", ""),
@@ -385,45 +475,47 @@ def _posted(request):
         "address": request.POST.get("adress", ""),
         "slug": request.POST.get("slug", ""),
         "preselect": str(request.POST.get("forval", "") or "").strip()[:200],
+        "medium": _clean_medium(request.POST.get("typ")) or TrackedLink.Medium.OTHER,
     }
 
 
 def _clean_target(account, values, errors):
-    """(kind, campaign, destination) ur formuläret, eller (None, None, "")
-    med errors ifyllt. Ett främmande kampanj-id ger ForeignIds (400)."""
+    """(kind, campaign, page, destination) ur formuläret, eller (None, None,
+    None, "") med errors ifyllt. Ett främmande id ger ForeignIds (400). page
+    är en landningssida (sidans egen adress, Flamingos steg 2)."""
     target = values["target"]
     if target == TARGET_LP:
         raw = str(values["campaign"] or "").strip()
         if not raw:
             errors["kampanj"] = CAMPAIGN_TEXT
-            return None, None, ""
-        pk = owned_ids(Campaign, account, [raw], limit=1)[0]
-        campaign = _lp_campaigns(account).filter(pk=pk).first()
-        if campaign is None:
+            return None, None, None, ""
+        campaign, page = resolve_target(account, raw)
+        chosen = page or campaign
+        if chosen is None:
             errors["kampanj"] = CAMPAIGN_TEXT
-            return None, None, ""
-        url = landing_page_url(campaign)
+            return None, None, None, ""
+        url = landing_page_url(chosen)
         preselect = values.get("preselect") or ""
         if preselect:
             # Bara ett svar som finns på den valda sidan nu (Förvälj svar).
-            if preselect not in dict(form_answers.preselect_choices(campaign)):
+            if preselect not in dict(form_answers.preselect_choices(chosen)):
                 errors["forval"] = links.PRESELECT_TEXT
-                return None, None, ""
+                return None, None, None, ""
             url = form_answers.with_preselect(url, preselect)
-        return TrackedLink.Kind.LP, campaign, url[: links.URL_MAX]
+        return TrackedLink.Kind.LP, campaign, page, url[: links.URL_MAX]
     if target == TARGET_EXTERNAL:
         raw = str(values["address"] or "").strip()
         if not raw:
             errors["adress"] = ADDRESS_TEXT
-            return None, None, ""
+            return None, None, None, ""
         try:
             cleaned = links.clean_external(account, raw, allow_pending=True)
         except links.LinkRefused as exc:
             errors["adress"] = str(exc)
-            return None, None, ""
-        return TrackedLink.Kind.EXTERNAL, None, cleaned[: links.URL_MAX]
+            return None, None, None, ""
+        return TrackedLink.Kind.EXTERNAL, None, None, cleaned[: links.URL_MAX]
     errors["mal"] = TARGET_TEXT
-    return None, None, ""
+    return None, None, None, ""
 
 
 def _after_save(request, account, link):
@@ -454,11 +546,14 @@ def _form_context(account, row, values, errors):
     public_slug = row.public_slug
     prefix = f"{urlsplit(links.email_link_base()).netloc}/{public_slug}/"
     campaigns = list(_lp_campaigns(account).select_related("landing_page"))
+    pages = lp_pages(account)
     return {
         "values": values,
         "errors": errors,
         "campaigns": campaigns,
-        "preselect_groups": preselect_groups(campaigns),
+        "lp_options": lp_options(pages, campaigns),
+        "mediums": MEDIUMS,
+        "preselect_groups": preselect_groups(campaigns, pages),
         "prefix": prefix,
         "public_slug": public_slug,
         "no_slug_text": NO_SLUG_TEXT,
@@ -479,7 +574,17 @@ def link_new(request, account):
         "address": "",
         "slug": "",
         "preselect": "",
+        # Från landningssidans Länkar per källa (Flamingos steg 2): ?sida=<id>
+        # väljer sidan och ?typ=qr (instagram, other) sorten.
+        "medium": _clean_medium(request.GET.get("typ")) or TrackedLink.Medium.OTHER,
     }
+    page_raw = str(request.GET.get("sida") or "").strip()
+    if page_raw.isdigit():
+        page = LandingPage.objects.filter(
+            account=account, pk=int(page_raw), published_at__isnull=False
+        ).first()
+        if page is not None:
+            values["campaign"] = f"{PAGE_VALUE}{page.pk}"
     errors = {}
     if request.method == "POST":
         if account.is_demo:
@@ -519,7 +624,7 @@ def _create(request, account, row, values, errors):
         values["slug"] = slug
         if TrackedLink.objects.filter(account=account, slug=slug).exists():
             errors["slug"] = _taken_text(row, slug)
-    kind, campaign, destination = _clean_target(account, values, errors)
+    kind, campaign, page, destination = _clean_target(account, values, errors)
     if errors:
         return None
     if TrackedLink.objects.filter(account=account, utskick__isnull=True).count() >= MAX_NAMED:
@@ -532,9 +637,11 @@ def _create(request, account, row, values, errors):
                 utskick=None,
                 kind=kind,
                 campaign=campaign,
+                landing_page=page,
                 destination=destination,
                 label=label,
                 slug=slug,
+                medium=values.get("medium") or TrackedLink.Medium.OTHER,
             )
     except IntegrityError:
         errors["slug"] = _taken_text(row, slug)
@@ -583,26 +690,35 @@ def _current_values(link):
     return {
         "label": link.label,
         "target": TARGET_LP if link.kind == TrackedLink.Kind.LP else TARGET_EXTERNAL,
-        "campaign": str(link.campaign_id or ""),
+        "campaign": target_value(link),
         "address": link.destination if link.kind == TrackedLink.Kind.EXTERNAL else "",
         "slug": link.slug,
         "preselect": _preselect_of(link),
+        "medium": link.medium or TrackedLink.Medium.OTHER,
     }
 
 
 def _save(request, account, link, values, errors):
-    """Beskrivningen och målet (aldrig slugen: den kan stå på affischer)."""
+    """Beskrivningen, målet och var länken används (aldrig slugen: den kan
+    stå på affischer)."""
     label = clean_name(values["label"], LABEL_MAX)
     values["label"] = label
     if not label:
         errors["beskrivning"] = LABEL_TEXT
-    kind, campaign, destination = _clean_target(account, values, errors)
+    kind, campaign, page, destination = _clean_target(account, values, errors)
     if errors:
         return False
+    medium = values.get("medium") or TrackedLink.Medium.OTHER
     TrackedLink.objects.filter(pk=link.pk, account=account, utskick__isnull=True).update(
-        label=label, kind=kind, campaign=campaign, destination=destination
+        label=label,
+        kind=kind,
+        campaign=campaign,
+        landing_page=page,
+        destination=destination,
+        medium=medium,
     )
-    link.label, link.kind, link.campaign, link.destination = label, kind, campaign, destination
+    link.label, link.kind, link.destination = label, kind, destination
+    link.campaign, link.landing_page, link.medium = campaign, page, medium
     return True
 
 
@@ -639,7 +755,11 @@ def link_detail(request, account, pk):
     state = links.destination_states(account, [link]).get(link.pk, (links.STATUS_ALLOWED, ""))
     chip = destination_chip(link, seen)
     preselect = _preselect_of(link)
-    preselect_text = form_answers.preselect_label(link.campaign, preselect) if preselect else ""
+    preselect_text = (
+        form_answers.preselect_label(link.landing_page or link.campaign, preselect)
+        if preselect
+        else ""
+    )
     context = {
         "link": link,
         # Förvalt svar: "Vilken tjänst önskar du?: Reparation", eller att det

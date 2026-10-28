@@ -264,6 +264,7 @@ class Command(BaseCommand):
             self._day_stats(campaigns, now)
             self._leads(account, services, campaigns, now)
             self._utskick(account, staff, now)
+            self._page_visits(account, now)
         self._print_urls(customer, campaigns, contact)
 
     # ------------------------------------------------------------------
@@ -1584,6 +1585,69 @@ class Command(BaseCommand):
 
         utskick_demo.seed(account, staff, now)
 
+    def _page_visits(self, account, now):
+        """Besöken per källa på demots publicerade sidor för 30 dagar (README
+        Steg 2, sources.py): Annons för varje live- eller pausad kampanj som
+        visar sidan och några Direkt varje dag (påhittade siffror), och
+        utskickens och de namngivna länkarnas besök ur demots klick, så att
+        Statistik har en rad per källa. Inget räknas genom sidorna."""
+        from apps.utskick.models import Click
+
+        from ...limits import stockholm_today
+        from ...models import PageVisitDay
+
+        today = stockholm_today(now)
+        rows = {}
+
+        def add(page, day, source, key, visits, **fks):
+            if visits <= 0:
+                return
+            row = rows.get((page.pk, day, key))
+            if row is None:
+                rows[(page.pk, day, key)] = PageVisitDay(
+                    account=account,
+                    page=page,
+                    day=day,
+                    source=source,
+                    key=key,
+                    visits=visits,
+                    **fks,
+                )
+            else:
+                row.visits += visits
+
+        published = list(account.landing_pages.filter(published_at__isnull=False))
+        for page in published:
+            shown = [
+                c
+                for c in page.campaigns.all()
+                if c.status in (Campaign.STATUS_LIVE, Campaign.STATUS_PAUSED)
+            ]
+            for days in range(30):
+                day = today - timedelta(days=days)
+                for campaign in shown:
+                    visits = 6 + (days * 7 + campaign.pk) % 9
+                    add(page, day, "ad", f"ad:c{campaign.pk}", visits, campaign_id=campaign.pk)
+                add(page, day, "direct", "direct", (days * 5 + page.pk) % 3)
+        by_pk = {page.pk: page for page in published}
+        for click in Click.objects.filter(
+            account=account, lp_visits__gt=0, link__kind="lp"
+        ).select_related("link__campaign"):
+            link = click.link
+            page_id = link.landing_page_id
+            if not page_id and link.campaign_id:
+                page_id = link.campaign.landing_page_id
+            page = by_pk.get(page_id)
+            if page is None:
+                continue
+            day = timezone.localdate(click.first_visit_at or click.at, STOCKHOLM)
+            if click.channel == Click.Channel.NAMED:
+                add(page, day, "named", f"named:l{link.pk}", click.lp_visits, link_id=link.pk)
+            elif click.utskick_id:
+                key = f"{click.channel}:u{click.utskick_id}"
+                add(page, day, click.channel, key, click.lp_visits, utskick_id=click.utskick_id)
+        PageVisitDay.objects.bulk_create(rows.values())
+
     def _sms_row(self, account, lead, kind, to, body, status, error=""):
         return SmsLog.objects.create(
             account=account,
@@ -1643,9 +1707,13 @@ class Command(BaseCommand):
         w("  /flamingo/app/utskick/")
         w("  /flamingo/app/utskick/installningar/")
         w("  /manage/utskick/")
-        w("Landningssidorna (bara byrån ser dem, alla andra får 404):")
+        w("Kampanjernas adresser (öppna för alla, noindex):")
         for state, campaign in campaigns.items():
             w(f"  {campaign.landing_url}   ({state})")
+        w("Sidornas egna adresser (öppna när sidan är publicerad):")
+        for page in customer.flamingo.landing_pages.order_by("name", "pk"):
+            state = "publicerad" if page.is_published else "inte publicerad"
+            w(f"  {page.landing_url}   ({state})")
         w("Byråns granskning:")
         w("  /manage/flamingo/granska/")
         w(f"  /manage/flamingo/granska/{campaigns['in_review'].pk}/")

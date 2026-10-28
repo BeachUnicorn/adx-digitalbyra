@@ -1,0 +1,62 @@
+{% extends "flamingo/app/base.html" %}
+{% load static flamingo_app utskick_tags %}
+{% comment %}
+Statistik för en landningssida (app_views/page_stats.page_stats, README
+Steg 2, mockups/flamingo-meny.html skärmen Avloppsspolning): perioden (7,
+30 eller 90 dagar, vanliga länkar), besök, förfrågningar och andelen som
+frågar, och en tabell med en rad per källa (sources.page_stats). Tabellen
+har <thead> och data-label på varje cell, så att den blir kort under 760 px
+(flamingo-app.css). Skräp, svar på utskick, byråns och kundens egna besök
+räknas inte.
+
+Kontext: page och huvudet (_detail_head.html), stats (PageStats: days,
+first_day, visits, leads, share, rows [{chip, tone, text, visits, leads,
+share}], counted_since, visits_partial), periods ([{days, url, current}]).
+{% endcomment %}
+{% block app_title %}Statistik, {{ page.name }}{% endblock %}
+{% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-pages.css' %}?v={{ static_version }}">{% endblock %}
+{% block app_header %}{% include "flamingo/app/pages/_detail_head.html" %}{% endblock %}
+{% block app_content %}
+<nav class="fl-pg-period" aria-label="Period">
+  {% for p in periods %}<a class="fl-pg-period__opt" href="{{ p.url }}"{% if p.current %} aria-current="page"{% endif %}>{{ p.days }} dagar</a>{% endfor %}
+</nav>
+
+<div class="fl-kpis fl-pg-kpis">
+  <div class="fl-kpi"><p class="fl-kpi__label">Besök, {{ stats.days }} dagar</p><p class="fl-kpi__value">{{ stats.visits|tal }}</p></div>
+  <div class="fl-kpi"><p class="fl-kpi__label">Förfrågningar</p><p class="fl-kpi__value">{{ stats.leads|tal }}</p></div>
+  <div class="fl-kpi"><p class="fl-kpi__label">Andel som frågar</p><p class="fl-kpi__value">{% if stats.share is not None %}{{ stats.share|procent }}{% else %}-{% endif %}</p></div>
+</div>
+
+<section class="fl-panel fl-pg-sources" aria-labelledby="fl-pg-sources-title">
+  <h2 class="fl-panel__title" id="fl-pg-sources-title">Var besökarna kom ifrån</h2>
+  {% if stats.rows %}
+  <div class="fl-table-wrap">
+    <table class="fl-table fl-pg-table">
+      <thead>
+        <tr>
+          <th scope="col">Källa</th>
+          <th scope="col" class="is-num">Besök</th>
+          <th scope="col" class="is-num">Förfrågningar</th>
+          <th scope="col" class="is-num">Andel</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in stats.rows %}
+        <tr>
+          <td class="is-primary" data-label="Källa"><span class="fl-lpsrc fl-lpsrc--{{ row.tone }}">{{ row.chip }}</span> <span class="fl-pg-table__name">{{ row.text }}</span></td>
+          <td class="is-num" data-label="Besök">{{ row.visits|tal }}</td>
+          <td class="is-num" data-label="Förfrågningar">{{ row.leads|tal }}</td>
+          <td class="is-num" data-label="Andel">{% if row.share is not None %}{{ row.share|procent }}{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="fl-panel__text">Inga besök eller förfrågningar de senaste {{ stats.days }} dagarna.</p>
+  {% endif %}
+  <p class="fl-panel__note">Samma sida, samma statistik, oavsett källa. Varje källa har en egen länk, så att besöken räknas rätt. Andel är förfrågningar delat med besök. Skräp räknas inte, och inte heller dina egna besök.</p>
+  {% if stats.counted_since and stats.visits_partial %}<p class="fl-panel__note">Besöken räknas från och med {{ stats.counted_since|date:"j F Y" }}. Förfrågningarna räknas för hela perioden.</p>{% elif not stats.counted_since %}<p class="fl-panel__note">Besöken räknas från och med nu. Förfrågningarna räknas för hela perioden.</p>{% endif %}
+</section>
+{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-links.js' %}?v={{ static_version }}" defer></script>{% endblock %}

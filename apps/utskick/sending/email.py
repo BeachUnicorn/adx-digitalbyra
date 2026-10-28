@@ -1230,16 +1230,24 @@ def stale_unknown(now=None):
 
 
 def own_pages(account):
-    """{adress: kampanj} för kontots Flamingo-sidor (också
-    email.blocks.own_page)."""
+    """{adress: kampanj eller landningssida} för kontots Flamingo-sidor
+    (också email.blocks.own_page): kampanjernas adresser och de publicerade
+    sidornas egna (/lp/<konto>/<sida>/, Flamingos README Steg 2)."""
     from apps.flamingo.exports import landing_page_url
-    from apps.flamingo.models import Campaign
+    from apps.flamingo.models import Campaign, LandingPage
 
     pages = {}
     for campaign in Campaign.objects.filter(account=account):
         try:
             pages[landing_page_url(campaign).rstrip("/")] = campaign
         except Exception:  # noqa: BLE001 - en kampanj utan sida är ingen länk
+            continue
+    for page in LandingPage.objects.filter(
+        account=account, published_at__isnull=False
+    ).select_related("account"):
+        try:
+            pages[landing_page_url(page).rstrip("/")] = page
+        except Exception:  # noqa: BLE001 - en sida utan adress är ingen länk
             continue
     return pages
 
@@ -1306,15 +1314,20 @@ def _tracked_link(utskick, spot, pages):
         if fragment:
             # Ankaret följer med till sidan (links.bare_destination).
             destination = f"{destination}#{fragment}"
+        from apps.flamingo.models import LandingPage
+
+        direct = isinstance(page, LandingPage)
         values = {
             "kind": TrackedLink.Kind.LP,
-            "campaign": page,
+            "campaign": None if direct else page,
+            "landing_page": page if direct else None,
             "destination": destination[: links.URL_MAX],
         }
     else:
         values = {
             "kind": TrackedLink.Kind.EXTERNAL,
             "campaign": None,
+            "landing_page": None,
             "destination": links.clean_external(utskick.account, url, allow_pending=True)[
                 : links.URL_MAX
             ],

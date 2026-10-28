@@ -1531,11 +1531,15 @@ class GuideFlowTests(UiFixture, TestCase):
         self.assertIn("Texten innehåller <span data-ut-gsm-chars>ett hårt mellanslag", page)
 
     def test_a_locked_page_option_says_how_to_unlock_it(self):
+        from apps.flamingo.models import LandingPage
+
         Campaign.objects.filter(account=self.account).delete()
+        # Flamingos steg 2: en publicerad landningssida går också att länka till.
+        LandingPage.objects.filter(account=self.account).update(published_at=None)
         page = self.client.get(self.step(self.row, "innehall"))
         self.assertContains(
             page,
-            "Du har ingen publicerad Flamingo-sida än. Publicera en kampanj under Kampanjer, "
+            "Du har ingen publicerad Flamingo-sida än. Publicera en sida under Landningssidor, "
             "eller välj Egen adress.",
         )
 

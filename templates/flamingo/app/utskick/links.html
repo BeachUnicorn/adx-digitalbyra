@@ -53,7 +53,7 @@ inga inline-skript; .fl-ut-ln- i flamingo-app-utskick-links.css.
       <tbody>
         {% for row in named_rows %}
         <tr>
-          <td class="is-primary" data-label="Länk"><a class="fl-ut-name fl-ut-ln-addr" href="{% url 'flamingo:app_link' row.link.pk %}">{{ row.text }}</a><span class="fl-ut-sub">{{ row.link.label }}</span></td>
+          <td class="is-primary" data-label="Länk"><a class="fl-ut-name fl-ut-ln-addr" href="{% url 'flamingo:app_link' row.link.pk %}">{{ row.text }}</a><span class="fl-ut-sub">{{ row.link.label }} · {{ row.link.medium_label }}</span></td>
           <td data-label="Går till"><span class="fl-ut-ln-cell"><span class="fl-ut-ln-goes"><span class="fl-ut-ln-dest">{{ row.goes }}</span> <span class="fl-ut-status fl-ut-status--{{ row.chip_tone }}">{{ row.chip_label }}</span></span>{% if row.state_text %}<span class="fl-ut-lock">{{ row.state_text }}</span>{% endif %}</span></td>
           <td class="is-num" data-label="Klick">{{ row.clicks|tal }}</td>
           <td class="is-num" data-label="Förfrågningar">{% if row.leads is not None %}<strong class="fl-ut-leads">{{ row.leads|tal }}</strong>{% endif %}</td>
