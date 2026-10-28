@@ -19,7 +19,7 @@ Recos del står sist (_reco.html, ankaret #reco), med kontexten reco.
 {% endcomment %}
 {% block app_title %}Omdömen{% endblock %}
 {% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-media.css' %}?v={{ static_version }}">{% endblock %}
-{% block app_content %}
+{% block app_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
     <p class="fl-kicker"><a class="fl-rv-crumb" href="{% url 'flamingo:app_business' %}">Företaget</a></p>
@@ -27,6 +27,8 @@ Recos del står sist (_reco.html, ankaret #reco), med kontexten reco.
     <p class="fl-app-lead">Peka ut din Google-profil, så kan sidorna visa betyget och de omdömen du väljer. Texten ändras aldrig. Har ni en sida på Reco kan sidorna också visa <a class="fl-rv-link" href="#reco">Recos ruta</a>.</p>
   </div>
 </header>
+{% endblock %}
+{% block app_content %}
 
 {% if is_demo %}
 <p class="fl-notice fl-notice--info"><span>Det här är ett demokonto, så Google anropas aldrig. Profilen och omdömena här är påhittade.</span></p>

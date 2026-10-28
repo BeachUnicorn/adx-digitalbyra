@@ -20,6 +20,7 @@
      .fl-timeline                                      händelser i ordning
      .fl-diff                                          ändringar (del/ins)
      .fl-tabs                                          flikar
+     .fl-app-nav / .fl-app-tabs / .fl-app-new          menyn, flikraden, Nytt sms/mejl
      .fl-chips                                         val som chips (radio/checkbox)
      .fl-seg                                           segmenterat val (radio)
      .fl-src--<källa>                                  uppgiftens källa
@@ -30,7 +31,7 @@
    Regler: brödtext minst 16 px (mono-kickers, chips och märken får vara
    mindre). Inga style-attribut i mallarna: varianter är klasser. Inget får
    bli bredare än skärmen i 375 px; tabeller blir kort, rader radbryts.
-   Brytpunkter: 900 (sidomenyn blir flikar), 760 (tabeller blir kort),
+   Brytpunkter: 900 (menyn blir en rad längst ner), 760 (tabeller blir kort),
    560 (telefon, 16 px kant via --fl-gutter i flamingo.css).
    ========================================================================== */
 
@@ -53,18 +54,36 @@
 .fl-app-who__row{display:flex;align-items:center;gap:6px;margin-top:4px;min-width:0}
 .fl-app-who__select{flex:1 1 auto;min-width:0;padding:8px 10px;border:1px solid var(--fl-line);border-radius:10px;background:var(--fl-white);font-size:16px;line-height:1.3}
 
+/* Menyn: sex punkter med ikon (mockups/flamingo-meny.html, app_nav.py).
+   <nav class="fl-app-nav"><a class="fl-app-nav__link" aria-current="page">
+   <svg class="fl-app-nav__icon"> <span class="fl-app-nav__label">Inkorg</span>
+   <span class="fl-app-nav__badge">3</span></a></nav>
+   Under 900 px en fast rad längst ner (se brytpunkten nedan). */
 .fl-app-nav{display:flex;flex-direction:column;gap:2px;min-width:0}
 .fl-app-nav__link{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 12px;
+  position:relative;display:flex;align-items:center;gap:12px;min-height:44px;padding:8px 12px;
   border:1px solid transparent;border-radius:10px;font-size:16px;line-height:1.3;color:var(--fl-body);text-decoration:none;
 }
 .fl-app-nav__link:hover{background:var(--fl-white);color:var(--fl-ink)}
 .fl-app-nav__link[aria-current="page"]{background:var(--fl-white);border-color:var(--fl-line);color:var(--fl-ink);font-weight:600}
+.fl-app-nav__icon{flex:none;width:20px;height:20px}
+.fl-app-nav__label{flex:1 1 auto;min-width:0}
+.fl-nowrap{white-space:nowrap}
 .fl-app-nav__badge{
   flex:none;min-width:22px;padding:1px 8px;border-radius:999px;
   background:linear-gradient(90deg,#F27AD9,#FD7C5A);color:var(--fl-ink);
   font-size:12px;font-weight:700;line-height:1.5;text-align:center;
 }
+
+/* Flikraden under rubriken (templates/flamingo/app/_tabs.html), som
+   kundkortets m-subnav i panelen. Radbryts i bred skärm, rullar i sidled
+   inne i raden under 560 px (se .fl-tabs nedan). Minst 44 px per flik. */
+.fl-app-tabs{position:relative;margin-top:-4px}
+.fl-app-tabs__tab{display:inline-flex;align-items:center;min-height:44px}
+/* Nytt sms och Nytt mejl överst i Sms och e-post. */
+.fl-app-new{display:flex;flex-wrap:wrap;gap:10px}
+.fl-app-new form{margin:0}
+.fl-app-new__btn{min-height:52px;padding-inline:24px;font-size:17px}
 .fl-app-side__foot{display:flex;flex-direction:column;gap:2px;padding:12px 12px 2px;border-top:1px solid var(--fl-soft)}
 .fl-app-side__foot a{padding:4px 0;font-size:16px;color:var(--fl-muted);text-decoration:underline;text-decoration-color:var(--fl-line);text-underline-offset:3px}
 .fl-app-side__foot a:hover{color:var(--fl-violet-ink);text-decoration-color:currentColor}
@@ -408,11 +427,19 @@ a.fl-list__main:hover .fl-list__title{color:var(--fl-violet-ink)}
 .fl-ov-hero__hello{font-size:16px;color:var(--fl-muted)}
 .fl-ov-hero__title{font-size:clamp(26px,3.2vw,34px);font-weight:600;letter-spacing:-.035em;line-height:1.12;overflow-wrap:break-word}
 
-/* Tre saker: en mening och en knapp per sak. */
-.fl-things{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
-.fl-thing{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;padding:14px 16px;border:1px solid var(--fl-soft);border-radius:16px;background:rgba(255,255,255,.94)}
-.fl-thing__text{flex:1 1 280px;min-width:0;font-size:16px;line-height:1.5;color:var(--fl-body);overflow-wrap:anywhere}
-.fl-thing__text b{font-weight:600;color:var(--fl-ink)}
+/* Att göra (rules.todo_for): en prick, en mening och en knapp per sak.
+   Orange prick för kundens saker, violett för det som väntar på ADX.
+   <section class="fl-panel fl-todo"><ul class="fl-todo__list">
+   <li class="fl-todo__item [fl-todo__item--adx]"><span class="fl-todo__dot">
+   <p class="fl-todo__text"><b>Titel</b> <span>Text</span></p><a class="fl-btn"></li> */
+.fl-todo__list{display:flex;flex-direction:column;margin:0;padding:0;list-style:none}
+.fl-todo__item{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 0;border-top:1px solid var(--fl-soft)}
+.fl-todo__item:first-child{padding-top:0;border-top:0}
+.fl-todo__item:last-child{padding-bottom:0}
+.fl-todo__dot{flex:none;align-self:flex-start;width:10px;height:10px;margin-top:7px;border-radius:50%;background:var(--fl-hot)}
+.fl-todo__item--adx .fl-todo__dot{background:var(--fl-violet)}
+.fl-todo__text{display:flex;flex-direction:column;gap:2px;flex:1 1 240px;min-width:0;font-size:16px;line-height:1.5;color:var(--fl-muted);overflow-wrap:anywhere}
+.fl-todo__text b{font-weight:600;color:var(--fl-ink)}
 
 .fl-ov-next{flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;border-color:var(--fl-ink)}
 .fl-ov-next__text{display:flex;flex-direction:column;gap:4px;flex:1 1 280px;min-width:0}
@@ -427,8 +454,11 @@ a.fl-list__main:hover .fl-list__title{color:var(--fl-violet-ink)}
 .fl-ov-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:16px;align-items:start}
 
 /* ==========================================================================
-   Mellanstora skärmar: sidomenyn blir en rad med flikar som radbryts
-   (inga dolda länkar bakom en sidoscroll), kunden står överst.
+   Mellanstora skärmar och telefon: menyn blir en fast rad längst ner med
+   de sex punkterna (ikon och kort rubrik, mockupen), kunden står överst.
+   Sidan får lika mycket luft längst ner som raden är hög, så att inget
+   döljs bakom den. Verktyg utan meny (sidbyggaren, e-postredigeraren,
+   byråns lista) har ingen rad.
    ========================================================================== */
 @media (max-width:900px){
   .fl-app{grid-template-columns:minmax(0,1fr);gap:16px;padding-top:0}
@@ -436,9 +466,23 @@ a.fl-list__main:hover .fl-list__title{color:var(--fl-violet-ink)}
   .fl-app-who{flex-direction:row;flex-wrap:wrap;align-items:center;gap:4px 10px;padding:4px 6px;border:0;background:none}
   .fl-app-who--pick{padding:4px 6px}
   .fl-app-who__row{flex:1 1 220px;margin-top:0}
-  .fl-app-nav{flex-direction:row;flex-wrap:wrap;gap:4px}
-  .fl-app-nav__link{flex:0 1 auto;justify-content:flex-start;padding:8px 12px;white-space:nowrap}
+  .fl-app-nav{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;flex-direction:row;gap:0;
+    padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--fl-line);background:var(--fl-white);box-shadow:0 -6px 20px rgba(20,18,28,.06);
+  }
+  .fl-app-nav__link{
+    flex:1 1 0;flex-direction:column;justify-content:center;gap:2px;min-width:0;min-height:56px;padding:6px 2px;
+    border:0;border-radius:10px;font-size:11px;letter-spacing:-.01em;line-height:1.15;text-align:center;
+  }
+  .fl-app-nav__link[aria-current="page"]{background:var(--fl-violet-tint);color:var(--fl-violet-ink)}
+  .fl-app-nav__icon{width:22px;height:22px}
+  /* Bryts bara vid det mjuka bindestrecket ("Landnings-sidor", app_nav.soft_break),
+     aldrig mitt i ett ord: overflow-wrap:anywhere gav "Landning / ssidor". */
+  .fl-app-nav__label{flex:none;max-width:100%;overflow-wrap:normal;-webkit-hyphens:manual;hyphens:manual}
+  .fl-app-nav__badge{position:absolute;top:2px;left:calc(50% + 6px);min-width:18px;padding:0 5px;font-size:11px}
   .fl-app-side__foot{display:none}
+  body:has(.fl-app-nav){padding-bottom:calc(72px + env(safe-area-inset-bottom))}
 }
 
 /* ---------- Telefon ---------- */
@@ -451,8 +495,7 @@ a.fl-list__main:hover .fl-list__title{color:var(--fl-violet-ink)}
   .fl-kpi__value{font-size:24px}
   .fl-ov-hero{padding:22px 18px;border-radius:var(--fl-r-md)}
   .fl-ov-hero__ribbon{right:-260px;top:-120px;width:520px;opacity:.55}
-  .fl-thing{padding:12px 14px}
-  .fl-thing .fl-btn{width:100%}
+  .fl-todo__item .fl-btn{margin-left:24px}
   .fl-ov-next .fl-btn{width:100%}
   .fl-seg{display:flex;flex-direction:column}
   .fl-seg__opt + .fl-seg__opt{border-top:1px solid var(--fl-line);border-left:0}
@@ -468,6 +511,9 @@ a.fl-list__main:hover .fl-list__title{color:var(--fl-violet-ink)}
   .fl-tabs{flex-wrap:nowrap;gap:0;overflow-x:auto;scrollbar-width:none;border-bottom:0;box-shadow:inset 0 -1px 0 var(--fl-soft)}
   .fl-tabs::-webkit-scrollbar{display:none}
   .fl-tabs__tab{flex:1 1 auto;margin-bottom:0;padding:10px 8px;text-align:center;white-space:nowrap}
+  .fl-app-tabs__tab{justify-content:center;padding-inline:12px}
+  .fl-app-new{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  .fl-app-new__btn{width:100%}
   /* Små textlänkar får en tumvänlig yta (minst 44 px hög) utan att raden
      växer: kanten läggs till och tas bort igen med negativ marginal. */
   .fl-panel__link,.fl-inbox-back a{display:inline-block;padding-block:12px;margin-block:-12px}

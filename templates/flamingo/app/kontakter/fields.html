@@ -12,7 +12,7 @@ väljs när fältet skapas och går inte att byta.
 {% block kt_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
-    <p class="fl-kicker">{{ customer.name }}</p>
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{% url 'flamingo:app_contacts' %}">Kontakter</a></p>
     <h1 class="fl-app-title">Extrafält</h1>
     <p class="fl-app-lead">Egna uppgifter på dina kontakter, till exempel regnummer eller senaste service. {{ count }} av {{ max_fields }} används.</p>
   </div>

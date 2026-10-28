@@ -15,7 +15,7 @@ med en Visa-knapp (status_options), utan JavaScript.
   <div class="fl-app-head__text">
     <p class="fl-kicker">{{ customer.name }}</p>
     <h1 class="fl-app-title">Inkorg</h1>
-    <p class="fl-app-lead">{% if total %}{{ this_month|tal }} {% if this_month == 1 %}förfrågan{% else %}förfrågningar{% endif %} den här månaden. {% endif %}Statusen är det enda du behöver hålla i, och Vunnen med belopp är det som gör mätningen hel.</p>
+    <p class="fl-app-lead">{% if utskick_on %}Förfrågningar från landningssidorna och svar på dina sms och mejl, på ett ställe. {% endif %}{% if total %}{{ this_month|tal }} {% if this_month == 1 %}förfrågan{% else %}förfrågningar{% endif %} den här månaden. {% endif %}Statusen är det enda du behöver hålla i, och Vunnen med belopp är det som gör mätningen hel.</p>
   </div>
   {% if not read_only %}
   <div class="fl-app-head__actions">

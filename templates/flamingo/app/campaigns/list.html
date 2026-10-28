@@ -5,10 +5,10 @@ Kampanjerna (app_views/campaigns.campaign_list). Det som väntar på kunden
 står först. Kontext: rows [{campaign, state, landing}], has_services.
 {% endcomment %}
 {% block app_title %}Kampanjer{% endblock %}
-{% block app_content %}
+{% block app_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
-    <p class="fl-kicker">{{ customer.name }}</p>
+    <p class="fl-kicker">Annonser</p>
     <h1 class="fl-app-title">Kampanjer</h1>
     <p class="fl-app-lead">En kampanj per tjänst: annonser i Google sök, sökord och en egen sida. Inget publiceras innan du skickat, och du väljer om en person på ADX ska granska kampanjen först.</p>
   </div>
@@ -18,6 +18,8 @@ står först. Kontext: rows [{campaign, state, landing}], has_services.
   </div>
   {% endif %}
 </header>
+{% endblock %}
+{% block app_content %}
 
 {% if rows %}
 <ul class="fl-camp-list">

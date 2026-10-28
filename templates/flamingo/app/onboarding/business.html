@@ -8,7 +8,7 @@ Ett formulär per handling (action=confirm/edit/delete/add_fact/confirm_all/
 add_service/edit_service); id:t prövas mot kundens konto i vyn.
 {% endcomment %}
 {% block app_title %}Företaget{% endblock %}
-{% block app_content %}
+{% block app_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
     <p class="fl-kicker">Företaget</p>
@@ -21,6 +21,8 @@ add_service/edit_service); id:t prövas mot kundens konto i vyn.
   </div>
   {% endif %}
 </header>
+{% endblock %}
+{% block app_content %}
 
 <p class="fl-notice fl-notice--info"><span><b>AI:n får bara använda det du bekräftat här.</b> Saknas ett pris skriver vi inget pris.</span></p>
 

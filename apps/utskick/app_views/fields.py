@@ -273,4 +273,6 @@ def field_list(request, account):
         "new_form": bound.get("new_form") or FieldForm(initial={"kind": FieldDef.Kind.TEXT}),
         "kinds": [(value, label, KIND_HELP[value]) for value, label in FieldDef.Kind.choices],
     }
-    return render_contacts(request, "flamingo/app/kontakter/fields.html", "fields", context)
+    return render_contacts(
+        request, "flamingo/app/kontakter/fields.html", "messaging/contacts", context
+    )

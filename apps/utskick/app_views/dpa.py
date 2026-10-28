@@ -136,4 +136,4 @@ def dpa(request, account):
         "nasta": nasta,
         "missing_text": DPA_MISSING_TEXT,
     }
-    return render_contacts(request, "flamingo/app/kontakter/dpa.html", "settings", context)
+    return render_contacts(request, "flamingo/app/kontakter/dpa.html", "business/settings", context)

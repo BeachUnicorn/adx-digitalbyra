@@ -448,7 +448,7 @@ class SettingsPageTests(LinkFixture, TestCase):
         html = response.content.decode()
         self.assertIn("Lägg in skriptet", html)
         self.assertIn(
-            "utan kakor", self.client.get(reverse("flamingo:app_utskick_settings")).content.decode()
+            "utan kakor", self.client.get(reverse("flamingo:app_settings")).content.decode()
         )
 
     def test_add_shows_the_tag_the_install_link_and_the_analytics_text(self):
@@ -484,7 +484,7 @@ class SettingsPageTests(LinkFixture, TestCase):
         )
         html = self.client.get(self.url).content.decode()
         self.assertIn("Installerat, senast sett i dag", html)
-        settings_html = self.client.get(reverse("flamingo:app_utskick_settings")).content.decode()
+        settings_html = self.client.get(reverse("flamingo:app_settings")).content.decode()
         self.assertIn("Spårningsskript på egen sajt", settings_html)
         self.assertIn("exempelror.example · senast sett i dag", settings_html)
         self.assertIn("Installerat", settings_html)

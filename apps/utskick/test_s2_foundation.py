@@ -432,6 +432,7 @@ class AsgiLinkHostTests(SimpleTestCase):
 APP_ROUTES = [
     ("flamingo:app_utskick_list", False, "get"),
     ("flamingo:app_utskick_new", False, "post"),
+    # GET skickar till Företaget > Inställningar (#utskick).
     ("flamingo:app_utskick_settings", False, "get"),
     ("flamingo:app_utskick", True, "get"),
     ("flamingo:app_utskick_count", True, "get"),
@@ -497,14 +498,20 @@ class UrlWiringTests(UtskickFixture, TestCase):
                     self.assertEqual(self.client.get(self.url(name, with_pk)).status_code, 405)
 
     def test_the_menu_and_tabs(self):
-        html = self.client.get(reverse("flamingo:app_utskick_list")).content.decode()
-        self.assertIn(reverse("flamingo:app_utskick_list"), html)
-        self.assertIn(reverse("flamingo:app_utskick_settings"), html)
-        self.assertIn('<summary class="fl-subnav__summary">Utskick</summary>', html)
-        settings_page = self.client.get(reverse("flamingo:app_utskick_settings")).content
+        # Menyn med sex punkter (apps/flamingo/app_nav.py): Sms och e-post med
+        # fliken Skickade; inställningarna under Företaget > Inställningar.
+        response = self.client.get(reverse("flamingo:app_utskick_list"))
+        html = response.content.decode()
+        self.assertEqual(
+            (response.context["app_active"], response.context["app_tab"]), ("messaging", "sent")
+        )
         self.assertIn(
-            '<summary class="fl-subnav__summary">Utskick: Inställningar</summary>',
-            settings_page.decode(),
+            f'href="{reverse("flamingo:app_utskick_list")}" aria-current="page">Skickade</a>', html
+        )
+        self.assertNotIn("fl-subnav", html)
+        self.assertRedirects(
+            self.client.get(reverse("flamingo:app_utskick_settings")),
+            reverse("flamingo:app_settings") + "#utskick",
         )
 
     def test_the_lp_visit_beacon_answers_204(self):

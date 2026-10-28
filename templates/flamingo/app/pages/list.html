@@ -15,13 +15,13 @@ kampanjer sidan står en länk vid varje kampanjnamn. Utan kampanj blir det
 "Förhandsvisa" (utkastet, bara inloggad, app_views/page_preview.py).
 Adresserna kommer från filtret page_links (templatetags/flamingo_pages.py).
 {% endcomment %}
-{% block app_title %}Sidor{% endblock %}
+{% block app_title %}Landningssidor{% endblock %}
 {% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-pb.css' %}?v={{ static_version }}"><link rel="stylesheet" href="{% static 'css/flamingo-app-pages.css' %}?v={{ static_version }}">{% endblock %}
 {% block app_content %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
     <p class="fl-kicker">{{ customer.name }}</p>
-    <h1 class="fl-app-title">Sidor</h1>
+    <h1 class="fl-app-title">Landningssidor</h1>
     <p class="fl-app-lead">Landningssidorna dina annonser leder till. En egen sida per kampanj rekommenderas, men flera kampanjer som säljer samma sak kan dela en sida. En ändring på en delad sida syns i alla kampanjer som visar den.</p>
   </div>
   {% if not read_only and services %}

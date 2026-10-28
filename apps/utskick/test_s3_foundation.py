@@ -40,7 +40,7 @@ from django.utils import timezone
 
 from apps.flamingo.models import MediaAsset
 
-from . import dbfk, links, nav, tokens
+from . import dbfk, links, tokens
 from .email import mime
 from .inbound import events, queues
 from .models import EmailImage, EventReceipt, SenderDomain, Utskick, UtskickSettings
@@ -590,12 +590,14 @@ class AppRouteTests(UtskickFixture, TestCase):
                 self.assertEqual(staff.get(reverse(name)).status_code, 200)
 
     def test_the_health_tab(self):
-        keys = [key for key, _name, _label in nav.UTSKICK_TABS]
-        # S4 lägger Länkar före Leveranshälsa.
-        self.assertEqual(keys, ["utskick", "links", "health", "settings"])
-        html = self.client.get(reverse("flamingo:app_utskick_health")).content.decode()
-        self.assertIn(reverse("flamingo:app_utskick_health"), html)
-        self.assertIn('<summary class="fl-subnav__summary">Utskick: Leveranshälsa</summary>', html)
+        # Menyn med sex punkter (apps/flamingo/app_nav.py): en flik i Sms och e-post.
+        response = self.client.get(reverse("flamingo:app_utskick_health"))
+        self.assertEqual(
+            (response.context["app_active"], response.context["app_tab"]), ("messaging", "health")
+        )
+        self.assertContains(
+            response, f'href="{reverse("flamingo:app_utskick_health")}" aria-current="page"'
+        )
 
 
 @override_settings(**LINK_SETTINGS)

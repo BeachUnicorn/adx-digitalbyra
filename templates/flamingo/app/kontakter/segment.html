@@ -67,7 +67,7 @@ Raderna staplas under 760 px. OCH och ELLER mellan raderna kommer från css.
           <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="action" value="refresh" data-sg-nojs>Visa valen för fälten</button>
         </div>
         <p class="fl-field__help fl-sg-limit">Högst {{ max_rules }} villkor och {{ max_groups }} grupper.</p>
-        {% if opened_locked %}<p class="fl-field__help fl-sg-locked">Öppnade mejl: {{ opened_locked_text }} <a class="fl-panel__link" href="{% url 'flamingo:app_utskick_settings' %}">Till inställningarna</a></p>{% endif %}
+        {% if opened_locked %}<p class="fl-field__help fl-sg-locked">Öppnade mejl: {{ opened_locked_text }} <a class="fl-panel__link" href="{% url 'flamingo:app_settings' %}#utskick">Till inställningarna</a></p>{% endif %}
       </fieldset>
     </div>
 

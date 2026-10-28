@@ -105,7 +105,6 @@ def _css_mtime():
         "css/sms.css",
         "css/sms-nav.css",
         # Kontakter och utskick (apps/utskick).
-        "css/flamingo-app-utskick.css",
         "css/flamingo-app-kontakter.css",
         "css/flamingo-app-import.css",
         "css/utskick-public.css",
@@ -128,6 +127,8 @@ def _css_mtime():
         "js/portal.js",
         "js/manage.js",
         "js/flamingo-app-onboarding.js",
+        # Verktygets flikrad (templates/flamingo/app/_tabs.html).
+        "js/flamingo-app-nav.js",
         "js/flamingo-lp.js",
         "js/flamingo-pb.js",
         "js/flamingo-pb-ai.js",

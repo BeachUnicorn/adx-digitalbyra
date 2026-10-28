@@ -847,7 +847,8 @@ class BuilderViewTests(SegmentFixture, TestCase):
     def test_the_new_page(self):
         response = self.client.get(self.new_url())
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context["app_active"], "contacts")
+        self.assertEqual(response.context["app_active"], "messaging")
+        self.assertEqual(response.context["app_tab"], "lists")
         html = response.content.decode()
         for needle in (
             "+ Villkor",
@@ -860,7 +861,7 @@ class BuilderViewTests(SegmentFixture, TestCase):
             "<template data-sg-row-tpl>",
             "Öppnade mejl (låst)",
             segments.OPENED_LOCKED_TEXT,
-            '<summary class="fl-subnav__summary">Kontakter: Listor</summary>',
+            ">Listor och segment</a>",
             "css/flamingo-app-segment.css",
             "js/flamingo-app-segment.js",
         ):

@@ -33,41 +33,32 @@ Varje vy skrivs så här:
     @utskick_view
     def contact_detail(request, account, pk):
         kontakt = owned(Contact, account, pk)
-        return render_contacts(request, "flamingo/app/kontakter/detail.html", "contacts",
-                               {"kontakt": kontakt})
+        return render_contacts(request, "flamingo/app/kontakter/detail.html",
+                               "messaging/contacts", {"kontakt": kontakt})
 
 utskick_view ger 404 när utskick inte är på för kontot och 400 när ett id
 ur förfrågan inte är kontots (access.owned_ids). render_contacts lägger på
-verktygets kontext (sidomenyn med Kontakter aktiv) och flikraden. I mallar
+verktygets kontext: menyn med Sms och e-post markerad och flikraden med
+Kontakter markerad (sidnyckeln, apps/flamingo/app_nav.py). I mallar
 och kontexter heter en kontakt alltid "kontakt" / "kontakter", aldrig
 "contact" (README "Naming rule").
 """
 
 from apps.flamingo.app_views import render_app
 
-from .. import nav
 
-
-def render_contacts(request, template, tab, context=None, status=200):
-    """render_app för en sida under Kontakter: sidomenyns punkt är
-    "contacts" och flikraden har tab ("contacts", "lists", "import",
-    "fields", "signup", "settings") markerad. Mallarna utgår från
-    flamingo/app/kontakter/_layout.html."""
-    merged = {
-        "kt_nav": nav.contacts_tabs(tab),
-        "utskick_settings": getattr(request, "utskick_settings", None),
-    }
+def render_contacts(request, template, page, context=None, status=200):
+    """render_app för en sida under Kontakter, med kontots
+    utskick_settings i kontexten. page är sidnyckeln
+    (apps/flamingo/app_nav.py): "messaging/contacts", "messaging/lists" eller
+    "business/settings". Mallarna utgår från flamingo/app/kontakter/_layout.html."""
+    merged = {"utskick_settings": getattr(request, "utskick_settings", None)}
     merged.update(context or {})
-    return render_app(request, template, "contacts", merged, status=status)
+    return render_app(request, template, page, merged, status=status)
 
 
-def render_utskick(request, template, tab, context=None, status=200):
-    """Som render_contacts, för en sida under Utskick: sidomenyns punkt är
-    "utskick" och flikraden har tab ("utskick", "links", "health",
-    "settings") markerad. Mallarna utgår från flamingo/app/utskick/_layout.html."""
-    merged = {
-        "ut_nav": nav.utskick_tabs(tab),
-        "utskick_settings": getattr(request, "utskick_settings", None),
-    }
-    merged.update(context or {})
-    return render_app(request, template, "utskick", merged, status=status)
+def render_utskick(request, template, page, context=None, status=200):
+    """Som render_contacts, för en sida under Utskick: page är
+    "messaging/sent", "messaging/links", "messaging/health" eller
+    "business/settings". Mallarna utgår från flamingo/app/utskick/_layout.html."""
+    return render_contacts(request, template, page, context, status=status)

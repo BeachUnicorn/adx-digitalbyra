@@ -100,7 +100,9 @@ def _steps(current):
 
 
 def _render(request, template, context, status=200):
-    return render_contacts(request, f"{FOLDER}/{template}", "import", context, status=status)
+    return render_contacts(
+        request, f"{FOLDER}/{template}", "messaging/contacts", context, status=status
+    )
 
 
 # ---------------------------------------------------------------------------

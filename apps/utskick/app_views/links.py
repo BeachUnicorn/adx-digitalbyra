@@ -369,7 +369,7 @@ def link_list(request, account):
         "explainer": EXPLAINER,
         "email_host": urlsplit(links.email_link_base()).netloc,
     }
-    return render_utskick(request, "flamingo/app/utskick/links.html", "links", context)
+    return render_utskick(request, "flamingo/app/utskick/links.html", "messaging/links", context)
 
 
 # ---------------------------------------------------------------------------
@@ -495,7 +495,7 @@ def link_new(request, account):
     context = _form_context(account, row, values, errors)
     status = 400 if errors else 200
     return render_utskick(
-        request, "flamingo/app/utskick/link_form.html", "links", context, status=status
+        request, "flamingo/app/utskick/link_form.html", "messaging/links", context, status=status
     )
 
 
@@ -663,7 +663,7 @@ def link_detail(request, account, pk):
     }
     status = 400 if errors else 200
     return render_utskick(
-        request, "flamingo/app/utskick/link.html", "links", context, status=status
+        request, "flamingo/app/utskick/link.html", "messaging/links", context, status=status
     )
 
 

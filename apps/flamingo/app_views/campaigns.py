@@ -227,7 +227,7 @@ def campaign_list(request, account):
     return render_app(
         request,
         "flamingo/app/campaigns/list.html",
-        "campaigns",
+        "ads/campaigns",
         {
             "rows": rows,
             "has_services": account.services.filter(is_active=True).exists(),
@@ -443,7 +443,7 @@ def campaign_new(request, account):
     return render_app(
         request,
         "flamingo/app/campaigns/new.html",
-        "campaigns",
+        "ads/campaigns",
         {
             "form": form,
             "services": services,
@@ -938,10 +938,14 @@ def campaign_detail(request, account, pk):
         "google_linked": account.google_linked,
         # Vad inskicket utan granskning leder till (knappen och texten).
         "approval_path": google_publish.approval_path(account),
+        # Kampanjen har egna flikar (Annonser, Sökord, Sidan, Granskning);
+        # Annonsers flikrad ovanför dem vore en rad för mycket. Vägen
+        # tillbaka är "Kampanjer" överst.
+        "show_tabs": False,
     }
     context.update(page_context(request, campaign, account, with_preview=tab == "sidan"))
     context.update(_review_context(campaign))
-    return render_app(request, "flamingo/app/campaigns/detail.html", "campaigns", context)
+    return render_app(request, "flamingo/app/campaigns/detail.html", "ads/campaigns", context)
 
 
 # ---------------------------------------------------------------------------

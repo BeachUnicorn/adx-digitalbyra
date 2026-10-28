@@ -11,7 +11,7 @@ står den allmänna meningen kvar. Inga uppskattningar av antal förfrågningar:
 de kommer efter två veckor med riktiga siffror.
 {% endcomment %}
 {% block app_title %}Ny kampanj{% endblock %}
-{% block app_content %}
+{% block app_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
     <p class="fl-kicker"><a class="fl-camp-crumb" href="{% url 'flamingo:app_campaigns' %}">Kampanjer</a></p>
@@ -19,6 +19,8 @@ de kommer efter två veckor med riktiga siffror.
     <p class="fl-app-lead">Välj tjänsten, hur den säljs, området och budgeten. Resten blir ett förslag som du kan ändra.</p>
   </div>
 </header>
+{% endblock %}
+{% block app_content %}
 
 {% if unconfirmed_count %}
 <p class="fl-notice fl-notice--warn">

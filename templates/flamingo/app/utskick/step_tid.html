@@ -44,7 +44,7 @@ tills det öppnar; det är ingen paus.
     <h2 class="fl-panel__title" id="ut-tid-rules">{% if uses_sms %}Tidsfönster och veckotak{% else %}Veckotak{% endif %}</h2>
     {% if uses_sms %}<p class="fl-panel__text">Sms går bara i väg inom tidsfönstret: {{ window_rule }} Det som inte hinner i väg fortsätter när fönstret öppnar igen.{% if uses_email %} Mejlen väntar inte på fönstret.{% endif %}</p>{% endif %}
     <p class="fl-panel__text">{{ weekly }}</p>
-    <a class="fl-panel__link" href="{% url 'flamingo:app_utskick_settings' %}">Ändra under Inställningar</a>
+    <a class="fl-panel__link" href="{% url 'flamingo:app_settings' %}#utskick">Ändra under Inställningar</a>
   </section>
   {% include "flamingo/app/utskick/_step_actions.html" %}
 </form>

@@ -12,10 +12,10 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
-from apps.flamingo.app_views import APP_NAV
+from apps.flamingo import app_nav
 from apps.flamingo.models import Lead
 
-from . import access, contacts, keys, limits, nav, normalize, timeline
+from . import access, contacts, keys, limits, normalize, timeline
 from .freemail import is_freemail
 from .models import (
     Consent,
@@ -429,33 +429,31 @@ class AccessTests(UtskickFixture, TestCase):
 
 
 class NavTests(UtskickFixture, TestCase):
-    def test_contacts_appear_after_campaigns_only_when_enabled(self):
-        items = nav.nav_for(self.account)
-        keys_in_order = [key for key, _, _ in items]
-        self.assertEqual(keys_in_order.index("contacts"), keys_in_order.index("campaigns") + 1)
-        # S2: Utskick direkt efter Kontakter (README C.2), tio länkar.
-        self.assertEqual(keys_in_order.index("utskick"), keys_in_order.index("contacts") + 1)
-        self.assertEqual(len(items), len(APP_NAV) + 2)
-        UtskickSettings.objects.filter(account=self.account).update(is_enabled=False)
-        self.assertEqual(nav.nav_for(self.account), APP_NAV)
-        self.assertEqual(nav.nav_for(None), APP_NAV)
+    """Menyn med sex punkter (apps/flamingo/app_nav.py, 2026-10-28):
+    Kontakter och Utskick är flikar i Sms och e-post, som bara finns med
+    utskick på."""
 
-    def test_the_sidebar_shows_kontakter_only_when_enabled(self):
+    def test_sms_och_e_post_appears_after_annonser_only_when_enabled(self):
+        keys_in_order = [item.key for item in app_nav.main_nav(self.account)]
+        self.assertEqual(keys_in_order.index("messaging"), keys_in_order.index("ads") + 1)
+        self.assertEqual(len(keys_in_order), 6)
+        UtskickSettings.objects.filter(account=self.account).update(is_enabled=False)
+        self.assertNotIn("messaging", [item.key for item in app_nav.main_nav(self.account)])
+        self.assertEqual(len(app_nav.main_nav(None)), 5)
+
+    def test_the_sidebar_shows_the_part_only_when_enabled(self):
         client = self.client_for(self.anna)
         html = client.get(reverse("flamingo:app")).content.decode()
-        self.assertIn(reverse("flamingo:app_contacts"), html)
+        self.assertIn(reverse("flamingo:app_utskick_list"), html)
         UtskickSettings.objects.filter(account=self.account).update(is_enabled=False)
         html = client.get(reverse("flamingo:app")).content.decode()
-        self.assertNotIn(reverse("flamingo:app_contacts"), html)
+        self.assertNotIn(reverse("flamingo:app_utskick_list"), html)
         self.assertEqual(client.get(reverse("flamingo:app_contacts")).status_code, 404)
 
     def test_tabs_mark_the_current_part(self):
-        tabs = nav.contacts_tabs("import")
-        self.assertEqual(tabs["current_label"], "Import")
-        # Första fliken heter som delen: ingen "Kontakter: Kontakter".
-        self.assertEqual(nav.contacts_tabs("contacts")["current_label"], "")
-        self.assertEqual([t["label"] for t in tabs["tabs"]][0], "Kontakter")
-        self.assertEqual(sum(t["current"] for t in tabs["tabs"]), 1)
+        tabs = app_nav.section_tabs("messaging", "lists", self.account)
+        self.assertEqual([t["label"] for t in tabs][:2], ["Skickade", "Kontakter"])
+        self.assertEqual([t["label"] for t in tabs if t["current"]], ["Listor och segment"])
 
 
 # ---------------------------------------------------------------------------

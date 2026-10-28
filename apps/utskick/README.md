@@ -1747,7 +1747,8 @@ No cycle.
 
 ### C.2 apps/flamingo
 
-- `app_views/__init__.py`: `app_context` sets `"app_nav": utskick.nav.nav_for(account)`, which
+- (Superseded 2026-10-28: the menu is `apps/flamingo/app_nav.py`, see I.1a.)
+  `app_views/__init__.py`: `app_context` sets `"app_nav": utskick.nav.nav_for(account)`, which
   inserts `("contacts", "flamingo:app_contacts", "Kontakter")` (S1) and `("utskick",
   "flamingo:app_utskick_list", "Utskick")` (S2) after `campaigns` when
   `settings_for(account).is_enabled`. `APP_NAV` stays the default tuple. Every utskick child route
@@ -3168,6 +3169,14 @@ fields display name, public slug, contact limit, email daily cap, "Stoppa all s�
 with a reason, pending link hosts, and "Senast exporterad".
 
 ### I.1a Sub-navigation
+
+> **Superseded 2026-10-28** by the six-item Flamingo menu (`apps/flamingo/app_nav.py`,
+> `mockups/flamingo-meny.html`): Kontakter and Utskick are tabs of "Sms och e-post" (Skickade,
+> Kontakter, Listor och segment, Länkar och QR, Leveranshälsa, Sms-API); Import, Fält and Anmälan
+> are reached from the Kontakter page; both Inställningar pages are sections of Företaget >
+> Inställningar (`flamingo:app_settings`, `#kontakter`, `#utskick`, `#sparningsskript`) and their
+> old URLs take the POST and redirect GET there. The tab row is always visible tabs (no
+> `<details>`); `nav.py` and `flamingo-app-utskick.css` are gone. The text below is history.
 
 Each part has a tab row (`.fl-tabs`) under the page title; every child route sets `app_active` to
 `contacts` or `utskick`.

@@ -1,6 +1,9 @@
 """
 Översikten (kundresan steg 12) och kundväljaren.
 
+Överst rutan Att göra (rules.todo_for): förfrågningar och svar utan svar,
+det kunden ska göra och det som väntar på ADX, ur rader som redan finns.
+
 Siffrorna räknas av databasen, aldrig av AI, och bara ur rader som finns.
 Annonspengarna (och därmed kr per förfrågan och kr per affär), visningarna
 och klicken kommer ur Googles rapporter (CampaignDayStats, som
@@ -20,7 +23,7 @@ from django.views.decorators.http import require_POST
 from ..access import SESSION_KEY
 from ..google_ads import STOCKHOLM
 from ..models import CampaignDayStats, Lead
-from ..rules import things_headline, three_things
+from ..rules import todo_for
 from ..views import flamingo_required
 from . import app_context, app_view
 from .campaigns import is_approved, state_label
@@ -188,7 +191,7 @@ def overview(request, account):
     context = app_context(request, "overview")
     onboarding = context["onboarding"]
     numbers = numbers_for(account, now)
-    things = three_things(account, now)
+    todo = todo_for(account, now)
     context.update(
         {
             "greeting": greeting(now, request.user, account.customer, context["is_contact"]),
@@ -196,8 +199,8 @@ def overview(request, account):
             "show_steps": not onboarding.complete,
             "numbers": numbers,
             "period_days": PERIOD_DAYS,
-            "things": things,
-            "things_headline": things_headline(things),
+            # Att göra överst (menyn med sex punkter, rules.todo_for).
+            "todo": todo,
             "band_path": band_path(numbers.leads, numbers.cohort_deals) if numbers.leads else "",
             "recent_leads": account.leads.exclude(status=Lead.STATUS_JUNK)
             .select_related("service", "campaign__service")

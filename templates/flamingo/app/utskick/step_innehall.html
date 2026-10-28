@@ -236,7 +236,7 @@ platshållare där markören står.
     {% elif test.owner %}
     <button type="submit" class="fl-btn fl-btn--ghost fl-btn--sm" name="till" value="agare">Skicka test till {{ test.owner_text }}</button>
     {% else %}
-    <p class="fl-panel__note">Lägg in ditt mobilnummer för sms om nya förfrågningar under <a href="{% url 'flamingo:app_settings' %}">Inställningar</a>, så kan du skicka ett test till dig.</p>
+    <p class="fl-panel__note">Lägg in ditt mobilnummer för sms om nya förfrågningar under <a href="{% url 'flamingo:app_settings' %}#aviseringar">Inställningar</a>, så kan du skicka ett test till dig.</p>
     {% endif %}
     {% endif %}
   </section>

@@ -11,7 +11,16 @@ Kom igång (kundresan steg 2, 4 och 5) och inställningarna.
                         (google_accounts.py), eller bockar av för hand.
                         Betalningen stoppar ingenting: utan den visar Google
                         bara inte annonserna.
-    app/installningar/  Sms till kunden vid ny förfrågan och autosvaret.
+    app/installningar/  Företaget > Inställningar: den samlade sidan (beslut
+                        2026-10-28, app_nav.py). Sms till kunden vid ny
+                        förfrågan och autosvaret (#aviseringar), och med
+                        utskick på även Kontakter (#kontakter), Sms och
+                        e-post (#utskick), Spårningsskript (#sparningsskript)
+                        och inloggningarna (#inloggningar). Kontakternas och
+                        utskickens formulär postar till sina gamla adresser
+                        (apps/utskick/app_views/settings.py och utskick.py),
+                        som skickar hit igen eller visar sidan med felen
+                        (render_settings).
 
 Allt hämtas via kontot (app_view): ett id ur formuläret slås alltid upp med
 account=account, så en annan kunds rad ger 404. Byrån i kundvyn gör samma
@@ -637,7 +646,7 @@ def business(request, account):
     return render_app(
         request,
         "flamingo/app/onboarding/business.html",
-        "business",
+        "business/details",
         {
             "facts": facts,
             "unconfirmed_count": sum(1 for f in facts if not f.confirmed),
@@ -833,7 +842,7 @@ def google(request, account):
     return render_app(
         request,
         "flamingo/app/onboarding/google.html",
-        "google",
+        "ads/google",
         {
             "id_form": id_form,
             "timeline": _google_timeline(account, account.campaigns.count()),
@@ -847,6 +856,18 @@ def google(request, account):
 # ---------------------------------------------------------------------------
 # Inställningarna
 # ---------------------------------------------------------------------------
+
+
+#: Delarna på den samlade inställningssidan, i ordning: (ankare, rubrik).
+#: Kontakter, Sms och e-post och Spårningsskript bara med utskick på.
+SETTINGS_SECTIONS = (
+    ("aviseringar", "Aviseringar och autosvar"),
+    ("kontakter", "Kontakter"),
+    ("utskick", "Sms och e-post"),
+    ("sparningsskript", "Spårningsskript"),
+    ("inloggningar", "Inloggningar"),
+)
+UTSKICK_SECTIONS = ("kontakter", "utskick", "sparningsskript")
 
 
 @app_view
@@ -870,30 +891,55 @@ def settings_view(request, account):
             )
             messages.success(request, "Inställningarna är sparade.")
             return redirect("flamingo:app_settings")
-    else:
-        form = SettingsForm(
-            initial={
-                "notify_phone": account.notify_phone,
-                "notify_sms": account.notify_sms,
-                "autoreply_enabled": account.autoreply_enabled,
-                "autoreply_text": account.autoreply_text,
-            }
-        )
+        return render_settings(request, account, flamingo_form=form)
+    return render_settings(request, account)
+
+
+def render_settings(
+    request, account, *, flamingo_form=None, contacts_form=None, utskick_errors=None
+):
+    """Den samlade inställningssidan. Ett postat formulär med fel (ett av
+    tre) visas med felen kvar; de andra delarna visas som de är sparade.
+    Anropas också av kontakternas och utskickens inställningsvyer
+    (apps/utskick/app_views/settings.py och utskick.py)."""
+    form = flamingo_form or SettingsForm(
+        initial={
+            "notify_phone": account.notify_phone,
+            "notify_sms": account.notify_sms,
+            "autoreply_enabled": account.autoreply_enabled,
+            "autoreply_text": account.autoreply_text,
+        }
+    )
     text = form["autoreply_text"].value() or ""
     length, parts = sms_parts(text)
     contacts = account.customer.users.order_by("first_name", "last_name", "email")
+    context = {
+        "form": form,
+        "sms_configured": sms_configured(),
+        "sms_length": length,
+        "sms_count": parts,
+        "autoreply_max": AUTOREPLY_MAX,
+        "quiet_from": f"{sms.QUIET_FROM:%H}",
+        "quiet_until": f"{sms.QUIET_UNTIL:%H}",
+        "contacts": contacts,
+    }
+    from apps.utskick.access import is_enabled, settings_for
+
+    row = settings_for(account)
+    utskick_on = is_enabled(account, row)
+    if utskick_on:
+        from apps.utskick.app_views import settings as contact_settings
+        from apps.utskick.app_views import utskick as utskick_views
+
+        context["utskick_settings"] = row
+        context.update(contact_settings.settings_context(request, account, row, contacts_form))
+        context.update(utskick_views.settings_context(request, account, row, utskick_errors or {}))
+    context["utskick_on"] = utskick_on
+    context["sections"] = [
+        (anchor, label)
+        for anchor, label in SETTINGS_SECTIONS
+        if utskick_on or anchor not in UTSKICK_SECTIONS
+    ]
     return render_app(
-        request,
-        "flamingo/app/onboarding/settings.html",
-        "settings",
-        {
-            "form": form,
-            "sms_configured": sms_configured(),
-            "sms_length": length,
-            "sms_count": parts,
-            "autoreply_max": AUTOREPLY_MAX,
-            "quiet_from": f"{sms.QUIET_FROM:%H}",
-            "quiet_until": f"{sms.QUIET_UNTIL:%H}",
-            "contacts": contacts,
-        },
+        request, "flamingo/app/onboarding/settings.html", "business/settings", context
     )

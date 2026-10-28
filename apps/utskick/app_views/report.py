@@ -239,13 +239,13 @@ def _render_export(request, account, utskick, count):
 
     context = {
         "utskick": utskick,
-        "ut_nav": None,
+        "show_tabs": False,
         "count": count,
         "no_rows_text": _no_rows_text(utskick),
         "back_url": reverse("flamingo:app_utskick", args=[utskick.pk]),
     }
     context.update(_export_state(account))
-    return render_utskick(request, "flamingo/app/utskick/export.html", "utskick", context)
+    return render_utskick(request, "flamingo/app/utskick/export.html", "messaging/sent", context)
 
 
 def export_csv(utskick):

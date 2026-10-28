@@ -63,11 +63,30 @@ De här gäller före äldre beskrivningar:
 | Byråns sida | `/manage/flamingo/...` | Panelens | `manage_views.py`, `manage_review.py`, `manage_google.py`, `templates/manage/flamingo/` |
 | Google Ads API och Data Manager API | (ingen adress) | | `google_ads.py` (den enda HTTP-klienten), `google_publish.py`, `google_accounts.py`, `google_conversions.py`, `google_reports.py`, `flamingo_google_sync` |
 
+Verktygets meny (`app_nav.py`, mockups/flamingo-meny.html, 2026-10-28):
+sex punkter, i bred skärm till vänster och under 900 px som en fast rad
+längst ner med ikon och rubrik. Delar med flikar har en flikrad under
+rubriken (vanliga länkar, rullar i sidled inne i raden i telefon).
+
+| Punkt | Flikar (adress) |
+|---|---|
+| Översikt | (inga) `app/` |
+| Inkorg | (inga; typchips i listan) `app/inkorg/` |
+| Landningssidor | (inga) `app/sidor/` |
+| Annonser | Kampanjer `app/kampanjer/`, Google-kontot `app/google/` |
+| Sms och e-post (bara med utskick) | Skickade `app/utskick/`, Kontakter `app/kontakter/`, Listor och segment `app/kontakter/listor/`, Länkar och QR `app/utskick/lankar/`, Leveranshälsa `app/utskick/halsa/`, Sms-API `/kund/sms/` (bara med aktiverat sms-konto); Nytt sms och Nytt mejl överst |
+| Företaget | Uppgifter och tjänster `app/foretaget/`, Media `app/media/`, Inställningar `app/installningar/` |
+
+Varje vy anger sin plats med en sidnyckel till `render_app` ("ads/google",
+"messaging/contacts"); delen blir `app_active`, fliken `app_tab`. Steg 2
+(egna adresser för landningssidorna, länkar och statistik per källa) ger
+Landningssidor flikar i `SECTION_TABS`.
+
 Verktygets sidor:
 
 | Adress | Vad | Kundresan |
 |---|---|---|
-| `app/` | Översikten: siffror, bandet, "tre saker", senaste förfrågningar och kampanjer | 12 |
+| `app/` | Översikten: Att göra (förfrågningar och svar utan svar, det kunden ska göra och det som väntar på ADX, `rules.todo_for`), siffror, bandet, senaste förfrågningar och kampanjer | 12 |
 | `app/forslag/` | Förslaget: hemsidan läses av, kunden väljer tjänster, en exempelannons (mallarna, bara bekräftade uppgifter) och föreslagen start (formulärets förval) | 02 |
 | `app/foretaget/` | Företaget: uppgifter med källa (bekräfta, rätta, stryk) och tjänsterna | 04 |
 | `app/google/` | Google: kontots id eller "skapa ett åt mig", läget i klartext och en tidslinje | 05 |
@@ -79,7 +98,7 @@ Verktygets sidor:
 | `app/media/`, `lista/`, `ladda-upp/` | Mediaarkivet: logotypen, uppladdade bilder och bilderna från hemsidan, färgerna ur logotypen (`app_views/media.py`, `media.py`) | Sidbyggaren 08 |
 | `app/omdomen/` | Omdömen från Google: profilen, "Det här är vi", "Profilen är vår" och valet av omdömen (`app_views/reviews.py`, `reviews.py`). Under dem profilen på Reco (`#reco`): länken eller id:t, "Det här är vi", "Profilen är vår", "Hämta igen", "Koppla bort profilen" och valet av omdömen för Utvalda (gömt när Utvalda är av) (`reco.py`) | Sidbyggaren 10 |
 | `app/inkorg/`, `<pk>/` | Inkorgen och en förfrågan: varifrån, status och belopp | 10-11 |
-| `app/installningar/` | Sms till kunden och autosvaret (båda av från början) | 10 |
+| `app/installningar/` | Företaget > Inställningar, en sida med ankare: sms till kunden och autosvaret (`#aviseringar`, båda av från början), och med utskick på Kontakter (`#kontakter`), Sms och e-post (`#utskick`) och Spårningsskript (`#sparningsskript`); sist inloggningarna. `app/kontakter/installningar/` och `app/utskick/installningar/` tar emot sina formulär och skickar GET hit till rätt ankare | 10 |
 | `app/kund/` (POST) | Kundväljaren för en kontakt i flera Flamingo-kunder | |
 
 Kom-igång-stegen (`rules.onboarding_for`) visas ovanför Förslaget,
@@ -115,9 +134,9 @@ och (från S4) segmenten, hela rapporten, Länkar med QR-koder, skriptet på
 kundens egen webbplats och sms från kontaktkortet. Kontraktet och läget står i `apps/utskick/README.md`; här bara det
 som rör Flamingo:
 
-- Menyn visar Kontakter och Utskick efter Kampanjer bara när byrån
-  aktiverat utskick för kunden (`utskick.nav.nav_for`, kundkortet
-  `#utskick`). Sidorna ligger under `app/kontakter/` och `app/utskick/` och
+- Menyn visar Sms och e-post (utskicken och kontakterna som flikar) efter
+  Annonser bara när byrån aktiverat utskick för kunden (`app_nav.main_nav`,
+  kundkortet `#utskick`). Sidorna ligger under `app/kontakter/` och `app/utskick/` och
   går genom `utskick.access.utskick_view` (Flamingos `app_view` plus kravet
   att utskick är på, annars 404).
 - Inställningarnas rubrik heter "Inloggningar hos <kunden>": i Flamingo

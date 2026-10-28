@@ -12,7 +12,7 @@ flamingo-app-campaigns.css och en allmän text utan stöd. Kontext: se
 app_views/campaigns.campaign_detail.
 {% endcomment %}
 {% block app_title %}{{ campaign.name }}{% endblock %}
-{% block app_content %}
+{% block app_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
     <p class="fl-kicker"><a class="fl-camp-crumb" href="{% url 'flamingo:app_campaigns' %}">Kampanjer</a> / {{ campaign.service.name }}</p>
@@ -29,6 +29,8 @@ app_views/campaigns.campaign_detail.
   </div>
   {% endif %}
 </header>
+{% endblock %}
+{% block app_content %}
 
 {% if campaign.status == "in_review" %}
 <p class="fl-notice"><span>ADX granskar förslaget. Du kan ändra det igen när granskningen är klar, och inget publiceras utan ditt godkännande.</span></p>

@@ -33,7 +33,7 @@ from django.http import Http404
 from django.test import Client, SimpleTestCase, TestCase, override_settings
 from django.urls import resolve, reverse
 
-from . import access, dbfk, links, manage_views, nav, qr
+from . import access, dbfk, links, manage_views, qr
 from .models import (
     RESERVED_PUBLIC_SLUGS,
     Event,
@@ -337,20 +337,24 @@ class AppRouteTests(UtskickFixture, TestCase):
                 self.assertEqual(staff.get(reverse(name)).status_code, 200)
 
     def test_the_links_tab(self):
-        keys = [key for key, _name, _label in nav.UTSKICK_TABS]
-        self.assertEqual(keys, ["utskick", "links", "health", "settings"])
-        html = self.client.get(reverse("flamingo:app_links")).content.decode()
-        self.assertIn('<summary class="fl-subnav__summary">Utskick: Länkar</summary>', html)
-        html = self.client.get(reverse("flamingo:app_utskick_snippet")).content.decode()
-        self.assertIn('<summary class="fl-subnav__summary">Utskick: Inställningar</summary>', html)
+        # Menyn med sex punkter (apps/flamingo/app_nav.py): Länkar och QR är en
+        # flik i Sms och e-post, Spårningsskriptet hör till Företaget > Inställningar.
+        response = self.client.get(reverse("flamingo:app_links"))
+        self.assertEqual(
+            (response.context["app_active"], response.context["app_tab"]), ("messaging", "links")
+        )
+        self.assertContains(response, ">Länkar och QR</a>")
+        response = self.client.get(reverse("flamingo:app_utskick_snippet"))
+        self.assertEqual(
+            (response.context["app_active"], response.context["app_tab"]), ("business", "settings")
+        )
 
     def test_segments_live_under_listor(self):
         response = self.client.get(reverse("flamingo:app_segment_new"))
-        self.assertEqual(response.context["app_active"], "contacts")
-        self.assertIn(
-            '<summary class="fl-subnav__summary">Kontakter: Listor</summary>',
-            response.content.decode(),
+        self.assertEqual(
+            (response.context["app_active"], response.context["app_tab"]), ("messaging", "lists")
         )
+        self.assertContains(response, f'href="{reverse("flamingo:app_lists")}" aria-current="page"')
 
 
 @override_settings(**LINK_SETTINGS)

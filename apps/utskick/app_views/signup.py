@@ -198,4 +198,4 @@ def signup_settings(request, account):
         "kanaler": _channel_rows(request, account, sida),
         "kanaler_visade": CHANNELS_SHOWN,
     }
-    return render_contacts(request, TEMPLATE, "signup", context)
+    return render_contacts(request, TEMPLATE, "messaging/contacts", context)

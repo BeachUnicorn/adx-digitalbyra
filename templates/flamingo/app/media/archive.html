@@ -17,10 +17,10 @@ fokus; utan skript står webbläsarens fält kvar, med knappen Ladda upp.
 {% endcomment %}
 {% block app_title %}Media{% endblock %}
 {% block app_head %}<link rel="stylesheet" href="{% static 'css/flamingo-app-media.css' %}?v={{ static_version }}">{% endblock %}
-{% block app_content %}
+{% block app_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
-    <p class="fl-kicker">Media</p>
+    <p class="fl-kicker">Företaget</p>
     <h1 class="fl-app-title">Mediaarkivet</h1>
     <p class="fl-app-lead">Logotypen och bilderna som dina sidor använder. Vi gör dem lätta för mobilen: WebP, högst 2&nbsp;400 pixlar på längsta sidan.</p>
   </div>
@@ -28,6 +28,8 @@ fokus; utan skript står webbläsarens fält kvar, med knappen Ladda upp.
     <span class="fl-md-count{% if full %} is-full{% endif %}">{{ count }} av {{ limit }} bilder</span>
   </div>
 </header>
+{% endblock %}
+{% block app_content %}
 
 <nav class="fl-tabs fl-md-tabs" aria-label="Visa bilderna">
   {% for key, label, n in tabs %}

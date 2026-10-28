@@ -144,7 +144,7 @@ def _render(request, account, now, form=None, errors=None, status=200):
     return render_utskick(
         request,
         "flamingo/app/utskick/domain.html",
-        "settings",
+        "business/settings",
         _context(request, account, now, form, errors),
         status=status,
     )
@@ -402,6 +402,6 @@ def reply_confirm(request, account, token):
     return render_utskick(
         request,
         "flamingo/app/utskick/reply_confirm.html",
-        "settings",
+        "business/settings",
         {"valid": valid, "address": address, "token": token, "bad_text": CONFIRM_BAD_TEXT},
     )

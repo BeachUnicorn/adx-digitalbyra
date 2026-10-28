@@ -166,6 +166,8 @@
    ========================================================================== */
 @media (max-width:900px){
   .fl-kt-card{grid-template-columns:minmax(0,1fr);grid-template-areas:"side" "main"}
+  /* Ovanför verktygets meny, som ligger fast längst ner (flamingo-app.css). */
+  .fl-kt-bulkbar.is-active{bottom:calc(84px + env(safe-area-inset-bottom))}
 }
 
 /* ==========================================================================
@@ -211,7 +213,7 @@
   .fl-kt-filters__actions{width:100%}
   .fl-kt-filters__actions .fl-btn{flex:1 1 auto}
   .fl-kt-bulkbar{padding:12px}
-  .fl-kt-bulkbar.is-active{bottom:8px}
+  .fl-kt-bulkbar.is-active{bottom:calc(80px + env(safe-area-inset-bottom))}
   .fl-kt-bulkbar__controls,.fl-kt-bulkbar__opt{width:100%}
   .fl-kt-bulkbar__controls .fl-kt-select,.fl-kt-bulkbar__controls .fl-btn{flex:1 1 100%;width:100%}
   .fl-kt-proof__list > div{grid-template-columns:minmax(0,1fr)}

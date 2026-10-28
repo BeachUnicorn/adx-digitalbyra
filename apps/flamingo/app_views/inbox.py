@@ -24,7 +24,9 @@ activity_at (senaste svaret), kortet visar "Klar" för ett hanterat svar och
 början av senaste svaret, och förfrågans sida visar tråden
 (flamingo/app/utskick/_thread.html) med svarsrutan. När utskick är på för
 kontot blir statuschipsen en rad med typer och antal (Alla, Förfrågningar,
-Sms-svar, Avregistreringar; ?typ=) och statusen ett val med en Visa-knapp.
+Svar på sms, Svar på mejl, Avregistreringar; ?typ=) och statusen ett val
+med en Visa-knapp. Inkorgen är alltså en lista för förfrågningar och svar
+på kundens sms och mejl (menyn med sex punkter, app_nav.py).
 Utan utskick är listan som förut.
 """
 
@@ -62,12 +64,15 @@ FILTERS = (
 _PAID = ("cpc", "ppc", "paid", "paidsearch", "sem")
 
 #: Typerna i chipsraden när utskick är på (?typ=): (värde, rubrik). Tomt =
-#: allt utom skräp. E-postsvar visas bara när det finns några (S3).
+#: allt utom skräp. Rubrikerna är menyns (mockups/flamingo-meny.html,
+#: 2026-10-28); värdena i adressen är desamma som förut. Svar på mejl visas
+#: när e-posten finns för kontot eller när det finns sådana svar,
+#: Avregistreringar bara när det finns några (_shown_type).
 TYPES = (
     ("", "Alla"),
     ("forfragningar", "Förfrågningar"),
-    ("sms-svar", "Sms-svar"),
-    ("e-postsvar", "E-postsvar"),
+    ("sms-svar", "Svar på sms"),
+    ("e-postsvar", "Svar på mejl"),
     ("avregistreringar", "Avregistreringar"),
 )
 #: Statusvalet under chipsen när utskick är på.
@@ -94,6 +99,19 @@ def _type_filter(value):
         "e-postsvar": reply & Q(reply_thread__channel=CHANNEL_EMAIL) & ~stop,
         "avregistreringar": reply & stop,
     }.get(value, Q())
+
+
+def _shown_type(account, value, count, kind):
+    """Syns chipset? Alla, Förfrågningar och Svar på sms alltid; Svar på
+    mejl när e-posten finns för kontot (ingen obyggd funktion i produkten);
+    Avregistreringar när det finns några. Ett valt chip syns alltid."""
+    if count or value == kind:
+        return True
+    if value == "e-postsvar":
+        from apps.utskick.sending import state
+
+        return account.is_demo or state.email_live()
+    return value != "avregistreringar"
 
 
 def _utskick_on(account):
@@ -278,7 +296,7 @@ def lead_list(request, account):
                 "active": value == kind,
             }
             for value, label in TYPES
-            if value != "e-postsvar" or type_counts[value] or kind == value
+            if _shown_type(account, value, type_counts[value or "alla"], kind)
         ]
 
     queryset = _base_queryset(account).order_by("-activity_at", "-id")

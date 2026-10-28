@@ -1,32 +1,62 @@
 {% extends "flamingo/app/base.html" %}
 {% load static %}
 {% comment %}
-Inställningarna: sms till kunden vid ny förfrågan och autosvaret till den som
-frågar. Båda är av från början, och inget sms går iväg förrän ADX kopplat in
-sms-tjänsten (sms_configured). Kontext från app_views/onboarding.settings_view:
-form (SettingsForm), sms_configured, sms_length, sms_count, autoreply_max,
-contacts. Teckenräknaren uppdateras av static/js/flamingo-app-onboarding.js.
+Företaget > Inställningar: allt som styr Flamingo på ett ställe (beslut
+2026-10-28, mockups/flamingo-meny.html). Delarna har ankare och en
+hopprad överst (sections, [(ankare, rubrik)]):
+
+  #aviseringar      sms till kunden vid ny förfrågan och autosvaret till
+                    den som frågar. Båda är av från början, och inget sms
+                    går iväg förrän ADX kopplat in sms-tjänsten
+                    (sms_configured). Formuläret postar hit.
+  #kontakter        Inställningar för kontakter (kontakter/_settings.html),
+                    postar till app_contacts_settings.
+  #utskick          Inställningar för utskick (utskick/_settings.html),
+                    postar till app_utskick_settings.
+  #sparningsskript  Spårningsskriptet (utskick/_settings_snippet.html).
+  #inloggningar     de som kan logga in.
+
+De tre i mitten finns bara med utskick på (utskick_on). Kontext från
+app_views/onboarding.render_settings: form (SettingsForm), sms_configured,
+sms_length, sms_count, autoreply_max, contacts, sections, utskick_on, och
+delarnas egna (se respektive mall). Teckenräknaren uppdateras av
+static/js/flamingo-app-onboarding.js, Kopiera av flamingo-app-kontakter.js.
 {% endcomment %}
 {% block app_title %}Inställningar{% endblock %}
-{% block app_content %}
+{% block app_head %}
+{% if utskick_on %}
+<link rel="stylesheet" href="{% static 'css/flamingo-app-kontakter.css' %}?v={{ static_version }}">
+{% include "flamingo/app/utskick/_head.html" %}
+{% endif %}
+{% endblock %}
+{% block app_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
-    <p class="fl-kicker">Inställningar</p>
-    <h1 class="fl-app-title">Sms och autosvar</h1>
-    <p class="fl-app-lead">Det här styr vad som händer när en förfrågan kommer in. Allt är avstängt tills du slår på det.</p>
+    <p class="fl-kicker">Företaget</p>
+    <h1 class="fl-app-title">Inställningar</h1>
+    <p class="fl-app-lead">Det som styr vad som händer när en förfrågan kommer in{% if utskick_on %}, hur dina sms och mejl skickas{% endif %} och vem som kan logga in.</p>
   </div>
 </header>
+{% endblock %}
+{% block app_content %}
+{% if sections|length > 2 %}
+<nav class="fl-set-jump" aria-label="Delar på sidan">
+  {% for anchor, label in sections %}<a class="fl-set-jump__link" href="#{{ anchor }}">{{ label }}</a>{% endfor %}
+</nav>
+{% endif %}
 
+<section class="fl-set-group" id="aviseringar" aria-labelledby="fl-set-aviseringar">
+<h2 class="fl-set-group__title" id="fl-set-aviseringar">Aviseringar och autosvar</h2>
 {% if sms_configured %}
 <p class="fl-notice fl-notice--ok"><span>Sms-tjänsten är inkopplad. Sms skickas bara för det du slagit på här.</span></p>
 {% else %}
 <p class="fl-notice fl-notice--warn"><span><b>Sms är inte inkopplat än.</b> ADX behöver slå på sms-tjänsten först. Fram till dess skickas inga sms, även om du slår på dem här. Dina val sparas och gäller när tjänsten är på.</span></p>
 {% endif %}
 
-<form method="post" class="fl-form">
+<form method="post" class="fl-form" action="{% url 'flamingo:app_settings' %}">
   {% csrf_token %}
   <section class="fl-panel" aria-labelledby="fl-onb-sms-me">
-    <h2 class="fl-panel__title" id="fl-onb-sms-me">Sms till dig</h2>
+    <h3 class="fl-panel__title" id="fl-onb-sms-me">Sms till dig</h3>
     <p class="fl-panel__text">Ett sms till din mobil när en ny förfrågan kommer in, med namn, telefon och vad det gäller.</p>
     <div class="fl-field{% if form.notify_phone.errors %} is-error{% endif %}">
       <label class="fl-field__label" for="fl-onb-phone">Din mobil</label>
@@ -37,7 +67,7 @@ contacts. Teckenräknaren uppdateras av static/js/flamingo-app-onboarding.js.
   </section>
 
   <section class="fl-panel" aria-labelledby="fl-onb-autoreply">
-    <h2 class="fl-panel__title" id="fl-onb-autoreply">Autosvar till den som frågar</h2>
+    <h3 class="fl-panel__title" id="fl-onb-autoreply">Autosvar till den som frågar</h3>
     <p class="fl-panel__text">Den som skickar en förfrågan via din sida får ett kvitto med sms. Texten är din egen; ingen AI skriver till dina kunder.</p>
     <label class="fl-check"><input type="checkbox" name="autoreply_enabled" value="1"{% if form.autoreply_enabled.value %} checked{% endif %}{% if read_only %} disabled{% endif %}><span>Skicka autosvar med sms</span></label>
     <div class="fl-field{% if form.autoreply_text.errors %} is-error{% endif %}">
@@ -61,25 +91,44 @@ contacts. Teckenräknaren uppdateras av static/js/flamingo-app-onboarding.js.
   </div>
 </form>
 
-<section class="fl-panel" aria-labelledby="fl-onb-contacts">
-  <div class="fl-panel__head">
-    <h2 class="fl-panel__title" id="fl-onb-contacts">Inloggningar hos {{ customer.name }}</h2>
+</section>
+
+{% if utskick_on %}
+<section class="fl-set-group" id="kontakter" aria-labelledby="fl-set-kontakter">
+  <h2 class="fl-set-group__title" id="fl-set-kontakter">Kontakter</h2>
+  {% include "flamingo/app/kontakter/_settings.html" %}
+</section>
+
+<section class="fl-set-group" id="utskick" aria-labelledby="fl-set-utskick">
+  <h2 class="fl-set-group__title" id="fl-set-utskick">Sms och e-post</h2>
+  {% include "flamingo/app/utskick/_settings.html" %}
+</section>
+
+<section class="fl-set-group" id="sparningsskript" aria-labelledby="fl-set-skript">
+  <h2 class="fl-set-group__title" id="fl-set-skript">Spårningsskript</h2>
+  {% include "flamingo/app/utskick/_settings_snippet.html" %}
+</section>
+{% endif %}
+
+<section class="fl-set-group" id="inloggningar" aria-labelledby="fl-set-logins">
+  <h2 class="fl-set-group__title" id="fl-set-logins">Inloggningar hos {{ customer.name }}</h2>
+  <div class="fl-panel">
+    <p class="fl-panel__note">De som kan logga in. Hör av dig till ADX om någon ska läggas till eller tas bort.</p>
+    {% if contacts %}
+    <ul class="fl-list">
+      {% for contact in contacts %}
+      <li class="fl-list__item">
+        <div class="fl-list__main">
+          <span class="fl-list__title">{{ contact.get_full_name|default:contact.email|default:contact.username }}</span>
+          {% if contact.email and contact.get_full_name %}<span class="fl-list__meta">{{ contact.email }}</span>{% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="fl-panel__text">Ingen kan logga in än.</p>
+    {% endif %}
   </div>
-  <p class="fl-panel__note">De som kan logga in. Hör av dig till ADX om någon ska läggas till eller tas bort.</p>
-  {% if contacts %}
-  <ul class="fl-list">
-    {% for contact in contacts %}
-    <li class="fl-list__item">
-      <div class="fl-list__main">
-        <span class="fl-list__title">{{ contact.get_full_name|default:contact.email|default:contact.username }}</span>
-        {% if contact.email and contact.get_full_name %}<span class="fl-list__meta">{{ contact.email }}</span>{% endif %}
-      </div>
-    </li>
-    {% endfor %}
-  </ul>
-  {% else %}
-  <p class="fl-panel__text">Ingen kan logga in än.</p>
-  {% endif %}
 </section>
 {% endblock %}
-{% block extra_js %}<script src="{% static 'js/flamingo-app-onboarding.js' %}?v={{ static_version }}" defer></script>{% endblock %}
+{% block extra_js %}<script src="{% static 'js/flamingo-app-onboarding.js' %}?v={{ static_version }}" defer></script>{% if utskick_on %}<script src="{% static 'js/flamingo-app-kontakter.js' %}?v={{ static_version }}" defer></script>{% endif %}{% endblock %}

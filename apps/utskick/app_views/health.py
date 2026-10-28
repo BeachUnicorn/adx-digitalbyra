@@ -172,4 +172,4 @@ def utskick_health(request, account):
         "domain": summary,
         "rows": event_rows(account, now),
     }
-    return render_utskick(request, "flamingo/app/utskick/health.html", "health", context)
+    return render_utskick(request, "flamingo/app/utskick/health.html", "messaging/health", context)

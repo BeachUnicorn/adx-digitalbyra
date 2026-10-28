@@ -1,6 +1,11 @@
 """
 Inställningar för kontakter (README I.9, raderna markerade S1, och H.5).
 
+Sedan menyn med sex punkter (2026-10-28, apps/flamingo/app_nav.py) är det
+en del av den samlade sidan under Företaget > Inställningar
+(flamingo:app_settings, #kontakter): settings_context ger delens kontext,
+contacts_settings tar emot formuläret.
+
 Läses: företagsnamnet i utskick och adressen för anmälan (byrån sätter
 dem: "Be ADX ändra det."), biträdesavtalet ("Godkänt av ... · Visa"),
 senast exporterad och hur många kontakter som ryms.
@@ -25,7 +30,6 @@ from apps.common.security import normalize_typography
 from .. import capture, optin
 from ..access import can_collect, collect_block_reason, dpa_ok, latest_acceptance, utskick_view
 from ..models import Contact, ExportLog, UtskickSettings
-from . import render_contacts
 from .contacts import date_text, export_text, group
 from .dpa import who_accepted
 
@@ -129,18 +133,38 @@ def _dpa_text(account):
     return text
 
 
+#: Inställningarna för kontakter är en del av den samlade sidan under
+#: Företaget > Inställningar (flamingo:app_settings, ankaret #kontakter).
+SETTINGS_ANCHOR = "#kontakter"
+
+
 @utskick_view
 def contacts_settings(request, account):
+    """Inställningar för kontakter. Delen ritas på den samlade sidan under
+    Företaget > Inställningar (flamingo:app_settings); adressen finns kvar
+    för formuläret och för gamla länkar: GET skickar dit, till #kontakter,
+    och ett formulär med fel visas där med felen kvar."""
     row = request.utskick_settings
-    if request.method == "POST":
-        form = ContactSettingsForm(request.POST, instance=row)
-        if form.is_valid():
-            saved = form.save(commit=False)
-            saved.save(update_fields=[*EDITABLE, "updated_at"])
-            messages.success(request, "Inställningarna är sparade.")
-            return redirect("flamingo:app_contacts_settings")
-    else:
-        form = ContactSettingsForm(instance=row)
+    page = redirect(reverse("flamingo:app_settings") + SETTINGS_ANCHOR)
+    if request.method != "POST":
+        return page
+    form = ContactSettingsForm(request.POST, instance=row)
+    if form.is_valid():
+        saved = form.save(commit=False)
+        saved.save(update_fields=[*EDITABLE, "updated_at"])
+        messages.success(request, "Inställningarna är sparade.")
+        return page
+    from apps.flamingo.app_views.onboarding import render_settings
+
+    return render_settings(request, account, contacts_form=form)
+
+
+def settings_context(request, account, row, form=None):
+    """Kontexten för delen Kontakter på den samlade inställningssidan
+    (templates/flamingo/app/kontakter/_settings.html). form är ett postat
+    formulär med fel, annars ett nytt. Formuläret heter kt_form i
+    kontexten (flamingo-delen har redan ett form)."""
+    form = form or ContactSettingsForm(instance=row)
     privacy_ok = capture.privacy_available(account, row)
     # Den genererade sidan visas bara när den finns (ingen egen policy och
     # tillräckliga uppgifter under Företaget).
@@ -155,8 +179,8 @@ def contacts_settings(request, account):
         .order_by("-at", "-pk")
         .first()
     )
-    context = {
-        "form": form,
+    return {
+        "kt_form": form,
         "signup_url": _public_url(request, "utskick_public:signup", row.public_slug),
         "privacy_page_url": privacy_page_url,
         "privacy_ok": privacy_ok,
@@ -169,4 +193,3 @@ def contacts_settings(request, account):
         "contact_count": group(count),
         "contact_limit": group(row.contact_limit),
     }
-    return render_contacts(request, "flamingo/app/kontakter/settings.html", "settings", context)

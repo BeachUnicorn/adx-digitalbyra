@@ -15,7 +15,8 @@ testsändningen och Inställningar för utskick.
     utskick_report       utskick/<pk>/                  app_utskick
     utskick_recipients   utskick/<pk>/mottagare/        app_utskick_recipients
     utskick_save_list    utskick/<pk>/mottagare/lista/  app_utskick_save_list
-    utskick_settings     utskick/installningar/         app_utskick_settings
+    utskick_settings     utskick/installningar/ (POST)  app_utskick_settings
+                         (GET: till Företaget > Inställningar, #utskick)
 
 Steg: mottagare, kanal, innehall, tid, granska (STEPS, i ordning). S3
 (redigerar-byggaren, märkta block): e-postens kanaler på Kanal (låsta tills
@@ -489,7 +490,7 @@ def _base_context(request, account, utskick, step=None):
     name = _display_name(request)
     context = {
         "utskick": utskick,
-        "ut_nav": None,
+        "show_tabs": False,
         "is_staff_actor": actor.staff,
         "staff_text": STAFF_TEXT.format(name=name),
         "display_name": name,
@@ -603,7 +604,7 @@ def utskick_list(request, account):
         "any_utskick": Utskick.objects.listed().filter(account=account).exists(),
         "usage_line": _usage_line(account, sms, now),
     }
-    return render_utskick(request, "flamingo/app/utskick/list.html", "utskick", context)
+    return render_utskick(request, "flamingo/app/utskick/list.html", "messaging/sent", context)
 
 
 def _sending_numbers(utskick):
@@ -622,10 +623,21 @@ def _sent_q():
     return Q(status__in=(*Recipient.SENT_LIKE, Recipient.Status.FAILED))
 
 
+#: Kanalen i Nytt sms och Nytt mejl (utskick_new, ?kanal= i formuläret).
+NEW_CHANNELS = {
+    "sms": Utskick.ChannelMode.SMS_ONLY,
+    "e-post": Utskick.ChannelMode.EMAIL_ONLY,
+}
+
+
 @utskick_view
 @require_POST
 def utskick_new(request, account):
-    """Ett nytt utkast (bara sms i S2), sedan guidens första steg."""
+    """Ett nytt utkast, sedan guidens första steg. Nytt sms och Nytt mejl
+    (flamingo/app/_tabs.html) skickar kanal=sms eller kanal=e-post och får
+    den kanalen förvald (NEW_CHANNELS); utan kanal väljs den som förut
+    (initial_mode). En förvald kanal som är låst för kontot byts på steget
+    Kanal mot den första som går (shown_mode), som för vilket utkast som helst."""
     now = timezone.now()
     local = _local(now)
     name = clean_name(request.POST.get("namn"), 120) or (
@@ -636,7 +648,7 @@ def utskick_new(request, account):
         account=account,
         name=name,
         purpose=REKLAM,
-        channel_mode=initial_mode(account),
+        channel_mode=NEW_CHANNELS.get(request.POST.get("kanal") or "") or initial_mode(account),
         sms_sender_kind=Utskick.SenderKind.REPLY,
         send_mode=Utskick.SendMode.NOW,
         created_by=user,
@@ -735,7 +747,9 @@ def _step_mottagare(request, account, utskick):
             "empty": audience.is_empty(utskick),
         }
     )
-    return render_utskick(request, "flamingo/app/utskick/step_mottagare.html", "utskick", context)
+    return render_utskick(
+        request, "flamingo/app/utskick/step_mottagare.html", "messaging/sent", context
+    )
 
 
 # --- Steg 2: Kanal ----------------------------------------------------------
@@ -950,7 +964,9 @@ def _step_kanal(request, account, utskick):
             },
         }
     )
-    return render_utskick(request, "flamingo/app/utskick/step_kanal.html", "utskick", context)
+    return render_utskick(
+        request, "flamingo/app/utskick/step_kanal.html", "messaging/sent", context
+    )
 
 
 # --- Steg 3: Innehåll -------------------------------------------------------
@@ -1351,7 +1367,9 @@ def _step_innehall(request, account, utskick):
             "sample_link": links.sms_link(composer.SAMPLE_CODE),
         }
     )
-    return render_utskick(request, "flamingo/app/utskick/step_innehall.html", "utskick", context)
+    return render_utskick(
+        request, "flamingo/app/utskick/step_innehall.html", "messaging/sent", context
+    )
 
 
 # --- Steg 4: Tid ------------------------------------------------------------
@@ -1416,7 +1434,7 @@ def _step_tid(request, account, utskick):
             "uses_email": state.uses_email(utskick),
         }
     )
-    return render_utskick(request, "flamingo/app/utskick/step_tid.html", "utskick", context)
+    return render_utskick(request, "flamingo/app/utskick/step_tid.html", "messaging/sent", context)
 
 
 def _window_info(row, when, now):
@@ -1785,7 +1803,9 @@ def _step_granska(request, account, utskick):
 
         context["brev"] = brev.card_context(request, account, utskick)
     # --- slut S3 ---
-    return render_utskick(request, "flamingo/app/utskick/step_review.html", "utskick", context)
+    return render_utskick(
+        request, "flamingo/app/utskick/step_review.html", "messaging/sent", context
+    )
 
 
 def _sender_text(sender):
@@ -2696,7 +2716,7 @@ def utskick_report(request, account, pk):
     context = _base_context(request, account, utskick)
     context.update(
         {
-            "ut_nav": None,
+            "show_tabs": False,
             "numbers": numbers,
             "status_label": label,
             "status_tone": tone,
@@ -2733,7 +2753,7 @@ def utskick_report(request, account, pk):
 
     context.update(report_context(request, account, utskick, numbers, now))
     # --- slut S4
-    return render_utskick(request, "flamingo/app/utskick/report.html", "utskick", context)
+    return render_utskick(request, "flamingo/app/utskick/report.html", "messaging/sent", context)
 
 
 #: Mottagarsidan utan rader, per vy (?visa=).
@@ -2820,7 +2840,9 @@ def utskick_recipients(request, account, pk):
     # --- S4 (rapport-byggaren): kanalens chips och fler vyer (I.8) ---
     context.update(recipients_s4_context(utskick, view, channel))
     # --- slut S4
-    return render_utskick(request, "flamingo/app/utskick/recipients.html", "utskick", context)
+    return render_utskick(
+        request, "flamingo/app/utskick/recipients.html", "messaging/sent", context
+    )
 
 
 # --- S4 (rapport-byggaren): mottagarsidans kanal och vyer (I.8) ---
@@ -2944,36 +2966,59 @@ def _settings_errors(post):
     return errors, window, caps
 
 
+#: Inställningarna för utskick är en del av den samlade sidan under
+#: Företaget > Inställningar (flamingo:app_settings, ankaret #utskick).
+SETTINGS_ANCHOR = "#utskick"
+
+
+def _settings_page():
+    return redirect(reverse("flamingo:app_settings") + SETTINGS_ANCHOR)
+
+
 @utskick_view
 def utskick_settings(request, account):
+    """Inställningar för utskick. Delen ritas på den samlade sidan under
+    Företaget > Inställningar (flamingo:app_settings); adressen finns kvar
+    för formuläret och för gamla länkar: GET skickar dit, till #utskick, och
+    ett formulär med fel visas där med felen kvar."""
     row = request.utskick_settings
     now = timezone.now()
-    errors = {}
-    if request.method == "POST":
-        if request.POST.get("action") == "be_om_tak":
-            _ask_adx(request, account, None, "tak")
-            return redirect("flamingo:app_utskick_settings")
-        errors, window, caps = _settings_errors(request.POST)
-        # --- S3 (redigerar-byggaren): Spåra öppningar (I.9, H.5) ---
-        tracking = request.POST.get("open_tracking") == "1"
-        consent_email = row.consent_text_email
-        if tracking != row.open_tracking:
-            consent_email, why = tracking_consent_text(row.consent_text_email, tracking)
-            if why:
-                errors["open_tracking"] = why
-        # --- slut S3 ---
-        if not errors:
-            UtskickSettings.objects.filter(pk=row.pk).update(
-                sms_window=window,
-                notify_on_reply=request.POST.get("notify_on_reply") == "1",
-                updated_at=now,
-                # S3 (redigerar-byggaren): Spåra öppningar och samtyckestexten.
-                open_tracking=tracking,
-                consent_text_email=consent_email,
-                **caps,
-            )
-            messages.success(request, "Inställningarna är sparade.")
-            return redirect("flamingo:app_utskick_settings")
+    if request.method != "POST":
+        return _settings_page()
+    if request.POST.get("action") == "be_om_tak":
+        _ask_adx(request, account, None, "tak")
+        return _settings_page()
+    errors, window, caps = _settings_errors(request.POST)
+    # --- S3 (redigerar-byggaren): Spåra öppningar (I.9, H.5) ---
+    tracking = request.POST.get("open_tracking") == "1"
+    consent_email = row.consent_text_email
+    if tracking != row.open_tracking:
+        consent_email, why = tracking_consent_text(row.consent_text_email, tracking)
+        if why:
+            errors["open_tracking"] = why
+    # --- slut S3 ---
+    if not errors:
+        UtskickSettings.objects.filter(pk=row.pk).update(
+            sms_window=window,
+            notify_on_reply=request.POST.get("notify_on_reply") == "1",
+            updated_at=now,
+            # S3 (redigerar-byggaren): Spåra öppningar och samtyckestexten.
+            open_tracking=tracking,
+            consent_text_email=consent_email,
+            **caps,
+        )
+        messages.success(request, "Inställningarna är sparade.")
+        return _settings_page()
+    from apps.flamingo.app_views.onboarding import render_settings
+
+    return render_settings(request, account, utskick_errors=errors)
+
+
+def settings_context(request, account, row, errors, now=None):
+    """Kontexten för delen Utskick på den samlade inställningssidan
+    (templates/flamingo/app/utskick/_settings.html). errors är felen ur
+    ett postat formulär ({} annars): då visas de postade värdena."""
+    now = now or timezone.now()
     sms = _sms_state(account)
     usage = pricing.usage(sms["account"], now) if sms["account"] is not None else None
     window = row.sms_window if isinstance(row.sms_window, dict) else {}
@@ -3061,7 +3106,7 @@ def utskick_settings(request, account):
         "snippet_row": _snippet_row(account, now),
         # --- slut S4 ---
     }
-    return render_utskick(request, "flamingo/app/utskick/settings.html", "settings", context)
+    return context
 
 
 # --- S4 (länk-byggaren): raden Spårningsskript i Inställningar (I.9, E.6) ---

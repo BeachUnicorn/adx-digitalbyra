@@ -130,7 +130,7 @@ def media_archive(request, account):
     return render_app(
         request,
         "flamingo/app/media/archive.html",
-        "media",
+        "business/media",
         {
             "tab": tab,
             "tabs": [(key, label, counts[key]) for key, label in TABS],

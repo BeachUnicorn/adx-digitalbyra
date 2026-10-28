@@ -19,7 +19,7 @@ inte att välja (texten säger varför). S4: QR-koden (app_signup_qr) under Adre
 {% block kt_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
-    <p class="fl-kicker">{{ customer.name }}</p>
+    <p class="fl-kicker"><a class="fl-kt-crumb" href="{% url 'flamingo:app_contacts' %}">Kontakter</a></p>
     <h1 class="fl-app-title">Anmälan</h1>
   </div>
 </header>

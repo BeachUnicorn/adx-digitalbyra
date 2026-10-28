@@ -132,7 +132,7 @@ def list_index(request, account):
     context["segments"] = list(Segment.objects.filter(account=account).order_by("name", "pk"))
     context["segments_full"] = len(context["segments"]) >= Segment.MAX_PER_ACCOUNT
     # --- slut S4
-    return render_contacts(request, "flamingo/app/kontakter/lists.html", "lists", context)
+    return render_contacts(request, "flamingo/app/kontakter/lists.html", "messaging/lists", context)
 
 
 def _list_rename(request, account, target):
@@ -195,4 +195,6 @@ def list_detail(request, account, pk):
         "created_text": date_text(target.created_at),
         "contacts_url": f"{reverse('flamingo:app_contacts')}?lista={target.pk}",
     }
-    return render_contacts(request, "flamingo/app/kontakter/list_detail.html", "lists", context)
+    return render_contacts(
+        request, "flamingo/app/kontakter/list_detail.html", "messaging/lists", context
+    )

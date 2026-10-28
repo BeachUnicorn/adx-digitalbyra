@@ -121,9 +121,21 @@
 /* ---------- Google (kundresan 05) ---------- */
 .fl-onb-tl-btn{align-self:flex-start;margin-top:8px}
 
-/* ---------- Inställningarna ---------- */
+/* ---------- Inställningarna ----------
+   Den samlade sidan under Företaget > Inställningar (onboarding/settings.html):
+   en hopprad med delarna och en <section class="fl-set-group" id="..."> per
+   del, med delens rubrik (h2) och rutorna (h3) under. */
 .fl-onb-labelrow{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:4px 12px}
 .fl-onb-phone{max-width:320px}
+.fl-set-jump{display:flex;flex-wrap:wrap;gap:8px}
+.fl-set-jump__link{
+  display:inline-flex;align-items:center;min-height:44px;padding:8px 14px;border:1px solid var(--fl-line);
+  border-radius:999px;background:var(--fl-white);color:var(--fl-ink);font-size:16px;line-height:1.3;text-decoration:none;
+}
+.fl-set-jump__link:hover{border-color:var(--fl-ink);color:var(--fl-ink)}
+.fl-set-group{display:flex;flex-direction:column;gap:16px;min-width:0;scroll-margin-top:16px}
+.fl-set-group + .fl-set-group{margin-top:12px;padding-top:24px;border-top:1px solid var(--fl-soft)}
+.fl-set-group__title{font-size:24px;font-weight:600;letter-spacing:-.03em;line-height:1.2}
 
 /* ---------- Telefon ---------- */
 @media (max-width:560px){

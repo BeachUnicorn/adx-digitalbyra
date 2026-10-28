@@ -11,6 +11,10 @@ Varje vy i verktyget skrivs så här:
         return render_app(request, "flamingo/app/inbox/list.html", "inbox", {"leads": leads})
 
     @app_view
+    def google(request, account):
+        return render_app(request, "flamingo/app/onboarding/google.html", "ads/google")
+
+    @app_view
     def lead_detail(request, account, pk):
         lead = get_object_or_404(Lead, pk=pk, account=account)
 
@@ -24,8 +28,11 @@ Varje vy i verktyget skrivs så här:
 - Byrån i kundvyn ser och gör det kunden ser och gör; det sparas i byråns
   namn. Bara utkastförhandsvisningen i /manage/ är skrivskyddad: grinden
   skickar då tillbaka en POST och mallarna döljer knappar med {{ read_only }}.
-- render_app lägger på sidomenyns kontext (app_context). Ingen
+- render_app lägger på menyns kontext (app_context). Ingen
   kontextprocessor: bara verktygets sidor betalar för frågorna.
+- Det tredje argumentet är sidnyckeln: delen i menyn och fliken under
+  rubriken ("inbox", "ads/google", "messaging/contacts"), se
+  apps/flamingo/app_nav.py. Delen blir app_active, fliken app_tab.
 """
 
 from functools import wraps
@@ -33,26 +40,17 @@ from functools import wraps
 from django.db.models import Count, Q
 from django.shortcuts import render
 
-from apps.utskick.nav import nav_for
 from apps.website.models import SiteSettings
 
+from .. import app_nav
 from ..access import CONTACT
 from ..models import Campaign, FlamingoAccount, Lead
 from ..rules import onboarding_for
 from ..views import flamingo_pages, flamingo_required
 
-#: Sidomenyns punkter i ordning: (app_active, url-namn, rubrik). Standarden;
-#: ett konto med utskick får Kontakter efter Kampanjer (apps.utskick.nav).
-APP_NAV = (
-    ("overview", "flamingo:app", "Översikt"),
-    ("inbox", "flamingo:app_inbox", "Inkorg"),
-    ("campaigns", "flamingo:app_campaigns", "Kampanjer"),
-    ("pages", "flamingo:app_pages", "Sidor"),
-    ("media", "flamingo:app_media", "Media"),
-    ("business", "flamingo:app_business", "Företaget"),
-    ("google", "flamingo:app_google", "Google"),
-    ("settings", "flamingo:app_settings", "Inställningar"),
-)
+#: Menyns sex punkter i ordning: (app_active, url-namn, rubrik). Ett konto
+#: utan utskick ser fem (Sms och e-post saknas), se app_nav.main_nav.
+APP_NAV = tuple((item.key, item.url_name, item.label) for item in app_nav.MAIN_NAV)
 
 
 def app_view(view):
@@ -97,17 +95,25 @@ def _shell_context(request):
 
 
 def app_context(request, active):
-    """Kontexten varje sida i verktyget behöver: sidomenyn, kunden och
-    kontot, antal nya förfrågningar och var i kom-igång-stegen kunden är.
+    """Kontexten varje sida i verktyget behöver: menyn och flikraden, kunden
+    och kontot, antal nya förfrågningar och var i kom-igång-stegen kunden är.
 
-    active är sidomenyns punkt (se APP_NAV): "overview", "inbox", ..."""
+    active är sidnyckeln (app_nav.PAGE_KEYS): "overview", "inbox",
+    "ads/google" ... Delen blir app_active, fliken app_tab."""
+    section, tab = app_nav.split_key(active)
     account = getattr(request, "flamingo_account", None)
     context = _shell_context(request)
+    tabs = app_nav.section_tabs(section, tab, account)
     context.update(
         {
             "account": account,
-            "app_active": active,
-            "app_nav": nav_for(account),
+            "app_active": section,
+            "app_tab": tab,
+            "app_nav": app_nav.main_nav(account),
+            "app_tabs": tabs,
+            "app_section_label": app_nav.section_label(section),
+            # Sidor som guidens steg och rapporten sätter den till False.
+            "show_tabs": bool(tabs),
             "new_lead_count": (
                 account.leads.filter(status=Lead.STATUS_NEW).count() if account else 0
             ),
@@ -117,11 +123,26 @@ def app_context(request, active):
             "show_steps": False,
         }
     )
+    if section == "messaging" and account is not None:
+        context["new_buttons"] = _new_buttons(account, tabs, request.path)
     return context
 
 
+def _new_buttons(account, tabs, path):
+    """Nytt sms och Nytt mejl överst i Sms och e-post (mockupen), på varje
+    fliks första sida. Nytt mejl syns när e-posten finns för kontot
+    (demot har allt); Nytt sms alltid, som Nytt utskick förut: guidens steg
+    Kanal säger vad som saknas."""
+    if not any(t["url"] == path for t in tabs):
+        return None
+    from apps.utskick.sending import state
+
+    return {"sms": True, "email": account.is_demo or state.email_live()}
+
+
 def render_app(request, template, active, context=None, status=200):
-    """render() med app_context(request, active) under vyns egen kontext."""
+    """render() med app_context(request, active) under vyns egen kontext.
+    active är sidnyckeln (app_nav.PAGE_KEYS)."""
     merged = app_context(request, active)
     merged.update(context or {})
     return render(request, template, merged, status=status)

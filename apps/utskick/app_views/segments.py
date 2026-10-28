@@ -646,7 +646,7 @@ def _render(
         ),
     }
     return render_contacts(
-        request, "flamingo/app/kontakter/segment.html", "lists", context, status=status
+        request, "flamingo/app/kontakter/segment.html", "messaging/lists", context, status=status
     )
 
 

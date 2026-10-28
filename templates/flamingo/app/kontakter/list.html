@@ -18,13 +18,16 @@ hör till åtgärden; utan skript syns allt och fungerar ändå.
 {% block kt_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
-    <p class="fl-kicker">{{ customer.name }}</p>
+    <p class="fl-kicker">Sms och e-post</p>
     <h1 class="fl-app-title">Kontakter</h1>
     {% if total %}<p class="fl-app-lead">{{ total|tal }} {% if total == 1 %}kontakt{% else %}kontakter{% endif %} · {{ sms_ok|tal }} kan få sms · {{ email_ok|tal }} kan få e-post</p>{% endif %}
   </div>
   <div class="fl-app-head__actions">
     {% if total %}<a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_contacts_export' %}{% if filters.active %}?{{ filters.query }}{% endif %}">Exportera</a>{% endif %}
     <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_import' %}">Importera</a>
+    {# Fält och Anmälan hade egna flikar före menyn med sex punkter (app_nav.py). #}
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_fields' %}">Extrafält</a>
+    <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_signup' %}">Anmälan</a>
     <a class="fl-btn fl-btn--sm" href="{% url 'flamingo:app_contact_new' %}">Lägg till kontakt</a>
   </div>
 </header>

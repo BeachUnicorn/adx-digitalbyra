@@ -84,13 +84,17 @@ class ListTests(InboxFixture, TestCase):
     def test_one_chip_row_with_counts_and_a_status_select(self):
         response = self.app.get(reverse("flamingo:app_inbox"))
         types = {t["value"]: t["count"] for t in response.context["types"]}
-        self.assertEqual(types, {"": 2, "forfragningar": 1, "sms-svar": 1, "avregistreringar": 0})
+        # Svar på mejl syns först när e-posten finns, Avregistreringar när det
+        # finns några (menyn med sex punkter, 2026-10-28).
+        self.assertEqual(types, {"": 2, "forfragningar": 1, "sms-svar": 1})
+        labels = [t["label"] for t in response.context["types"]]
+        self.assertEqual(labels, ["Alla", "Förfrågningar", "Svar på sms"])
         html = response.content.decode()
         self.assertIn("?typ=sms-svar", html)
         self.assertIn('name="status"', html)
         self.assertIn(">Visa</button>", html)
         self.assertNotIn('aria-label="Visa förfrågningar med status"', html)
-        self.assertNotIn("E-postsvar", html, "inga e-postsvar i S2: chipset visas inte")
+        self.assertNotIn("Svar på mejl", html, "inga e-postsvar i S2: chipset visas inte")
 
     def test_without_utskick_the_inbox_is_unchanged(self):
         UtskickSettings.objects.filter(account=self.account).update(is_enabled=False)

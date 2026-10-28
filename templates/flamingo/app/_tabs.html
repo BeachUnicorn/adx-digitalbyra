@@ -1,0 +1,30 @@
+{% comment %}
+Flikraden under rubriken i delar med flikar (app_nav.SECTION_TABS), med
+Nytt sms och Nytt mejl överst i Sms och e-post. Kontext från
+app_views.app_context: app_tabs ([{"key", "url", "label", "current"}]),
+app_section_label, new_buttons ({"sms", "email"} på en fliks första sida,
+annars None), read_only.
+
+Flikarna är vanliga länkar i en .fl-tabs-rad. I bred skärm radbryts raden;
+under 560 px rullar den i sidled inne i raden (aldrig sidan), och
+flamingo-app-nav.js rullar fram den aktiva fliken. Varje flik är minst 44 px
+hög. Nytt sms och Nytt mejl skapar ett utkast med kanalen förvald
+(utskick_new, kanal=sms eller kanal=e-post) och öppnar guiden.
+{% endcomment %}
+{% if new_buttons and not read_only %}
+<div class="fl-app-new">
+  <form method="post" action="{% url 'flamingo:app_utskick_new' %}">
+    {% csrf_token %}<input type="hidden" name="kanal" value="sms">
+    <button type="submit" class="fl-btn fl-app-new__btn">Nytt sms</button>
+  </form>
+  {% if new_buttons.email %}
+  <form method="post" action="{% url 'flamingo:app_utskick_new' %}">
+    {% csrf_token %}<input type="hidden" name="kanal" value="e-post">
+    <button type="submit" class="fl-btn fl-app-new__btn">Nytt mejl</button>
+  </form>
+  {% endif %}
+</div>
+{% endif %}
+<nav class="fl-tabs fl-app-tabs" aria-label="{{ app_section_label }}" data-fl-tabs>
+  {% for tab in app_tabs %}<a class="fl-tabs__tab fl-app-tabs__tab" href="{{ tab.url }}"{% if tab.current %} aria-current="page"{% endif %}>{{ tab.label }}</a>{% endfor %}
+</nav>

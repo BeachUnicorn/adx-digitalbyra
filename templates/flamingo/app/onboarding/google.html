@@ -10,14 +10,16 @@ för hand; läget här är det som senast lästes från Google. Betalningen
 stoppar inte kampanjerna. Kunden loggar aldrig in hos Google genom oss.
 {% endcomment %}
 {% block app_title %}Google{% endblock %}
-{% block app_content %}
+{% block app_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
-    <p class="fl-kicker">Google</p>
+    <p class="fl-kicker">Annonser</p>
     <h1 class="fl-app-title">Ditt konto. Ditt kort. Vi sköter resten.</h1>
     <p class="fl-app-lead">Annonserna går i ett Google Ads-konto som är ditt. Du betalar annonserna direkt till Google med ditt eget kort, och ADX ser aldrig kortet. Vi kopplar kontot under ADX:s förvaltarkonto och sköter kampanjerna därifrån.</p>
   </div>
 </header>
+{% endblock %}
+{% block app_content %}
 
 {% if adx_note %}
 <p class="fl-notice fl-notice--info"><span><b>Från ADX:</b> {{ adx_note }}</span></p>

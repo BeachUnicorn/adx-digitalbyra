@@ -196,7 +196,7 @@ def _render(request, account, **extra):
     return render_app(
         request,
         "flamingo/app/reviews/reviews.html",
-        "business",
+        "business/details",
         _context(request, account, **extra),
     )
 

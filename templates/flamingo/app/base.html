@@ -1,14 +1,19 @@
 {% extends "flamingo/base.html" %}
 {% load static %}
 {% comment %}
-Verktygets skal: sidomenyn till vänster (en rad med flikar under 900 px),
-innehållet till höger. Kontexten kommer från app_views.app_context():
-customer, account, app_active, app_nav, new_lead_count, onboarding,
-show_steps, read_only, is_contact, flamingo, flamingo_nav, site_settings.
+Verktygets skal: menyn med sex punkter till vänster (under 900 px en fast
+rad längst ner med ikon och rubrik), innehållet till höger. Kontexten kommer
+från app_views.app_context(): customer, account, app_active, app_tab,
+app_nav (app_nav.NavItem), app_tabs, show_tabs, new_buttons,
+new_lead_count, onboarding, show_steps, read_only, is_contact, flamingo,
+flamingo_nav, site_settings. Menyn och flikarna: apps/flamingo/app_nav.py.
 
-Sidorna fyller {% block app_content %} och sätter rubriken i app_title.
-Gemensamma komponenter finns i flamingo-app.css; varje del lägger bara sitt
-eget i sin fil (flamingo-app-onboarding/-campaigns/-inbox.css).
+Sidorna sätter rubriken i app_title, sidhuvudet (.fl-app-head) i
+{% block app_header %} och resten i {% block app_content %}. Flikraden
+(_tabs.html) ritas mellan dem i delar som har flikar (Annonser, Sms och
+e-post, Företaget). Gemensamma komponenter finns i flamingo-app.css; varje
+del lägger bara sitt eget i sin fil (flamingo-app-onboarding/-campaigns/
+-inbox.css).
 {% endcomment %}
 {% block title %}{% block app_title %}Verktyget{% endblock %} - ADX Flamingo{% endblock %}
 {% block extra_head %}
@@ -16,6 +21,7 @@ eget i sin fil (flamingo-app-onboarding/-campaigns/-inbox.css).
 <link rel="stylesheet" href="{% static 'css/flamingo-app-onboarding.css' %}?v={{ static_version }}">
 <link rel="stylesheet" href="{% static 'css/flamingo-app-campaigns.css' %}?v={{ static_version }}">
 <link rel="stylesheet" href="{% static 'css/flamingo-app-inbox.css' %}?v={{ static_version }}">
+<script src="{% static 'js/flamingo-app-nav.js' %}?v={{ static_version }}" defer></script>
 {% block app_head %}{% endblock %}
 {% endblock %}
 {% block content %}
@@ -41,11 +47,11 @@ eget i sin fil (flamingo-app-onboarding/-campaigns/-inbox.css).
     {% endif %}
     {% if customer %}
     <nav class="fl-app-nav" aria-label="Verktygets delar">
-      {% for key, url_name, label in app_nav %}
-      {% url url_name as nav_url %}
-      <a class="fl-app-nav__link" href="{{ nav_url }}"{% if app_active == key %} aria-current="page"{% endif %}>
-        <span>{{ label }}</span>
-        {% if key == "inbox" and new_lead_count %}<span class="fl-app-nav__badge" aria-label="{{ new_lead_count }} nya">{{ new_lead_count }}</span>{% endif %}
+      {% for item in app_nav %}
+      <a class="fl-app-nav__link" href="{{ item.url }}"{% if app_active == item.key %} aria-current="page"{% endif %}>
+        {% include "flamingo/app/_nav_icon.html" with icon=item.icon %}
+        <span class="fl-app-nav__label">{{ item.label_html }}</span>
+        {% if item.key == "inbox" and new_lead_count %}<span class="fl-app-nav__badge" aria-label="{{ new_lead_count }} nya">{{ new_lead_count }}</span>{% endif %}
       </a>
       {% endfor %}
     </nav>
@@ -80,6 +86,8 @@ eget i sin fil (flamingo-app-onboarding/-campaigns/-inbox.css).
     </nav>
     {% endif %}
 
+    {% block app_header %}{% endblock %}
+    {% if show_tabs %}{% include "flamingo/app/_tabs.html" %}{% endif %}
     {% block app_content %}{% endblock %}
   </div>
 </div>

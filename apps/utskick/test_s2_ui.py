@@ -76,7 +76,8 @@ BODY = "Hej {förnamn|du}, dags för service hos Exempelrör. Boka: {länk:boka}
 ROUTES = [
     ("flamingo:app_utskick_list", False, "get"),
     ("flamingo:app_utskick_new", False, "post"),
-    ("flamingo:app_utskick_settings", False, "get"),
+    # GET skickar till Företaget > Inställningar (#utskick), se SettingsTests.
+    ("flamingo:app_utskick_settings", False, "post"),
     ("flamingo:app_utskick", True, "get"),
     ("flamingo:app_utskick_count", True, "get"),
     ("flamingo:app_utskick_sms_preview", True, "get"),
@@ -217,7 +218,8 @@ class TenancyTests(UiFixture, TestCase):
                 with self.subTest(step=step):
                     response = client.get(self.step(self.own, step))
                     self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.context["app_active"], "utskick")
+                    self.assertEqual(response.context["app_active"], "messaging")
+                    self.assertEqual(response.context["app_tab"], "sent")
 
     def test_the_list_shows_only_the_accounts_utskick(self):
         self.foreign.name = "Hemligt utskick"
@@ -1025,12 +1027,18 @@ class TestSendTests(UiFixture, TestCase):
 
 class SettingsTests(UiFixture, TestCase):
     def test_the_s2_rows(self):
-        response = self.client.get(self.url("flamingo:app_utskick_settings"))
+        # Delen Sms och e-post på den samlade sidan under Företaget >
+        # Inställningar (menyn 2026-10-28); den gamla adressen skickar dit.
+        self.assertRedirects(
+            self.client.get(self.url("flamingo:app_utskick_settings")),
+            self.url("flamingo:app_settings") + "#utskick",
+        )
+        response = self.client.get(self.url("flamingo:app_settings"))
         self.assertContains(response, "0766 86 00 46 · delas av alla ADX-kunder")
         self.assertContains(response, "Exempelror · godkända av ADX")
         self.assertContains(response, "Be ADX ändra taket")
         self.assertContains(response, "gemensamt med sms-API:t")
-        self.assertEqual(response.context["ut_nav"]["current_label"], "Inställningar")
+        self.assertEqual(response.context["app_tab"], "settings")
 
     def test_window_caps_and_notice_are_saved_within_bounds(self):
         url = self.url("flamingo:app_utskick_settings")
@@ -1042,7 +1050,9 @@ class SettingsTests(UiFixture, TestCase):
             "weekly_cap_sms": "3",
             "weekly_cap_email": "5",
         }
-        self.assertRedirects(self.client.post(url, data), url)
+        self.assertRedirects(
+            self.client.post(url, data), self.url("flamingo:app_settings") + "#utskick"
+        )
         row = UtskickSettings.objects.get(account=self.account)
         self.assertEqual(row.sms_window, {"weekday": [8, 21], "weekend": [11, 16]})
         self.assertEqual((row.weekly_cap_sms, row.weekly_cap_email), (3, 5))
@@ -1059,7 +1069,7 @@ class SettingsTests(UiFixture, TestCase):
     def test_the_email_cap_is_hidden_until_email_is_live(self):
         """UX-granskningen: ingen obyggd funktion syns i produkten. Det sparade
         värdet följer med dolt, så att en sparning inte ändrar det."""
-        url = self.url("flamingo:app_utskick_settings")
+        url = self.url("flamingo:app_settings")
         UtskickSettings.objects.filter(account=self.account).update(weekly_cap_email=5)
         page = self.client.get(url)
         self.assertNotContains(page, "Reklammejl per vecka")
@@ -1201,7 +1211,6 @@ class GuardTests(TestCase):
             "step_review",
             "report",
             "recipients",
-            "settings",
         ):
             with self.subTest(template=name):
                 text = (TEMPLATES / f"{name}.html").read_text("utf-8")

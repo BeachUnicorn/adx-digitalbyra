@@ -518,7 +518,6 @@ class DemoContentTests(DemoFixture, TestCase):
             "flamingo:app_import",
             "flamingo:app_fields",
             "flamingo:app_signup",
-            "flamingo:app_contacts_settings",
             "flamingo:app_dpa",
             "flamingo:app_contacts_prune",
         ]
@@ -538,7 +537,19 @@ class DemoContentTests(DemoFixture, TestCase):
         # Utskick (S2, utskick-ui-byggaren): listan, inställningarna, varje
         # utskicks rapport och mottagare, och guidens steg för de som går
         # att ändra (de andra skickar till rapporten).
-        urls += [reverse("flamingo:app_utskick_list"), reverse("flamingo:app_utskick_settings")]
+        # Inställningarna för kontakter och utskick är delar av den samlade
+        # sidan (flamingo:app_settings ovan); de gamla adresserna skickar dit.
+        urls += [reverse("flamingo:app_utskick_list")]
+        for name, anchor in (
+            ("flamingo:app_contacts_settings", "#kontakter"),
+            ("flamingo:app_utskick_settings", "#utskick"),
+        ):
+            response = client.get(reverse(name))
+            self.assertRedirects(
+                response,
+                reverse("flamingo:app_settings") + anchor,
+                fetch_redirect_response=False,
+            )
         for utskick in self.account.utskick_set.all():
             urls += [
                 reverse("flamingo:app_utskick", args=[utskick.pk]),

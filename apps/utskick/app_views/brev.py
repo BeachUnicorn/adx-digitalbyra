@@ -708,7 +708,7 @@ def brev_editor(request, account, pk):
     picker = _picker(account, utskick)
     context = {
         "utskick": utskick,
-        "ut_nav": None,
+        "show_tabs": False,
         "canvas_html": canvas,
         "groups": groups,
         "picker": picker,
@@ -731,7 +731,9 @@ def brev_editor(request, account, pk):
         "scheduled": utskick.status == Utskick.Status.SCHEDULED,
         "unconfirm_text": UNCONFIRM_NOTE,
     }
-    return render_utskick(request, "flamingo/app/utskick/brev_editor.html", "utskick", context)
+    return render_utskick(
+        request, "flamingo/app/utskick/brev_editor.html", "messaging/sent", context
+    )
 
 
 # ---------------------------------------------------------------------------

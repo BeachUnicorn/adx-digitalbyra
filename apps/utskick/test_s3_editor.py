@@ -1056,8 +1056,10 @@ SETTINGS_FORM = {
 
 class SettingsRowTests(BrevFixture, TestCase):
     def test_the_email_rows_and_open_tracking(self):
+        # Delen Sms och e-post på Företaget > Inställningar; formuläret postar
+        # till sin gamla adress.
+        response = self.client.get(reverse("flamingo:app_settings"))
         url = reverse("flamingo:app_utskick_settings")
-        response = self.client.get(url)
         self.assertContains(response, "Avsändardomän")
         self.assertContains(response, "utskick.adx.se · 0 av 2")
         self.assertContains(response, "Använd din egen domän")

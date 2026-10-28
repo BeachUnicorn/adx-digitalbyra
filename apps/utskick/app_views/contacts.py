@@ -519,7 +519,9 @@ def contact_list(request, account):
         "bulk_max": BULK_MAX_IDS,
         "new_value": NEW,
     }
-    return render_contacts(request, "flamingo/app/kontakter/list.html", "contacts", context)
+    return render_contacts(
+        request, "flamingo/app/kontakter/list.html", "messaging/contacts", context
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -713,7 +715,9 @@ def _render_export(request, account, selection):
         ),
     }
     context.update(_export_state(account))
-    return render_contacts(request, "flamingo/app/kontakter/export.html", "contacts", context)
+    return render_contacts(
+        request, "flamingo/app/kontakter/export.html", "messaging/contacts", context
+    )
 
 
 EXPORT_HEADER = (
@@ -959,7 +963,9 @@ def contact_new(request, account):
             messages.success(request, f"{kontakt.display_name} är tillagd.")
             return redirect("flamingo:app_contact", pk=kontakt.pk)
     context = {"form": form, "kontakt": None, "kind_choices": Contact.Kind.choices}
-    return render_contacts(request, "flamingo/app/kontakter/form.html", "contacts", context)
+    return render_contacts(
+        request, "flamingo/app/kontakter/form.html", "messaging/contacts", context
+    )
 
 
 def _start_consent(request, kontakt, data, actor):
@@ -1012,7 +1018,9 @@ def contact_edit(request, account, pk):
     else:
         form = ContactForm(initial=_initial(kontakt), defs=defs, new=False)
     context = {"form": form, "kontakt": kontakt, "kind_choices": Contact.Kind.choices}
-    return render_contacts(request, "flamingo/app/kontakter/form.html", "contacts", context)
+    return render_contacts(
+        request, "flamingo/app/kontakter/form.html", "messaging/contacts", context
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1202,7 +1210,7 @@ def _render_detail(request, account, kontakt, consent_form=None, status=200, sms
     context.update(card_context(request, account, kontakt, sms))
     # --- slut S4
     return render_contacts(
-        request, "flamingo/app/kontakter/detail.html", "contacts", context, status=status
+        request, "flamingo/app/kontakter/detail.html", "messaging/contacts", context, status=status
     )
 
 
@@ -1332,7 +1340,9 @@ def _render_delete(request, account, kontakt=None, selection=None):
             else list_url(selection.filters)
         ),
     }
-    return render_contacts(request, "flamingo/app/kontakter/delete.html", "contacts", context)
+    return render_contacts(
+        request, "flamingo/app/kontakter/delete.html", "messaging/contacts", context
+    )
 
 
 def _delete_many(request, contacts, delete_leads=None, suppress=None):
@@ -1410,4 +1420,6 @@ def contacts_prune(request, account):
         "delete_max": DELETE_MAX,
         "over_max": count > DELETE_MAX,
     }
-    return render_contacts(request, "flamingo/app/kontakter/prune.html", "contacts", context)
+    return render_contacts(
+        request, "flamingo/app/kontakter/prune.html", "messaging/contacts", context
+    )

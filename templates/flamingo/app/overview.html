@@ -1,7 +1,9 @@
 {% extends "flamingo/app/base.html" %}
 {% load static flamingo_app %}
 {% comment %}
-Översikten (kundresan steg 12). Bara riktiga siffror: annonspengarna och
+Översikten (kundresan steg 12). Överst rutan Att göra (todo, rules.Todo):
+kundens saker (todo.mine, orange prick) och det som väntar på ADX
+(todo.adx, violett prick, "Du behöver inte göra något."). Bara riktiga siffror: annonspengarna och
 kronor per förfrågan/affär visas först när Google-rapporterna är kopplade
 (numbers.spend_kr är None tills kontot fått en rapport), och bandet ritas
 bara när det finns förfrågningar att rita. Klick på telefonnumret räknas
@@ -13,18 +15,32 @@ som förfrågningar.
   <img class="fl-ribbon fl-ov-hero__ribbon" src="{% static 'images/flamingo/ribbon.webp' %}" alt="" aria-hidden="true" width="1392" height="975" decoding="async">
   <div class="fl-ov-hero__in">
     <p class="fl-ov-hero__hello">{{ greeting }}</p>
-    <h1 class="fl-ov-hero__title" id="fl-ov-headline">{{ headline }} {{ things_headline }}</h1>
-    {% if things %}
-    <ul class="fl-things">
-      {% for thing in things %}
-      <li class="fl-thing">
-        <p class="fl-thing__text"><b>{{ thing.title }}.</b> {{ thing.text }}</p>
-        <a class="fl-btn fl-btn--sm{% if not forloop.first %} fl-btn--ghost{% endif %}" href="{{ thing.url }}">{{ thing.action }}</a>
-      </li>
-      {% endfor %}
-    </ul>
-    {% endif %}
+    <h1 class="fl-ov-hero__title" id="fl-ov-headline">{{ headline }} {{ todo.headline }}</h1>
   </div>
+</section>
+
+<section class="fl-panel fl-todo" aria-labelledby="fl-ov-todo">
+  <h2 class="fl-panel__title" id="fl-ov-todo">Att göra</h2>
+  {% if todo.mine or todo.adx %}
+  <ul class="fl-todo__list">
+    {% for thing in todo.mine %}
+    <li class="fl-todo__item">
+      <span class="fl-todo__dot" aria-hidden="true"></span>
+      <p class="fl-todo__text"><b>{{ thing.title }}</b> <span>{{ thing.text }}</span></p>
+      <a class="fl-btn fl-btn--sm{% if not forloop.first %} fl-btn--ghost{% endif %}" href="{{ thing.url }}">{{ thing.action }}</a>
+    </li>
+    {% endfor %}
+    {% for thing in todo.adx %}
+    <li class="fl-todo__item fl-todo__item--adx">
+      <span class="fl-todo__dot" aria-hidden="true"></span>
+      <p class="fl-todo__text"><b>{{ thing.title }}</b> <span>{{ thing.text }}</span></p>
+      <a class="fl-btn fl-btn--sm fl-btn--ghost" href="{{ thing.url }}">{{ thing.action }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="fl-panel__text">Inget väntar på dig just nu.</p>
+  {% endif %}
 </section>
 
 {% if show_steps and onboarding.next_step %}

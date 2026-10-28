@@ -1,5 +1,5 @@
 """
-Översiktens regler: kom-igång-stegen och "tre saker".
+Översiktens regler: kom-igång-stegen, "tre saker" och rutan Att göra.
 
 Rena funktioner över databasen, inga AI-anrop och inga påhittade siffror:
 varje sak bygger på rader som finns, och varje sak har en länk som gör den.
@@ -13,6 +13,13 @@ Ordningen är prioriteten (README, steg 12):
 
 Högst tre saker visas. Varje regel ger högst en sak (med antal när det är
 fler), så tre väntande förfrågningar tränger inte undan ett godkännande.
+
+Att göra (todo_for, menyn med sex punkter 2026-10-28) är översiktens första
+ruta: förfrågningar utan svar med den äldstas ålder, svar på kundens sms och
+mejl som ingen tagit hand om, det kunden själv ska göra (godkännanden,
+pausade utskick, kom-igång-stegen) och sist det som väntar på ADX
+(en kampanj under granskning eller som ADX publicerar, Google-kontot som
+ADX kopplar, länkar till nya webbplatser). Allt ur rader som redan finns.
 """
 
 from dataclasses import dataclass
@@ -332,8 +339,17 @@ def utskick_things(account, now):
     E.8): en sak per pausat utskick, en för värdarna. Bara när utskick är
     på för kontot. Kunden mejlas aldrig om en paus, så det här och
     rapportens ruta är signalen."""
+    things = utskick_paused_things(account, now)
+    host = utskick_hosts_thing(account)
+    if host is not None:
+        things.append(host)
+    return things
+
+
+def utskick_paused_things(account, now):
+    """En sak per pausat utskick (högst MAX_THINGS), bara med utskick på."""
     from apps.utskick.access import is_enabled
-    from apps.utskick.models import AllowedHost, Utskick
+    from apps.utskick.models import Utskick
 
     if not is_enabled(account):
         return []
@@ -354,27 +370,260 @@ def utskick_things(account, now):
                 action="Öppna",
             )
         )
+    return things
+
+
+def utskick_hosts_thing(account):
+    """Länkvärdar som väntar på ADX, som en sak, eller None. Bara med
+    utskick på."""
+    from apps.utskick.access import is_enabled
+    from apps.utskick.models import AllowedHost
+
+    if not is_enabled(account):
+        return None
     hosts = list(
         AllowedHost.objects.filter(account=account, status=AllowedHost.Status.PENDING)
         .order_by("requested_at", "pk")
         .values_list("host", flat=True)[:4]
     )
-    if hosts:
-        text = (
-            f"Länken till {hosts[0]} godkänns av ADX innan utskicket kan skickas."
-            if len(hosts) == 1
-            else "Länkar till nya webbplatser godkänns av ADX innan utskicken kan skickas."
+    if not hosts:
+        return None
+    text = (
+        f"Länken till {hosts[0]} godkänns av ADX innan utskicket kan skickas."
+        if len(hosts) == 1
+        else "Länkar till nya webbplatser godkänns av ADX innan utskicken kan skickas."
+    )
+    return Thing(
+        key="utskick_hosts",
+        title="Väntar på ADX:",
+        text=text,
+        url=reverse("flamingo:app_utskick_list"),
+        action="Visa",
+    )
+
+
+# --- Att göra (menyn med sex punkter, 2026-10-28) ---------------------------
+
+
+@dataclass(frozen=True)
+class Todo:
+    """Kundens saker (Thing) och det som väntar på ADX (Thing), i ordning."""
+
+    mine: tuple
+    adx: tuple
+
+    @property
+    def headline(self):
+        return things_headline(self.mine)
+
+
+def age_text(moment, now):
+    """Hur länge något har väntat: "under en timme", "3 timmar", "2 dagar"."""
+    delta = now - moment
+    minutes = int(delta.total_seconds() // 60)
+    if minutes < 60:
+        return "under en timme"
+    hours = minutes // 60
+    if hours < 24:
+        return count_word(hours, "timme", "timmar")
+    return count_word(hours // 24, "dag", "dagar")
+
+
+def _snippet(text, limit=60):
+    """Början av ett svar, kapad vid ett ord, med tre punkter."""
+    text = " ".join(str(text or "").split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0] or text[:limit]
+    return cut + "..."
+
+
+def unanswered_leads(account, now):
+    """Förfrågningar som fortfarande är "Ny" (inte svar på utskick), med
+    den äldstas ålder."""
+    leads = account.leads.filter(status=Lead.STATUS_NEW).exclude(source=Lead.SOURCE_REPLY)
+    count = leads.count()
+    if not count:
+        return None
+    oldest = (
+        leads.select_related("service", "campaign__service").order_by("created_at", "id").first()
+    )
+    about = f" om {oldest.service_name.lower()}" if oldest.service_name else ""
+    came = when_text(oldest.created_at, now)
+    waited = age_text(oldest.created_at, now)
+    if count == 1:
+        # En enda: vem det är och vad som ska göras ("Ring Anna L."), som
+        # waiting_leads. Ett klick på numret har ingen att svara.
+        if oldest.source == Lead.SOURCE_CALL_CLICK:
+            title = "Sätt status på ett klick på numret"
+            text = f"Någon tryckte på numret{about} {came}."
+        else:
+            title = f"{'Ring' if oldest.phone else 'Svara'} {oldest.display_name}"
+            text = f"Förfrågan{about} kom {came} och har väntat {waited}."
+        return Thing(
+            key="unanswered_leads",
+            title=title,
+            text=text,
+            url=reverse("flamingo:app_lead", args=[oldest.pk]),
+            action="Öppna",
         )
-        things.append(
+    text = f"Den äldsta kom {came} från {oldest.display_name}{about} och har väntat {waited}."
+    from apps.utskick.access import is_enabled
+
+    query = "?typ=forfragningar&status=new" if is_enabled(account) else "?status=new"
+    return Thing(
+        key="unanswered_leads",
+        title=f"{count} förfrågningar utan svar",
+        text=text,
+        url=reverse("flamingo:app_inbox") + query,
+        action="Visa",
+    )
+
+
+def unanswered_replies(account, now):
+    """Svar på kundens sms och mejl som är "Ny" (inte STOPP), bara med
+    utskick på: "2 svar på dina sms" med det äldsta svaret."""
+    from apps.utskick.access import is_enabled
+    from apps.utskick.models import CHANNEL_EMAIL, Thread
+
+    if not is_enabled(account):
+        return None
+    replies = (
+        account.leads.filter(status=Lead.STATUS_NEW, source=Lead.SOURCE_REPLY)
+        .exclude(reply_thread__kind=Thread.Kind.STOP)
+        .select_related("reply_thread__utskick")
+        .order_by("activity_at", "id")
+    )
+    rows = list(replies[:50])
+    if not rows:
+        return None
+    count = replies.count() if len(rows) == 50 else len(rows)
+    channels = {
+        getattr(getattr(lead, "reply_thread", None), "channel", "") == CHANNEL_EMAIL
+        for lead in rows
+    }
+    if channels == {True}:
+        what, kind = ("ditt mejl" if count == 1 else "dina mejl"), "e-postsvar"
+    elif channels == {False}:
+        what, kind = ("ditt sms" if count == 1 else "dina sms"), "sms-svar"
+    else:
+        what, kind = "dina sms och mejl", ""
+    oldest = rows[0]
+    thread = getattr(oldest, "reply_thread", None)
+    text = f"Från {oldest.display_name}"
+    if oldest.message:
+        text = f'"{_snippet(oldest.message)}" från {oldest.display_name}'
+    if thread is not None and thread.utskick is not None:
+        text += f", på utskicket {thread.utskick.name}"
+    text += "."
+    if count == 1:
+        url, action = reverse("flamingo:app_lead", args=[oldest.pk]), "Svara"
+    else:
+        query = f"?typ={kind}&status=new" if kind else "?status=new"
+        url, action = reverse("flamingo:app_inbox") + query, "Visa"
+    return Thing(
+        key="unanswered_replies",
+        title=f"{count} svar på {what}",
+        text=text,
+        url=url,
+        action=action,
+    )
+
+
+WAITING_TEXT = "Du behöver inte göra något."
+
+
+def adx_waiting(account, now):
+    """Det som väntar på ADX: kampanjer under granskning eller som ADX
+    publicerar, Google-kontot som ADX kopplar, och (med utskick) länkar
+    till nya webbplatser som ADX godkänner."""
+    out = []
+    review = list(
+        account.campaigns.filter(status=Campaign.STATUS_IN_REVIEW).order_by("updated_at", "id")[:2]
+    )
+    if review:
+        count = account.campaigns.filter(status=Campaign.STATUS_IN_REVIEW).count()
+        out.append(
             Thing(
-                key="utskick_hosts",
-                title="Väntar på ADX:",
-                text=text,
-                url=reverse("flamingo:app_utskick_list"),
+                key="adx_review",
+                title=(
+                    f"Kampanjen {review[0].name} granskas av ADX"
+                    if count == 1
+                    else f"{count} kampanjer granskas av ADX"
+                ),
+                text=WAITING_TEXT,
+                url=(
+                    reverse("flamingo:app_campaign", args=[review[0].pk])
+                    if count == 1
+                    else reverse("flamingo:app_campaigns")
+                ),
                 action="Visa",
             )
         )
-    return things
+    publish = account.campaigns.filter(
+        status=Campaign.STATUS_NEEDS_CUSTOMER, approved_at__isnull=False
+    ).order_by("approved_at", "id")
+    first = publish.first()
+    if first is not None:
+        count = publish.count()
+        out.append(
+            Thing(
+                key="adx_publish",
+                title=(
+                    f"ADX publicerar kampanjen {first.name}"
+                    if count == 1
+                    else f"ADX publicerar {count} kampanjer"
+                ),
+                text=WAITING_TEXT,
+                url=(
+                    reverse("flamingo:app_campaign", args=[first.pk])
+                    if count == 1
+                    else reverse("flamingo:app_campaigns")
+                ),
+                action="Visa",
+            )
+        )
+    if account.google_waiting_on_adx:
+        out.append(
+            Thing(
+                key="adx_google",
+                title="ADX kopplar ditt Google Ads-konto",
+                text=WAITING_TEXT,
+                url=reverse("flamingo:app_google"),
+                action="Visa",
+            )
+        )
+    host = utskick_hosts_thing(account)
+    if host is not None:
+        out.append(
+            Thing(
+                key="adx_hosts",
+                title="ADX godkänner nya länkar",
+                text=host.text,
+                url=host.url,
+                action=host.action,
+            )
+        )
+    return out
+
+
+def todo_for(account, now=None):
+    """Översiktens ruta Att göra (Todo). Kundens saker först: förfrågningar
+    och svar utan svar, sedan godkännanden, pausade utskick och
+    kom-igång-stegen (som i three_things, utan de regler rutans två första
+    rader redan täcker)."""
+    now = now or timezone.now()
+    mine = [
+        thing
+        for thing in (unanswered_leads(account, now), unanswered_replies(account, now))
+        if thing is not None
+    ]
+    mine.extend(utskick_paused_things(account, now))
+    thing = campaigns_waiting(account, now)
+    if thing is not None:
+        mine.append(thing)
+    mine.extend(onboarding_things(account, now))
+    return Todo(mine=tuple(mine), adx=tuple(adx_waiting(account, now)))
 
 
 def three_things(account, now=None):

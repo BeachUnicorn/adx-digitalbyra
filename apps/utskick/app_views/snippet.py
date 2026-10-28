@@ -182,5 +182,5 @@ def snippet_settings(request, account):
     }
     status = 400 if errors else 200
     return render_utskick(
-        request, "flamingo/app/utskick/snippet.html", "settings", context, status=status
+        request, "flamingo/app/utskick/snippet.html", "business/settings", context, status=status
     )

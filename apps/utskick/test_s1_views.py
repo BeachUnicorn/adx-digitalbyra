@@ -55,9 +55,11 @@ OWN_GET_ROUTES = (
     "app_lists",
     "app_list",
     "app_fields",
-    "app_contacts_settings",
     "app_dpa",
 )
+#: Sidor under Kontakter som hör till Företaget > Inställningar i menyn
+#: (apps/flamingo/app_nav.py); resten hör till Sms och e-post.
+SETTINGS_ROUTES = ("app_dpa",)
 
 
 def _routes():
@@ -219,16 +221,27 @@ class TenancyTests(ViewsFixture, TestCase):
                 with self.subTest(route=name):
                     response = client.get(url)
                     self.assertEqual(response.status_code, 200)
-                    self.assertEqual(response.context["app_active"], "contacts")
+                    self.assertEqual(
+                        response.context["app_active"],
+                        "business" if name in SETTINGS_ROUTES else "messaging",
+                    )
                     self.assertNotContains(response, "Hemlig")
+        # Inställningarna är en del av den samlade sidan.
+        self.assertRedirects(
+            self.client.get(self.url("app_contacts_settings")),
+            reverse("flamingo:app_settings") + "#kontakter",
+        )
 
-    def test_the_menu_shows_kontakter_only_when_utskick_is_on(self):
-        link = f'href="{reverse("flamingo:app_contacts")}"'
+    def test_the_menu_shows_sms_och_e_post_only_when_utskick_is_on(self):
+        # Menyn med sex punkter (apps/flamingo/app_nav.py): Kontakter är en
+        # flik i Sms och e-post.
+        link = f'href="{reverse("flamingo:app_utskick_list")}"'
         html = self.client.get(reverse("flamingo:app")).content.decode()
         self.assertIn(link, html)
         UtskickSettings.objects.filter(account=self.account).update(is_enabled=False)
         html = self.client.get(reverse("flamingo:app")).content.decode()
         self.assertNotIn(link, html)
+        self.assertNotIn(">Sms och e-post<", html)
         self.assertNotIn(">Kontakter<", html)
 
     def test_the_list_never_shows_another_accounts_contacts(self):
@@ -503,7 +516,7 @@ class ExportTests(ViewsFixture, TestCase):
         )
         log = ExportLog.objects.get()
         self.assertTrue(log.as_staff)
-        response = self.client.get(self.url("app_contacts_settings"))
+        response = self.client.get(reverse("flamingo:app_settings"))
         self.assertContains(response, "Senast exporterad av ADX")
 
 
@@ -736,7 +749,7 @@ class DpaTests(ViewsFixture, TestCase):
         self.assertEqual((acceptance.accepted_by, acceptance.accepted_as_staff), (self.anna, False))
         self.assertEqual(self.client.get(self.url("app_contact_new")).status_code, 200)
         self.assertContains(
-            self.client.get(self.url("app_contacts_settings")), "Godkänt av Anna Lindqvist"
+            self.client.get(reverse("flamingo:app_settings")), "Godkänt av Anna Lindqvist"
         )
 
     def test_staff_must_say_who_approved_and_how(self):
@@ -893,7 +906,8 @@ class SettingsTests(ViewsFixture, TestCase):
             self.url("app_contacts_settings"),
             self.data(display_name="Något annat", public_slug="annat", is_enabled=""),
         )
-        self.assertRedirects(response, self.url("app_contacts_settings"))
+        # Delen ligger på den samlade sidan under Företaget > Inställningar.
+        self.assertRedirects(response, reverse("flamingo:app_settings") + "#kontakter")
         row = UtskickSettings.objects.get(account=self.account)
         self.assertEqual(
             row.consent_text_email, "Ja, jag vill få nyheter från Exempelrör via e-post."
@@ -914,14 +928,14 @@ class SettingsTests(ViewsFixture, TestCase):
         self.assertContains(response, "Adressen ska börja med https://")
 
     def test_the_landing_page_boxes_say_why_they_are_off(self):
-        response = self.client.get(self.url("app_contacts_settings"))
+        response = self.client.get(reverse("flamingo:app_settings"))
         self.assertContains(response, "Ingen integritetstext finns än.")
         self.assertContains(response, "Fyll i organisationsnummer och kontaktuppgifter")
         self.client.post(
             self.url("app_contacts_settings"),
             self.data(privacy_url="https://exempelror.example/integritet"),
         )
-        response = self.client.get(self.url("app_contacts_settings"))
+        response = self.client.get(reverse("flamingo:app_settings"))
         self.assertContains(response, "Visas i formulären för sms.")
         # Varför e-post saknas, och vad kunden kan göra.
         self.assertContains(response, "bekräftelsemejlen är inte påslagna. Be ADX slå på dem.")
@@ -929,11 +943,11 @@ class SettingsTests(ViewsFixture, TestCase):
             self.url("app_contacts_settings"),
             self.data(privacy_url="https://exempelror.example/integritet", lp_consent=""),
         )
-        response = self.client.get(self.url("app_contacts_settings"))
+        response = self.client.get(reverse("flamingo:app_settings"))
         self.assertContains(response, "Av. Formulären på landningssidorna har inga kryssrutor.")
 
     def test_read_only_rows(self):
-        response = self.client.get(self.url("app_contacts_settings"))
+        response = self.client.get(reverse("flamingo:app_settings"))
         self.assertContains(response, "Exempelrör · Be ADX ändra det.")
         self.assertContains(response, "/utskick/exempelror/")
         self.assertContains(response, "Godkänt av Anna Lindqvist")
@@ -943,12 +957,15 @@ class SettingsTests(ViewsFixture, TestCase):
 class ReviewUxTests(ViewsFixture, TestCase):
     """Rättningarna efter UX-granskningen av S1."""
 
-    def test_the_sub_nav_summary_never_says_kontakter_twice(self):
+    def test_the_tab_row_marks_the_current_tab(self):
+        # Flikar under rubriken, aldrig en hopfälld lista (menyn 2026-10-28).
         html = self.client.get(self.url("app_contacts")).content.decode()
-        summary = re.search(r'<summary class="fl-subnav__summary">([^<]*)</summary>', html)
-        self.assertEqual(summary.group(1), "Kontakter")
+        self.assertNotIn("fl-subnav", html)
+        self.assertIn(f'href="{self.url("app_contacts")}" aria-current="page">Kontakter</a>', html)
         html = self.client.get(self.url("app_lists")).content.decode()
-        self.assertIn('<summary class="fl-subnav__summary">Kontakter: Listor</summary>', html)
+        self.assertIn(
+            f'href="{self.url("app_lists")}" aria-current="page">Listor och segment</a>', html
+        )
 
     def test_new_list_in_the_header_opens_the_form(self):
         html = self.client.get(self.url("app_lists")).content.decode()

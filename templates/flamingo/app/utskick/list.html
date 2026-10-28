@@ -5,25 +5,21 @@ Utskick: listan (README I.8). Kontext från app_views/utskick.utskick_list:
 rows (sidans utskick med ut_status, ut_tone, ut_audience, ut_numbers och
 ut_planned), page, visa (valt filter), filters ([(nyckel, rubrik)]),
 any_utskick, usage_line ("Oktober: 2 640 sms-delar · kostnad hittills ...").
+Sidan är delen Sms och e-post första sida (fliken Skickade); Nytt sms och
+Nytt mejl står ovanför flikraden (_tabs.html).
 
 Under 760 px blir tabellen kort (flamingo-app.css läser data-label). Tomma
-celler skrivs utan blanksteg, så att de döljs i kortläget. Nytt utskick är
-ett POST-formulär: utkastet skapas och guiden öppnas på Mottagare.
+celler skrivs utan blanksteg, så att de döljs i kortläget. Nytt sms och Nytt
+mejl är POST-formulär: utkastet skapas och guiden öppnas på Mottagare.
 {% endcomment %}
-{% block app_title %}Utskick{% endblock %}
+{% block app_title %}Sms och e-post{% endblock %}
 {% block ut_head %}{% include "flamingo/app/utskick/_head.html" %}{% endblock %}
 {% block ut_header %}
 <header class="fl-app-head">
   <div class="fl-app-head__text">
     <p class="fl-kicker">{{ customer.name }}</p>
-    <h1 class="fl-app-title">Utskick</h1>
-    {% if usage_line %}<p class="fl-app-lead">{{ usage_line }}</p>{% endif %}
-  </div>
-  <div class="fl-app-head__actions">
-    <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_new' %}">
-      {% csrf_token %}
-      <button type="submit" class="fl-btn fl-btn--sm">Nytt utskick</button>
-    </form>
+    <h1 class="fl-app-title">Sms och e-post</h1>
+    <p class="fl-app-lead">Skicka till dina kunder. Svaren hamnar i Inkorgen.{% if usage_line %} {{ usage_line }}{% endif %}</p>
   </div>
 </header>
 {% endblock %}
@@ -83,10 +79,7 @@ ett POST-formulär: utkastet skapas och guiden öppnas på Mottagare.
 <div class="fl-empty">
   <p class="fl-empty__title">Inga utskick än.</p>
   <p class="fl-empty__text">Ett utskick är ett sms till dina kontakter: ett erbjudande till de som sagt ja, eller information om en bokning eller ändrade öppettider. Du väljer mottagare, skriver texten och granskar allt innan något skickas.</p>
-  <form class="fl-ut-inline" method="post" action="{% url 'flamingo:app_utskick_new' %}">
-    {% csrf_token %}
-    <button type="submit" class="fl-btn fl-btn--sm">Nytt utskick</button>
-  </form>
+  {% if not read_only %}<p class="fl-empty__text">Börja med Nytt sms{% if new_buttons.email %} eller Nytt mejl{% endif %} ovanför.</p>{% endif %}
 </div>
 {% endif %}
 {% endblock %}

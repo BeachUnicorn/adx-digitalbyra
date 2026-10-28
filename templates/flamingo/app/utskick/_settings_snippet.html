@@ -1,0 +1,19 @@
+{% comment %}
+Delen Spårningsskript på den samlade inställningssidan (onboarding/settings.html,
+#sparningsskript; README I.9, E.6). snippet_row är site_snippet.summary:
+sites, text, label, tone. Skriptet hanteras på sin egen sida
+(app_utskick_snippet).
+{% endcomment %}
+<section class="fl-panel" aria-labelledby="ut-set-snippet">
+  <h3 class="fl-panel__title" id="ut-set-snippet">Din webbplats</h3>
+  <ul class="fl-list fl-ut-setrows">
+    <li class="fl-list__item">
+      <div class="fl-list__main">
+        <span class="fl-list__title">Spårningsskript på egen sajt</span>
+        <span class="fl-list__meta">{% if snippet_row.sites %}{{ snippet_row.text }}{% else %}En rad i webbplatsens sidhuvud visar hela besöket från en länk, utan kakor.{% endif %}</span>
+      </div>
+      {% if snippet_row.sites %}<span class="fl-ut-status fl-ut-status--{{ snippet_row.tone }}">{{ snippet_row.label }}</span>{% endif %}
+      <a class="fl-btn fl-btn--ghost fl-btn--sm" href="{% url 'flamingo:app_utskick_snippet' %}">{% if snippet_row.sites %}Hantera{% else %}Lägg in skriptet{% endif %}</a>
+    </li>
+  </ul>
+</section>
